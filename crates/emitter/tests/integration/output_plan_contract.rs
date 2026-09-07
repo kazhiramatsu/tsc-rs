@@ -457,7 +457,7 @@ fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
 }
 
 #[test]
-fn plan_declaration_paths_prefers_declaration_then_javascript_then_source() {
+fn plan_declaration_paths_forces_source_reference_targets_independently_of_emit() {
     let host = TestEmitHost::new(
         CompilerOptions {
             declaration: Some(true),
@@ -485,11 +485,11 @@ fn plan_declaration_paths_prefers_declaration_then_javascript_then_source() {
     );
     assert_eq!(
         paths.reference_target_path(source(1)),
-        Some(PathBuf::from("/project/dist/data.json"))
+        Some(PathBuf::from("/project/dist/data.d.json.ts"))
     );
     assert_eq!(
         paths.reference_target_path(source(2)),
-        Some(PathBuf::from("/project/src/not-emitted.ts"))
+        Some(PathBuf::from("/project/dist/not-emitted.d.ts"))
     );
 }
 
@@ -602,13 +602,6 @@ fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
             },
             "outFile",
         ),
-        (
-            CompilerOptions {
-                emit_declaration_only: Some(true),
-                ..CompilerOptions::default()
-            },
-            "emitDeclarationOnly",
-        ),
     ] {
         let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
         let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
@@ -628,6 +621,111 @@ fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
         );
         assert!(activity.counters().all_zero(), "{expected}: activity");
         assert!(sink.writes().is_empty(), "{expected}: sink writes");
+    }
+}
+
+#[test]
+fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
+    let declaration_options = [
+        CompilerOptions {
+            strip_internal: Some(true),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            isolated_declarations: Some(true),
+            declaration: Some(true),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            declaration_dir: Some(String::new()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            declaration: Some(true),
+            no_emit_on_error: Some(true),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            emit_declaration_only: Some(true),
+            ..CompilerOptions::default()
+        },
+    ];
+    for options in declaration_options {
+        let host = TestEmitHost::new(options, "/project", true, &[]);
+        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+        let mut activity = H2ActivityCanary::h2_7b_profile();
+        let mut sink = MemoryOutputSink::new();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            emit_files_with_activity(
+                &UnavailableEmitResolver,
+                &host,
+                preflight,
+                EmitSelection::WholeProgram,
+                &EmitDiagnosticGate::default(),
+                &mut sink,
+                &mut activity,
+            )
+        }));
+        let error = result.expect_err("a declaration option must require H2.7c admission");
+        assert!(error
+            .downcast_ref::<String>()
+            .unwrap()
+            .contains("unadmitted H2 runtime activity: H2.7c"));
+        assert!(activity.counters().all_zero());
+        assert!(sink.writes().is_empty());
+    }
+
+    let host = TestEmitHost::new(CompilerOptions::default(), "/project", true, &[]);
+    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut sink = MemoryOutputSink::new();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        tsc_emitter::emit_forced_declarations_with_activity(
+            &UnavailableEmitResolver,
+            &host,
+            EmitSelection::WholeProgram,
+            &mut sink,
+            &mut activity,
+        )
+    }));
+    let error = result.expect_err("even an empty forced request requires H2.7c admission");
+    assert!(error
+        .downcast_ref::<String>()
+        .unwrap()
+        .contains("unadmitted H2 runtime activity: H2.7c"));
+    assert!(activity.counters().all_zero());
+    assert!(sink.writes().is_empty());
+}
+
+#[test]
+fn legacy_javascript_option_requests_retain_h2_7b() {
+    for isolated_declarations in [false, true] {
+        let options = CompilerOptions {
+            strip_internal: Some(false),
+            isolated_declarations: Some(isolated_declarations),
+            no_emit_on_error: Some(true),
+            ..CompilerOptions::default()
+        };
+        let host = TestEmitHost::new(options, "/project", true, &[]);
+        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+        let mut activity = H2ActivityCanary::h2_7b_profile();
+        let mut sink = MemoryOutputSink::new();
+        let outcome = emit_files_with_activity(
+            &UnavailableEmitResolver,
+            &host,
+            preflight,
+            EmitSelection::WholeProgram,
+            &EmitDiagnosticGate::default(),
+            &mut sink,
+            &mut activity,
+        )
+        .unwrap();
+        assert_eq!(
+            outcome
+                .h2_activity()
+                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
+            0
+        );
+        assert!(sink.writes().is_empty());
     }
 }
 

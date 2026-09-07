@@ -4,6 +4,7 @@
 
 mod diagnostics;
 mod ensure;
+mod isolated;
 mod orchestration;
 mod paths;
 pub(crate) mod root;
@@ -25,6 +26,7 @@ use crate::{
 };
 
 pub(crate) use self::orchestration::emit_declaration_unit;
+pub use self::orchestration::get_declaration_diagnostics;
 pub use self::orchestration::{
     transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
     DeclBlockedInputs, DeclarationTransformOutcome,

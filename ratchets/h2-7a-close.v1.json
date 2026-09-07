@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "9899eb68a06bf4565d0bec231f703042c823a1cef6fa7f2cd90f40e99327462c"
+    "sha256": "6ef54d4fded4e29fb7696e7a5d635b04ab62905925836fbaf3e26fa2c2e25713"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
-    "sha256": "f94f13acd460829b5b161aeead1bd30f490293ad909815398487c25ceff7f71f"
+    "sha256": "565dad2632f44cc9e8bacba6166d0ee3082b7bc3d4cb01d57585c3f62881e0d0"
   },
   "inputs": {
     "owner_inventory": {
@@ -238,28 +238,13 @@
       "retained_arms": [
         {
           "name": "declarationMap",
-          "line": 112,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
-        },
-        {
-          "name": "emitDeclarationOnly",
-          "line": 114,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
-        },
-        {
-          "name": "stripInternal",
-          "line": 122,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "line": 134,
+          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
         },
         {
           "name": "composite",
-          "line": 124,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
-        },
-        {
-          "name": "declarationDir",
-          "line": 143,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "line": 140,
+          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -294,15 +279,15 @@
     }
   ],
   "transition_landing": {
-    "next_slice": "H2.7b",
-    "next_slice_scope": "non-bundle-declaration-output",
-    "next_runtime_activation_slice": "H2.7b",
+    "next_slice": "H2.7c",
+    "next_slice_scope": "declaration-diagnostics-and-options",
+    "next_runtime_activation_slice": "H2.7c",
     "completed_slice": "H2.5g",
-    "inactive_runtime_slice_count": 11,
-    "completed_runtime_slices": 25,
+    "inactive_runtime_slice_count": 10,
+    "completed_runtime_slices": 26,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 9196,
-    "executed_candidates": 9715,
+    "runtime_admissions": 10753,
+    "executed_candidates": 11272,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
@@ -317,5 +302,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "fac6107fb50218f6b0f1a066abbbcc6e5519dfcc9543f5cef83b8be97a8a40ba"
+  "close_fingerprint_sha256": "83289d0b63980d3ce0841aca4b13fc0899252b506f55609b3e028e88af95d0b6"
 }

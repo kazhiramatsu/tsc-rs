@@ -180,12 +180,13 @@ fn declaration_family_options_remain_typed_refusals() {
         },
         "declarationMap",
     );
-    assert_unsupported_option(
-        CompilerOptions {
-            emit_declaration_only: Some(true),
-            ..CompilerOptions::default()
-        },
-        "emitDeclarationOnly",
+    let declaration_only = control_host(CompilerOptions {
+        emit_declaration_only: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&declaration_only),
+        Ok(())
     );
     let combined = control_host(CompilerOptions {
         declaration: Some(true),
@@ -196,19 +197,13 @@ fn declaration_family_options_remain_typed_refusals() {
         tsc_emitter::validate_bootstrap_emit_request(&combined),
         Ok(())
     );
-    assert_unsupported_option(
-        CompilerOptions {
-            strip_internal: Some(true),
-            ..CompilerOptions::default()
-        },
-        "stripInternal",
-    );
-    assert_unsupported_option(
-        CompilerOptions {
-            declaration_dir: Some("/control/declarations".to_owned()),
-            ..CompilerOptions::default()
-        },
-        "declarationDir",
+    let strip_internal = control_host(CompilerOptions {
+        strip_internal: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&strip_internal),
+        Ok(()),
     );
     assert_unsupported_option(
         CompilerOptions {
@@ -226,7 +221,7 @@ fn declaration_family_options_remain_typed_refusals() {
 }
 
 #[test]
-fn h2_7b_has_one_profile_admission_and_five_production_constructors() {
+fn h2_7c_extends_the_h2_7b_admission_with_six_production_constructors() {
     let workspace = workspace();
     let activity = fs::read_to_string(workspace.join("crates/emitter/src/activity.rs"))
         .expect("read activity source");
@@ -239,13 +234,19 @@ fn h2_7b_has_one_profile_admission_and_five_production_constructors() {
         "pub const fn h2_7b_profile() -> Self {\n        let mut profile = Self::h2_6c_profile();"
     ));
 
+    assert_eq!(activity.matches("H2RuntimeSlice::H2_7c.index()").count(), 1);
+    assert!(activity.contains(
+        "pub const fn h2_7c_profile() -> Self {\n        let mut profile = Self::h2_7b_profile();"
+    ));
     let expected = BTreeSet::from([
+        "crates/compiler/src/declaration_diagnostics.rs:1".to_owned(),
         "crates/compiler/src/lib.rs:1".to_owned(),
         "crates/emitter/src/builtins.rs:2".to_owned(),
         "crates/emitter/src/execute.rs:2".to_owned(),
     ]);
     let mut actual = BTreeSet::new();
     for relative in [
+        "crates/compiler/src/declaration_diagnostics.rs",
         "crates/compiler/src/lib.rs",
         "crates/emitter/src/builtins.rs",
         "crates/emitter/src/execute.rs",
@@ -253,11 +254,12 @@ fn h2_7b_has_one_profile_admission_and_five_production_constructors() {
         let source = fs::read_to_string(workspace.join(relative)).expect("read production source");
         let count = source
             .lines()
-            .filter(|line| line.contains("H2ActivityCanary::h2_7b_profile()"))
+            .filter(|line| line.contains("H2ActivityCanary::h2_7c_profile()"))
             .count();
         actual.insert(format!("{relative}:{count}"));
         assert!(
-            !source.contains("H2ActivityCanary::h2_6c_profile()"),
+            !source.contains("H2ActivityCanary::h2_7b_profile()")
+                && !source.contains("H2ActivityCanary::h2_6c_profile()"),
             "legacy production profile call remains in {relative}"
         );
     }

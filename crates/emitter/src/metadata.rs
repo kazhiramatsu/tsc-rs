@@ -280,13 +280,14 @@ pub enum EmitConstantValue {
     Boolean(bool),
 }
 
-/// Full `getEnumMemberValue` observation. A member whose value is not
-/// statically known can still be syntactically string-valued, which controls
-/// whether the runtime transform emits a numeric reverse mapping.
+/// `getEnumMemberValue` facts consumed by the runtime and declaration
+/// transforms. Unknown but syntactically string-valued members suppress the
+/// numeric reverse mapping; external references drive isolated diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmitEnumMemberValue {
     value: Option<EmitConstantValue>,
     is_syntactically_string: bool,
+    has_external_references: bool,
 }
 
 /// Declaration ownership carried by a class expression synthesized by an
@@ -312,11 +313,20 @@ pub(crate) enum RelocatedTrailingCommentOwner {
 }
 
 impl EmitEnumMemberValue {
-    pub const fn new(value: Option<EmitConstantValue>, is_syntactically_string: bool) -> Self {
+    pub const fn new(
+        value: Option<EmitConstantValue>,
+        is_syntactically_string: bool,
+        has_external_references: bool,
+    ) -> Self {
         Self {
             value,
             is_syntactically_string,
+            has_external_references,
         }
+    }
+
+    pub const fn has_external_references(&self) -> bool {
+        self.has_external_references
     }
 
     pub const fn value(&self) -> Option<&EmitConstantValue> {

@@ -217,6 +217,34 @@ impl CheckerTrackerAccess<'_, '_> {
 }
 
 impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
+    fn is_entity_in_type_node(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.unavailable(None))?;
+        Ok(super::tracker_is_entity_in_type_node(self.checker, node))
+    }
+
+    fn accessor_declarations(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<tsc_emitter::EmitAccessorDeclarations, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.unavailable(None))?;
+        super::tracker_accessor_declarations(self.checker, node)
+            .ok_or_else(|| self.unavailable(None))
+    }
+
+    fn parent_node(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.unavailable(None))?;
+        Ok(self
+            .checker
+            .parent_of(node)
+            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+    }
+
     fn is_symbol_accessible(
         &mut self,
         symbol: EmitTrackerSymbol,

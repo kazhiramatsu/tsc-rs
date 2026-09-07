@@ -3,7 +3,7 @@ use tsc_types::ModifierFlags;
 
 use crate::{
     EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformationContext, UnsupportedEmitFeature,
+    TransformNode, TransformNodeArray, TransformationContext,
 };
 
 use super::diagnostics::{can_produce_diagnostics, effective_modifier_flags, DiagnosticContext};
@@ -200,9 +200,8 @@ impl DeclarationTransformer<'_> {
             && self.options.isolated_declarations == Some(true)
             && !current_source_is_js(cx, node.source())?
         {
-            return Err(TransformError::Unsupported(
-                UnsupportedEmitFeature::IsolatedDeclarations,
-            ));
+            self.tracker
+                .report_isolated_inference(super::tracker::TrackerAnchor::Transform(node));
         }
         let resolver_node = self.required_resolver_node(cx, node)?;
         let target = self.state()?.current_source_file;
@@ -507,16 +506,90 @@ impl DeclarationTransformer<'_> {
     /// tsc-span: _tsc.js:115760-115762
     pub(crate) fn should_strip_internal(
         &self,
-        _cx: &TransformationContext,
+        cx: &TransformationContext,
         node: Option<TransformNode>,
     ) -> Result<bool, TransformError> {
-        if self.options.strip_internal != Some(true) || node.is_none() {
+        if self.options.strip_internal != Some(true) {
             return Ok(false);
         }
-        Err(TransformError::UnsupportedCompilerOption {
-            option: "stripInternal",
-            detail: "H2.7c owns declaration internal-tag filtering",
-        })
+        let Some(node) = node else {
+            return Ok(false);
+        };
+        self.is_internal_declaration(cx, node)
+    }
+
+    /// tsc-port: isInternalDeclaration @6.0.3
+    /// tsc-hash: 7fdbd2e51d45123d55f9bb853fca15c01ed2e5617132b52c0123dec8185abf5a
+    /// tsc-span: _tsc.js:12601-12635
+    fn is_internal_declaration(
+        &self,
+        cx: &TransformationContext,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        use crate::printer::collect_source_comment_ranges;
+
+        let Some(parsed) = cx.arena().parse_tree_node(node)? else {
+            return Ok(false);
+        };
+        let record = cx.arena().node(parsed)?;
+        let source = cx
+            .arena()
+            .source(self.state()?.current_source_file)?
+            .syntax();
+        let text = source.text();
+        if record.kind == SyntaxKind::Parameter {
+            // This predicate is reached for constructor parameter properties.
+            // Read sibling identity from the parse tree, before declaration
+            // visitors synthesize the property and parameter output nodes.
+            let parent = self
+                .parent(cx, parsed)?
+                .ok_or_else(|| Self::contract("internal parameter has no parse-tree parent"))?;
+            let NodeData::Constructor(data) = &cx.arena().node(parent)?.data else {
+                return Err(Self::contract(
+                    "internal parameter property is not in a constructor",
+                ));
+            };
+            let parameters = data
+                .parameters
+                .and_then(|array| cx.arena().node_array_ref(parent.source(), array))
+                .ok_or_else(|| Self::contract("constructor lost its parameter list"))?;
+            let parameters = &cx.arena().node_array(parameters)?.nodes;
+            let index = parameters
+                .iter()
+                .position(|&id| id == parsed.node())
+                .ok_or_else(|| Self::contract("internal parameter is not in its parent list"))?;
+            let position = cx.arena().node(node)?.pos as usize;
+            let anchor = if index > 0 {
+                let previous = TransformNode::new(parsed.source(), parameters[index - 1]);
+                cx.arena().node(previous)?.end as usize + 1
+            } else {
+                position
+            };
+            // skipTrivia(..., stopAtComments=true): retain the comment at the
+            // anchor, including a comment on the preceding parameter's line.
+            let mut start = anchor;
+            while let Some(character) = text.get(start..).and_then(|s| s.chars().next()) {
+                if !tsc_syntax::is_whitespace_like(character) {
+                    break;
+                }
+                start += character.len_utf8();
+            }
+            let mut ranges = collect_source_comment_ranges(text, start, true);
+            if index > 0 {
+                ranges.extend(collect_source_comment_ranges(text, position, false));
+            }
+            return Ok(ranges
+                .last()
+                .is_some_and(|range| has_internal_annotation(text, range.start, range.end)));
+        }
+        if record.kind == SyntaxKind::JsxText {
+            return Ok(false);
+        }
+        Ok(
+            collect_source_comment_ranges(text, record.pos as usize, false)
+                .iter()
+                .any(|range| has_internal_annotation(text, range.start, range.end)),
+        )
     }
 
     fn effective_modifier_flags(
@@ -958,4 +1031,11 @@ fn identifier_text(cx: &TransformationContext, node: TransformNode) -> Option<St
         NodeData::Identifier(data) => Some(data.text.clone()),
         _ => None,
     }
+}
+
+/// tsc-port: hasInternalAnnotation @6.0.3
+/// tsc-hash: 9a540f5672edcd18339325a49050200afe83301896d5fb40bad9c7aae7c88d46
+/// tsc-span: _tsc.js:12597-12600
+fn has_internal_annotation(text: &str, start: usize, end: usize) -> bool {
+    text[start..end].contains("@internal")
 }

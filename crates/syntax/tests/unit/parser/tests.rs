@@ -1053,6 +1053,22 @@ fn parse_json_text_oracle_pins() {
     ];
     for (text, diagnostics, expression_kind) in cases {
         let source = parse_json_text("a.json".to_owned(), (*text).to_owned());
+        // ts.parseJsonText stamps 134742016 on the root and every descendant,
+        // including the EOF token. These flags select JS declaration serialization.
+        let mut nodes = vec![source.root];
+        while let Some(node) = nodes.pop() {
+            let node = source.arena.node(node);
+            assert_eq!(
+                node.flags & 134742016,
+                134742016,
+                "JSON flags for {:?}",
+                node.kind
+            );
+            for_each_child(&source.arena, node, |child| {
+                nodes.push(child);
+                false
+            });
+        }
         let pins: Vec<(u32, u32, u32)> = source
             .parse_diagnostics
             .iter()

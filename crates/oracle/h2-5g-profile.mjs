@@ -93,6 +93,48 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
+  "crates/compiler/tests/integration/h2_7c_corpus.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
+  // h2-7c: focused option observations and production-entry comparisons.
+  "crates/compiler/tests/fixtures/strip-internal.json",
+  "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+  "crates/compiler/tests/fixtures/declaration-blocking.json",
+  "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/integration/cli_contract.rs",
+  "crates/emitter/src/declarations/isolated.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-inference.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_inference.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-parameters.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_parameters.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-accessors.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_accessors.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-enums.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_enums.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-expando-augmentation.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_expando_augmentation.rs",
+  "crates/compiler/tests/fixtures/isolated-declaration-private-types.json",
+  "crates/compiler/tests/integration/h2_7c_isolated_private_types.rs",
+  "crates/compiler/tests/fixtures/declaration-dir.json",
+  "crates/compiler/tests/integration/h2_7c_declaration_dir.rs",
+  "crates/compiler/src/declaration_diagnostics.rs",
+  "crates/compiler/tests/fixtures/declaration-getters.json",
+  "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+  "crates/compiler/tests/fixtures/forced-declarations.json",
+  "crates/compiler/tests/fixtures/declaration-reference-paths.json",
+  "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+
+  // h2-7b-ca: W5 inputs omitted during the lightweight closure pilot.
+  "crates/checker/src/inference.rs",
+  "crates/checker/src/instantiate.rs",
+  "crates/checker/src/jsdoc.rs",
+  "crates/checker/src/mapped.rs",
+  "crates/checker/src/widen.rs",
+  "crates/checker/tests/unit/annotate/tests.rs",
+  "crates/types/src/tables.rs",
+  "crates/types/src/ty.rs",
+  "crates/types/tests/unit/tables/tests.rs",
+
   // h2-6a-m-3: the runtime flip touched the emit error/outcome surfaces
   // (SourceMapRecordingUnavailable, the SourceMapObservation producer).
   "crates/emitter/src/error.rs",
@@ -577,6 +619,15 @@ function buildArtifact() {
       };
     },
   );
+  const declarationBand = readJson("ratchets/h2-7b-qualification.v1.json");
+  requireCondition(
+    declarationBand.summary.candidates === 1_593 &&
+      declarationBand.summary.admitted_cases === 1_557 &&
+      declarationBand.summary.deferred_cases === 36 &&
+      declarationBand.cases.filter((row) => row.disposition === "admitted-for-execution").length === 1_557 &&
+      !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7b-known-divergences.v1.json")),
+    "H2.7b close requires the frozen 1,557/36 band and an absent divergence manifest",
+  );
   const runtimeInputPaths = [
     ...parentProfile.runtime_inputs.map((record) => record.path),
     ...NEW_RUNTIME_INPUTS,
@@ -603,8 +654,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 245,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 245)`,
+    runtimeInputSet.size === 283,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 283)`,
   );
 
   return withFingerprint(
@@ -660,20 +711,19 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        // The H2.7a ca landing (h2-7a-ca.md §5): the dormant declaration
-        // foundation closed with zero admissions; next_slice and the runtime
-        // activation slice re-converge on H2.7b's non-bundle declaration output.
-        next_slice: "H2.7b",
-        next_slice_scope: "non-bundle-declaration-output",
-        next_runtime_activation_slice: "H2.7b",
+        // H2.7b ca: all 1,557 admitted declaration cases are exact.
+        // The original admitted_profile remains the frozen H2.5g band.
+        next_slice: "H2.7c",
+        next_slice_scope: "declaration-diagnostics-and-options",
+        next_runtime_activation_slice: "H2.7c",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
           "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a",
-          "H2.6b", "H2.6c",
+          "H2.6b", "H2.6c", "H2.7b",
         ],
-        inactive_runtime_slice_count: 11,
+        inactive_runtime_slice_count: 10,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -711,6 +761,11 @@ function buildArtifact() {
         h2_6c_exact_cases: 188,
         h2_6c_known_divergences: 451,
         h2_6c_source_deferred_cases: 4,
+        h2_7b_candidate_cases: 1_593,
+        h2_7b_admitted_cases: 1_557,
+        h2_7b_exact_cases: 1_557,
+        h2_7b_known_divergences: 0,
+        h2_7b_source_deferred_cases: 36,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",
@@ -744,10 +799,10 @@ function buildArtifact() {
         hosted_gate_scope: "fixed-unsplit-ts-tests-only",
       },
       summary: {
-        completed_runtime_slices: 25,
+        completed_runtime_slices: 26,
         next_slice_runtime_slice_delta: 0,
-        runtime_admissions: 9_196,
-        executed_candidates: 9_715,
+        runtime_admissions: 10_753,
+        executed_candidates: 11_272,
         h2_5g_executed_candidates: 9_027,
         h2_5g_global_future_rows: 2_883,
         unexecuted_candidates: 0,

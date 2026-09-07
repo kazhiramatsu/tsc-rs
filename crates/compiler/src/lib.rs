@@ -54,9 +54,11 @@ use tsc_program::{
 };
 
 mod cli;
+mod declaration_diagnostics;
 mod no_emit_canary;
 
 pub use cli::{run_cli, CliOutput};
+pub use declaration_diagnostics::DeclarationSession;
 pub use no_emit_canary::NoEmitActivityCounters;
 
 /// A one-shot owner for one mode-validated prepared program.
@@ -169,14 +171,21 @@ impl<'program> PreparedEmitHost<'program> {
                     })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let common_source_directory = common_emit_source_directory(prepared, &source_files);
         let symlinks = tsc_program::discover_symlink_facts(prepared);
-        Ok(Self {
+        let mut host = Self {
             prepared,
             source_files,
-            common_source_directory,
+            common_source_directory: prepared.current_directory().display().to_path_buf(),
             symlinks,
-        })
+        };
+        // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
+        // (_tsc.js:123142-123157), including noEmitForJsFiles, before comparing
+        // source directories. Source selection does not consult this directory.
+        let emitted_files =
+            tsc_emitter::get_source_files_to_emit(&host, EmitSelection::WholeProgram)
+                .map_err(DriverError::Emit)?;
+        host.common_source_directory = common_emit_source_directory(prepared, &emitted_files);
+        Ok(host)
     }
 }
 
@@ -218,14 +227,17 @@ impl EmitHost for PreparedEmitHost<'_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         let source = self.prepared.source_file(id)?;
-        Some(EmitSource::new(
-            id,
-            source.path().display(),
-            source.path().canonical().as_path(),
-            source.may_be_emitted(),
-            source.implied_node_format_for_emit(),
-            None,
-        ))
+        Some(
+            EmitSource::new(
+                id,
+                source.path().display(),
+                source.path().canonical().as_path(),
+                source.may_be_emitted(),
+                source.implied_node_format_for_emit(),
+                None,
+            )
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+        )
     }
 }
 
@@ -282,14 +294,17 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
                     .find(|document| document.source().file_name == expected_name)
             })
             .map(|document| document.source());
-        Some(EmitSource::new(
-            id,
-            source.path().display(),
-            source.path().canonical().as_path(),
-            source.may_be_emitted(),
-            source.implied_node_format_for_emit(),
-            syntax,
-        ))
+        Some(
+            EmitSource::new(
+                id,
+                source.path().display(),
+                source.path().canonical().as_path(),
+                source.may_be_emitted(),
+                source.implied_node_format_for_emit(),
+                syntax,
+            )
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+        )
     }
 }
 
@@ -718,6 +733,123 @@ impl ProgramSession {
         )
     }
 
+    /// Consume this Program for a declaration-only diagnostic getter.
+    /// Compiler options, including noEmit and noCheck, remain unchanged.
+    pub fn get_declaration_diagnostics(
+        self,
+        selection: EmitSelection,
+    ) -> Result<DiagnosticList, DriverError> {
+        self.with_declarations(|diagnostics| diagnostics.get_declaration_diagnostics(selection))
+    }
+
+    /// Force declaration-only output, preserving options and the Program's
+    /// ordinary path blocking while skipping handleNoEmitOptions.
+    pub fn emit_forced_declarations(
+        self,
+        selection: EmitSelection,
+        sink: &mut dyn OutputSink,
+    ) -> Result<EmitOutcome, DriverError> {
+        self.with_declarations(|declarations| {
+            declarations.emit_forced_declarations(selection, sink)
+        })
+    }
+
+    /// Lend declaration getters and forced emits over the same initialized Program.
+    /// Source checking, resolver borrows and the per-file cache remain inside
+    /// this call. The explicit getter accepts either prepared mode; run()
+    /// retains its separate no-emitter contract.
+    /// tsrs-native: scoped Rust lifetime adaptation of Program declaration operations.
+    pub fn with_declarations<R>(
+        self,
+        operation: impl FnOnce(&mut DeclarationSession<'_, '_>) -> Result<R, DriverError>,
+    ) -> Result<R, DriverError> {
+        self.with_declarations_initialized(false, |declarations, _| operation(declarations))
+    }
+
+    /// Observe a forced emit after the existing whole-Program semantic pass,
+    /// retaining the same checker for the callback. No second checker or
+    /// declaration getter is substituted for semantic diagnostics.
+    #[doc(hidden)]
+    pub fn with_declarations_after_semantic_for_harness<R>(
+        self,
+        operation: impl FnOnce(&mut DeclarationSession<'_, '_>, &[Diagnostic]) -> Result<R, DriverError>,
+    ) -> Result<R, DriverError> {
+        self.with_declarations_initialized(true, operation)
+    }
+
+    fn with_declarations_initialized<R>(
+        self,
+        check_semantics: bool,
+        operation: impl FnOnce(&mut DeclarationSession<'_, '_>, &[Diagnostic]) -> Result<R, DriverError>,
+    ) -> Result<R, DriverError> {
+        let prepared = self.prepared;
+        let emit_host = PreparedEmitHost::new(&prepared)?;
+        tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
+            .map_err(DriverError::Emit)?;
+        let inputs = project_checker_inputs(&prepared)?;
+        let provider = PreparedModuleProvider {
+            prepared: &prepared,
+            request_plans: RefCell::new(BTreeMap::new()),
+        };
+        let mut pending_operation = Some(operation);
+        let mut diagnostic_result = None;
+        let mut checked_operation =
+            |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
+                if diagnostic_result.is_some() {
+                    return;
+                }
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                diagnostic_result = Some((|| {
+                    let mut diagnostics =
+                        DeclarationSession::new(&prepared, &checked_host, Some(checker))?;
+                    pending_operation
+                        .take()
+                        .expect("checked callback runs once")(
+                        &mut diagnostics,
+                        checked
+                            .program_semantic_diagnostics
+                            .as_deref()
+                            .expect("authoritative sessions publish whole-Program semantics"),
+                    )
+                })());
+            };
+        let checked = if check_semantics {
+            tsc_checker::check_program_with_authoritative_modules_at_for_emit(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                &mut checked_operation,
+            )
+        } else {
+            tsc_checker::with_authoritative_modules_at_for_declarations(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                &mut checked_operation,
+            )
+        }
+        .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
+        drop(checked);
+        if let Some(result) = diagnostic_result {
+            return result;
+        }
+        let mut diagnostics = DeclarationSession::new(&prepared, &emit_host, None)?;
+        pending_operation
+            .take()
+            .expect("empty Program did not run callback")(&mut diagnostics, &[])
+    }
+
     /// Prepare a bounded, exact-match library prefix for harness repetitions.
     /// The returned value is owned by the caller and is never inserted into a
     /// process-lifetime cache.
@@ -850,7 +982,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_7b_profile();
+        let mut h2_activity = H2ActivityCanary::h2_7c_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;

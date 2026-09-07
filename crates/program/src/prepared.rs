@@ -100,6 +100,7 @@ pub struct PreparedSourceFile {
     real_path: Option<ProgramPath>,
     snapshot: Arc<TextSnapshot>,
     may_be_emitted: bool,
+    may_emit_forced_declaration: bool,
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
     package_scope: Option<CanonicalPath>,
@@ -136,6 +137,7 @@ impl PreparedSourceFile {
             // source-side fact with `with_may_be_emitted(false)`; resolution
             // provenance is deliberately not used as a substitute.
             may_be_emitted,
+            may_emit_forced_declaration: may_be_emitted,
             implied_node_format: None,
             implied_node_format_for_emit: None,
             package_scope: None,
@@ -158,7 +160,19 @@ impl PreparedSourceFile {
     /// resolution provenance.
     pub fn with_may_be_emitted(mut self, may_be_emitted: bool) -> Self {
         self.may_be_emitted = may_be_emitted;
+        self.may_emit_forced_declaration = may_be_emitted;
         self
+    }
+
+    /// Retain the Program-owned forced declaration verdict separately from
+    /// normal JSON output eligibility. External-library ownership still gates it.
+    pub fn with_may_emit_forced_declaration(mut self, eligible: bool) -> Self {
+        self.may_emit_forced_declaration = eligible;
+        self
+    }
+
+    pub const fn may_emit_forced_declaration(&self) -> bool {
+        self.may_emit_forced_declaration
     }
 
     pub fn with_implied_node_format(mut self, mode: ResolutionMode) -> Self {
@@ -234,6 +248,7 @@ impl PreparedSourceFile {
     fn compatible_with(&self, other: &Self) -> bool {
         self.snapshot.text() == other.snapshot.text()
             && self.may_be_emitted == other.may_be_emitted
+            && self.may_emit_forced_declaration == other.may_emit_forced_declaration
             && self.implied_node_format == other.implied_node_format
             && self.implied_node_format_for_emit == other.implied_node_format_for_emit
             && self.package_scope == other.package_scope

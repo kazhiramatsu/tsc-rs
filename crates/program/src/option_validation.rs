@@ -34,6 +34,8 @@ pub enum CompilerOptionViolation {
     ExactOptionalPropertyTypesRequiresStrictNullChecks,
     IsolatedDeclarationsConflictsWithAllowJs,
     IsolatedDeclarationsRequiresDeclaration,
+    EmitDeclarationOnlyRequiresDeclaration,
+    DeclarationDirectoryRequiresDeclaration,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
     InvalidJsxFactory { value: String },
@@ -66,6 +68,8 @@ impl CompilerOptionViolation {
             Self::IsolatedDeclarationsRequiresDeclaration => {
                 &["isolatedDeclarations", "declaration"]
             }
+            Self::EmitDeclarationOnlyRequiresDeclaration => &["emitDeclarationOnly", "declaration"],
+            Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -119,6 +123,18 @@ impl CompilerOptionViolation {
                     "declaration".to_owned(),
                     "composite".to_owned(),
                 ],
+            ),
+            Self::EmitDeclarationOnlyRequiresDeclaration => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &[
+                    "emitDeclarationOnly".to_owned(),
+                    "declaration".to_owned(),
+                    "composite".to_owned(),
+                ],
+            ),
+            Self::DeclarationDirectoryRequiresDeclaration => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &["declarationDir".to_owned(), "declaration".to_owned(), "composite".to_owned()],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -202,6 +218,9 @@ impl CompilerOptionViolation {
 /// tsc-port: verifyCompilerOptions @6.0.3 (source-root/map-root prerequisites)
 /// tsc-hash: 669a5b208c175af80f80a6a49fbaa43b7afcbe4d3cde9777804a682934d39513
 /// tsc-span: _tsc.js:124855-124865
+/// tsc-port: verifyCompilerOptions @6.0.3 (declaration-only prerequisite)
+/// tsc-hash: 502558caa3484d85116380b71c5ffce3864d14b552e9368298016a238d9aee9f
+/// tsc-span: _tsc.js:124946-124953
 pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptionViolation> {
     let mut violations = Vec::new();
     if options.strict_property_initialization == Some(true)
@@ -258,6 +277,23 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     }
     if map_root && !(source_map || options.declaration_map == Some(true)) {
         violations.push(CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap);
+    }
+    // declarationDir prerequisite (:124866-124869); the outFile profile
+    // remains the separately refused H2.7d bundle axis.
+    if options
+        .declaration_dir
+        .as_deref()
+        .is_some_and(|directory| !directory.is_empty())
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
+    {
+        violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
+    }
+    if options.emit_declaration_only == Some(true)
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
+    {
+        violations.push(CompilerOptionViolation::EmitDeclarationOnlyRequiresDeclaration);
     }
 
     let target = options.emit_script_target();

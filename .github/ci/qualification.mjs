@@ -27,12 +27,29 @@ const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
   "crates/xtask/src/h2_3b_acceptance.rs",
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
+]);
+
+// Explicit #[path] comparator dependencies of the H2.7c module. They are part
+// of the same call-graph and raw-source pin closure, without being top-level
+// main.rs module declarations.
+const HOSTED_ACCEPTANCE_SHARED_MODULES = Object.freeze([
+  "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+  "crates/compiler/tests/integration/h2_7c_corpus.rs",
+  "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+  "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+  "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+]);
+const HOSTED_ACCEPTANCE_SOURCE_MODULES = Object.freeze([
+  ...HOSTED_ACCEPTANCE_MODULES, ...HOSTED_ACCEPTANCE_SHARED_MODULES,
 ]);
 
 const H2_OWNER_SPLIT_MODULES = Object.freeze([
   "crates/xtask/src/h2_3b_acceptance.rs",
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
 ]);
 
 const H2_LOCAL_OWNER_CALLS = Object.freeze([
@@ -48,6 +65,7 @@ const H2_LOCAL_OWNER_CALLS = Object.freeze([
   "h2_3d_acceptance::run_h2_5e_owner_controls",
   "h2_3d_acceptance::run_h2_5f_owner_controls",
   "h2_3d_acceptance::run_h2_5g_owner_controls",
+  "h2_7c_acceptance::run_owner_controls",
 ]);
 
 const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
@@ -80,6 +98,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_6b",
   "h2_2c_acceptance::run_h2_6c",
   "h2_2c_acceptance::run_h2_7b",
+  "h2_7c_acceptance::run",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
@@ -201,6 +220,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.7b qualification",
     schema: ".github/ci/contracts/h2-7b-qualification.schema.json",
     artifact: "ratchets/h2-7b-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7c qualification",
+    schema: ".github/ci/contracts/h2-7c-qualification.schema.json",
+    artifact: "ratchets/h2-7c-qualification.v1.json",
   }),
 ]);
 
@@ -1462,13 +1486,13 @@ export function validateRustOwnerControlBoundaries({
 }) {
   if (!isJsonObject(moduleSources)) rustBoundaryError("H2 owner-control boundary", "moduleSources must be an object");
   if (
-    canonical(Object.keys(moduleSources).sort()) !== canonical([...HOSTED_ACCEPTANCE_MODULES].sort())
+    canonical(Object.keys(moduleSources).sort()) !== canonical([...HOSTED_ACCEPTANCE_SOURCE_MODULES].sort())
   ) {
     rustBoundaryError("H2 owner-control boundary", "hosted acceptance module set drifted");
   }
   const sanitizedXtask = sanitizeRustSource(xtaskSource, "crates/xtask/src/main.rs");
   const sanitizedModules = Object.fromEntries(
-    HOSTED_ACCEPTANCE_MODULES.map((modulePath) => [
+    HOSTED_ACCEPTANCE_SOURCE_MODULES.map((modulePath) => [
       modulePath,
       sanitizeRustSource(moduleSources[modulePath], modulePath),
     ]),
@@ -1828,7 +1852,7 @@ export function validatePolicy(policy) {
   }
   const xtaskBytes = fs.readFileSync(path.join(workspace, "crates/xtask/src/main.rs"));
   const moduleSourceBytes = Object.fromEntries(
-    HOSTED_ACCEPTANCE_MODULES.map((modulePath) => [
+    HOSTED_ACCEPTANCE_SOURCE_MODULES.map((modulePath) => [
       modulePath,
       fs.readFileSync(path.join(workspace, modulePath)),
     ]),

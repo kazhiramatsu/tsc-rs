@@ -329,9 +329,9 @@ enum SourceCommentKind {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SourceCommentRange {
-    start: usize,
-    end: usize,
+pub(crate) struct SourceCommentRange {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
     kind: SourceCommentKind,
     has_trailing_new_line: bool,
 }
@@ -1137,13 +1137,21 @@ impl Printer {
         let root = transformation.arena().root(source_id)?;
         transformation.finalize_generated_names_for_print(root, global_name_oracle)?;
         self.prepare_emission_plan(transformation, root)?;
-        if transformation
+        // updateSourceFile marks a forced JSON declaration root as a
+        // declaration file. Its synthesized statements use normal declaration
+        // printing; only the original JSON value uses the JSON text worker.
+        if !transformation
             .arena()
             .source(source_id)?
             .syntax()
-            .file_name
-            .to_ascii_lowercase()
-            .ends_with(".json")
+            .is_declaration_file
+            && transformation
+                .arena()
+                .source(source_id)?
+                .syntax()
+                .file_name
+                .to_ascii_lowercase()
+                .ends_with(".json")
         {
             // h2-6a-m-2 §4: JSON sources never record (the upstream
             // triple guard); requesting a recording here is fail-closed.
@@ -16106,7 +16114,7 @@ fn synthetic_comment_will_emit_new_line(comment: &SyntheticComment) -> bool {
     comment.kind() == SyntheticCommentKind::SingleLine || comment.has_trailing_new_line()
 }
 
-fn collect_source_comment_ranges(
+pub(crate) fn collect_source_comment_ranges(
     source: &str,
     position: usize,
     trailing: bool,

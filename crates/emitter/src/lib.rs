@@ -37,20 +37,22 @@ pub use builtins::{
     transform_ecmascript_module, transform_type_script,
 };
 pub use declarations::{
-    transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
-    BoundaryEvent, DeclBlockedInputs, DeclarationCustomTransformers, DeclarationPathResolver,
-    DeclarationTransformOutcome, DeclarationTransformer, PlanDeclarationPaths,
+    get_declaration_diagnostics, transform_declaration_unit_for_harness,
+    transform_declaration_unit_with_observer_for_harness, BoundaryEvent, DeclBlockedInputs,
+    DeclarationCustomTransformers, DeclarationPathResolver, DeclarationTransformOutcome,
+    DeclarationTransformer, PlanDeclarationPaths,
 };
 pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
     UnsupportedEmitFeature,
 };
 pub use execute::{
-    base64_encode, emit_files, emit_files_with_activity,
+    base64_encode, emit_files, emit_files_with_activity, emit_forced_declarations_with_activity,
     print_script_units_with_recording_for_harness, source_map_directory,
     source_map_recording_inputs_for, source_mapping_url, source_root_field,
-    validate_bootstrap_emit_options, validate_bootstrap_emit_request, EmitDiagnosticGate,
-    MapLaneInputs,
+    validate_bootstrap_emit_options, validate_bootstrap_emit_request,
+    validate_declaration_diagnostics_request, validate_forced_declaration_request,
+    EmitDiagnosticGate, MapLaneInputs,
 };
 pub use factory::{
     GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
@@ -77,10 +79,10 @@ pub use printer::{
     SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
-    EmitExportContainerMode, EmitFunctionProperty, EmitImportIncludeReason,
-    EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost, EmitNodeBuilderFlags,
-    EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
+    EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
+    EmitImportIncludeReason, EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost,
+    EmitNodeBuilderFlags, EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod,
+    EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
     EmitSymbolExpansionOut, EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess,
     EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,

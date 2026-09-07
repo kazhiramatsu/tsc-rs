@@ -1,0 +1,1669 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "compiler/declFileEmitDeclarationOnlyError1.ts",
+      "files": [
+        {
+          "path": "/project/hello.ts",
+          "text": "var hello = \"yo!\";\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "emitDeclarationOnly": true
+      },
+      "source_sha256": "0de1fd32efd6603d6abb7eacc99398ded503d9fdebd331d141ee73de27fb94b0",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/DeclarationErrorsNoEmitOnError.ts",
+      "files": [
+        {
+          "path": "/project/DeclarationErrorsNoEmitOnError.ts",
+          "text": "type T = { x : number }\nexport interface I {\n    f: T;   \n}"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "8baed7e57b0a218620301c111e75e95d5957048469eba5242c8e5e263c3cf3d1",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/DeclarationErrorsNoEmitOnError.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+            "callback_utf8_bytes": 79,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCg==",
+            "materialized_utf8_bytes": 79,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/DeclarationErrorsNoEmitOnError.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/DeclarationErrorsNoEmitOnError.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gew0KICAgIHg6IG51bWJlcjsNCn07DQpleHBvcnQgaW50ZXJmYWNlIEkgew0KICAgIGY6IFQ7DQp9DQpleHBvcnQge307DQo=",
+            "callback_utf8_bytes": 80,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gew0KICAgIHg6IG51bWJlcjsNCn07DQpleHBvcnQgaW50ZXJmYWNlIEkgew0KICAgIGY6IFQ7DQp9DQpleHBvcnQge307DQo=",
+            "materialized_utf8_bytes": 80,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/DeclarationErrorsNoEmitOnError.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/noEmitOnError.ts",
+      "files": [
+        {
+          "path": "/project/noEmitOnError.ts",
+          "text": "var x: number = \"\";\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true,
+        "sourceMap": true
+      },
+      "source_sha256": "902bb6eaaaf7fa1efd68e57acab83d797887b99b814a3101ad3871f80604854e",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2322,
+            "category": "Error",
+            "file": "/project/noEmitOnError.ts",
+            "start": 4,
+            "length": 1,
+            "message": "Type 'string' is not assignable to type 'number'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/project/noEmitOnError.ts",
+              "start": 4,
+              "length": 1,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "invalid-option#blocked-false",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "emitDeclarationOnly": true,
+        "declaration": false,
+        "sourceMap": true,
+        "noEmitOnError": false,
+        "listEmittedFiles": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": [],
+          "source_maps": []
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "invalid-option#dts-only-false",
+      "files": [
+        {
+          "path": "/project/a.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "emitDeclarationOnly": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "declaration-error#blocked-false-reverse-false",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": false,
+        "listEmittedFiles": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/bad.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#blocked-false-reverse-true",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": false,
+        "listEmittedFiles": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bad.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#semantic-precedence-false",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/semantic.ts",
+          "text": "export const semantic: number = '';\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bad.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/semantic.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuc2VtYW50aWMgPSB2b2lkIDA7DQpleHBvcnRzLnNlbWFudGljID0gJyc7DQo=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuc2VtYW50aWMgPSB2b2lkIDA7DQpleHBvcnRzLnNlbWFudGljID0gJyc7DQo=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/semantic.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/semantic.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3Qgc2VtYW50aWM6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 40,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3Qgc2VtYW50aWM6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 40,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/semantic.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 2322,
+            "category": "Error",
+            "file": "/project/semantic.ts",
+            "start": 13,
+            "length": 8,
+            "message": "Type 'string' is not assignable to type 'number'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#sorted-false",
+      "files": [
+        {
+          "path": "/project/z.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/a.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/z.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/a.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/a.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/z.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/z.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "invalid-option#blocked-true",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "emitDeclarationOnly": true,
+        "declaration": false,
+        "sourceMap": true,
+        "noEmitOnError": true,
+        "listEmittedFiles": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5069,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [],
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "invalid-option#dts-only-true",
+      "files": [
+        {
+          "path": "/project/a.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "emitDeclarationOnly": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5069,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#blocked-true-reverse-false",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true,
+        "listEmittedFiles": true,
+        "sourceMap": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": [],
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#blocked-true-reverse-true",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true,
+        "listEmittedFiles": true,
+        "sourceMap": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": [],
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#semantic-precedence-true",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/semantic.ts",
+          "text": "export const semantic: number = '';\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2322,
+            "category": "Error",
+            "file": "/project/semantic.ts",
+            "start": 13,
+            "length": 8,
+            "message": "Type 'string' is not assignable to type 'number'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/project/semantic.ts",
+              "start": 13,
+              "length": 8,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#sorted-true",
+      "files": [
+        {
+          "path": "/project/z.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/a.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/z.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/a.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/a.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/z.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/z.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#declaration-only",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 4094,
+            "category": "Error",
+            "file": "/project/bad.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+            "related_information": [
+              {
+                "code": 9027,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 5,
+                "message": "Add a type annotation to the variable value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/bad.ts",
+              "start": 13,
+              "length": 5,
+              "message": "Property 'p' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/bad.ts",
+                  "start": 13,
+                  "length": 5,
+                  "message": "Add a type annotation to the variable value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "declaration-error#js-only",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const value = class { private p = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": false,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bad.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-error#strip-internal",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "/** @internal */\nexport const value = class { private p = 1; };\n"
+        },
+        {
+          "path": "/project/good.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "noEmitOnError": true,
+        "stripInternal": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bad.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQovKiogQGludGVybmFsICovDQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQovKiogQGludGVybmFsICovDQpjb25zdCB2YWx1ZSA9IGNsYXNzIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5wID0gMTsNCiAgICB9DQp9Ow0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/bad.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+            "callback_utf8_bytes": 12,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHt9Ow0K",
+            "materialized_utf8_bytes": 12,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/bad.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "valid#declaration-only",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "valid#disabled-declaration-only",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "declaration": false,
+        "emitDeclarationOnly": false,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "invalid-option#config-false",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"newLine\": \"crlf\",\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"emitDeclarationOnly\": true,\n    \"declaration\": false,\n    \"noEmitOnError\": false\n  },\n  \"files\": [\n    \"a.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 166,
+            "length": 21,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          },
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 199,
+            "length": 13,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "invalid-option#config-true",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"newLine\": \"crlf\",\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"emitDeclarationOnly\": true,\n    \"declaration\": false,\n    \"noEmitOnError\": true\n  },\n  \"files\": [\n    \"a.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 166,
+            "length": 21,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          },
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 199,
+            "length": 13,
+            "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5069,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 166,
+              "length": 21,
+              "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+              "related_information": null
+            },
+            {
+              "code": 5069,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 199,
+              "length": 13,
+              "message": "Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ]
+}

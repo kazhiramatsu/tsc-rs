@@ -76,3 +76,39 @@ mod source_map_emit_witness_contract;
 mod source_map_recording_witness_contract;
 #[path = "integration/upstream_no_emit_harness_contract.rs"]
 mod upstream_no_emit_harness_contract;
+
+#[path = "integration/h2_7c_strip_internal.rs"]
+mod h2_7c_strip_internal;
+
+#[path = "integration/h2_7c_declaration_blocking.rs"]
+mod h2_7c_declaration_blocking;
+
+#[path = "integration/h2_7c_isolated_inference.rs"]
+mod h2_7c_isolated_inference;
+
+#[path = "integration/h2_7c_isolated_parameters.rs"]
+mod h2_7c_isolated_parameters;
+
+#[path = "integration/h2_7c_isolated_accessors.rs"]
+mod h2_7c_isolated_accessors;
+
+#[path = "integration/h2_7c_isolated_enums.rs"]
+mod h2_7c_isolated_enums;
+
+#[path = "integration/h2_7c_isolated_expando_augmentation.rs"]
+mod h2_7c_isolated_expando_augmentation;
+
+#[path = "integration/h2_7c_isolated_private_types.rs"]
+mod h2_7c_isolated_private_types;
+
+#[path = "integration/h2_7c_declaration_dir.rs"]
+mod h2_7c_declaration_dir;
+
+#[path = "integration/h2_7c_declaration_getters.rs"]
+mod h2_7c_declaration_getters;
+
+#[path = "integration/h2_7c_forced_declarations.rs"]
+mod h2_7c_forced_declarations;
+
+#[path = "integration/h2_7c_corpus.rs"]
+mod h2_7c_corpus;

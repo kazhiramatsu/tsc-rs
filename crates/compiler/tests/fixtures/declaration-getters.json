@@ -1,0 +1,2762 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "adjacent/getter-options#enabled",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#disabled",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": false,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#no-emit",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noEmit": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#no-check",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noCheck": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#isolated",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/getter-options#isolated-disabled-declaration",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": false,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9022,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 19,
+                "length": 5,
+                "message": "Inference from class expressions is not supported with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/reversed-roots",
+      "files": [
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        },
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/target-good-first",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "call_order": [
+        "/project/good.ts",
+        "/project/bad.ts",
+        null,
+        "/project/good.ts",
+        null
+      ],
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/target-bad-first",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/bad.ts",
+          "text": "export const bad = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "call_order": [
+        "/project/bad.ts",
+        "/project/good.ts",
+        null,
+        "/project/bad.ts",
+        null
+      ],
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/good.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/bad.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/bad.ts",
+                "start": 13,
+                "length": 3,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/bad.ts",
+                    "start": 13,
+                    "length": 3,
+                    "message": "Add a type annotation to the variable bad.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/bad.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [
+            {
+              "source_file": "/project/good.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/multiple-diagnostics-reversed-roots",
+      "files": [
+        {
+          "path": "/project/z.ts",
+          "text": "export const z = class { private field: number = 1; };\n"
+        },
+        {
+          "path": "/project/a.ts",
+          "text": "export const a = class { protected field: number = 1; };\nexport const b = class { private field: string = ''; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable a.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 70,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 70,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable b.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/z.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable z.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/z.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/z.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable z.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/a.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable a.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 70,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 70,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable b.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable a.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 70,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 70,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable b.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/z.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable z.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/a.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable a.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/a.ts",
+                "start": 70,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/a.ts",
+                    "start": 70,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable b.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/z.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/z.ts",
+                "start": 13,
+                "length": 1,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/z.ts",
+                    "start": 13,
+                    "length": 1,
+                    "message": "Add a type annotation to the variable z.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/z.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/a.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/semantic-error",
+      "files": [
+        {
+          "path": "/project/source.ts",
+          "text": "export const value: number = '';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/source.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/syntax-error",
+      "files": [
+        {
+          "path": "/project/source.ts",
+          "text": "export const value: number = ;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/source.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/empty-program",
+      "files": [],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/declaration-only-input",
+      "files": [
+        {
+          "path": "/project/source.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.d.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/javascript",
+      "files": [
+        {
+          "path": "/project/source.js",
+          "text": "export function fn(value) { return value; }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "allowJs": true,
+        "checkJs": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.js",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.js",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/source.js",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/json",
+      "files": [
+        {
+          "path": "/project/source.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/data.json",
+          "text": "{\"value\":1}"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/data.json",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/data.json",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/source.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/data.json",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "adjacent/imported-typescript",
+      "files": [
+        {
+          "path": "/project/source.ts",
+          "text": "import { value } from './node_modules/pkg/source'; export const exported = value;\n"
+        },
+        {
+          "path": "/project/node_modules/pkg/source.ts",
+          "text": "export const value = class { private field: number = 1; };\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true
+      },
+      "roots": [
+        "/project/source.ts"
+      ],
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/source.ts",
+                "start": 64,
+                "length": 8,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/source.ts",
+                    "start": 64,
+                    "length": 8,
+                    "message": "Add a type annotation to the variable exported.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/source.ts",
+                "start": 64,
+                "length": 8,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/source.ts",
+                    "start": 64,
+                    "length": 8,
+                    "message": "Add a type annotation to the variable exported.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/node_modules/pkg/source.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/source.ts",
+                "start": 64,
+                "length": 8,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/source.ts",
+                    "start": 64,
+                    "length": 8,
+                    "message": "Add a type annotation to the variable exported.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/node_modules/pkg/source.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/source.ts",
+            "diagnostics": [
+              {
+                "code": 4094,
+                "category": "Error",
+                "file": "/project/source.ts",
+                "start": 64,
+                "length": 8,
+                "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/source.ts",
+                    "start": 64,
+                    "length": 8,
+                    "message": "Add a type annotation to the variable exported.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/node_modules/pkg/source.ts",
+              "skip_diagnostics": null
+            },
+            {
+              "source_file": "/project/source.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    },
+    {
+      "case_id": "compiler/declarationEmitIsolatedDeclarationErrorNotEmittedForNonEmittedFile.ts",
+      "files": [
+        {
+          "path": "/project/node_modules/@trpc/server/internals/config.d.ts",
+          "text": "export interface RootConfig<T> {\n    prop: T;\n}"
+        },
+        {
+          "path": "/project/node_modules/@trpc/server/internals/utils.d.ts",
+          "text": "export interface ErrorFormatterShape<T={}> {\n    prop: T;\n}\nexport type PickFirstDefined<TType, TPick> = undefined extends TType\n  ? undefined extends TPick\n    ? never\n    : TPick\n  : TType;\nexport interface ErrorFormatter<T={},U={}> {\n    prop: [T, U];\n}\nexport interface DefaultErrorShape<T={}> {\n    prop: T;\n}"
+        },
+        {
+          "path": "/project/node_modules/@trpc/server/middleware.d.ts",
+          "text": "export interface MiddlewareFunction<T={},U={}> {\n    prop: [T, U];\n}\nexport interface MiddlewareBuilder<T={},U={}> {\n    prop: [T, U];\n}"
+        },
+        {
+          "path": "/project/node_modules/@trpc/server/index.d.ts",
+          "text": "import { RootConfig } from './internals/config';\nimport { ErrorFormatterShape, PickFirstDefined, ErrorFormatter, DefaultErrorShape } from './internals/utils';\ndeclare class TRPCBuilder<TParams> {\n    create<TOptions extends Record<string, any>>(): {\n        procedure: {};\n        middleware: <TNewParams extends Record<string, any>>(fn: import(\"./middleware\").MiddlewareFunction<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>) => import(\"./middleware\").MiddlewareBuilder<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>;\n        router: {};\n    };\n} \n\nexport declare const initTRPC: TRPCBuilder<object>;\nexport {};"
+        },
+        {
+          "path": "/project/index.ts",
+          "text": "import { initTRPC } from \"@trpc/server\";\n\nconst trpc = initTRPC.create();\n\nexport const middleware = trpc.middleware;\nexport const router = trpc.router;\nexport const publicProcedure = trpc.procedure;"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "skipDefaultLibCheck": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "77953360c15e7fedd9f7944adac4158b3332650ce8e2601bd340cdda3a98bf96",
+      "roots": [
+        "/project/index.ts"
+      ],
+      "typescript_observation": {
+        "calls": [
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 88,
+                "length": 10,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 88,
+                    "length": 10,
+                    "message": "Add a type annotation to the variable middleware.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 131,
+                "length": 6,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 131,
+                    "length": 6,
+                    "message": "Add a type annotation to the variable router.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 166,
+                "length": 15,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 166,
+                    "length": 15,
+                    "message": "Add a type annotation to the variable publicProcedure.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/internals/config.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/internals/utils.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/middleware.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/index.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/index.ts",
+            "diagnostics": [
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 88,
+                "length": 10,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 88,
+                    "length": 10,
+                    "message": "Add a type annotation to the variable middleware.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 131,
+                "length": 6,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 131,
+                    "length": 6,
+                    "message": "Add a type annotation to the variable router.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 166,
+                "length": 15,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 166,
+                    "length": 15,
+                    "message": "Add a type annotation to the variable publicProcedure.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": null,
+            "diagnostics": [
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 88,
+                "length": 10,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 88,
+                    "length": 10,
+                    "message": "Add a type annotation to the variable middleware.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 131,
+                "length": 6,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 131,
+                    "length": 6,
+                    "message": "Add a type annotation to the variable router.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 166,
+                "length": 15,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 166,
+                    "length": 15,
+                    "message": "Add a type annotation to the variable publicProcedure.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/index.ts",
+            "diagnostics": [
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 88,
+                "length": 10,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 88,
+                    "length": 10,
+                    "message": "Add a type annotation to the variable middleware.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 131,
+                "length": 6,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 131,
+                    "length": 6,
+                    "message": "Add a type annotation to the variable router.",
+                    "related_information": null
+                  }
+                ]
+              },
+              {
+                "code": 9010,
+                "category": "Error",
+                "file": "/project/index.ts",
+                "start": 166,
+                "length": 15,
+                "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+                "related_information": [
+                  {
+                    "code": 9027,
+                    "category": "Error",
+                    "file": "/project/index.ts",
+                    "start": 166,
+                    "length": 15,
+                    "message": "Add a type annotation to the variable publicProcedure.",
+                    "related_information": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/index.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/middleware.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/internals/utils.d.ts",
+            "diagnostics": []
+          },
+          {
+            "source_file": "/project/node_modules/@trpc/server/internals/config.d.ts",
+            "diagnostics": []
+          }
+        ],
+        "writes": []
+      },
+      "owner_observation": {
+        "resolver_requests_by_call": [
+          [
+            {
+              "source_file": "/project/index.ts",
+              "skip_diagnostics": null
+            }
+          ],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ]
+      }
+    }
+  ]
+}

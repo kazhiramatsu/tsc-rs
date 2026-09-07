@@ -1088,7 +1088,7 @@ fn run_production_path(
         }
     };
     let planned_members = declaration_units(&preflight).len();
-    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut activity = H2ActivityCanary::h2_7c_profile();
     let mut sink = MemoryOutputSink::new();
     let outcome = match emit_files_with_activity(
         resolver,
@@ -1130,7 +1130,7 @@ fn run_production_path(
                 .unwrap_or_else(|error| {
                     panic!("{case_id}: oracle-fault preflight failed: {error}")
                 });
-        let mut fault_activity = H2ActivityCanary::h2_7b_profile();
+        let mut fault_activity = H2ActivityCanary::h2_7c_profile();
         let mut fault_sink = MemoryOutputSink::new();
         let fault_outcome = emit_files_with_activity(
             &fault_resolver,

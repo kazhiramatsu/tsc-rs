@@ -825,6 +825,9 @@ fn execute_config(
     let option_diagnostics = plan
         .option_diagnostics()
         .iter()
+        // Emitting config programs validate effective options themselves so
+        // noEmitOnError sees them. Only the no-emit route retains plan ownership.
+        .filter(|_| prepared.mode() == PreparedProgramMode::NoEmit)
         .filter(|diagnostic| is_non_fatal_option_diagnostic(diagnostic))
         .cloned()
         .collect::<Vec<_>>();

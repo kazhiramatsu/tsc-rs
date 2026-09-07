@@ -284,6 +284,21 @@ pub fn get_source_files_to_emit(
     host: &dyn EmitHost,
     selection: EmitSelection,
 ) -> Result<Vec<SourceFileId>, EmitFailure> {
+    select_source_files(host, selection, false)
+}
+
+pub(crate) fn get_source_files_for_forced_declaration_emit(
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+) -> Result<Vec<SourceFileId>, EmitFailure> {
+    select_source_files(host, selection, true)
+}
+
+fn select_source_files(
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+    force_dts_emit: bool,
+) -> Result<Vec<SourceFileId>, EmitFailure> {
     let candidates: Vec<SourceFileId> = match selection {
         EmitSelection::WholeProgram => host.source_file_ids().to_vec(),
         EmitSelection::TargetSourceFile(source) => vec![source],
@@ -291,7 +306,15 @@ pub fn get_source_files_to_emit(
     candidates
         .into_iter()
         .filter_map(|id| match host.source_file(id) {
-            Some(source) if source_file_may_be_emitted_for_host(source, host) => Some(Ok(id)),
+            Some(source)
+                if if force_dts_emit {
+                    source_file_may_emit_forced_declaration(source, host)
+                } else {
+                    source_file_may_be_emitted_for_host(source, host)
+                } =>
+            {
+                Some(Ok(id))
+            }
             Some(_) => None,
             None => Some(Err(EmitFailure::Contract(
                 EmitContractViolation::PlannedSourceMissing(id),
@@ -314,7 +337,7 @@ pub(crate) fn source_file_may_be_emitted_for_host(
     source: EmitSource<'_>,
     host: &dyn EmitHost,
 ) -> bool {
-    if !source_file_may_be_emitted(source) {
+    if !source_file_may_be_emitted(source) || no_emit_for_js_source(source, host) {
         return false;
     }
     !source
@@ -324,6 +347,25 @@ pub(crate) fn source_file_may_be_emitted_for_host(
         .ends_with(".json")
         || host.compiler_options().out_dir.is_some()
         || host.compiler_options().out_file.is_some()
+}
+
+fn no_emit_for_js_source(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
+    if host.compiler_options().no_emit_for_js_files != Some(true) {
+        return false;
+    }
+    let path = source.path().to_string_lossy().to_ascii_lowercase();
+    [".js", ".jsx", ".mjs", ".cjs", ".json"]
+        .iter()
+        .any(|extension| path.ends_with(extension))
+}
+
+pub(crate) fn source_file_may_emit_forced_declaration(
+    source: EmitSource<'_>,
+    host: &dyn EmitHost,
+) -> bool {
+    !no_emit_for_js_source(source, host)
+        && !is_declaration_file_name(source.path())
+        && source.may_emit_forced_declaration()
 }
 
 /// tsc-port: getOutputPathsFor @6.0.3
@@ -409,7 +451,10 @@ pub fn for_each_emitted_file(
             EmitContractViolation::PlannedSourceMissing(source_file),
         ))?;
         let paths = get_output_paths_for(source, host)?;
-        if paths.javascript_path().is_some()
+        // Declaration-only requests still visit a source with no output
+        // paths, so emitDeclarationFileOrBundle can mark it skipped.
+        if host.compiler_options().emit_declaration_only == Some(true)
+            || paths.javascript_path().is_some()
             || paths.javascript_map_path().is_some()
             || paths.declaration_path().is_some()
             || paths.declaration_map_path().is_some()
@@ -500,6 +545,35 @@ pub fn preflight_emit(
     })
 }
 
+/// tsrs-native: forced path projection over the ordinary Program preflight.
+/// Forced declarations retain the Program's ordinary whole-program blocked
+/// paths. Forcing a new declaration path does not add it to that blocked set.
+pub(crate) fn preflight_forced_declarations(
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+) -> Result<EmitPreflight, EmitFailure> {
+    let mut preflight = preflight_emit(host, EmitSelection::WholeProgram)?;
+    let units = get_source_files_for_forced_declaration_emit(host, selection)?
+        .into_iter()
+        .map(|source| {
+            let file = host.source_file(source).ok_or(EmitFailure::Contract(
+                EmitContractViolation::PlannedSourceMissing(source),
+            ))?;
+            Ok(EmitOutputUnit::new(
+                EmitRoot::SourceFile(source),
+                EmitOutputPaths::empty()
+                    .with_declaration(declaration_output_path(file.path(), host)),
+                EmitMode::DeclarationOnly,
+            ))
+        })
+        .collect::<Result<Vec<_>, EmitFailure>>()?;
+    preflight.plan = match selection {
+        EmitSelection::WholeProgram => EmitOutputPlan::whole_program(units),
+        EmitSelection::TargetSourceFile(source) => EmitOutputPlan::targeted(source, units),
+    };
+    Ok(preflight)
+}
+
 /// tsc-port: getOwnEmitOutputFilePath @6.0.3
 /// tsc-hash: 4ddd1ea3136e64d8da7394a321fb709fffd279d36c8b456616956cdd82905b14
 /// tsc-span: _tsc.js:16567-16576
@@ -546,12 +620,16 @@ fn get_output_extension(path: &Path, jsx: Option<i32>) -> Result<&'static str, E
 /// tsc-port: getDeclarationEmitOutputFilePath @6.0.3
 /// tsc-hash: 151a4fa19404c1a458b703798d1ed757d717f8c180604136d049b7d4ad38d464
 /// tsc-span: _tsc.js:16580-16591
-fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
+pub(crate) fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
     let options = host.compiler_options();
     let relocated = options
         .declaration_dir
         .as_deref()
-        .or(options.out_dir.as_deref())
+        .filter(|directory| !directory.is_empty())
+        .or(options
+            .out_dir
+            .as_deref()
+            .filter(|directory| !directory.is_empty()))
         .map(|directory| source_file_path_in_new_dir(source_file, host, directory))
         .unwrap_or_else(|| source_file.to_path_buf());
     let lower = relocated.to_string_lossy().to_ascii_lowercase();
@@ -606,7 +684,9 @@ fn source_file_path_in_new_dir(
     host: &dyn EmitHost,
     output_directory: &str,
 ) -> PathBuf {
-    let output_directory = resolve_option_path(host, output_directory);
+    // getSourceFilePathInNewDirWorker (_tsc.js:16638-16643) retains the
+    // requested directory in callback paths; blocked-path comparison is canonical.
+    let output_directory = Path::new(output_directory);
     let source = absolute_display_path(host, source_file);
     let common = absolute_display_path(host, host.common_source_directory());
     let canonical_source = host.canonical_output_path(&source);

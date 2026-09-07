@@ -491,6 +491,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Admit declaration option requests and explicit declaration getters /
+    /// forced emits. H2.7c counts requests, including cached or empty getters;
+    /// H2.7b continues to count the declaration transform members they reach.
+    #[doc(hidden)]
+    pub const fn h2_7c_profile() -> Self {
+        let mut profile = Self::h2_7b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_7c.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

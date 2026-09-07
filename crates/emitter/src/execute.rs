@@ -2,7 +2,9 @@ use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticLi
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::get_script_transformers_with_activity;
-use crate::declarations::{emit_declaration_unit, PlanDeclarationPaths};
+use crate::declarations::{
+    emit_declaration_unit, get_declaration_diagnostics, PlanDeclarationPaths,
+};
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
     EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
@@ -70,6 +72,20 @@ impl EmitDiagnosticGate {
 /// Reject every effective option outside the frozen JavaScript-only bootstrap
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
+    validate_emit_options(options, EmitOperation::Files)
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum EmitOperation {
+    Files,
+    DeclarationDiagnostics,
+    ForcedDeclarations,
+}
+
+fn validate_emit_options(
+    options: &CompilerOptions,
+    operation: EmitOperation,
+) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
     if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
@@ -98,8 +114,14 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
 
     for (active, name) in [
-        (options.no_emit == Some(true), "noEmit"),
-        (options.no_check == Some(true), "noCheck"),
+        (
+            operation == EmitOperation::Files && options.no_emit == Some(true),
+            "noEmit",
+        ),
+        (
+            operation == EmitOperation::Files && options.no_check == Some(true),
+            "noCheck",
+        ),
         (options.isolated_modules == Some(true), "isolatedModules"),
         (
             options.verbatim_module_syntax == Some(true),
@@ -111,15 +133,9 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         ),
         (options.declaration_map == Some(true), "declarationMap"),
         (
-            options.emit_declaration_only == Some(true)
-                && !(options.declaration == Some(true) || options.composite == Some(true)),
-            "emitDeclarationOnly",
-        ),
-        (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
-        (options.strip_internal == Some(true), "stripInternal"),
         (options.incremental == Some(true), "incremental"),
         (options.composite == Some(true), "composite"),
         (
@@ -140,7 +156,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
     for (present, name) in [
         (options.root_dir.is_some(), "rootDir"),
-        (options.declaration_dir.is_some(), "declarationDir"),
         (options.out_file.is_some(), "outFile"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
     ] {
@@ -155,8 +170,20 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
 /// families before
 /// the checker constructs an emit resolver.
 pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
+    validate_emit_request(host, EmitOperation::Files)
+}
+
+pub fn validate_declaration_diagnostics_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
+    validate_emit_request(host, EmitOperation::DeclarationDiagnostics)
+}
+
+pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), EmitFailure> {
+    validate_emit_request(host, EmitOperation::ForcedDeclarations)
+}
+
+fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
-    validate_bootstrap_emit_options(options)?;
+    validate_emit_options(options, operation)?;
     let mut emit_eligible_sources = 0usize;
     let mut javascript_sources = 0usize;
     let mut json_sources = 0usize;
@@ -164,7 +191,12 @@ pub fn validate_bootstrap_emit_request(host: &dyn EmitHost) -> Result<(), EmitFa
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
         ))?;
-        if !crate::plan::source_file_may_be_emitted_for_host(source, host) {
+        let eligible = if operation == EmitOperation::ForcedDeclarations {
+            crate::plan::source_file_may_emit_forced_declaration(source, host)
+        } else {
+            crate::plan::source_file_may_be_emitted_for_host(source, host)
+        };
+        if !eligible {
             continue;
         }
         emit_eligible_sources += 1;
@@ -263,7 +295,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut activity = H2ActivityCanary::h2_7c_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -308,7 +340,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut activity = H2ActivityCanary::h2_7c_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -633,9 +665,44 @@ pub fn emit_files_with_activity(
         ));
     }
 
+    // Newly admitted declaration options require H2.7c even when diagnostics
+    // or a declaration-only input prevent every transform. The noEmitOnError
+    // declaration getter is observed below only if the older diagnostic gate
+    // reaches it; an early return from that gate keeps its previous owner.
+    let declaration_option_request = options.strip_internal == Some(true)
+        || (options.isolated_declarations == Some(true) && options.declaration == Some(true))
+        || options.declaration_dir.is_some()
+        || (options.emit_declaration_only == Some(true) && options.declaration != Some(true));
+    if declaration_option_request {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+    }
+
     let emitted_files_enabled = options.list_emitted_files == Some(true);
+    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
+    // tsc-port: handleNoEmitOptions @6.0.3
+    // tsc-hash: dd8ed6d22974cbe8efc5097db50ffc3bf3aeabd1de0ca9f3a4e0878d3aa87de1
+    // tsc-span: _tsc.js:125641-125668
     if options.no_emit_on_error == Some(true) {
-        let diagnostics = diagnostic_gate.collect_with_preflight(preflight.diagnostics());
+        let mut diagnostics = diagnostic_gate.collect_with_preflight(preflight.diagnostics());
+        if diagnostics.is_empty()
+            && (options.declaration == Some(true) || options.composite == Some(true))
+        {
+            if !declaration_option_request {
+                activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+            }
+            // TypeScript checks declarations across the whole program before
+            // any JavaScript emit, even for a targeted emit request.
+            for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
+                diagnostics.extend(get_declaration_diagnostics(
+                    resolver,
+                    host,
+                    &declaration_paths,
+                    source,
+                    activity,
+                )?);
+            }
+            sort_and_dedupe_diagnostics(&mut diagnostics);
+        }
         if !diagnostics.is_empty() {
             return Ok(EmitOutcome::new(
                 diagnostics,
@@ -662,7 +729,6 @@ pub fn emit_files_with_activity(
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
-    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len() * 3);
     // emittedFiles lists js THEN map THEN declaration per unit while the sink
     // writes map THEN js THEN declaration. The list order is plan-owned,
@@ -856,34 +922,22 @@ pub fn emit_files_with_activity(
                 *source_id,
                 declaration_path,
                 activity,
+                false,
             )?;
             emit_skipped |= declaration.decl_blocked;
             diagnostics.extend(declaration.diagnostics);
             if let Some(artifact) = declaration.artifact {
                 artifacts.push(artifact);
             }
+        } else if options.emit_declaration_only == Some(true) {
+            // emitDeclarationFileOrBundle also marks a missing declaration
+            // path as skipped. An all-.d.ts program has no units to visit.
+            emit_skipped = true;
         }
         unit_listing.push((javascript_path, javascript_map_path, declaration_path));
     }
 
-    let mut written_paths: std::collections::BTreeSet<std::path::PathBuf> =
-        std::collections::BTreeSet::new();
-    for artifact in artifacts {
-        let path = artifact.path().to_path_buf();
-        activity.attempt_output_sink_write();
-        let include_in_emitted_files = match sink.write(artifact) {
-            Ok(EmitWriteDisposition::Written) => true,
-            Ok(EmitWriteDisposition::SkippedUnchanged) => false,
-            Err(error) => {
-                activity.observe_output_sink_failure();
-                diagnostics.push(write_diagnostic(&path, error.message()));
-                true
-            }
-        };
-        if include_in_emitted_files {
-            written_paths.insert(path);
-        }
-    }
+    let written_paths = write_artifacts(artifacts, sink, &mut diagnostics, activity);
     let emitted_files = emitted_files_enabled.then(|| {
         let mut listing = Vec::new();
         for (javascript_path, map_path, declaration_path) in unit_listing {
@@ -919,6 +973,91 @@ pub fn emit_files_with_activity(
         emit_skipped,
         emitted_files,
         map_options_enabled.then_some(source_map_observations),
+        activity.counters(),
+    ))
+}
+
+/// Dispatch already-built artifacts through the shared write/error boundary.
+fn write_artifacts(
+    artifacts: Vec<EmitArtifact>,
+    sink: &mut dyn OutputSink,
+    diagnostics: &mut DiagnosticList,
+    activity: &mut H2ActivityCanary,
+) -> std::collections::BTreeSet<std::path::PathBuf> {
+    let mut written_paths: std::collections::BTreeSet<std::path::PathBuf> =
+        std::collections::BTreeSet::new();
+    for artifact in artifacts {
+        let path = artifact.path().to_path_buf();
+        activity.attempt_output_sink_write();
+        let include_in_emitted_files = match sink.write(artifact) {
+            Ok(EmitWriteDisposition::Written) => true,
+            Ok(EmitWriteDisposition::SkippedUnchanged) => false,
+            Err(error) => {
+                activity.observe_output_sink_failure();
+                diagnostics.push(write_diagnostic(&path, error.message()));
+                true
+            }
+        };
+        if include_in_emitted_files {
+            written_paths.insert(path);
+        }
+    }
+    written_paths
+}
+
+/// The forced declaration-only branch of emitFiles (_tsc.js:116530-116858),
+/// reusing emitDeclarationFileOrBundle's transform, blocking and printer owner.
+/// tsrs-native: separate entry keeps ordinary emit request guards unchanged.
+/// The forced declaration-only Program.emit route. Ordinary targeted/emitOnly
+/// requests keep their existing typed boundaries. The Program's ordinary
+/// blocked paths survive, while noEmitOnError and semantic checking are skipped.
+pub fn emit_forced_declarations_with_activity(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+    sink: &mut dyn OutputSink,
+    activity: &mut H2ActivityCanary,
+) -> Result<EmitOutcome, EmitFailure> {
+    validate_forced_declaration_request(host)?;
+    activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+    let preflight = crate::plan::preflight_forced_declarations(host, selection)?;
+    activity.construct_emit_session();
+    activity.construct_output_plan();
+    let paths = PlanDeclarationPaths::for_declaration_diagnostics(host)?;
+    let mut artifacts = Vec::new();
+    let mut listing = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut emit_skipped = false;
+    for unit in preflight.plan().units() {
+        let EmitRoot::SourceFile(source) = unit.root() else {
+            return Err(EmitFailure::Unsupported(
+                crate::UnsupportedEmitFeature::BundleRoot,
+            ));
+        };
+        let path = unit
+            .paths()
+            .declaration_path()
+            .expect("forced plan has a declaration path");
+        let declaration = emit_declaration_unit(
+            resolver, host, &preflight, &paths, *source, path, activity, true,
+        )?;
+        emit_skipped |= declaration.decl_blocked;
+        diagnostics.extend(declaration.diagnostics);
+        if let Some(artifact) = declaration.artifact {
+            listing.push(path.to_path_buf());
+            artifacts.push(artifact);
+        }
+    }
+    let written = write_artifacts(artifacts, sink, &mut diagnostics, activity);
+    listing.retain(|path| written.contains(path));
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    let options = host.compiler_options();
+    Ok(EmitOutcome::new(
+        diagnostics,
+        emit_skipped,
+        (options.list_emitted_files == Some(true)).then_some(listing),
+        (options.source_map == Some(true) || options.inline_source_map == Some(true))
+            .then(Vec::new),
         activity.counters(),
     ))
 }

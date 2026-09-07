@@ -1,0 +1,2743 @@
+{
+  "schema": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "projection_contract": "Original fixture settings, effective options and Program roots. Project inputs mount the complete descriptor directory. No option floor. Validated against pinned source/expansion/config records by h2-7c-qualification.mjs.",
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/computedPropertiesNarrowed.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "computedPropertiesNarrowed.ts",
+        "bytes": 965,
+        "sha256": "b1af69ffec65dec2ae66f8d3615bae91e63bbe9ba46b47e96da8e87a515054aa",
+        "git_blob_sha1": "1bedd9dc7cab4039aed10b4cad916c6f5996b1a9"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "computedPropertiesNarrowed.ts",
+          "text": "const x: 0 | 1 = Math.random()? 0: 1;\ndeclare function assert(n: number): asserts n is 1;\nassert(x);\nexport let o = {\n    [x]: 1 // error narrow type !== declared type\n}\n\n\nconst y: 0 = 0\nexport let o2 = {\n    [y]: 1 // ok literal computed type \n}\n\n// literals are ok\nexport let o3 = { [1]: 1 }\nexport let o31 = { [-1]: 1 }\n\nexport let o32 = { [1-1]: 1 } // error number \n\nlet u = Symbol();\nexport let o4 = {\n    [u]: 1 // Should error, nut a unique symbol\n}\n\nexport let o5  ={\n    [Symbol()]: 1 // Should error\n}\n\nconst uu: unique symbol = Symbol();\nexport let o6  = {\n    [uu]: 1 // Should be ok\n}\n\n\nfunction foo (): 1 { return 1; }\nexport let o7 = {\n    [foo()]: 1 // Should error\n};\n\nlet E = { A: 1 } as const\nexport const o8 = {\n    [E.A]: 1 // Fresh \n}\n\nfunction ns() { return { v: 0 } as const }\nexport const o9 = {\n    [ns().v]: 1\n}\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/computedPropertiesNarrowed.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/computedPropertiesNarrowed.ts",
+            "text": "const x: 0 | 1 = Math.random()? 0: 1;\ndeclare function assert(n: number): asserts n is 1;\nassert(x);\nexport let o = {\n    [x]: 1 // error narrow type !== declared type\n}\n\n\nconst y: 0 = 0\nexport let o2 = {\n    [y]: 1 // ok literal computed type \n}\n\n// literals are ok\nexport let o3 = { [1]: 1 }\nexport let o31 = { [-1]: 1 }\n\nexport let o32 = { [1-1]: 1 } // error number \n\nlet u = Symbol();\nexport let o4 = {\n    [u]: 1 // Should error, nut a unique symbol\n}\n\nexport let o5  ={\n    [Symbol()]: 1 // Should error\n}\n\nconst uu: unique symbol = Symbol();\nexport let o6  = {\n    [uu]: 1 // Should be ok\n}\n\n\nfunction foo (): 1 { return 1; }\nexport let o7 = {\n    [foo()]: 1 // Should error\n};\n\nlet E = { A: 1 } as const\nexport const o8 = {\n    [E.A]: 1 // Fresh \n}\n\nfunction ns() { return { v: 0 } as const }\nexport const o9 = {\n    [ns().v]: 1\n}\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitIsolatedDeclarationErrorNotEmittedForNonEmittedFile.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "declarationEmitIsolatedDeclarationErrorNotEmittedForNonEmittedFile.ts",
+        "bytes": 2146,
+        "sha256": "77953360c15e7fedd9f7944adac4158b3332650ce8e2601bd340cdda3a98bf96",
+        "git_blob_sha1": "080bd9afd951f16752196591b16d0b02e678c366"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "filename",
+          "index.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "vfs_write_order": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "files": [
+        {
+          "name": "node_modules/@trpc/server/internals/config.d.ts",
+          "text": "export interface RootConfig<T> {\n    prop: T;\n}"
+        },
+        {
+          "name": "node_modules/@trpc/server/internals/utils.d.ts",
+          "text": "export interface ErrorFormatterShape<T={}> {\n    prop: T;\n}\nexport type PickFirstDefined<TType, TPick> = undefined extends TType\n  ? undefined extends TPick\n    ? never\n    : TPick\n  : TType;\nexport interface ErrorFormatter<T={},U={}> {\n    prop: [T, U];\n}\nexport interface DefaultErrorShape<T={}> {\n    prop: T;\n}"
+        },
+        {
+          "name": "node_modules/@trpc/server/middleware.d.ts",
+          "text": "export interface MiddlewareFunction<T={},U={}> {\n    prop: [T, U];\n}\nexport interface MiddlewareBuilder<T={},U={}> {\n    prop: [T, U];\n}"
+        },
+        {
+          "name": "node_modules/@trpc/server/index.d.ts",
+          "text": "import { RootConfig } from './internals/config';\nimport { ErrorFormatterShape, PickFirstDefined, ErrorFormatter, DefaultErrorShape } from './internals/utils';\ndeclare class TRPCBuilder<TParams> {\n    create<TOptions extends Record<string, any>>(): {\n        procedure: {};\n        middleware: <TNewParams extends Record<string, any>>(fn: import(\"./middleware\").MiddlewareFunction<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>) => import(\"./middleware\").MiddlewareBuilder<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>;\n        router: {};\n    };\n} \n\nexport declare const initTRPC: TRPCBuilder<object>;\nexport {};"
+        },
+        {
+          "name": "index.ts",
+          "text": "import { initTRPC } from \"@trpc/server\";\n\nconst trpc = initTRPC.create();\n\nexport const middleware = trpc.middleware;\nexport const router = trpc.router;\nexport const publicProcedure = trpc.procedure;"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/node_modules/@trpc/server/internals/config.d.ts",
+          "/.src/node_modules/@trpc/server/internals/utils.d.ts",
+          "/.src/node_modules/@trpc/server/middleware.d.ts",
+          "/.src/node_modules/@trpc/server/index.d.ts",
+          "/.src/index.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/node_modules/@trpc/server/internals/config.d.ts",
+            "text": "export interface RootConfig<T> {\n    prop: T;\n}"
+          },
+          {
+            "path": "/.src/node_modules/@trpc/server/internals/utils.d.ts",
+            "text": "export interface ErrorFormatterShape<T={}> {\n    prop: T;\n}\nexport type PickFirstDefined<TType, TPick> = undefined extends TType\n  ? undefined extends TPick\n    ? never\n    : TPick\n  : TType;\nexport interface ErrorFormatter<T={},U={}> {\n    prop: [T, U];\n}\nexport interface DefaultErrorShape<T={}> {\n    prop: T;\n}"
+          },
+          {
+            "path": "/.src/node_modules/@trpc/server/middleware.d.ts",
+            "text": "export interface MiddlewareFunction<T={},U={}> {\n    prop: [T, U];\n}\nexport interface MiddlewareBuilder<T={},U={}> {\n    prop: [T, U];\n}"
+          },
+          {
+            "path": "/.src/node_modules/@trpc/server/index.d.ts",
+            "text": "import { RootConfig } from './internals/config';\nimport { ErrorFormatterShape, PickFirstDefined, ErrorFormatter, DefaultErrorShape } from './internals/utils';\ndeclare class TRPCBuilder<TParams> {\n    create<TOptions extends Record<string, any>>(): {\n        procedure: {};\n        middleware: <TNewParams extends Record<string, any>>(fn: import(\"./middleware\").MiddlewareFunction<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>) => import(\"./middleware\").MiddlewareBuilder<{\n            _config: RootConfig<{\n                errorShape: ErrorFormatterShape<PickFirstDefined<TOptions[\"errorFormatter\"], ErrorFormatter<TParams[\"ctx\"] extends object ? TParams[\"ctx\"] : object, DefaultErrorShape>>>;\n            }>;\n        }, TNewParams>;\n        router: {};\n    };\n} \n\nexport declare const initTRPC: TRPCBuilder<object>;\nexport {};"
+          },
+          {
+            "path": "/.src/index.ts",
+            "text": "import { initTRPC } from \"@trpc/server\";\n\nconst trpc = initTRPC.create();\n\nexport const middleware = trpc.middleware;\nexport const router = trpc.router;\nexport const publicProcedure = trpc.procedure;"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/DeclarationErrorsNoEmitOnError.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "DeclarationErrorsNoEmitOnError.ts",
+        "bytes": 154,
+        "sha256": "8baed7e57b0a218620301c111e75e95d5957048469eba5242c8e5e263c3cf3d1",
+        "git_blob_sha1": "e635cda29974b028568f3e1a90301633c4455f23"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "module": 1,
+        "newLine": 0,
+        "noEmitOnError": true,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "noEmitOnError",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "DeclarationErrorsNoEmitOnError.ts",
+          "text": "type T = { x : number }\nexport interface I {\n    f: T;   \n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/DeclarationErrorsNoEmitOnError.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/DeclarationErrorsNoEmitOnError.ts",
+            "text": "type T = { x : number }\nexport interface I {\n    f: T;   \n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declFileEmitDeclarationOnlyError1.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "declFileEmitDeclarationOnlyError1.ts",
+        "bytes": 92,
+        "sha256": "0de1fd32efd6603d6abb7eacc99398ded503d9fdebd331d141ee73de27fb94b0",
+        "git_blob_sha1": "38060bf92c6469af8c41f3e71bed306f9fcbef26"
+      },
+      "effective_declaration_options": {
+        "emitDeclarationOnly": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "emitDeclarationOnly",
+          "true"
+        ],
+        [
+          "filename",
+          "hello.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "hello.ts",
+          "text": "var hello = \"yo!\";\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/hello.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/hello.ts",
+            "text": "var hello = \"yo!\";\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrors.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrors.ts",
+        "bytes": 313,
+        "sha256": "7a632bdbc90ba3e30be0ac762875a9f39543a2c5ae3516dfce751f131aee8cd4",
+        "git_blob_sha1": "0f4a3fea56f139f774453a80a90c7da4c222334b"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrors.ts",
+          "text": "function errorOnAssignmentBelowDecl(): void {}\nerrorOnAssignmentBelowDecl.a = \"\";\n\nconst errorOnAssignmentBelow = (): void => {}\nerrorOnAssignmentBelow.a = \"\";\n\nconst errorOnMissingReturn = () => {}\nerrorOnMissingReturn.a = \"\";\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrors.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrors.ts",
+            "text": "function errorOnAssignmentBelowDecl(): void {}\nerrorOnAssignmentBelowDecl.a = \"\";\n\nconst errorOnAssignmentBelow = (): void => {}\nerrorOnAssignmentBelow.a = \"\";\n\nconst errorOnMissingReturn = () => {}\nerrorOnMissingReturn.a = \"\";\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsAugmentation.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsAugmentation.ts",
+        "bytes": 656,
+        "sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+        "git_blob_sha1": "e5a5153efbe6d53f5a0e2987e7c1ac22853b8bc0"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ],
+        [
+          "filename",
+          "parent.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1
+        ],
+        "vfs_write_order": [
+          0,
+          1
+        ]
+      },
+      "files": [
+        {
+          "name": "child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        },
+        {
+          "name": "parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/child1.ts",
+          "/.src/parent.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/child1.ts",
+            "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+          },
+          {
+            "path": "/.src/parent.ts",
+            "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsClasses.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsClasses.ts",
+        "bytes": 1453,
+        "sha256": "4a98fe24e559f004f959372f70bec9542ffb0ff3e8a83de0088dd7fa4fd3ed11",
+        "git_blob_sha1": "f29915318bad6bf888031edc9e5cfeb4fde4db21"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsClasses.ts",
+          "text": "export class Cls {\n\n    field = 1 + 1;\n    method() {}\n\n    methodOk(): void {}\n\n    methodParams(p): void {}\n    methodParams2(p = 1 + 1): void {}\n\n    get getOnly() { return 1 + 1 }\n    set setOnly(value) { }\n\n    get getSetBad() { return 0 }\n    set getSetBad(value) { }\n\n    get getSetOk(): number { return 0 }\n    set getSetOk(value) { }\n\n    get getSetOk2() { return 0 }\n    set getSetOk2(value: number) { }\n\n    get getSetOk3(): number { return 0 }\n    set getSetOk3(value: number) { }\n}\n\nlet noAnnotationStringName: string = \"noAnnotationStringName\";\nlet noParamAnnotationStringName: string = \"noParamAnnotationStringName\";\n\nconst noAnnotationLiteralName = \"noAnnotationLiteralName\";\nconst noParamAnnotationLiteralName = \"noParamAnnotationLiteralName\";\n\nexport class C {\n\n    // Should not be reported as an isolated declaration error\n    [missing] = 1;\n    \n    [noAnnotationLiteralName](): void { }\n\n    [noParamAnnotationLiteralName](v: string): void { }\n\n    [noAnnotationStringName]() { }\n\n    [noParamAnnotationStringName](v): void { }\n\n    get [noAnnotationStringName]() { return 0;}\n\n    set [noParamAnnotationStringName](value) { }\n\n    [(\"A\" + \"B\") as \"AB\"] =  1;\n\n}\n\nexport interface I {\n    [noAnnotationStringName]: 10;\n    [noAnnotationLiteralName]();\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsClasses.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsClasses.ts",
+            "text": "export class Cls {\n\n    field = 1 + 1;\n    method() {}\n\n    methodOk(): void {}\n\n    methodParams(p): void {}\n    methodParams2(p = 1 + 1): void {}\n\n    get getOnly() { return 1 + 1 }\n    set setOnly(value) { }\n\n    get getSetBad() { return 0 }\n    set getSetBad(value) { }\n\n    get getSetOk(): number { return 0 }\n    set getSetOk(value) { }\n\n    get getSetOk2() { return 0 }\n    set getSetOk2(value: number) { }\n\n    get getSetOk3(): number { return 0 }\n    set getSetOk3(value: number) { }\n}\n\nlet noAnnotationStringName: string = \"noAnnotationStringName\";\nlet noParamAnnotationStringName: string = \"noParamAnnotationStringName\";\n\nconst noAnnotationLiteralName = \"noAnnotationLiteralName\";\nconst noParamAnnotationLiteralName = \"noParamAnnotationLiteralName\";\n\nexport class C {\n\n    // Should not be reported as an isolated declaration error\n    [missing] = 1;\n    \n    [noAnnotationLiteralName](): void { }\n\n    [noParamAnnotationLiteralName](v: string): void { }\n\n    [noAnnotationStringName]() { }\n\n    [noParamAnnotationStringName](v): void { }\n\n    get [noAnnotationStringName]() { return 0;}\n\n    set [noParamAnnotationStringName](value) { }\n\n    [(\"A\" + \"B\") as \"AB\"] =  1;\n\n}\n\nexport interface I {\n    [noAnnotationStringName]: 10;\n    [noAnnotationLiteralName]();\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsClassesExpressions.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsClassesExpressions.ts",
+        "bytes": 388,
+        "sha256": "e1ce4c946b1697979240cc302c7bd505fb3f57d901a81271fb41d280df453fa4",
+        "git_blob_sha1": "97739056126910942ddb40f6fc4143d574e4f695"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsClassesExpressions.ts",
+          "text": "export const cls = class {\n    foo: string = \"\";\n}\n\n\nfunction id<T extends new (...a: any[]) => any>(cls: T) {\n    return cls;\n}\n\n\nexport class Base {\n\n}\n\nexport class Mix extends id(Base) {\n\n}\n\nexport const classes = [class {}, class{}] as const"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsClassesExpressions.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsClassesExpressions.ts",
+            "text": "export const cls = class {\n    foo: string = \"\";\n}\n\n\nfunction id<T extends new (...a: any[]) => any>(cls: T) {\n    return cls;\n}\n\n\nexport class Base {\n\n}\n\nexport class Mix extends id(Base) {\n\n}\n\nexport const classes = [class {}, class{}] as const"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsDefault.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsDefault.ts",
+        "bytes": 469,
+        "sha256": "33177c1a351cd29ba00c17f8c66d82d04b8c3c0cf74aa8ad23891e639815537c",
+        "git_blob_sha1": "6493db7efff733dfa375f515b23fde2c11cc3fe0"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ],
+        [
+          "fileName",
+          "f.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "vfs_write_order": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "files": [
+        {
+          "name": "a.ts",
+          "text": "export default 1 + 1;\n\n"
+        },
+        {
+          "name": "b.ts",
+          "text": "export default { foo: 1 + 1 };\n"
+        },
+        {
+          "name": "c.ts",
+          "text": "export default [{ foo: 1 + 1 }];\n"
+        },
+        {
+          "name": "d.ts",
+          "text": "export default [{ foo: 1 + 1 }] as const;\n"
+        },
+        {
+          "name": "e.ts",
+          "text": "export default [{ foo: 1 + 1 }] as const;\n"
+        },
+        {
+          "name": "f.ts",
+          "text": "const a = { foo: 1 };\nexport default a;"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/a.ts",
+          "/.src/b.ts",
+          "/.src/c.ts",
+          "/.src/d.ts",
+          "/.src/e.ts",
+          "/.src/f.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/a.ts",
+            "text": "export default 1 + 1;\n\n"
+          },
+          {
+            "path": "/.src/b.ts",
+            "text": "export default { foo: 1 + 1 };\n"
+          },
+          {
+            "path": "/.src/c.ts",
+            "text": "export default [{ foo: 1 + 1 }];\n"
+          },
+          {
+            "path": "/.src/d.ts",
+            "text": "export default [{ foo: 1 + 1 }] as const;\n"
+          },
+          {
+            "path": "/.src/e.ts",
+            "text": "export default [{ foo: 1 + 1 }] as const;\n"
+          },
+          {
+            "path": "/.src/f.ts",
+            "text": "const a = { foo: 1 };\nexport default a;"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsEnums.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsEnums.ts",
+        "bytes": 714,
+        "sha256": "4a5be44eb87e79733b1670d8b4c787612593d435662649fc6219f7ce5c39ed6a",
+        "git_blob_sha1": "300fd26689ca41b22ebc1a81fd0dab5dac3fef5e"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsEnums.ts",
+          "text": "declare function computed(x: number): number;\n\nenum E {\n    A = computed(0),\n    B = computed(1),\n    C = computed(2),\n    D = computed(3),\n}\n\n\nenum F {\n    A = E.A,\n    B = A,\n}\n\n\nenum Flag {\n    A = 1 >> 1,\n    B = 2 >> 2,\n    C = 3 >> 2,\n    AB = A | B,\n    ABC = Flag.AB | C,\n    AC = Flag[\"A\"] | C,\n}\n\nconst EV = 1;\nenum ExtFlags {\n    D = 4 >> 1,\n    E = EV,\n    ABCD = Flag.ABC | D,\n    AC = Flag[\"A\"] | D,\n}\n\n\nenum Str {\n    A = \"A\",\n    B = \"B\",\n    AB = A + B\n}\n\n\nenum StrExt {\n    D = \"D\",\n    ABD = Str.AB + D,\n    AD = Str[\"A\"] + D,\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsEnums.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsEnums.ts",
+            "text": "declare function computed(x: number): number;\n\nenum E {\n    A = computed(0),\n    B = computed(1),\n    C = computed(2),\n    D = computed(3),\n}\n\n\nenum F {\n    A = E.A,\n    B = A,\n}\n\n\nenum Flag {\n    A = 1 >> 1,\n    B = 2 >> 2,\n    C = 3 >> 2,\n    AB = A | B,\n    ABC = Flag.AB | C,\n    AC = Flag[\"A\"] | C,\n}\n\nconst EV = 1;\nenum ExtFlags {\n    D = 4 >> 1,\n    E = EV,\n    ABCD = Flag.ABC | D,\n    AC = Flag[\"A\"] | D,\n}\n\n\nenum Str {\n    A = \"A\",\n    B = \"B\",\n    AB = A + B\n}\n\n\nenum StrExt {\n    D = \"D\",\n    ABD = Str.AB + D,\n    AD = Str[\"A\"] + D,\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsExpandoFunctions.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsExpandoFunctions.ts",
+        "bytes": 274,
+        "sha256": "c5c88b532c942b2f71aeb0774931567b5a85dfbbabb70093c2837f435f76efff",
+        "git_blob_sha1": "478408fc35b635c103b46b7eb630d3a8efb2ed56"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsExpandoFunctions.ts",
+          "text": "export function foo() {}\n\nfoo.apply = () => {}\nfoo.call = ()=> {}\nfoo.bind = ()=> {}\nfoo.caller = ()=> {}\nfoo.toString = ()=> {}\nfoo.length = 10\nfoo.length = 10\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsExpandoFunctions.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "text": "export function foo() {}\n\nfoo.apply = () => {}\nfoo.call = ()=> {}\nfoo.bind = ()=> {}\nfoo.caller = ()=> {}\nfoo.toString = ()=> {}\nfoo.length = 10\nfoo.length = 10\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsExpressions.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsExpressions.ts",
+        "bytes": 4591,
+        "sha256": "c75c90821b1eddaab12483f9c4c2cc9f6a64c10b38fc6fab0dd22d278c1f63b6",
+        "git_blob_sha1": "b4911d20dbc4f0bc6b9d6ede8a3808eca68166ab"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsExpressions.ts",
+          "text": "declare function time(): bigint\nexport const numberConst = 1;\nexport const numberConstBad1 = 1 + 1;\nexport const numberConstBad2 = Math.random();\nexport const numberConstBad3 = numberConst;\n\nexport const bigIntConst = 1n;\nexport const bigIntConstBad1 = 1n + 1n;\nexport const bigIntConstBad2 = time();\nexport const bigIntConstBad3 = bigIntConst;\n\nexport const stringConst = \"s\";\nexport const stringConstBad = \"s\" + \"s\";\n\n// These are just strings\nexport const templateConstOk1 = `s`;\nexport const templateConstNotOk2 = `s${1n}`;\nexport const templateConstNotOk3 = `s${1} - ${\"S\"}`;\nexport const templateConstNotOk4 = `s${1} - ${\"S\"} - ${false}`;\nexport const templateConstNotOk5 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\nexport let numberLet = 1;\nexport let numberLetBad1 = 1 + 1;\nexport let numberLetBad2 = Math.random();\nexport let numberLetBad3 = numberLet;\n\nexport let bigIntLet = 1n;\nexport let bigIntLetBad1 = 1n + 1n;\nexport let bigIntLetBad2 = time();\nexport let bigIntLetBad3 = bigIntLet;\n\nexport let stringLet = \"s\";\nexport let stringLetBad = \"s\" + \"s\";\n\nexport let templateLetOk1 = `s`;\nexport let templateLetOk2 = `s${1} - ${\"S\"}`;\nexport let templateLetOk3 = `s${1} - ${\"S\"} - ${false}`;\nexport let templateLetOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n// As const\n\nexport let numberLetAsConst = 1 as const;\n\nexport let bigIntLetAsConst = 1n as const;\n\nexport let stringLetAsConst = \"s\" as const;\n\nexport let templateLetOk1AsConst = `s` as const;\nexport let templateLetOk2AsConst = `s${1} - ${\"S\"}` as const;\nexport let templateLetOk3AsConst = `s${1} - ${\"S\"} - ${false}` as const;\nexport let templateLetOk4AsConst = `s${1 + 1} - ${\"S\"} - ${!false}` as const;\n\nexport let arr = [1, 2, 3];\nexport let arrConst = [1, 2, 3] as const;\nexport let arrWithSpread = [1, 2, 3, ...arr] as const;\n\nexport class Exported {\n    public numberLet = 1;\n    public numberLetBad1 = 1 + 1;\n    public numberLetBad2 = Math.random();\n    public numberLetBad3 = numberLet;\n\n    public bigIntLet = 1n;\n    public bigIntLetBad1 = 1n + 1n;\n    public bigIntLetBad2 = time();\n    public bigIntLetBad3 = bigIntLet;\n\n    public stringLet = \"s\";\n    public stringLetBad = \"s\" + \"s\";\n\n    public templateLetOk1 = `s`;\n    public templateLetOk2 = `s${1} - ${\"S\"}`;\n    public templateLetOk3 = `s${1} - ${\"S\"} - ${false}`;\n    public templateLetOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n\n    readonly numberConst = 1;\n    readonly numberConstBad1 = 1 + 1;\n    readonly numberConstBad2 = Math.random();\n    readonly numberConstBad3 = numberConst;\n\n    readonly bigIntConst = 1n;\n    readonly bigIntConstBad1 = 1n + 1n;\n    readonly bigIntConstBad2 = time();\n    readonly bigIntConstBad3 = bigIntConst;\n\n    readonly stringConst = \"s\";\n    readonly stringConstBad = \"s\" + \"s\";\n\n    readonly templateConstOk1 = `s`;\n    readonly templateConstNotOk2 = `s${1} - ${\"S\"}`;\n    readonly templateConstNotOk3 = `s${1} - ${\"S\"} - ${false}`;\n    readonly templateConstNotOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n    numberLetAsConst = 1 as const;\n\n    bigIntLetAsConst = 1n as const;\n\n    stringLetAsConst = \"s\" as const;\n\n    templateLetOk1AsConst = `s` as const;\n    templateLetOk2AsConst = `s${1} - ${\"S\"}` as const;\n    templateLetOk3AsConst = `s${1} - ${\"S\"} - ${false}` as const;\n    templateLetOk4AsConst = `s${1 + 1} - ${\"S\"} - ${!false}` as const;\n\n}\n\nexport function numberParam(p = 1): void { }\nexport function numberParamBad1(p = 1 + 1): void { }\nexport function numberParamBad2(p = Math.random()): void { }\nexport function numberParamBad3(p = numberParam): void { }\n\nexport function bigIntParam(p = 1n): void { }\nexport function bigIntParamBad1(p = 1n + 1n): void { }\nexport function bigIntParamBad2(p = time()): void { }\nexport function bigIntParamBad3(p = bigIntParam): void { }\n\nexport function stringParam(p = \"s\"): void { }\nexport function stringParamBad(p = \"s\" + \"s\"): void { }\n\nexport function templateParamOk1(p = `s`): void { }\nexport function templateParamOk2(p = `s${1} - ${\"S\"}`): void { }\nexport function templateParamOk3(p = `s${1} - ${\"S\"} - ${false}`): void { }\nexport function templateParamOk4(p = `s${1 + 1} - ${\"S\"} - ${!false}`): void { }\n\n\nexport const { a } = { a: 1 };\nexport const [, , b = 1]: [number, number, number | undefined] = [0, 1, 2];\n\nexport function foo([, , b]: [\n    number,\n    number,\n    number\n] = [0, 1, 2]): void {\n\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsExpressions.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsExpressions.ts",
+            "text": "declare function time(): bigint\nexport const numberConst = 1;\nexport const numberConstBad1 = 1 + 1;\nexport const numberConstBad2 = Math.random();\nexport const numberConstBad3 = numberConst;\n\nexport const bigIntConst = 1n;\nexport const bigIntConstBad1 = 1n + 1n;\nexport const bigIntConstBad2 = time();\nexport const bigIntConstBad3 = bigIntConst;\n\nexport const stringConst = \"s\";\nexport const stringConstBad = \"s\" + \"s\";\n\n// These are just strings\nexport const templateConstOk1 = `s`;\nexport const templateConstNotOk2 = `s${1n}`;\nexport const templateConstNotOk3 = `s${1} - ${\"S\"}`;\nexport const templateConstNotOk4 = `s${1} - ${\"S\"} - ${false}`;\nexport const templateConstNotOk5 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\nexport let numberLet = 1;\nexport let numberLetBad1 = 1 + 1;\nexport let numberLetBad2 = Math.random();\nexport let numberLetBad3 = numberLet;\n\nexport let bigIntLet = 1n;\nexport let bigIntLetBad1 = 1n + 1n;\nexport let bigIntLetBad2 = time();\nexport let bigIntLetBad3 = bigIntLet;\n\nexport let stringLet = \"s\";\nexport let stringLetBad = \"s\" + \"s\";\n\nexport let templateLetOk1 = `s`;\nexport let templateLetOk2 = `s${1} - ${\"S\"}`;\nexport let templateLetOk3 = `s${1} - ${\"S\"} - ${false}`;\nexport let templateLetOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n// As const\n\nexport let numberLetAsConst = 1 as const;\n\nexport let bigIntLetAsConst = 1n as const;\n\nexport let stringLetAsConst = \"s\" as const;\n\nexport let templateLetOk1AsConst = `s` as const;\nexport let templateLetOk2AsConst = `s${1} - ${\"S\"}` as const;\nexport let templateLetOk3AsConst = `s${1} - ${\"S\"} - ${false}` as const;\nexport let templateLetOk4AsConst = `s${1 + 1} - ${\"S\"} - ${!false}` as const;\n\nexport let arr = [1, 2, 3];\nexport let arrConst = [1, 2, 3] as const;\nexport let arrWithSpread = [1, 2, 3, ...arr] as const;\n\nexport class Exported {\n    public numberLet = 1;\n    public numberLetBad1 = 1 + 1;\n    public numberLetBad2 = Math.random();\n    public numberLetBad3 = numberLet;\n\n    public bigIntLet = 1n;\n    public bigIntLetBad1 = 1n + 1n;\n    public bigIntLetBad2 = time();\n    public bigIntLetBad3 = bigIntLet;\n\n    public stringLet = \"s\";\n    public stringLetBad = \"s\" + \"s\";\n\n    public templateLetOk1 = `s`;\n    public templateLetOk2 = `s${1} - ${\"S\"}`;\n    public templateLetOk3 = `s${1} - ${\"S\"} - ${false}`;\n    public templateLetOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n\n    readonly numberConst = 1;\n    readonly numberConstBad1 = 1 + 1;\n    readonly numberConstBad2 = Math.random();\n    readonly numberConstBad3 = numberConst;\n\n    readonly bigIntConst = 1n;\n    readonly bigIntConstBad1 = 1n + 1n;\n    readonly bigIntConstBad2 = time();\n    readonly bigIntConstBad3 = bigIntConst;\n\n    readonly stringConst = \"s\";\n    readonly stringConstBad = \"s\" + \"s\";\n\n    readonly templateConstOk1 = `s`;\n    readonly templateConstNotOk2 = `s${1} - ${\"S\"}`;\n    readonly templateConstNotOk3 = `s${1} - ${\"S\"} - ${false}`;\n    readonly templateConstNotOk4 = `s${1 + 1} - ${\"S\"} - ${!false}`;\n\n    numberLetAsConst = 1 as const;\n\n    bigIntLetAsConst = 1n as const;\n\n    stringLetAsConst = \"s\" as const;\n\n    templateLetOk1AsConst = `s` as const;\n    templateLetOk2AsConst = `s${1} - ${\"S\"}` as const;\n    templateLetOk3AsConst = `s${1} - ${\"S\"} - ${false}` as const;\n    templateLetOk4AsConst = `s${1 + 1} - ${\"S\"} - ${!false}` as const;\n\n}\n\nexport function numberParam(p = 1): void { }\nexport function numberParamBad1(p = 1 + 1): void { }\nexport function numberParamBad2(p = Math.random()): void { }\nexport function numberParamBad3(p = numberParam): void { }\n\nexport function bigIntParam(p = 1n): void { }\nexport function bigIntParamBad1(p = 1n + 1n): void { }\nexport function bigIntParamBad2(p = time()): void { }\nexport function bigIntParamBad3(p = bigIntParam): void { }\n\nexport function stringParam(p = \"s\"): void { }\nexport function stringParamBad(p = \"s\" + \"s\"): void { }\n\nexport function templateParamOk1(p = `s`): void { }\nexport function templateParamOk2(p = `s${1} - ${\"S\"}`): void { }\nexport function templateParamOk3(p = `s${1} - ${\"S\"} - ${false}`): void { }\nexport function templateParamOk4(p = `s${1 + 1} - ${\"S\"} - ${!false}`): void { }\n\n\nexport const { a } = { a: 1 };\nexport const [, , b = 1]: [number, number, number | undefined] = [0, 1, 2];\n\nexport function foo([, , b]: [\n    number,\n    number,\n    number\n] = [0, 1, 2]): void {\n\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsFunctionDeclarations.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsFunctionDeclarations.ts",
+        "bytes": 447,
+        "sha256": "8f2fb5f275e85a8b109fbc3847bdcc6bae2d9e20003854a096a41d6ce824d1ab",
+        "git_blob_sha1": "ccc2cb386004ba9713e756124bab763a4fa42228"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "strict",
+          "false"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsFunctionDeclarations.ts",
+          "text": "export function noReturn() {}\n\nexport function noParamAnnotation(p): void {}\n\nexport function noParamAnnotationDefault(p = 1): void {}\n\nexport function noParamAnnotationBadDefault(p = 1 + 1, p2 = { a: 1 + 1 }, p3 = [1 + 1] as const): void {}\n\nexport function noParamAnnotationBadDefault2(p = { a: 1 + 1 }): void {}\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsFunctionDeclarations.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "text": "export function noReturn() {}\n\nexport function noParamAnnotation(p): void {}\n\nexport function noParamAnnotationDefault(p = 1): void {}\n\nexport function noParamAnnotationBadDefault(p = 1 + 1, p2 = { a: 1 + 1 }, p3 = [1 + 1] as const): void {}\n\nexport function noParamAnnotationBadDefault2(p = { a: 1 + 1 }): void {}\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsObjects.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsObjects.ts",
+        "bytes": 1516,
+        "sha256": "86187a80de0eeb6bbe82fcbf7116b39f4cd6baf75d0afa3c08f38ddfe0527f44",
+        "git_blob_sha1": "0b3385f808aad0ebcf0f18c05ce2184dbbb4fef9"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsObjects.ts",
+          "text": "export let o = {\n    a: 1,\n    b: \"\"\n}\n\nexport let oBad = {\n    a: Math.random(),\n}\nexport const V = 1;\nexport let oBad2 = {\n    a: {\n        b: Math.random(),\n    },\n    c: {\n        d: 1,\n        e: V,\n    }\n}\n\nexport let oWithMethods = {\n    method() { },\n    okMethod(): void { },\n    a: 1,\n    bad() { },\n    e: V,\n}\nexport let oWithMethodsNested = {\n    foo: {\n        method() { },\n        a: 1,\n        okMethod(): void { },\n        bad() { }\n    }\n}\n\n\n\nexport let oWithAccessor = {\n    get singleGetterBad() { return 0 },\n    set singleSetterBad(value) { },\n\n    get getSetBad() { return 0 },\n    set getSetBad(value) { },\n\n    get getSetOk(): number { return 0 },\n    set getSetOk(value) { },\n\n    get getSetOk2() { return 0 },\n    set getSetOk2(value: number) { },\n    \n    get getSetOk3(): number { return 0 },\n    set getSetOk3(value: number) { },\n}\n\nfunction prop<T>(v: T): T { return v }\n\nconst s: unique symbol = Symbol();\nconst str: string = \"\";\nenum E {\n    V = 10,\n}\nexport const oWithComputedProperties = {\n    [1]: 1,\n    [1 + 3]: 1,\n    [prop(2)]: 2,\n    [s]: 1,\n    [E.V]: 1,\n    [str]: 0,\n}\n\nconst part = { a: 1 };\n\nexport const oWithSpread = {\n    b: 1,\n    ...part,\n    c: 1,\n    part,\n}\n\n\nexport const oWithSpread2 = {\n    b: 1,\n    nested: {\n        ...part,\n    },\n    c: 1,\n}\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsObjects.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsObjects.ts",
+            "text": "export let o = {\n    a: 1,\n    b: \"\"\n}\n\nexport let oBad = {\n    a: Math.random(),\n}\nexport const V = 1;\nexport let oBad2 = {\n    a: {\n        b: Math.random(),\n    },\n    c: {\n        d: 1,\n        e: V,\n    }\n}\n\nexport let oWithMethods = {\n    method() { },\n    okMethod(): void { },\n    a: 1,\n    bad() { },\n    e: V,\n}\nexport let oWithMethodsNested = {\n    foo: {\n        method() { },\n        a: 1,\n        okMethod(): void { },\n        bad() { }\n    }\n}\n\n\n\nexport let oWithAccessor = {\n    get singleGetterBad() { return 0 },\n    set singleSetterBad(value) { },\n\n    get getSetBad() { return 0 },\n    set getSetBad(value) { },\n\n    get getSetOk(): number { return 0 },\n    set getSetOk(value) { },\n\n    get getSetOk2() { return 0 },\n    set getSetOk2(value: number) { },\n    \n    get getSetOk3(): number { return 0 },\n    set getSetOk3(value: number) { },\n}\n\nfunction prop<T>(v: T): T { return v }\n\nconst s: unique symbol = Symbol();\nconst str: string = \"\";\nenum E {\n    V = 10,\n}\nexport const oWithComputedProperties = {\n    [1]: 1,\n    [1 + 3]: 1,\n    [prop(2)]: 2,\n    [s]: 1,\n    [E.V]: 1,\n    [str]: 0,\n}\n\nconst part = { a: 1 };\n\nexport const oWithSpread = {\n    b: 1,\n    ...part,\n    c: 1,\n    part,\n}\n\n\nexport const oWithSpread2 = {\n    b: 1,\n    nested: {\n        ...part,\n    },\n    c: 1,\n}\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorsReturnTypes.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorsReturnTypes.ts",
+        "bytes": 10022,
+        "sha256": "6fa156456c4c6d147926ad85071bb695d5d706ef08724226b865dec28ad25b44",
+        "git_blob_sha1": "9843797bab0a839c56993d4d419c23b4bc4cf105"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationMap": false,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declarationMap",
+          "false"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorsReturnTypes.ts",
+          "text": "// Function Variables\nexport const fnExpressionConstVariable = function foo() { return 0;}\nexport const fnArrowConstVariable = () => \"S\";\n\nexport let fnExpressionLetVariable = function foo() { return 0;}\nexport let fnArrowLetVariable = () => \"S\";\n\nexport var fnExpressionVarVariable = function foo() { return 0;}\nexport var fnArrowVarVariable = () => \"S\";\n\n// No Errors\nexport const fnExpressionConstVariableOk = function foo(): number { return 0;}\nexport const fnArrowConstVariableOk = (cb = function(){ }): string => \"S\";\n\nexport let fnExpressionLetVariableOk = function foo(): number { return 0;}\nexport let fnArrowLetVariableOk = (cb = function(){ }): string => \"S\";\n\nexport var fnExpressionVarVariableOk = function foo(): number { return 0;}\nexport var fnArrowVarVariableOk = (cb = function(){ }): string => \"S\";\n\n// Not exported\nconst fnExpressionConstVariableInternal = function foo() { return 0;}\nconst fnArrowConstVariableInternal = () => \"S\";\n\nlet fnExpressionLetVariableInternal = function foo() { return 0;}\nlet fnArrowLetVariableInternal = () => \"S\";\n\nvar fnExpressionVarVariableInternal = function foo() { return 0;}\nvar fnArrowVarVariableInternal = () => \"S\";\n\n// Function Fields\nexport class ExportedClass { \n    // Should Error\n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";    \n    protected fnExpressionProtected = function foo() { return 0; }\n    protected fnArrowProtected = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    // Have annotation, so ok \n    fnExpressionOk = function foo(): number { return 0; }\n    fnArrowOK = (): string => \"S\";\n    protected fnExpressionProtectedOk = function foo(): number { return 0; }\n    protected fnArrowProtectedOK = (): string => \"S\";\n\n    static fnStaticExpressionOk = function foo(): number { return 0; }\n    static fnStaticArrowOk = (): string => \"S\";\n    protected static fnStaticExpressionProtectedOk = function foo(): number { return 0; }    \n    protected static fnStaticArrowProtectedOk = (): string => \"S\";\n    \n\n    // No Error not in declarations\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\n\n// Should error\nclass IndirectlyExportedClass { \n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    \n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\nexport const instance: IndirectlyExportedClass = new IndirectlyExportedClass();\n\n// No Errors\nclass InternalClass { \n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    \n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\nconst internalInstance: InternalClass = new InternalClass();\n\n\n// Function parameters\n\n// In Function Variables - No annotations\nexport const fnParamExpressionConstVariable = function foo(cb = function(){ }) { return 0;}\nexport const fnParamArrowConstVariable = (cb = () => 1) => \"S\";\n\nexport let fnParamExpressionLetVariable = function foo(cb = function(){ }) { return 0;}\nexport let fnParamArrowLetVariable = (cb = () => 1) => \"S\";\n\nexport var fnParamExpressionVarVariable = function foo(cb = function(){ }) { return 0;}\nexport var fnParamArrowVarVariable = (cb = () => 1) => \"S\";\n\n// In Function Variables - No annotations on parameter\nexport const fnParamExpressionConstVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport const fnParamArrowConstVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\nexport let fnParamExpressionLetVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport let fnParamArrowLetVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\nexport var fnParamExpressionVarVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport var fnParamArrowVarVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\n// No Errors\nexport const fnParamExpressionConstVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport const fnParamArrowConstVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport let fnParamExpressionLetVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport let fnParamArrowLetVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport var fnParamExpressionVarVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport var fnParamArrowVarVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport const fnParamExpressionConstVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport const fnParamArrowConstVariableInternal = (cb = () => 1) => \"S\";\n\nexport let fnParamExpressionLetVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport let fnParamArrowLetVariableInternal = (cb = () => 1) => \"S\";\n\nexport var fnParamExpressionVarVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport var fnParamArrowVarVariableInternal = (cb = () => 1) => \"S\";\n\n\n// In Function Fields\nexport class FnParamsExportedClass { \n    // Should Error\n    fnExpression = function foo(cb = function(){ }) { return 0; }\n    fnArrow = (cb = function(){ }) => \"S\";\n    protected fnExpressionProtected = function foo(cb = function(){ }) { return 0; }\n    protected fnArrowProtected = (cb = function(){ }) => \"S\";\n\n    static fnStaticExpression = function foo(cb = function(){ }) { return 0; }\n    static fnStaticArrow = (cb = function(){ }) => \"S\";\n    protected static fnStaticExpressionProtected = function foo(cb = function(){ }) { return 0; }    \n    protected static fnStaticArrowProtected = (cb = function(){ }) => \"S\";\n\n    // Have annotation on owner\n    fnExpressionMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    fnArrowMethodHasReturn = (cb = function(){ }): string => \"S\";\n    protected fnExpressionProtectedMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    protected fnArrowProtectedMethodHasReturn = (cb = function(){ }): string => \"S\";\n\n    static fnStaticExpressionMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    static fnStaticArrowMethodHasReturn = (cb = function(){ }): string => \"S\";\n    protected static fnStaticExpressionProtectedMethodHasReturn = function foo(cb = function(){ }): number { return 0; }    \n    protected static fnStaticArrowProtectedMethodHasReturn = (cb = function(){ }): string => \"S\";\n\n    // Have annotation only on parameter\n    fnExpressionOnlyOnParam = function foo(cb = function(): void { }) { return 0; }\n    fnArrowOnlyOnParam = (cb = function(): void { }) => \"S\";\n    protected fnExpressionProtectedOnlyOnParam = function foo(cb = function(): void { }) { return 0; }\n    protected fnArrowProtectedOnlyOnParam = (cb = function(): void { }) => \"S\";\n\n    static fnStaticExpressionOnlyOnParam = function foo(cb = function(): void{ }) { return 0; }\n    static fnStaticArrowOnlyOnParam = (cb = function(): void{ }) => \"S\";\n    protected static fnStaticExpressionProtectedOnlyOnParam = function foo(cb = function(): void{ }) { return 0; }    \n    protected static fnStaticArrowProtectedOnlyOnParam = (cb = function(): void{ }) => \"S\";\n\n    // Have annotation, so ok \n    fnExpressionOk = function foo(cb = function(): void { }): number { return 0; }\n    fnArrowOK = (cb = function(): void { }): string => \"S\";\n    protected fnExpressionProtectedOk = function foo(cb = function(): void { }): number { return 0; }\n    protected fnArrowProtectedOK = (cb = function(): void { }): string => \"S\";\n\n    static fnStaticExpressionOk = function foo(cb = function(): void{ }): number { return 0; }\n    static fnStaticArrowOk = (cb = function(): void{ }): string => \"S\";\n    protected static fnStaticExpressionProtectedOk = function foo(cb = function(): void{ }): number { return 0; }    \n    protected static fnStaticArrowProtectedOk = (cb = function(): void{ }): string => \"S\";\n    \n\n    // No Error, not in declarations\n    private fnExpressionPrivate = function foo(cb = function(){ }) { return 0; }\n    private fnArrowPrivate = (cb = function(){ }) => \"S\";\n    #fnArrow = (cb = function(){ }) => \"S\";\n    #fnExpression = function foo(cb = function(){ }) { return 0;}\n    private static fnStaticExpressionPrivate = function foo(cb = function(){ }) { return 0; }\n    private static fnStaticArrowPrivate = (cb = function(){ }) => \"S\";\n}\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorsReturnTypes.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorsReturnTypes.ts",
+            "text": "// Function Variables\nexport const fnExpressionConstVariable = function foo() { return 0;}\nexport const fnArrowConstVariable = () => \"S\";\n\nexport let fnExpressionLetVariable = function foo() { return 0;}\nexport let fnArrowLetVariable = () => \"S\";\n\nexport var fnExpressionVarVariable = function foo() { return 0;}\nexport var fnArrowVarVariable = () => \"S\";\n\n// No Errors\nexport const fnExpressionConstVariableOk = function foo(): number { return 0;}\nexport const fnArrowConstVariableOk = (cb = function(){ }): string => \"S\";\n\nexport let fnExpressionLetVariableOk = function foo(): number { return 0;}\nexport let fnArrowLetVariableOk = (cb = function(){ }): string => \"S\";\n\nexport var fnExpressionVarVariableOk = function foo(): number { return 0;}\nexport var fnArrowVarVariableOk = (cb = function(){ }): string => \"S\";\n\n// Not exported\nconst fnExpressionConstVariableInternal = function foo() { return 0;}\nconst fnArrowConstVariableInternal = () => \"S\";\n\nlet fnExpressionLetVariableInternal = function foo() { return 0;}\nlet fnArrowLetVariableInternal = () => \"S\";\n\nvar fnExpressionVarVariableInternal = function foo() { return 0;}\nvar fnArrowVarVariableInternal = () => \"S\";\n\n// Function Fields\nexport class ExportedClass { \n    // Should Error\n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";    \n    protected fnExpressionProtected = function foo() { return 0; }\n    protected fnArrowProtected = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    // Have annotation, so ok \n    fnExpressionOk = function foo(): number { return 0; }\n    fnArrowOK = (): string => \"S\";\n    protected fnExpressionProtectedOk = function foo(): number { return 0; }\n    protected fnArrowProtectedOK = (): string => \"S\";\n\n    static fnStaticExpressionOk = function foo(): number { return 0; }\n    static fnStaticArrowOk = (): string => \"S\";\n    protected static fnStaticExpressionProtectedOk = function foo(): number { return 0; }    \n    protected static fnStaticArrowProtectedOk = (): string => \"S\";\n    \n\n    // No Error not in declarations\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\n\n// Should error\nclass IndirectlyExportedClass { \n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    \n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\nexport const instance: IndirectlyExportedClass = new IndirectlyExportedClass();\n\n// No Errors\nclass InternalClass { \n    fnExpression = function foo() { return 0; }\n    fnArrow = () => \"S\";\n\n    static fnStaticExpression = function foo() { return 0; }\n    static fnStaticArrow = () => \"S\";\n    \n    protected static fnStaticExpressionProtected = function foo() { return 0; }    \n    protected static fnStaticArrowProtected = () => \"S\";\n\n    private fnExpressionPrivate = function foo() { return 0; }\n    private fnArrowPrivate = () => \"S\";\n    #fnArrow = () => \"S\";\n    #fnExpression = function foo() { return 0;}\n    private static fnStaticExpressionPrivate = function foo() { return 0; }\n    private static fnStaticArrowPrivate = () => \"S\";\n}\nconst internalInstance: InternalClass = new InternalClass();\n\n\n// Function parameters\n\n// In Function Variables - No annotations\nexport const fnParamExpressionConstVariable = function foo(cb = function(){ }) { return 0;}\nexport const fnParamArrowConstVariable = (cb = () => 1) => \"S\";\n\nexport let fnParamExpressionLetVariable = function foo(cb = function(){ }) { return 0;}\nexport let fnParamArrowLetVariable = (cb = () => 1) => \"S\";\n\nexport var fnParamExpressionVarVariable = function foo(cb = function(){ }) { return 0;}\nexport var fnParamArrowVarVariable = (cb = () => 1) => \"S\";\n\n// In Function Variables - No annotations on parameter\nexport const fnParamExpressionConstVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport const fnParamArrowConstVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\nexport let fnParamExpressionLetVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport let fnParamArrowLetVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\nexport var fnParamExpressionVarVariableOwnerHasReturnType = function foo(cb = function(){ }): number { return 0;}\nexport var fnParamArrowVarVariableOwnerHasReturnType = (cb = function(){ }): string => \"S\";\n\n// No Errors\nexport const fnParamExpressionConstVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport const fnParamArrowConstVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport let fnParamExpressionLetVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport let fnParamArrowLetVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport var fnParamExpressionVarVariableOk = function foo(cb = function(): void{ }): number { return 0;}\nexport var fnParamArrowVarVariableOk = (cb = function(): void{ }): string => \"S\";\n\nexport const fnParamExpressionConstVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport const fnParamArrowConstVariableInternal = (cb = () => 1) => \"S\";\n\nexport let fnParamExpressionLetVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport let fnParamArrowLetVariableInternal = (cb = () => 1) => \"S\";\n\nexport var fnParamExpressionVarVariableInternal = function foo(cb = function(){ }) { return 0;}\nexport var fnParamArrowVarVariableInternal = (cb = () => 1) => \"S\";\n\n\n// In Function Fields\nexport class FnParamsExportedClass { \n    // Should Error\n    fnExpression = function foo(cb = function(){ }) { return 0; }\n    fnArrow = (cb = function(){ }) => \"S\";\n    protected fnExpressionProtected = function foo(cb = function(){ }) { return 0; }\n    protected fnArrowProtected = (cb = function(){ }) => \"S\";\n\n    static fnStaticExpression = function foo(cb = function(){ }) { return 0; }\n    static fnStaticArrow = (cb = function(){ }) => \"S\";\n    protected static fnStaticExpressionProtected = function foo(cb = function(){ }) { return 0; }    \n    protected static fnStaticArrowProtected = (cb = function(){ }) => \"S\";\n\n    // Have annotation on owner\n    fnExpressionMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    fnArrowMethodHasReturn = (cb = function(){ }): string => \"S\";\n    protected fnExpressionProtectedMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    protected fnArrowProtectedMethodHasReturn = (cb = function(){ }): string => \"S\";\n\n    static fnStaticExpressionMethodHasReturn = function foo(cb = function(){ }): number { return 0; }\n    static fnStaticArrowMethodHasReturn = (cb = function(){ }): string => \"S\";\n    protected static fnStaticExpressionProtectedMethodHasReturn = function foo(cb = function(){ }): number { return 0; }    \n    protected static fnStaticArrowProtectedMethodHasReturn = (cb = function(){ }): string => \"S\";\n\n    // Have annotation only on parameter\n    fnExpressionOnlyOnParam = function foo(cb = function(): void { }) { return 0; }\n    fnArrowOnlyOnParam = (cb = function(): void { }) => \"S\";\n    protected fnExpressionProtectedOnlyOnParam = function foo(cb = function(): void { }) { return 0; }\n    protected fnArrowProtectedOnlyOnParam = (cb = function(): void { }) => \"S\";\n\n    static fnStaticExpressionOnlyOnParam = function foo(cb = function(): void{ }) { return 0; }\n    static fnStaticArrowOnlyOnParam = (cb = function(): void{ }) => \"S\";\n    protected static fnStaticExpressionProtectedOnlyOnParam = function foo(cb = function(): void{ }) { return 0; }    \n    protected static fnStaticArrowProtectedOnlyOnParam = (cb = function(): void{ }) => \"S\";\n\n    // Have annotation, so ok \n    fnExpressionOk = function foo(cb = function(): void { }): number { return 0; }\n    fnArrowOK = (cb = function(): void { }): string => \"S\";\n    protected fnExpressionProtectedOk = function foo(cb = function(): void { }): number { return 0; }\n    protected fnArrowProtectedOK = (cb = function(): void { }): string => \"S\";\n\n    static fnStaticExpressionOk = function foo(cb = function(): void{ }): number { return 0; }\n    static fnStaticArrowOk = (cb = function(): void{ }): string => \"S\";\n    protected static fnStaticExpressionProtectedOk = function foo(cb = function(): void{ }): number { return 0; }    \n    protected static fnStaticArrowProtectedOk = (cb = function(): void{ }): string => \"S\";\n    \n\n    // No Error, not in declarations\n    private fnExpressionPrivate = function foo(cb = function(){ }) { return 0; }\n    private fnArrowPrivate = (cb = function(){ }) => \"S\";\n    #fnArrow = (cb = function(){ }) => \"S\";\n    #fnExpression = function foo(cb = function(){ }) { return 0;}\n    private static fnStaticExpressionPrivate = function foo(cb = function(){ }) { return 0; }\n    private static fnStaticArrowPrivate = (cb = function(){ }) => \"S\";\n}\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationErrorTypes1.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationErrorTypes1.ts",
+        "bytes": 404,
+        "sha256": "3df12a248662f0d2789352d55019ba9678af68d81a2b31ec37b71c800c0dfa5a",
+        "git_blob_sha1": "e7d4381d315d31dcfb28322edaf6a85c96e23747"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "module": 199,
+        "moduleResolution": 99,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "moduleResolution",
+          "nodenext"
+        ],
+        [
+          "module",
+          "nodenext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationErrorTypes1.ts",
+          "text": "// https://github.com/microsoft/TypeScript/issues/60192\n\nimport { Unresolved } from \"foo\";\n\nexport const foo1 = (type?: Unresolved): void => {};\nexport const foo2 = (type?: Unresolved | undefined): void => {};\nexport const foo3 = (type: Unresolved): void => {};\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationErrorTypes1.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationErrorTypes1.ts",
+            "text": "// https://github.com/microsoft/TypeScript/issues/60192\n\nimport { Unresolved } from \"foo\";\n\nexport const foo1 = (type?: Unresolved): void => {};\nexport const foo2 = (type?: Unresolved | undefined): void => {};\nexport const foo3 = (type: Unresolved): void => {};\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationLazySymbols.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationLazySymbols.ts",
+        "bytes": 433,
+        "sha256": "17630f0bd62cca12b011f9d8ba561f9201a2e1181d27c576bbc535be8cca1ca5",
+        "git_blob_sha1": "2195df64f1ff49ab659bc8ed1c49f4d8343869e4"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "strict",
+          "false"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "target",
+          "ESNext"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationLazySymbols.ts",
+          "text": "export function foo() {\n\n}\n\nconst o = {\n    [\"prop.inner\"]: \"a\",\n    prop: {\n        inner: \"b\",\n    }\n} as const\n\nfoo[o[\"prop.inner\"]] =\"A\";\nfoo[o.prop.inner] = \"B\";\n\nexport class Foo {\n    [o[\"prop.inner\"]] =\"A\"\n    [o.prop.inner] = \"B\"\n}\n\nexport let oo = {\n    [o['prop.inner']]:\"A\",\n    [o.prop.inner]: \"B\",\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationLazySymbols.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationLazySymbols.ts",
+            "text": "export function foo() {\n\n}\n\nconst o = {\n    [\"prop.inner\"]: \"a\",\n    prop: {\n        inner: \"b\",\n    }\n} as const\n\nfoo[o[\"prop.inner\"]] =\"A\";\nfoo[o.prop.inner] = \"B\";\n\nexport class Foo {\n    [o[\"prop.inner\"]] =\"A\"\n    [o.prop.inner] = \"B\"\n}\n\nexport let oo = {\n    [o['prop.inner']]:\"A\",\n    [o.prop.inner]: \"B\",\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsAddUndefined.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsAddUndefined.ts",
+        "bytes": 476,
+        "sha256": "1d8e839553a6566d0bff911ae32e311fd2a8f032445981a2d80fa63bfca34265",
+        "git_blob_sha1": "f5d7573d5500b77d0fda7f329652555bcd8bdfa2"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "filename",
+          "file2.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1
+        ],
+        "vfs_write_order": [
+          0,
+          1
+        ]
+      },
+      "files": [
+        {
+          "name": "file1.ts",
+          "text": "type N = 1;\nexport class Bar {\n    c? = [2 as N] as const;\n    c3? = 1 as N;\n    readonly r = 1;\n    f = 2;\n}\n"
+        },
+        {
+          "name": "file2.ts",
+          "text": "export function foo(p = (ip = 10, v: number): void => {}): void{\n}\ntype T = number\nexport function foo2(p = (ip = 10 as T, v: number): void => {}): void{}\nexport class Bar2 {\n    readonly r = 1;\n    f = 2;\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/file1.ts",
+          "/.src/file2.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/file1.ts",
+            "text": "type N = 1;\nexport class Bar {\n    c? = [2 as N] as const;\n    c3? = 1 as N;\n    readonly r = 1;\n    f = 2;\n}\n"
+          },
+          {
+            "path": "/.src/file2.ts",
+            "text": "export function foo(p = (ip = 10, v: number): void => {}): void{\n}\ntype T = number\nexport function foo2(p = (ip = 10 as T, v: number): void => {}): void{}\nexport class Bar2 {\n    readonly r = 1;\n    f = 2;\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsAddUndefined2.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsAddUndefined2.ts",
+        "bytes": 574,
+        "sha256": "b9b4b92e23ba16b4d08e4d44a48cf41dd5763997507d0722c517ff66fa1b009d",
+        "git_blob_sha1": "f4e411789e9e47cfb208699489b6cf572e71113f"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "strict",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationsAddUndefined2.ts",
+          "text": "// https://github.com/microsoft/TypeScript/issues/60123\n\nexport class Bar {\n    constructor(private x?: Array | undefined) {}\n}\n\nexport class Bar2 {\n    constructor(private x?: Array) {}\n}\n\nexport class Bar3 {\n    constructor(private x: Array | undefined) {}\n}\n\nexport class Bar4 {\n    constructor(private x: Array) {}\n}\n\nexport function test1(x?: Array | undefined): void {}\n\nexport function test2(x?: Unresolved | undefined): void {}\n\nexport function test3(x?: Unresolved): void {}\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationsAddUndefined2.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationsAddUndefined2.ts",
+            "text": "// https://github.com/microsoft/TypeScript/issues/60123\n\nexport class Bar {\n    constructor(private x?: Array | undefined) {}\n}\n\nexport class Bar2 {\n    constructor(private x?: Array) {}\n}\n\nexport class Bar3 {\n    constructor(private x: Array | undefined) {}\n}\n\nexport class Bar4 {\n    constructor(private x: Array) {}\n}\n\nexport function test1(x?: Array | undefined): void {}\n\nexport function test2(x?: Unresolved | undefined): void {}\n\nexport function test3(x?: Unresolved): void {}\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsAllowJs.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsAllowJs.ts",
+        "bytes": 203,
+        "sha256": "2e91770a3daa9abc8d531e87dd055c530f38e39ca753cc0c21700870984fd1d9",
+        "git_blob_sha1": "972c1882d91e6c223b7f8423f114c8c4e384946d"
+      },
+      "effective_declaration_options": {
+        "allowJs": true,
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "strict",
+          "false"
+        ],
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "allowJS",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "filename",
+          "file2.js"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1
+        ],
+        "vfs_write_order": [
+          0,
+          1
+        ]
+      },
+      "files": [
+        {
+          "name": "file1.ts",
+          "text": "export var x;"
+        },
+        {
+          "name": "file2.js",
+          "text": "export var y;"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/file1.ts",
+          "/.src/file2.js"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/file1.ts",
+            "text": "export var x;"
+          },
+          {
+            "path": "/.src/file2.js",
+            "text": "export var y;"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsLiterals.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsLiterals.ts",
+        "bytes": 1301,
+        "sha256": "6ee8c635ece036bc06a09ac43c8cda6fcbdc0c1543644e4f64913952dc62258b",
+        "git_blob_sha1": "2a79f52e8750ed18a9619cf7e89ad80e88b232b5"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "strict",
+          "true"
+        ],
+        [
+          "target",
+          "esnext"
+        ],
+        [
+          "filename",
+          "file1.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "file1.ts",
+          "text": "export const constObject = {\n    /** Value Of 1 */\n    one: 1,\n    /** Value Of 0o1 */\n    oneOctal: 0o1,\n    /** Value Of 0x1 */\n    oneHex: 0x1,\n    /** Value Of +1 */\n    pOne: +1,\n    /** Value Of -1 */\n    mOne: -1,\n    array: [1, -1, 1n, -1n],\n    /** Value Of 1n */\n    onen: 1n,\n    /** Value Of -1n */\n    mOnen: -1n,\n\n    /** Value Of \"1\" */\n    oneStrDoubleQuote: \"1\",\n    /** Value Of '1' */\n    oneStrSingleQuote: '1',\n    /** Value Of `1` */\n    oneStrTemplate: `1`,\n    /** A method */\n    method(): void {\n\n    },\n} as const;\n\nexport const one = 1;\nexport const oneOctal = 0o1;\nexport const oneHex = 0x1;\nexport const pOne = +1;\nexport const mOne = -1;\nexport const onen = 1n;\nexport const mOnen = -1n;\nexport const oneStrDoubleQuote = \"1\";\nexport const oneStrSingleQuote = '1';\nexport const oneStrTemplate = `1`;\n\nexport const mutableObject = {\n    /** Value Of 1 */\n    one: 1,\n    /** Value Of 0o1 */\n    oneOctal: 0o1,\n    /** Value Of 0x1 */\n    oneHex: 0x1,\n    /** Value Of +1 */\n    pOne: +1,\n    /** Value Of -1 */\n    mOne: -1,\n    /** Value Of 1n */\n    onen: 1n,\n    /** Value Of -1n */\n    mOnen: -1n,\n    /** A method */\n    method(): void {\n\n    },\n};\n\n\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/file1.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/file1.ts",
+            "text": "export const constObject = {\n    /** Value Of 1 */\n    one: 1,\n    /** Value Of 0o1 */\n    oneOctal: 0o1,\n    /** Value Of 0x1 */\n    oneHex: 0x1,\n    /** Value Of +1 */\n    pOne: +1,\n    /** Value Of -1 */\n    mOne: -1,\n    array: [1, -1, 1n, -1n],\n    /** Value Of 1n */\n    onen: 1n,\n    /** Value Of -1n */\n    mOnen: -1n,\n\n    /** Value Of \"1\" */\n    oneStrDoubleQuote: \"1\",\n    /** Value Of '1' */\n    oneStrSingleQuote: '1',\n    /** Value Of `1` */\n    oneStrTemplate: `1`,\n    /** A method */\n    method(): void {\n\n    },\n} as const;\n\nexport const one = 1;\nexport const oneOctal = 0o1;\nexport const oneHex = 0x1;\nexport const pOne = +1;\nexport const mOne = -1;\nexport const onen = 1n;\nexport const mOnen = -1n;\nexport const oneStrDoubleQuote = \"1\";\nexport const oneStrSingleQuote = '1';\nexport const oneStrTemplate = `1`;\n\nexport const mutableObject = {\n    /** Value Of 1 */\n    one: 1,\n    /** Value Of 0o1 */\n    oneOctal: 0o1,\n    /** Value Of 0x1 */\n    oneHex: 0x1,\n    /** Value Of +1 */\n    pOne: +1,\n    /** Value Of -1 */\n    mOne: -1,\n    /** Value Of 1n */\n    onen: 1n,\n    /** Value Of -1n */\n    mOnen: -1n,\n    /** A method */\n    method(): void {\n\n    },\n};\n\n\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsStrictBuiltinIteratorReturn.ts#isolateddeclarations%3Dtrue%2Cstrictbuiltiniteratorreturn%3Dfalse",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+        "bytes": 2516,
+        "sha256": "8d089e6a7d0924b5f4e7e77fcf8491a5cc1ef0e005bcc97b743d81ecdebadbde",
+        "git_blob_sha1": "8da68083d483a81a073e55b53911d303ed3534ef"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strictBuiltinIteratorReturn": false,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "strictBuiltinIteratorReturn",
+          "false"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "target",
+          "esnext"
+        ],
+        [
+          "noTypesAndSymbols",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+          "text": "declare let x1: Iterable<number>;\ndeclare let x2: Iterable<number, any>;\ndeclare let x3: Iterable<number, any, any>;\ndeclare let x4: Iterable<number, undefined>;\ndeclare let x5: Iterable<number, undefined, any>;\ndeclare let x6: Iterable<number, BuiltinIteratorReturn>;\ndeclare let x7: Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare let x8: IterableIterator<number>;\ndeclare let x9: IterableIterator<number, any>;\ndeclare let x10: IterableIterator<number, any, any>;\ndeclare let x11: IterableIterator<number, undefined>;\ndeclare let x12: IterableIterator<number, undefined, any>;\ndeclare let x13: IterableIterator<number, BuiltinIteratorReturn>;\ndeclare let x14: IterableIterator<number, BuiltinIteratorReturn, any>;\n\ndeclare function f1(): Iterable<number>;\ndeclare function f2(): Iterable<number, any>;\ndeclare function f3(): Iterable<number, any, any>;\ndeclare function f4(): Iterable<number, undefined>;\ndeclare function f5(): Iterable<number, undefined, any>;\ndeclare function f6(): Iterable<number, BuiltinIteratorReturn>;\ndeclare function f7(): Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare function f8(): IterableIterator<number>;\ndeclare function f9(): IterableIterator<number, any>;\ndeclare function f10(): IterableIterator<number, any, any>;\ndeclare function f11(): IterableIterator<number, undefined>;\ndeclare function f12(): IterableIterator<number, undefined, any>;\ndeclare function f13(): IterableIterator<number, BuiltinIteratorReturn>;\ndeclare function f14(): IterableIterator<number, BuiltinIteratorReturn, any>;\n\nconst a1 = (): Iterable<number> => null!;\nconst a2 = (): Iterable<number, any> => null!;\nconst a3 = (): Iterable<number, any, any> => null!;\nconst a4 = (): Iterable<number, undefined> => null!;\nconst a5 = (): Iterable<number, undefined, any> => null!;\nconst a6 = (): Iterable<number, BuiltinIteratorReturn> => null!;\nconst a7 = (): Iterable<number, BuiltinIteratorReturn, any> => null!;\n\nconst a8 = (): IterableIterator<number> => null!;\nconst a9 = (): IterableIterator<number, any> => null!;\nconst a10 = (): IterableIterator<number, any, any> => null!;\nconst a11 = (): IterableIterator<number, undefined> => null!;\nconst a12 = (): IterableIterator<number, undefined, any> => null!;\nconst a13 = (): IterableIterator<number, BuiltinIteratorReturn> => null!;\nconst a14 = (): IterableIterator<number, BuiltinIteratorReturn, any> => null!;"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationsStrictBuiltinIteratorReturn.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+            "text": "declare let x1: Iterable<number>;\ndeclare let x2: Iterable<number, any>;\ndeclare let x3: Iterable<number, any, any>;\ndeclare let x4: Iterable<number, undefined>;\ndeclare let x5: Iterable<number, undefined, any>;\ndeclare let x6: Iterable<number, BuiltinIteratorReturn>;\ndeclare let x7: Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare let x8: IterableIterator<number>;\ndeclare let x9: IterableIterator<number, any>;\ndeclare let x10: IterableIterator<number, any, any>;\ndeclare let x11: IterableIterator<number, undefined>;\ndeclare let x12: IterableIterator<number, undefined, any>;\ndeclare let x13: IterableIterator<number, BuiltinIteratorReturn>;\ndeclare let x14: IterableIterator<number, BuiltinIteratorReturn, any>;\n\ndeclare function f1(): Iterable<number>;\ndeclare function f2(): Iterable<number, any>;\ndeclare function f3(): Iterable<number, any, any>;\ndeclare function f4(): Iterable<number, undefined>;\ndeclare function f5(): Iterable<number, undefined, any>;\ndeclare function f6(): Iterable<number, BuiltinIteratorReturn>;\ndeclare function f7(): Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare function f8(): IterableIterator<number>;\ndeclare function f9(): IterableIterator<number, any>;\ndeclare function f10(): IterableIterator<number, any, any>;\ndeclare function f11(): IterableIterator<number, undefined>;\ndeclare function f12(): IterableIterator<number, undefined, any>;\ndeclare function f13(): IterableIterator<number, BuiltinIteratorReturn>;\ndeclare function f14(): IterableIterator<number, BuiltinIteratorReturn, any>;\n\nconst a1 = (): Iterable<number> => null!;\nconst a2 = (): Iterable<number, any> => null!;\nconst a3 = (): Iterable<number, any, any> => null!;\nconst a4 = (): Iterable<number, undefined> => null!;\nconst a5 = (): Iterable<number, undefined, any> => null!;\nconst a6 = (): Iterable<number, BuiltinIteratorReturn> => null!;\nconst a7 = (): Iterable<number, BuiltinIteratorReturn, any> => null!;\n\nconst a8 = (): IterableIterator<number> => null!;\nconst a9 = (): IterableIterator<number, any> => null!;\nconst a10 = (): IterableIterator<number, any, any> => null!;\nconst a11 = (): IterableIterator<number, undefined> => null!;\nconst a12 = (): IterableIterator<number, undefined, any> => null!;\nconst a13 = (): IterableIterator<number, BuiltinIteratorReturn> => null!;\nconst a14 = (): IterableIterator<number, BuiltinIteratorReturn, any> => null!;"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedDeclarationsStrictBuiltinIteratorReturn.ts#isolateddeclarations%3Dtrue%2Cstrictbuiltiniteratorreturn%3Dtrue",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+        "bytes": 2516,
+        "sha256": "8d089e6a7d0924b5f4e7e77fcf8491a5cc1ef0e005bcc97b743d81ecdebadbde",
+        "git_blob_sha1": "8da68083d483a81a073e55b53911d303ed3534ef"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "isolatedDeclarations": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strictBuiltinIteratorReturn": true,
+        "target": 99
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "isolatedDeclarations",
+          "true"
+        ],
+        [
+          "strictBuiltinIteratorReturn",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "target",
+          "esnext"
+        ],
+        [
+          "noTypesAndSymbols",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+          "text": "declare let x1: Iterable<number>;\ndeclare let x2: Iterable<number, any>;\ndeclare let x3: Iterable<number, any, any>;\ndeclare let x4: Iterable<number, undefined>;\ndeclare let x5: Iterable<number, undefined, any>;\ndeclare let x6: Iterable<number, BuiltinIteratorReturn>;\ndeclare let x7: Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare let x8: IterableIterator<number>;\ndeclare let x9: IterableIterator<number, any>;\ndeclare let x10: IterableIterator<number, any, any>;\ndeclare let x11: IterableIterator<number, undefined>;\ndeclare let x12: IterableIterator<number, undefined, any>;\ndeclare let x13: IterableIterator<number, BuiltinIteratorReturn>;\ndeclare let x14: IterableIterator<number, BuiltinIteratorReturn, any>;\n\ndeclare function f1(): Iterable<number>;\ndeclare function f2(): Iterable<number, any>;\ndeclare function f3(): Iterable<number, any, any>;\ndeclare function f4(): Iterable<number, undefined>;\ndeclare function f5(): Iterable<number, undefined, any>;\ndeclare function f6(): Iterable<number, BuiltinIteratorReturn>;\ndeclare function f7(): Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare function f8(): IterableIterator<number>;\ndeclare function f9(): IterableIterator<number, any>;\ndeclare function f10(): IterableIterator<number, any, any>;\ndeclare function f11(): IterableIterator<number, undefined>;\ndeclare function f12(): IterableIterator<number, undefined, any>;\ndeclare function f13(): IterableIterator<number, BuiltinIteratorReturn>;\ndeclare function f14(): IterableIterator<number, BuiltinIteratorReturn, any>;\n\nconst a1 = (): Iterable<number> => null!;\nconst a2 = (): Iterable<number, any> => null!;\nconst a3 = (): Iterable<number, any, any> => null!;\nconst a4 = (): Iterable<number, undefined> => null!;\nconst a5 = (): Iterable<number, undefined, any> => null!;\nconst a6 = (): Iterable<number, BuiltinIteratorReturn> => null!;\nconst a7 = (): Iterable<number, BuiltinIteratorReturn, any> => null!;\n\nconst a8 = (): IterableIterator<number> => null!;\nconst a9 = (): IterableIterator<number, any> => null!;\nconst a10 = (): IterableIterator<number, any, any> => null!;\nconst a11 = (): IterableIterator<number, undefined> => null!;\nconst a12 = (): IterableIterator<number, undefined, any> => null!;\nconst a13 = (): IterableIterator<number, BuiltinIteratorReturn> => null!;\nconst a14 = (): IterableIterator<number, BuiltinIteratorReturn, any> => null!;"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/isolatedDeclarationsStrictBuiltinIteratorReturn.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/isolatedDeclarationsStrictBuiltinIteratorReturn.ts",
+            "text": "declare let x1: Iterable<number>;\ndeclare let x2: Iterable<number, any>;\ndeclare let x3: Iterable<number, any, any>;\ndeclare let x4: Iterable<number, undefined>;\ndeclare let x5: Iterable<number, undefined, any>;\ndeclare let x6: Iterable<number, BuiltinIteratorReturn>;\ndeclare let x7: Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare let x8: IterableIterator<number>;\ndeclare let x9: IterableIterator<number, any>;\ndeclare let x10: IterableIterator<number, any, any>;\ndeclare let x11: IterableIterator<number, undefined>;\ndeclare let x12: IterableIterator<number, undefined, any>;\ndeclare let x13: IterableIterator<number, BuiltinIteratorReturn>;\ndeclare let x14: IterableIterator<number, BuiltinIteratorReturn, any>;\n\ndeclare function f1(): Iterable<number>;\ndeclare function f2(): Iterable<number, any>;\ndeclare function f3(): Iterable<number, any, any>;\ndeclare function f4(): Iterable<number, undefined>;\ndeclare function f5(): Iterable<number, undefined, any>;\ndeclare function f6(): Iterable<number, BuiltinIteratorReturn>;\ndeclare function f7(): Iterable<number, BuiltinIteratorReturn, any>;\n\ndeclare function f8(): IterableIterator<number>;\ndeclare function f9(): IterableIterator<number, any>;\ndeclare function f10(): IterableIterator<number, any, any>;\ndeclare function f11(): IterableIterator<number, undefined>;\ndeclare function f12(): IterableIterator<number, undefined, any>;\ndeclare function f13(): IterableIterator<number, BuiltinIteratorReturn>;\ndeclare function f14(): IterableIterator<number, BuiltinIteratorReturn, any>;\n\nconst a1 = (): Iterable<number> => null!;\nconst a2 = (): Iterable<number, any> => null!;\nconst a3 = (): Iterable<number, any, any> => null!;\nconst a4 = (): Iterable<number, undefined> => null!;\nconst a5 = (): Iterable<number, undefined, any> => null!;\nconst a6 = (): Iterable<number, BuiltinIteratorReturn> => null!;\nconst a7 = (): Iterable<number, BuiltinIteratorReturn, any> => null!;\n\nconst a8 = (): IterableIterator<number> => null!;\nconst a9 = (): IterableIterator<number, any> => null!;\nconst a10 = (): IterableIterator<number, any, any> => null!;\nconst a11 = (): IterableIterator<number, undefined> => null!;\nconst a12 = (): IterableIterator<number, undefined, any> => null!;\nconst a13 = (): IterableIterator<number, BuiltinIteratorReturn> => null!;\nconst a14 = (): IterableIterator<number, BuiltinIteratorReturn, any> => null!;"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/noEmitOnError.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "noEmitOnError.ts",
+        "bytes": 106,
+        "sha256": "902bb6eaaaf7fa1efd68e57acab83d797887b99b814a3101ad3871f80604854e",
+        "git_blob_sha1": "aa95e0e53e7f171c7ea89f443c3fd2e386b81f17"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "newLine": 0,
+        "noEmitOnError": true,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "sourceMap": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "noemitonerror",
+          "true"
+        ],
+        [
+          "sourcemap",
+          "true"
+        ],
+        [
+          "declaration",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "noEmitOnError.ts",
+          "text": "var x: number = \"\";\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/noEmitOnError.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/noEmitOnError.ts",
+            "text": "var x: number = \"\";\n"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/stripInternal1.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "stripInternal1.ts",
+        "bytes": 134,
+        "sha256": "cd734f20be3e4819705f0ee5a4d0ec9b65bfd443ac0e91bdd5d1cd92ff19d624",
+        "git_blob_sha1": "2f627851886a119c841076d4c8072bd921ce8dd0"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "stripInternal": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "stripInternal",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "stripInternal1.ts",
+          "text": "class C {\n  foo(): void { }\n  // @internal\n  bar(): void { }\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/stripInternal1.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/stripInternal1.ts",
+            "text": "class C {\n  foo(): void { }\n  // @internal\n  bar(): void { }\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/declarationEmitWorkWithInlineComments.ts#default",
+      "origin": "h2-7b-first-owner",
+      "source": {
+        "path": "declarationEmit/declarationEmitWorkWithInlineComments.ts",
+        "bytes": 940,
+        "sha256": "31daa1ecc08ece9dc5413581c2dff2e96c168f72ae8d6141c99caa8460e0cc5a",
+        "git_blob_sha1": "c661a2f5be93c931de409533651f0a9073aeb24d"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "stripInternal": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "stripInternal",
+          "true"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "declarationEmitWorkWithInlineComments.ts",
+          "text": "export class Foo {\n  constructor(\n    /** @internal */\n    public isInternal1: string,\n    /** @internal */ public isInternal2: string, /** @internal */\n    public isInternal3: string,\n    // @internal\n    public isInternal4: string,\n    // nothing\n    /** @internal */\n    public isInternal5: string,\n    /* @internal */ public isInternal6: string /* trailing */,\n    /* @internal */ public isInternal7: string, /** @internal */\n    // not work\n    public notInternal1: string,\n    // @internal\n    /* not work */\n    public notInternal2: string,\n    /* not work */\n    // @internal\n    /* not work */\n    public notInternal3: string,\n  ) { }\n}\n\nexport class Bar {\n  constructor(/* @internal */ public isInternal1: string) {}\n}\n\nexport class Baz {\n  constructor(/* @internal */\n    public isInternal: string\n  ) {}\n}"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/declarationEmitWorkWithInlineComments.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/declarationEmitWorkWithInlineComments.ts",
+            "text": "export class Foo {\n  constructor(\n    /** @internal */\n    public isInternal1: string,\n    /** @internal */ public isInternal2: string, /** @internal */\n    public isInternal3: string,\n    // @internal\n    public isInternal4: string,\n    // nothing\n    /** @internal */\n    public isInternal5: string,\n    /* @internal */ public isInternal6: string /* trailing */,\n    /* @internal */ public isInternal7: string, /** @internal */\n    // not work\n    public notInternal1: string,\n    // @internal\n    /* not work */\n    public notInternal2: string,\n    /* not work */\n    // @internal\n    /* not work */\n    public notInternal3: string,\n  ) { }\n}\n\nexport class Bar {\n  constructor(/* @internal */ public isInternal1: string) {}\n}\n\nexport class Baz {\n  constructor(/* @internal */\n    public isInternal: string\n  ) {}\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/amdLikeInputDeclarationEmit.ts#default",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "amdLikeInputDeclarationEmit.ts",
+        "bytes": 996,
+        "sha256": "d4a10767f0d6e152720acef369ae2ae2ab3c57b61394cbf9edb5f67b9a8cfedd",
+        "git_blob_sha1": "8d7968d15875ae9ff1d41ffefe4b104a7d7c088a"
+      },
+      "effective_declaration_options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationDir": "definitions",
+        "emitDeclarationOnly": true,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "strict",
+          "false"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "declarationDir",
+          "definitions"
+        ],
+        [
+          "emitDeclarationOnly",
+          "true"
+        ],
+        [
+          "checkJs",
+          "true"
+        ],
+        [
+          "allowJs",
+          "true"
+        ],
+        [
+          "filename",
+          "ExtendedClass.js"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0,
+          1,
+          2
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0,
+          1,
+          2
+        ],
+        "vfs_write_order": [
+          0,
+          1,
+          2
+        ]
+      },
+      "files": [
+        {
+          "name": "typing.d.ts",
+          "text": "declare function define<T=unknown>(name: string, modules: string[], ready: (...modules: unknown[]) => T);"
+        },
+        {
+          "name": "deps/BaseClass.d.ts",
+          "text": "declare module \"deps/BaseClass\" {\n    class BaseClass {\n        static extends<A>(a: A): new () => A & BaseClass;\n    }\n    export = BaseClass;\n}"
+        },
+        {
+          "name": "ExtendedClass.js",
+          "text": "define(\"lib/ExtendedClass\", [\"deps/BaseClass\"], \n/**\n * {typeof import(\"deps/BaseClass\")}\n * @param  {typeof import(\"deps/BaseClass\")} BaseClass \n * @returns \n */\n(BaseClass) => {    \n    \n    const ExtendedClass = BaseClass.extends({\n        f: function() {\n            return \"something\";\n        }\n    });\n\n    // Exports the module in a way tsc recognize class export \n    const module = {};\n    module.exports = ExtendedClass\n    return module.exports;\n});"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/typing.d.ts",
+          "/.src/deps/BaseClass.d.ts",
+          "/.src/ExtendedClass.js"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/typing.d.ts",
+            "text": "declare function define<T=unknown>(name: string, modules: string[], ready: (...modules: unknown[]) => T);"
+          },
+          {
+            "path": "/.src/deps/BaseClass.d.ts",
+            "text": "declare module \"deps/BaseClass\" {\n    class BaseClass {\n        static extends<A>(a: A): new () => A & BaseClass;\n    }\n    export = BaseClass;\n}"
+          },
+          {
+            "path": "/.src/ExtendedClass.js",
+            "text": "define(\"lib/ExtendedClass\", [\"deps/BaseClass\"], \n/**\n * {typeof import(\"deps/BaseClass\")}\n * @param  {typeof import(\"deps/BaseClass\")} BaseClass \n * @returns \n */\n(BaseClass) => {    \n    \n    const ExtendedClass = BaseClass.extends({\n        f: function() {\n            return \"something\";\n        }\n    });\n\n    // Exports the module in a way tsc recognize class export \n    const module = {};\n    module.exports = ExtendedClass\n    return module.exports;\n});"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitToDeclarationDirWithDeclarationOption.ts#default",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "declarationEmitToDeclarationDirWithDeclarationOption.ts",
+        "bytes": 307,
+        "sha256": "713ebabb6f73997e0891b999f637a27bfba093bb7e865f190466128c76abb543",
+        "git_blob_sha1": "659703c86ce22ce795607937c05d271ea2244ec6"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationDir": "/foo/out",
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "declaration",
+          "true"
+        ],
+        [
+          "filename",
+          "/foo/test.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "/foo/tsconfig.json",
+          "text": "{\n    \"compilerOptions\": { \"declaration\": true, \"declarationDir\": \"out\", \"module\": \"commonjs\", \"target\": \"es2015\" }\n}\n"
+        },
+        {
+          "name": "/foo/test.ts",
+          "text": "interface Foo {\n    x: number;\n}\nexport default Foo;\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/foo/test.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/foo/test.ts",
+            "text": "interface Foo {\n    x: number;\n}\nexport default Foo;\n"
+          }
+        ],
+        "config": {
+          "path": "/foo/tsconfig.json",
+          "text": "{\n    \"compilerOptions\": { \"declaration\": true, \"declarationDir\": \"out\", \"module\": \"commonjs\", \"target\": \"es2015\" }\n}\n"
+        },
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions.ts#default",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions.ts",
+        "bytes": 263,
+        "sha256": "d2c79337a36e8401b19e67a125ac77f580255d13a206eb51edf9d0a28b20950f",
+        "git_blob_sha1": "4b5f81e5c008d205e9c59a43bceef929206c12c8"
+      },
+      "effective_declaration_options": {
+        "declarationDir": "/foo/out",
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": [
+        [
+          "module",
+          "commonjs"
+        ],
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "filename",
+          "/foo/test.ts"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          0
+        ],
+        "other_unit_ids": [],
+        "program_root_unit_ids": [
+          0
+        ],
+        "vfs_write_order": [
+          0
+        ]
+      },
+      "files": [
+        {
+          "name": "/foo/tsconfig.json",
+          "text": "{\n    \"compilerOptions\": { \"declarationDir\": \"out\", \"module\": \"commonjs\", \"target\": \"es2015\" }\n}\n"
+        },
+        {
+          "name": "/foo/test.ts",
+          "text": "interface Foo {\n    x: number;\n}\nexport default Foo;\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/foo/test.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/foo/test.ts",
+            "text": "interface Foo {\n    x: number;\n}\nexport default Foo;\n"
+          }
+        ],
+        "config": {
+          "path": "/foo/tsconfig.json",
+          "text": "{\n    \"compilerOptions\": { \"declarationDir\": \"out\", \"module\": \"commonjs\", \"target\": \"es2015\" }\n}\n"
+        },
+        "default_library_file_name": null
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName2.ts#default",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "node/allowJs/nodeAllowJsPackageSelfName2.ts",
+        "bytes": 724,
+        "sha256": "1cbd8b44181d4c043d012b6ee6eb37dad1a802e7b0850628f606c48f04a741bc",
+        "git_blob_sha1": "a6a12822606181e4064fa9a79471674bf7ce08ea"
+      },
+      "effective_declaration_options": {
+        "checkJs": true,
+        "declaration": true,
+        "declarationDir": "/types",
+        "emitDeclarationOnly": true,
+        "module": 199,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "rootDir": "/",
+        "skipDefaultLibCheck": true,
+        "strict": true,
+        "target": 2
+      },
+      "original_deferred_slices": [
+        "H2.7c",
+        "H2.8a"
+      ],
+      "settings": [
+        [
+          "target",
+          "es2015"
+        ],
+        [
+          "Filename",
+          "/test/foo.js"
+        ]
+      ],
+      "selection": {
+        "root_unit_ids": [
+          3,
+          4
+        ],
+        "other_unit_ids": [
+          0,
+          1,
+          2
+        ],
+        "program_root_unit_ids": [
+          3,
+          4
+        ],
+        "vfs_write_order": [
+          3,
+          4,
+          0,
+          1,
+          2
+        ]
+      },
+      "files": [
+        {
+          "name": "/tsconfig.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"module\": \"nodenext\",\n    \"target\": \"esnext\",\n    \"emitDeclarationOnly\": true,\n    \"declaration\": true,\n    \"declarationDir\": \"./types\",\n    \"checkJs\": true,\n    \"rootDir\": \".\",\n    \"strict\": true,\n  },\n  \"include\": [\"src\", \"test\"]\n}\n"
+        },
+        {
+          "name": "/package.json",
+          "text": "{\n  \"name\": \"js-self-name-import\",\n  \"type\": \"module\",\n  \"exports\": {\n    \"./*\": {\n      \"types\": \"./types/src/*\",\n      \"default\": \"./src/*\"\n    }\n  }\n}\n"
+        },
+        {
+          "name": "/types/src/foo.d.ts",
+          "text": "export const foo: 1;\n"
+        },
+        {
+          "name": "/types/test/foo.d.ts",
+          "text": "export {};\n"
+        },
+        {
+          "name": "/src/foo.js",
+          "text": "export const foo = 1;\n"
+        },
+        {
+          "name": "/test/foo.js",
+          "text": "import { foo } from \"js-self-name-import/foo.js\";\n"
+        }
+      ],
+      "project_input": null,
+      "replay_input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/src/foo.js",
+          "/test/foo.js"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/src/foo.js",
+            "text": "export const foo = 1;\n"
+          },
+          {
+            "path": "/test/foo.js",
+            "text": "import { foo } from \"js-self-name-import/foo.js\";\n"
+          },
+          {
+            "path": "/package.json",
+            "text": "{\n  \"name\": \"js-self-name-import\",\n  \"type\": \"module\",\n  \"exports\": {\n    \"./*\": {\n      \"types\": \"./types/src/*\",\n      \"default\": \"./src/*\"\n    }\n  }\n}\n"
+          },
+          {
+            "path": "/types/src/foo.d.ts",
+            "text": "export const foo: 1;\n"
+          },
+          {
+            "path": "/types/test/foo.d.ts",
+            "text": "export {};\n"
+          }
+        ],
+        "config": {
+          "path": "/tsconfig.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"module\": \"nodenext\",\n    \"target\": \"esnext\",\n    \"emitDeclarationOnly\": true,\n    \"declaration\": true,\n    \"declarationDir\": \"./types\",\n    \"checkJs\": true,\n    \"rootDir\": \".\",\n    \"strict\": true,\n  },\n  \"include\": [\"src\", \"test\"]\n}\n"
+        },
+        "default_library_file_name": null
+      },
+      "rust_expected_unsupported_option": "rootDir"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Damd",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "declarationDir.json",
+        "bytes": 318,
+        "sha256": "ec305d0d72ecb1e8ba38f483559faf5608615c8e8e1d5c44ead73cbdd553e512",
+        "git_blob_sha1": "3322694ddbd134de21482024233b9d7e7384c3c0"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationDir": "declarations",
+        "module": 2,
+        "moduleResolution": 1,
+        "newLine": 0,
+        "noErrorTruncation": false,
+        "skipDefaultLibCheck": false
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": null,
+      "selection": null,
+      "files": null,
+      "project_input": {
+        "descriptor": {
+          "path": "declarationDir.json",
+          "scenario": "declarationDir: specify declarationDir only",
+          "project_root": "tests/cases/projects/declarationDir"
+        },
+        "current_directory": "/.src/tests/cases/projects/declarationDir",
+        "root_selection": {
+          "state": "explicit-inputs",
+          "roots": [
+            {
+              "requested": "a.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/a.ts",
+              "present": true
+            },
+            {
+              "requested": "subfolder/b.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+              "present": true
+            },
+            {
+              "requested": "subfolder/c.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/subfolder/c.ts",
+              "present": true
+            }
+          ]
+        },
+        "module_variant": {
+          "name": "amd",
+          "value": 2
+        },
+        "config_diagnostics": [],
+        "mount_fingerprint": "bad1523e8893d18dc30003b975f91ae9261cecb591a1bc605ba64b583ccacabb"
+      },
+      "replay_input": {
+        "current_directory": "/.src/tests/cases/projects/declarationDir",
+        "roots": [
+          "/.src/tests/cases/projects/declarationDir/a.ts",
+          "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+          "/.src/tests/cases/projects/declarationDir/subfolder/c.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/a.ts",
+            "text": "import {B} from './subfolder/b';\r\nexport class A {\r\n    b: B;\r\n}"
+          },
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+            "text": "export class B {\r\n    \r\n}"
+          },
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/subfolder/c.ts",
+            "text": "import {A} from '../a';\r\n\r\nexport class C {\r\n    a: A;\r\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": "lib.es5.d.ts"
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/project/declarationDir.json#module%3Dcommonjs",
+      "origin": "global-required-slice",
+      "source": {
+        "path": "declarationDir.json",
+        "bytes": 318,
+        "sha256": "ec305d0d72ecb1e8ba38f483559faf5608615c8e8e1d5c44ead73cbdd553e512",
+        "git_blob_sha1": "3322694ddbd134de21482024233b9d7e7384c3c0"
+      },
+      "effective_declaration_options": {
+        "declaration": true,
+        "declarationDir": "declarations",
+        "module": 1,
+        "moduleResolution": 1,
+        "newLine": 0,
+        "noErrorTruncation": false,
+        "skipDefaultLibCheck": false
+      },
+      "original_deferred_slices": [
+        "H2.7c"
+      ],
+      "settings": null,
+      "selection": null,
+      "files": null,
+      "project_input": {
+        "descriptor": {
+          "path": "declarationDir.json",
+          "scenario": "declarationDir: specify declarationDir only",
+          "project_root": "tests/cases/projects/declarationDir"
+        },
+        "current_directory": "/.src/tests/cases/projects/declarationDir",
+        "root_selection": {
+          "state": "explicit-inputs",
+          "roots": [
+            {
+              "requested": "a.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/a.ts",
+              "present": true
+            },
+            {
+              "requested": "subfolder/b.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+              "present": true
+            },
+            {
+              "requested": "subfolder/c.ts",
+              "path": "/.src/tests/cases/projects/declarationDir/subfolder/c.ts",
+              "present": true
+            }
+          ]
+        },
+        "module_variant": {
+          "name": "commonjs",
+          "value": 1
+        },
+        "config_diagnostics": [],
+        "mount_fingerprint": "bad1523e8893d18dc30003b975f91ae9261cecb591a1bc605ba64b583ccacabb"
+      },
+      "replay_input": {
+        "current_directory": "/.src/tests/cases/projects/declarationDir",
+        "roots": [
+          "/.src/tests/cases/projects/declarationDir/a.ts",
+          "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+          "/.src/tests/cases/projects/declarationDir/subfolder/c.ts"
+        ],
+        "vfs_symlinks": [],
+        "files": [
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/a.ts",
+            "text": "import {B} from './subfolder/b';\r\nexport class A {\r\n    b: B;\r\n}"
+          },
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/subfolder/b.ts",
+            "text": "export class B {\r\n    \r\n}"
+          },
+          {
+            "path": "/.src/tests/cases/projects/declarationDir/subfolder/c.ts",
+            "text": "import {A} from '../a';\r\n\r\nexport class C {\r\n    a: A;\r\n}"
+          }
+        ],
+        "config": null,
+        "default_library_file_name": "lib.es5.d.ts"
+      }
+    }
+  ]
+}

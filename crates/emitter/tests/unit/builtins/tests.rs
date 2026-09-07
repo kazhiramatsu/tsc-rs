@@ -953,6 +953,7 @@ impl EnumBindingResolver {
             EmitEnumMemberValue::new(
                 Some(EmitConstantValue::Number(JavaScriptNumber::from_f64(value))),
                 false,
+                false,
             ),
         );
         self

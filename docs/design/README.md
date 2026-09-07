@@ -59,6 +59,10 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
 
 ## Active Execution (greenfield)
 
+- [greenfield/typescript-7-direction.md](greenfield/typescript-7-direction.md):
+  user-approved native TypeScript 7 and direct LSP direction, superseding
+  the mandatory tsserver/adapter sequence. Start with the
+  [native test/build/debug workflow](greenfield/typescript-7-workflow.md).
 - [greenfield/](greenfield/README.md): the execution companion to the
   five M/core documents above, plus the entry route for active post-H1 work.
   Its M0-M9 step guides are completed or paused history; its post-H1 route
@@ -101,9 +105,9 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   implementation-state gaps from current code before using it in a slice.
 - [greenfield/lsp-and-incremental.md](greenfield/lsp-and-incremental.md):
   the persistent-source and incremental architecture: frozen L0/L1 lineage
-  plus the current L2-L5 Program/resolution, Language Service, tsserver, and
-  LSP design targets. Revalidate implementation-state claims before an L2+
-  slice begins.
+  plus the L2-L5 Program/resolution and interactive design targets, amended
+  by the TypeScript 7 native LSP direction above. Revalidate
+  implementation-state claims before an L2+ slice begins.
 - [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
   the last-mile parity-sweep protocol — pipeline-layer classification,
   exact shape/provenance proof, and terminal identity-diff gates.

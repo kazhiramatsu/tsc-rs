@@ -394,6 +394,64 @@ fn no_emit_on_error_skips_files_and_uses_exit_one() {
 }
 
 #[test]
+fn filesystem_config_no_emit_on_error_matches_typescript_before_any_output() {
+    for declaration_error in [false, true] {
+        let tree = TempTree::new();
+        fs::write(tree.path("good.ts"), "export const value = 1;\n").unwrap();
+        fs::write(
+            tree.path("bad.ts"),
+            "export const value = class { private p = 1; };\n",
+        )
+        .unwrap();
+        let config = if declaration_error {
+            r#"{"compilerOptions":{"target":"es2015","module":"commonjs","declaration":true,"noEmitOnError":true,"listEmittedFiles":true},"files":["good.ts","bad.ts"]}"#
+        } else {
+            // A config-owned option error must enter the emit gate too.
+            r#"{"compilerOptions":{"target":"es2015","module":"commonjs","inlineSources":true,"noEmitOnError":true,"listEmittedFiles":true},"files":["good.ts"]}"#
+        };
+        fs::write(tree.path("tsconfig.json"), config).unwrap();
+        let outputs = ["good.js", "good.d.ts", "bad.js", "bad.d.ts"];
+        for blocked in [true, false] {
+            let arguments = [
+                "-p",
+                "tsconfig.json",
+                "--pretty",
+                "false",
+                "--noEmitOnError",
+                if blocked { "true" } else { "false" },
+            ];
+            let rust = run(&tree, &arguments);
+            let actual = outputs.map(|name| fs::read(tree.path(name)).ok());
+            for name in outputs {
+                if tree.path(name).exists() {
+                    fs::remove_file(tree.path(name)).unwrap();
+                }
+            }
+            let typescript = run_typescript(&tree, &arguments);
+            let expected = outputs.map(|name| fs::read(tree.path(name)).ok());
+            assert_eq!(rust.status.code(), typescript.status.code());
+            assert_eq!(
+                String::from_utf8_lossy(&rust.stdout),
+                String::from_utf8_lossy(&typescript.stdout)
+            );
+            assert_eq!(rust.stderr, typescript.stderr);
+            assert_eq!(
+                actual, expected,
+                "declaration={declaration_error}, blocked={blocked}"
+            );
+            if blocked {
+                assert!(actual.iter().all(Option::is_none));
+            }
+            for name in outputs {
+                if tree.path(name).exists() {
+                    fs::remove_file(tree.path(name)).unwrap();
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn filesystem_write_failure_reports_ts5033_continues_and_lists_attempted_files() {
     let tree = TempTree::new();
     fs::write(tree.path("first.ts"), "export const first: number = 1;\n")

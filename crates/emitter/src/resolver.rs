@@ -156,7 +156,16 @@ pub struct EmitTrackerSymbolDescription {
     pub declarations: Vec<EmitTrackerNodeDescription>,
 }
 
-/// The four resolver queries the upstream declaration transformer's tracker
+/// Accessor pair selected from the callback node's own declaration symbol.
+/// These are source projections, so diagnostics can retain them after the
+/// checker callback ends without retaining callback-scoped tokens.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EmitAccessorDeclarations {
+    pub get_accessor: Option<EmitTrackerNodeDescription>,
+    pub set_accessor: Option<EmitTrackerNodeDescription>,
+}
+
+/// The resolver queries the upstream declaration transformer's tracker
 /// re-enters, exposed re-entrantly by the checker for the duration of a
 /// tracker callback so no second checker borrow is ever taken.
 /// tsc-span: _tsc.js:114362-114369
@@ -186,6 +195,25 @@ pub trait EmitTrackerAccess {
         parameter: EmitTrackerNode,
         enclosing_declaration: Option<EmitTrackerNode>,
     ) -> Result<bool, EmitResolverError>;
+
+    /// Read the actual parent of a callback node and mint its callback-scoped
+    /// token. In particular, createParameterError passes node.parent to
+    /// requiresAddingImplicitUndefined; a recording projection is not a token.
+    fn parent_node(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError>;
+
+    /// Classify the entity-in-type branch of getIsolatedDeclarationError
+    /// using the checker's existing syntax predicates.
+    fn is_entity_in_type_node(&mut self, node: EmitTrackerNode) -> Result<bool, EmitResolverError>;
+
+    /// Project getAllAccessorDeclarations(node.symbol.declarations, node).
+    /// This uses the declaration symbol, including distinct duplicate symbols.
+    fn accessor_declarations(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<EmitAccessorDeclarations, EmitResolverError>;
 
     /// Recording projections for harness trackers; production trackers may
     /// ignore these.

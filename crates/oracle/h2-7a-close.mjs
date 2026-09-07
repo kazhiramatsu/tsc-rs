@@ -61,13 +61,13 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: EXECUTE_RELATIVE_PATH,
     historicalSha256: EXPECTED_EXECUTE_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_emit_options", line: 72 }),
+    item: Object.freeze({ name: "validate_emit_options", line: 85 }),
     arms: Object.freeze([
-      Object.freeze({ name: "declarationMap", line: 112, marker: "options.declaration_map == Some(true)" }),
-      Object.freeze({ name: "emitDeclarationOnly", line: 114, marker: "options.emit_declaration_only == Some(true)" }),
-      Object.freeze({ name: "stripInternal", line: 122, marker: "options.strip_internal == Some(true)" }),
-      Object.freeze({ name: "composite", line: 124, marker: "(options.composite == Some(true), \"composite\")" }),
-      Object.freeze({ name: "declarationDir", line: 143, marker: "options.declaration_dir.is_some()" }),
+      Object.freeze({ name: "declarationMap", line: 134, marker: "options.declaration_map == Some(true)" }),
+      // The ordinary/getter request flavors share this validator.
+      // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
+      // prerequisite are covered by focused complete observations.
+      Object.freeze({ name: "composite", line: 140, marker: "(options.composite == Some(true), \"composite\")" }),
     ]),
   }),
   Object.freeze({
@@ -530,25 +530,22 @@ function loadParentProfile() {
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical(ACTIVE_RUNTIME_SLICES) &&
-      parent.transition.inactive_runtime_slice_count === 11 &&
-      parent.transition.next_runtime_activation_slice === "H2.7b" &&
-      parent.summary.completed_runtime_slices === 25 &&
+        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b"]) &&
+      parent.transition.inactive_runtime_slice_count === 10 &&
+      parent.transition.next_runtime_activation_slice === "H2.7c" &&
+      parent.summary.completed_runtime_slices === 26 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 9_196 &&
-      parent.summary.executed_candidates === 9_715 &&
+      parent.summary.runtime_admissions === 10_753 &&
+      parent.summary.executed_candidates === 11_272 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "H2.5g parent profile content is not the closed H2.6c state",
+    "H2.5g parent profile content is not the closed H2.7b state",
   );
-  const preLanding =
-    parent.transition.next_slice === "H2.7a" &&
-    parent.transition.next_slice_scope ===
-      "declaration-owner-inventory-and-dormant-foundation";
-  const landed =
-    parent.transition.next_slice === "H2.7b" &&
-    parent.transition.next_slice_scope === "non-bundle-declaration-output";
-  requireCondition(preLanding || landed, "parent transition has an unknown landing state");
+  requireCondition(
+    parent.transition.next_slice === "H2.7c" &&
+      parent.transition.next_slice_scope === "declaration-diagnostics-and-options",
+    "parent transition has not landed H2.7c",
+  );
   return parent;
 }
 
@@ -864,15 +861,15 @@ function refusalSurfaces() {
 
 function transitionLandingRecord() {
   return {
-    next_slice: "H2.7b",
-    next_slice_scope: "non-bundle-declaration-output",
-    next_runtime_activation_slice: "H2.7b",
+    next_slice: "H2.7c",
+    next_slice_scope: "declaration-diagnostics-and-options",
+    next_runtime_activation_slice: "H2.7c",
     completed_slice: "H2.5g",
-    inactive_runtime_slice_count: 11,
-    completed_runtime_slices: 25,
+    inactive_runtime_slice_count: 10,
+    completed_runtime_slices: 26,
     next_slice_runtime_slice_delta: 0,
-    runtime_admissions: 9_196,
-    executed_candidates: 9_715,
+    runtime_admissions: 10_753,
+    executed_candidates: 11_272,
     unexecuted_candidates: 0,
     undispositioned_candidates: 0,
   };
@@ -880,18 +877,18 @@ function transitionLandingRecord() {
 
 function assertParentLanding(parent) {
   requireCondition(
-    parent.transition.next_slice === "H2.7b" &&
-      parent.transition.next_slice_scope === "non-bundle-declaration-output" &&
-      parent.transition.next_runtime_activation_slice === "H2.7b" &&
+    parent.transition.next_slice === "H2.7c" &&
+      parent.transition.next_slice_scope === "declaration-diagnostics-and-options" &&
+      parent.transition.next_runtime_activation_slice === "H2.7c" &&
       parent.transition.completed_slice === "H2.5g" &&
-      parent.transition.inactive_runtime_slice_count === 11 &&
-      parent.summary.completed_runtime_slices === 25 &&
+      parent.transition.inactive_runtime_slice_count === 10 &&
+      parent.summary.completed_runtime_slices === 26 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 9_196 &&
-      parent.summary.executed_candidates === 9_715 &&
+      parent.summary.runtime_admissions === 10_753 &&
+      parent.summary.executed_candidates === 11_272 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "transition_landing: parent has not landed H2.7b",
+    "transition_landing: parent has not landed H2.7c",
   );
 }
 
@@ -1139,7 +1136,7 @@ function printSelftest(context) {
       }),
     parent.transition.next_slice === "H2.7a"
       ? "transition_landing: parent not yet landed (next_slice=H2.7a)"
-      : "transition_landing: parent landed (next_slice=H2.7b)",
+      : "transition_landing: parent landed (next_slice=H2.7c)",
     "H2.7a close selftest is green",
   ];
   process.stdout.write(lines.join("\n") + "\n");

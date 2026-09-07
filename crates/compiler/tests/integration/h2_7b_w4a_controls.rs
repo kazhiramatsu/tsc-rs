@@ -271,11 +271,37 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
     let case = frozen_case(case_id);
     assert_eq!(case["disposition"], "admitted-for-execution", "{case_id}");
     let prepared = prepared_band_row(&case);
+    assert_observation(case_id, prepared, &case["typescript_observation"]);
+}
+
+pub(super) fn assert_observation(
+    case_id: &str,
+    prepared: tsc_program::PreparedProgram,
+    expected: &Value,
+) {
+    assert_observation_with_listing(case_id, prepared, expected, false);
+}
+
+/// Preserve the actual emittedFiles presence for new direct-option windows;
+/// historical H2.7b rows retain their original listing projection.
+pub(super) fn assert_exact_observation(
+    case_id: &str,
+    prepared: tsc_program::PreparedProgram,
+    expected: &Value,
+) -> tsc_emitter::H2ActivityCounters {
+    assert_observation_with_listing(case_id, prepared, expected, true)
+}
+
+fn assert_observation_with_listing(
+    case_id: &str,
+    prepared: tsc_program::PreparedProgram,
+    expected: &Value,
+    exact_listing: bool,
+) -> tsc_emitter::H2ActivityCounters {
     let mut sink = MemoryOutputSink::new();
     let (outcome, reported) = ProgramSession::new(prepared)
         .emit_with_reported_diagnostics_for_harness(&mut sink)
         .unwrap_or_else(|error| panic!("{case_id}: production emit completes: {error}"));
-    let expected = &case["typescript_observation"];
 
     assert_eq!(
         actual_diagnostics(&reported),
@@ -287,6 +313,14 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
         expected_diagnostics(&expected["emit_result"]["diagnostics"]),
         "{case_id}: exact ordered emit diagnostics"
     );
+    if exact_listing {
+        assert_related_diagnostics(&reported, &expected["reported_diagnostics"], case_id);
+        assert_related_diagnostics(
+            outcome.diagnostics(),
+            &expected["emit_result"]["diagnostics"],
+            case_id,
+        );
+    }
     assert_eq!(
         outcome.emit_skipped(),
         expected["emit_result"]["emit_skipped"]
@@ -304,7 +338,11 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
     let expected_writes = expected["writes"].as_array().expect("frozen writes");
     assert_eq!(
         emitted_files_value(outcome.emitted_files()),
-        expected_emitted_files_from_writes(expected_writes),
+        if exact_listing {
+            expected["emit_result"]["emitted_files"].clone()
+        } else {
+            expected_emitted_files_from_writes(expected_writes)
+        },
         "{case_id}: exact emitted-file listing"
     );
     assert_eq!(
@@ -336,9 +374,10 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
         "{case_id}: write count"
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
+        // Callback filenames are observable text; Path equality folds dot components.
         assert_eq!(
-            write.path(),
-            Path::new(expected["path"].as_str().expect("frozen write path")),
+            write.path().as_os_str(),
+            std::ffi::OsStr::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: output path"
         );
         assert_eq!(
@@ -421,6 +460,43 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
             actual_source_map_url_pos,
             expected["data_source_map_url_pos"].as_u64(),
             "{case_id}: callback source-map URL position"
+        );
+    }
+    outcome.h2_activity()
+}
+
+fn assert_related_diagnostics(
+    actual: &[tsc_diagnostics::Diagnostic],
+    expected: &Value,
+    case_id: &str,
+) {
+    for (actual, expected) in actual.iter().zip(expected.as_array().expect("diagnostics")) {
+        let related = if actual.related_information_present || !actual.related.is_empty() {
+            Value::Array(
+                actual
+                    .related
+                    .iter()
+                    .map(|related| {
+                        let mut message = String::new();
+                        flatten_message_chain(&related.message, 0, &mut message);
+                        json!({
+                            "code": related.message.code,
+                            "category": format!("{:?}", related.message.category),
+                            "file": related.file_name,
+                            "start": related.start,
+                            "length": related.length,
+                            "message": message,
+                            "related_information": null,
+                        })
+                    })
+                    .collect(),
+            )
+        } else {
+            Value::Null
+        };
+        assert_eq!(
+            related, expected["related_information"],
+            "{case_id}: related diagnostics"
         );
     }
 }

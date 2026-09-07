@@ -55,15 +55,38 @@ impl DeclarationTransformer<'_> {
         if is_declaration(cx, input)? {
             if let Some(expression) = dynamic_name_expression(cx, input)? {
                 if self.options.isolated_declarations == Some(true) {
-                    return Err(TransformError::Unsupported(
-                        crate::UnsupportedEmitFeature::IsolatedDeclarations,
-                    ));
-                }
-                let late_bound = self
-                    .resolver
-                    .is_late_bound(self.required_resolver_node(cx, input)?)?;
-                if !late_bound || !self.is_entity_name_expression(cx, expression)? {
-                    return Ok(VisitResult::None);
+                    if !self
+                        .resolver
+                        .is_definitely_reference_to_global_symbol_object(
+                            self.required_resolver_node(cx, expression)?,
+                        )?
+                    {
+                        let parent_kind = self
+                            .parent(cx, input)?
+                            .map(|parent| self.kind(cx, parent))
+                            .transpose()?;
+                        let message = match parent_kind {
+                            Some(SyntaxKind::ClassDeclaration | SyntaxKind::ObjectLiteralExpression) => Some(&tsc_diagnostics::gen::Computed_property_names_on_class_or_object_literals_cannot_be_inferred_with_isolatedDeclarations),
+                            Some(SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral) if !self.is_entity_name_expression(cx, expression)? => Some(&tsc_diagnostics::gen::Computed_properties_must_be_number_or_string_literals_variables_or_dotted_expressions_with_isolatedDeclarations),
+                            _ => None,
+                        };
+                        if let Some(message) = message {
+                            self.tracker.report_diagnostic_at(
+                                super::tracker::TrackerAnchor::Transform(input),
+                                message,
+                            );
+                            let effects = self.tracker.take_pending_effects();
+                            materialize_effects(cx, self.host, effects)?;
+                            return Ok(VisitResult::None);
+                        }
+                    }
+                } else {
+                    let late_bound = self
+                        .resolver
+                        .is_late_bound(self.required_resolver_node(cx, input)?)?;
+                    if !late_bound || !self.is_entity_name_expression(cx, expression)? {
+                        return Ok(VisitResult::None);
+                    }
                 }
             }
         }

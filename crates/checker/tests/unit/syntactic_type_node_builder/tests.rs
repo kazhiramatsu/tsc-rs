@@ -93,6 +93,27 @@ impl TestResolver {
 }
 
 impl EmitTrackerAccess for TestResolver {
+    fn is_entity_in_type_node(
+        &mut self,
+        _node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        panic!("this mock does not classify entities in type nodes")
+    }
+
+    fn accessor_declarations(
+        &mut self,
+        _node: EmitTrackerNode,
+    ) -> Result<tsc_emitter::EmitAccessorDeclarations, EmitResolverError> {
+        panic!("this mock does not project accessor declarations")
+    }
+
+    fn parent_node(
+        &mut self,
+        _node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError> {
+        panic!("this mock does not project parent nodes")
+    }
+
     fn is_symbol_accessible(
         &mut self,
         _symbol: EmitTrackerSymbol,

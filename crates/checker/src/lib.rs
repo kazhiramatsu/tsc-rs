@@ -1300,11 +1300,18 @@ pub enum LibraryPrefixCompletion {
     FixtureObservedOnly,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum DiagnosticSchedule {
+    Eager,
+    OnDemand,
+}
+
 struct AuthoritativeRun<'a> {
     provider: &'a dyn AuthoritativeModuleProvider,
     lib_metadata: Vec<AuthoritativeSourceMetadata>,
     file_metadata: Vec<AuthoritativeSourceMetadata>,
     library_prefix: LibraryPrefixCompletion,
+    diagnostic_schedule: DiagnosticSchedule,
 }
 
 struct CheckExecution {
@@ -1340,6 +1347,7 @@ pub fn check_program_with_authoritative_modules_at(
         None,
         None,
         LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
     )
 }
 
@@ -1370,6 +1378,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit(
         Some(&mut operation),
         None,
         LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
     )
 }
 
@@ -1403,6 +1412,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         Some(&mut operation),
         Some(bundle),
         LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::Eager,
     )
 }
 
@@ -1439,6 +1449,37 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
         None,
         None,
         library_prefix,
+        DiagnosticSchedule::Eager,
+    )
+}
+
+/// Initialize one authoritative checker for source-by-source declaration APIs.
+/// Semantic checking is scheduled by the scoped consumer; compiler options and
+/// the ordinary diagnostic/emit entrypoints retain their existing behavior.
+#[allow(clippy::too_many_arguments)]
+pub fn with_authoritative_modules_at_for_declarations(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+    mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        false,
+        Some(&mut operation),
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::OnDemand,
     )
 }
 
@@ -1455,6 +1496,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
     prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
     library_prefix: LibraryPrefixCompletion,
+    diagnostic_schedule: DiagnosticSchedule,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
@@ -1488,6 +1530,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
         lib_metadata: effective_lib_metadata,
         file_metadata: file_metadata.to_vec(),
         library_prefix,
+        diagnostic_schedule,
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
@@ -1944,6 +1987,39 @@ fn check_program_with_prebound_libs_at_observed(
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
         }
+        if authoritative_run
+            .is_some_and(|run| run.diagnostic_schedule == DiagnosticSchedule::OnDemand)
+        {
+            let checked = assemble_check_result(
+                &file_diagnostics,
+                program_semantic_diagnostics.as_deref(),
+                &global_diagnostics,
+                &state.partial_check_records,
+                work_counters,
+            );
+            if let Some(failure) = state.take_authoritative_module_failure() {
+                return CheckExecution {
+                    result: checked,
+                    authoritative_failure: Some(failure),
+                };
+            }
+            let session = CheckerSession::from_checked_state(state);
+            emit_operation.expect("on-demand initialization requires a scoped consumer")(
+                &snapshot, &session, &checked,
+            );
+            let mut state = session.into_state();
+            return CheckExecution {
+                result: assemble_check_result(
+                    &file_diagnostics,
+                    program_semantic_diagnostics.as_deref(),
+                    &global_diagnostics,
+                    &state.partial_check_records,
+                    work_counters,
+                ),
+                authoritative_failure: state.take_authoritative_module_failure(),
+            };
+        }
+
         // getDiagnosticsWorker snapshots global diagnostics around each
         // requested source. Only newly-published file-less rows are
         // prepended to that source's checker diagnostics. `program_file_ids`

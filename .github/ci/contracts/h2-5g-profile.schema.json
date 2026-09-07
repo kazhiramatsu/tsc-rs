@@ -143,8 +143,8 @@
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 245,
-      "maxItems": 245,
+      "minItems": 283,
+      "maxItems": 283,
       "items": {
         "$ref": "#/$defs/path_hash"
       }
@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.7b",
-        "next_slice_scope": "non-bundle-declaration-output",
-        "next_runtime_activation_slice": "H2.7b",
+        "next_slice": "H2.7c",
+        "next_slice_scope": "declaration-diagnostics-and-options",
+        "next_runtime_activation_slice": "H2.7c",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -254,9 +254,10 @@
           "H2.5h",
           "H2.6a",
           "H2.6b",
-          "H2.6c"
+          "H2.6c",
+          "H2.7b"
         ],
-        "inactive_runtime_slice_count": 11,
+        "inactive_runtime_slice_count": 10,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -296,7 +297,12 @@
         "h2_6c_source_deferred_cases": 4,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,
-        "deferred_failure_boundary": "typed failure before first sink write"
+        "deferred_failure_boundary": "typed failure before first sink write",
+        "h2_7b_candidate_cases": 1593,
+        "h2_7b_admitted_cases": 1557,
+        "h2_7b_exact_cases": 1557,
+        "h2_7b_known_divergences": 0,
+        "h2_7b_source_deferred_cases": 36
       }
     },
     "evidence": {
@@ -389,10 +395,10 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 25,
+        "completed_runtime_slices": 26,
         "next_slice_runtime_slice_delta": 0,
-        "runtime_admissions": 9196,
-        "executed_candidates": 9715,
+        "runtime_admissions": 10753,
+        "executed_candidates": 11272,
         "h2_5g_executed_candidates": 9027,
         "h2_5g_global_future_rows": 2883,
         "unexecuted_candidates": 0,

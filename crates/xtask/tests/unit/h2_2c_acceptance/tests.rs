@@ -100,6 +100,39 @@ fn h2_2c_parameter_property_outputs_are_exact() {
 }
 
 #[test]
+fn h2_5g_isolated_declarations_prerequisite_retains_legacy_activity() {
+    // Frozen H2.5g row 2604 is isolatedDeclarationsRequiresDeclaration.ts:
+    // isolatedDeclarations without declaration emits JavaScript and TS5069.
+    // The complete original observation must retain zero H2.7c requests.
+    super::run_h2_5g_probe(&workspace(), &[2604])
+        .expect("legacy isolatedDeclarations prerequisite observation");
+}
+
+#[test]
+fn h2_6c_no_emit_on_error_early_diagnostics_retain_legacy_activity() {
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_6C_QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.6c qualification"),
+    )
+    .expect("parse H2.6c qualification");
+    let cases = super::validate_h2_6c_qualification(&artifact).unwrap();
+    let case = &cases[30];
+    assert_eq!(
+        case["case_id"],
+        "typescript-6.0.3/compiler/noEmitOnError.ts#default"
+    );
+    let inputs = super::H2_6cExecutionInputs::load(&workspace).unwrap();
+    // Reuse the unchanged acceptance comparison and canary guard, including
+    // both complete observations of the original declaration-enabled input.
+    let result = super::execute_h2_6c_case(&workspace, case, &inputs)
+        .expect("legacy early diagnostic gate observation");
+    assert!(!result.deferred);
+    assert!(result.divergence.is_exact());
+    assert_eq!(result.h2_7b_activity, 0);
+}
+
+#[test]
 fn h2_5g_transform_activity_uses_complete_unique_write_provenance() {
     let multi_output = serde_json::json!({
         "writes": [
