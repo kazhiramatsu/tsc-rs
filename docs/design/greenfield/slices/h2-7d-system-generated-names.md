@@ -76,3 +76,23 @@ No Rust build or original-fixture regeneration is part of this packet.
 ```sh
 taskpolicy -b nice -n 15 node scripts/observe-system-generated-names.mjs --check
 ```
+# Rust candidate integration
+
+The first complete module-identity comparison passed 13 of 20 ordinary
+inputs. Seven System bundles restarted the second source's `exports` and
+`context` names at `_1`, while the frozen output used `_2`.
+
+The candidate now retains generated binding identities for System wrapper
+parameters, import aliases, export helpers and setter parameters. A setter
+keeps its relationship to the eventual name of its imported binding, including
+export-only dependencies whose parent binding is not printed. Bundle printing
+shares occupied generated names while retaining each source's own parsed
+identifier collision table. Standalone printing retains its separate scope.
+
+Existing built-in and shared-writer regression controls pass: 97 tests, no
+ignored cases (0.14 seconds after compilation). The new compiler comparison
+preserves the original 20 inputs and adds these 12 controls with the real
+Program resolver. Its post-correction full-byte comparison is pending. Review
+also identified the need to connect the actual checker's global-name oracle
+for numbered candidates; that connection is still being prepared. This is
+internal candidate work, not public outFile admission or H2.7d completion.

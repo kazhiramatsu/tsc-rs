@@ -30,7 +30,8 @@ impl Printer {
         for &source_id in bundle.sources() {
             let source = transformation.arena().source(source_id)?.syntax();
             if source.is_declaration_file
-                || source.external_module_indicator.is_some()
+                || (source.external_module_indicator.is_some()
+                    && !matches!(self.options.module_kind, Some(2 | 4)))
                 || source.file_name.to_ascii_lowercase().ends_with(".json")
             {
                 return Err(PrinterError::Unsupported(
@@ -62,6 +63,7 @@ impl Printer {
                 helpers,
             });
         }
+        transformation.finalize_bundle_generated_names_for_print(bundle.sources())?;
         let mut writer = create_text_writer(self.options.new_line);
         // writeBundle / emitShebangIfNeeded (_tsc.js:117058-117070,
         // 119824-119840): the first shebang anywhere in the bundle wins.
@@ -80,7 +82,6 @@ impl Printer {
         }
         let mut prologues = BTreeSet::new();
         for source in &sources {
-            transformation.finalize_generated_names_for_print(source.root, None)?;
             self.prepare_emission_plan(transformation, source.root)?;
             for &raw_statement in &source.statements {
                 let statement = transformation

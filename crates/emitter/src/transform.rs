@@ -467,6 +467,7 @@ pub struct TransformationContext {
     source_emit_helpers: BTreeMap<TransformSourceId, Vec<EmitHelper>>,
     diagnostics: DiagnosticList,
     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
+    generated_binding_numbered_bases: BTreeMap<GeneratedBindingId, Box<str>>,
     print_finalized_generated_bindings: BTreeSet<GeneratedBindingId>,
 }
 
@@ -486,6 +487,7 @@ impl TransformationContext {
             source_emit_helpers: BTreeMap::new(),
             diagnostics: Vec::new(),
             generated_binding_names: BTreeMap::new(),
+            generated_binding_numbered_bases: BTreeMap::new(),
             print_finalized_generated_bindings: BTreeSet::new(),
         }
     }
@@ -525,6 +527,24 @@ impl TransformationContext {
 
     pub(crate) fn generated_binding_name(&self, binding: GeneratedBindingId) -> Option<&str> {
         self.generated_binding_names
+            .get(&binding)
+            .map(AsRef::as_ref)
+    }
+
+    pub(crate) fn record_generated_binding_numbered_base(
+        &mut self,
+        binding: GeneratedBindingId,
+        base: &str,
+    ) {
+        self.generated_binding_numbered_bases
+            .insert(binding, base.into());
+    }
+
+    pub(crate) fn generated_binding_numbered_base(
+        &self,
+        binding: GeneratedBindingId,
+    ) -> Option<&str> {
+        self.generated_binding_numbered_bases
             .get(&binding)
             .map(AsRef::as_ref)
     }
@@ -807,6 +827,7 @@ impl TransformationContext {
         self.emit_helpers.clear();
         self.source_emit_helpers.clear();
         self.generated_binding_names.clear();
+        self.generated_binding_numbered_bases.clear();
         self.print_finalized_generated_bindings.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;
@@ -928,6 +949,14 @@ impl TransformationResult<'_> {
     ) -> Result<(), TransformError> {
         self.context
             .finalize_generated_binding_names_for_print(root, global_name_oracle)
+    }
+
+    pub(crate) fn finalize_bundle_generated_names_for_print(
+        &mut self,
+        sources: &[TransformSourceId],
+    ) -> Result<(), TransformError> {
+        self.context
+            .finalize_bundle_generated_binding_names_for_print(sources)
     }
 
     pub fn roots(&self) -> &[TransformRoot] {

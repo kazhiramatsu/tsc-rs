@@ -2533,12 +2533,14 @@ impl ImportEqualsPublication {
 #[derive(Debug)]
 struct GeneratedModuleNameAllocator {
     used_names: BTreeSet<String>,
+    generated_bases: BTreeMap<String, String>,
 }
 
 impl GeneratedModuleNameAllocator {
     fn new(arena: &TransformArena, source: TransformSourceId) -> Self {
         Self {
             used_names: system::collect_identifier_texts(arena, source),
+            generated_bases: BTreeMap::new(),
         }
     }
 
@@ -2550,6 +2552,8 @@ impl GeneratedModuleNameAllocator {
         for ordinal in 1usize.. {
             let candidate = format!("{base}{ordinal}");
             if self.used_names.insert(candidate.clone()) {
+                self.generated_bases
+                    .insert(candidate.clone(), base.trim_end_matches('_').to_owned());
                 return candidate.into_boxed_str();
             }
         }
