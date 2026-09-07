@@ -61,7 +61,7 @@ comparisons run alongside these eight focused comparisons. The combined four
 tests pass all 130 comparisons (54.83 s), and emitter/checker/compiler
 all-target clippy passes with warnings denied (1m 08s). Final source review
 tightened the private-method location predicate to the exact TS
-`isFunctionLikeDeclaration` family; the focused eight comparisons are being
-repeated for that final refinement. Adjacent frozen declaration replay remains
-the integration owner's check because these producers are also shared with
-non-Bundle declarations.
+`isFunctionLikeDeclaration` family; the focused eight comparisons pass again
+(3.25 s), followed by all-target clippy with warnings denied (27.55 s).
+Adjacent frozen declaration replay remains the integration owner's check
+because these producers are also shared with non-Bundle declarations.
