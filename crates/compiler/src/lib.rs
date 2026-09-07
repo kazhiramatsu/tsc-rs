@@ -180,10 +180,21 @@ impl<'program> PreparedEmitHost<'program> {
         };
         // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
         // (_tsc.js:123142-123157), including noEmitForJsFiles, before comparing
-        // source directories. Source selection does not consult this directory.
-        let emitted_files =
-            tsc_emitter::get_source_files_to_emit(&host, EmitSelection::WholeProgram)
-                .map_err(DriverError::Emit)?;
+        // source directories. It does not apply getSourceFilesToEmit's
+        // outFile external-module filter, which needs checked source syntax.
+        let emitted_files = host
+            .source_files
+            .iter()
+            .copied()
+            .filter_map(|id| match host.source_file(id) {
+                Some(source) => tsc_emitter::source_file_may_be_emitted_for_host(source, &host)
+                    .then_some(Ok(id)),
+                None => Some(Err(tsc_emitter::EmitFailure::Contract(
+                    tsc_emitter::EmitContractViolation::PlannedSourceMissing(id),
+                ))),
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DriverError::Emit)?;
         host.common_source_directory = common_emit_source_directory(prepared, &emitted_files);
         Ok(host)
     }

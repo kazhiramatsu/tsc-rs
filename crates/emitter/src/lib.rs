@@ -71,8 +71,9 @@ pub use metadata::{
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
     for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
-    source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
+    source_file_may_be_emitted, source_file_may_be_emitted_for_host, EmitBundle, EmitMode,
+    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection,
+    JavascriptOmission,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,
