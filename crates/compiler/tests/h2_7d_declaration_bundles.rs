@@ -47,6 +47,26 @@ fn options(value: &Value) -> CompilerOptions {
             "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
             "alwaysStrict" => options.always_strict = value.as_bool(),
             "noResolve" => options.no_resolve = value.as_bool(),
+            "useDefineForClassFields" => options.use_define_for_class_fields = value.as_bool(),
+            "lib" => {
+                let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+                options.lib = Some(
+                    value
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|value| {
+                            let name = value.as_str().unwrap();
+                            let key = name
+                                .strip_prefix("lib.")
+                                .and_then(|s| s.strip_suffix(".d.ts"))
+                                .unwrap();
+                            assert_eq!(catalog.option_file_name(key), Some(name));
+                            key.to_owned()
+                        })
+                        .collect(),
+                );
+            }
             other => panic!("unprojected option {other}"),
         }
     }
@@ -1108,6 +1128,69 @@ fn ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice() 
                 if outcome.is_err() {
                     failures.push(format!("{} {mode} #{repetition}", case["case_id"]));
                 }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// These original inputs and full TypeScript output tuples are joined without
+/// rewriting options, libraries, files, or the frozen observation payload.
+#[test]
+fn original_javascript_declaration_bundles_match_typescript_twice() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let inputs: Value = serde_json::from_slice(
+        &std::fs::read(workspace.join("ratchets/h2-7de-candidate-inputs.v1.json")).unwrap(),
+    )
+    .unwrap();
+    let observations: Value = serde_json::from_slice(
+        &std::fs::read(workspace.join("ratchets/h2-7de-observations.v1.json")).unwrap(),
+    )
+    .unwrap();
+    let names = [
+        "jsDeclarationsImportTypeBundled",
+        "jsdocAccessibilityTagsDeclarations",
+        "jsdocReadonlyDeclarations",
+        "uniqueSymbolsDeclarationsInJs",
+    ];
+    let libraries = libraries();
+    let mut failures = Vec::new();
+    for name in names {
+        let suffix = format!("/{name}.ts#default");
+        let original = inputs["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["case_id"].as_str().unwrap().ends_with(&suffix))
+            .unwrap();
+        let mut case = original["input"].clone();
+        assert!(case["config"].is_null());
+        assert!(case["shared_mount"].is_null());
+        assert_eq!(case["vfs_symlinks"], json!([]));
+        case["case_id"] = original["case_id"].clone();
+        case["options"] = original["effective_options"].clone();
+        case["typescript_observation"] = observations["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["case_id"] == original["case_id"])
+            .unwrap()["typescript_observation"]
+            .clone();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let prepared = prepare(&case, &libraries);
+                let (observed, checked) = tsc_compiler::ProgramSession::new(prepared)
+                    .with_checked_emit_resolver_for_harness(|host, resolver, checked| {
+                        assert!(checked.partial_checks.is_empty());
+                        compare_bundle_recording(&case, host, resolver, false);
+                        Ok(())
+                    })
+                    .unwrap();
+                assert!(observed.is_some());
+                assert!(checked.partial_checks.is_empty());
+            });
+            if result.is_err() {
+                failures.push(format!("{name} #{repetition}"));
             }
         }
     }

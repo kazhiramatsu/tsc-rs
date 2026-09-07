@@ -1381,12 +1381,12 @@ impl<'a> CheckerState<'a> {
                     && self.is_variable_declaration_in_variable_statement(node)
             }
             NodeData::PropertyDeclaration(_) => {
-                node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::READONLY)
+                node_util::get_effective_modifier_flags(source, node)
+                    .intersects(tsc_types::ModifierFlags::READONLY)
                     && self.has_static_modifier(node)
             }
-            NodeData::PropertySignature(_) => {
-                node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::READONLY)
-            }
+            NodeData::PropertySignature(_) => node_util::get_effective_modifier_flags(source, node)
+                .intersects(tsc_types::ModifierFlags::READONLY),
             NodeData::BinaryExpression(_) => self.is_common_js_export_property_assignment(node),
             _ => false,
         }

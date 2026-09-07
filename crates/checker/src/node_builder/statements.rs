@@ -4716,6 +4716,10 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 .checker
                 .get_type_of_symbol(property)
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+            let signatures = self
+                .checker
+                .get_signatures_of_type(method_type, SignatureKind::Call)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
             if omit_type {
                 let modifier_flags = ModifierFlags::from_bits(
                     flag.bits()
@@ -4759,14 +4763,23 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         }),
                     )?
                 };
-                return self
-                    .range_member(node, first_property_like)
-                    .map(|node| vec![node]);
+                let location = property_data
+                    .declarations
+                    .iter()
+                    .copied()
+                    .find(|&declaration| {
+                        node_util::is_function_like_declaration_kind(
+                            self.checker.kind_of(declaration),
+                        )
+                    })
+                    .or_else(|| {
+                        signatures
+                            .first()
+                            .and_then(|&signature| self.checker.signature_of(signature).declaration)
+                    })
+                    .or_else(|| property_data.declarations.first().copied());
+                return self.range_member(node, location).map(|node| vec![node]);
             }
-            let signatures = self
-                .checker
-                .get_signatures_of_type(method_type, SignatureKind::Call)
-                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
             let mut nodes = Vec::new();
             for signature in signatures {
                 add_approximate_length(self.context, 1);
