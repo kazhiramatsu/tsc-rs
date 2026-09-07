@@ -814,12 +814,11 @@ impl TypeScriptTransformer<'_> {
                     TransformFlags::NONE,
                 )?,
             };
-            factory.set_text_range(substitute, node)?;
             substitute
         };
-        context
-            .arena_mut()?
-            .set_original_node(substitute, Some(original))?;
+        // TypeScript returns the synthetic constant directly. Giving it the
+        // access expression's range/original adds node and token map spans
+        // which the substitution pipeline does not emit.
         if let Some(value) = javascript_string {
             context
                 .arena_mut()?

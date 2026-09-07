@@ -115,6 +115,11 @@ fresh forced printing attaches none. Number bits (including negative zero)
 and string UTF-16 code units remain exact through the handoff. This is the
 `setConstantValue` / print-time `substituteConstantValue` channel
 (`_tsc.js:25396-25404`, `95827-95839`), not a replacement of checker evaluation.
+The constant substitution producer returns a synthetic literal directly
+(`95827-95839`); it does not copy the access expression's text range or
+original link. Removing those extra Rust producer assignments restores the
+ordinary JavaScript maps, while the direct access-node constant metadata and
+synthetic trailing comment remain intact.
 The pinned native `transformers/inliners/constenum.go:32-78` instead folds
 these accesses in a dedicated visitor using its resolver; that pass layout
 does not replace the TS6 print-time metadata lifetime.
@@ -185,11 +190,14 @@ Seven of eight JSON cases pass twice. The map-enabled mixed System case still
 differs in JavaScript mappings for `export const moduleValue: number = 2`;
 source lists, inline content, and the corresponding unmapped full output agree.
 Its unchanged expected mapping remains a failing comparison pending the
-System producer owner. The two constant controls show identical values and
-positions; a comparator object-key-order correction awaits rerun. Adjacent
-contracts and lint checks are still running at candidate publication. This
-candidate does not claim that the expanded packet or public Bundle behavior
-is complete.
+System producer owner. After the constant substitution correction, all eleven
+metadata inputs pass ordinary/fresh-forced comparison twice (44 complete
+comparisons, including the exact constant bits/code units). The six existing
+constant-enum grammar/comment controls also pass. Adjacent contracts pass
+449 tests, shared source-map units pass 19, and emitter/compiler all-target
+clippy passes with warnings denied after the separate generated-name map-entry
+cleanup. The outstanding System map comparison means this packet and public
+Bundle behavior are not yet claimed complete.
 
 ```sh
 node scripts/observe-bundle-maps.mjs --check
