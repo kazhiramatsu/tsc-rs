@@ -274,6 +274,47 @@ fn run_cases(cases: &[Value], mut run: impl FnMut(&Value)) {
     );
 }
 
+fn assert_request_activity(
+    before: tsc_emitter::H2ActivityCounters,
+    after: tsc_emitter::H2ActivityCounters,
+    case: &Value,
+) {
+    use tsc_emitter::H2RuntimeSlice;
+    for (slice, requested) in [
+        (
+            H2RuntimeSlice::H2_7d,
+            case["options"]["outFile"]
+                .as_str()
+                .is_some_and(|path| !path.is_empty()),
+        ),
+        (
+            H2RuntimeSlice::H2_7e,
+            case["options"]["declarationMap"] == true,
+        ),
+    ] {
+        assert_eq!(
+            after
+                .runtime_slice(slice)
+                .checked_sub(before.runtime_slice(slice)),
+            Some(u64::from(requested)),
+            "{}: {} request delta",
+            case["case_id"],
+            slice.name()
+        );
+    }
+    for slice in H2RuntimeSlice::ALL {
+        if slice == H2RuntimeSlice::H2_7a || slice > H2RuntimeSlice::H2_7e {
+            assert_eq!(
+                after.runtime_slice(slice),
+                0,
+                "{}: inactive {}",
+                case["case_id"],
+                slice.name()
+            );
+        }
+    }
+}
+
 #[test]
 fn ordinary_bundle_program_commands_match_complete_typescript_observations() {
     let fixture = fixture();
@@ -299,6 +340,7 @@ fn ordinary_bundle_program_commands_match_complete_typescript_observations() {
             let outcome = ProgramSession::new(prepare(case, &libs))
                 .emit_command_for_harness(&mut sink)
                 .unwrap_or_else(|error| panic_api(error, &sink, id));
+            assert_request_activity(Default::default(), outcome.emit().h2_activity(), case);
             assert_call(
                 complete_call(
                     expected,
@@ -338,6 +380,7 @@ fn fresh_forced_bundle_programs_match_complete_typescript_observations() {
             let outcome = ProgramSession::new(prepare(case, &libs))
                 .emit_forced_declarations(EmitSelection::WholeProgram, &mut sink)
                 .unwrap_or_else(|error| panic_api(error, &sink, id));
+            assert_request_activity(Default::default(), outcome.h2_activity(), case);
             assert_eq!(
                 json!({"writes":writes(&sink),"emit_result":emit_result(&outcome),"exception":null}),
                 json!({"writes":cold["writes"],"emit_result":cold["emit_result"],"exception":cold["exception"]}),
@@ -372,7 +415,7 @@ fn same_session_bundle_commands_getters_and_forces_match_typescript() {
                 for expected in case["typescript_observation"]["calls"].as_array().unwrap() {
                     assert_eq!(expected["exception"],Value::Null,"fixture exception coverage must be extended explicitly");
                     let selection = expected["target_source"].as_str().map_or(EmitSelection::WholeProgram,|path|EmitSelection::TargetSourceFile(sources[path]));
-                    let before = session.activity().emit_resolver_borrows();
+                    let before = session.activity();
                     let mut sink = MemoryOutputSink::new();
                     let fields = match expected["kind"].as_str().unwrap() {
                         "ordinary-command" => {
@@ -389,11 +432,14 @@ fn same_session_bundle_commands_getters_and_forces_match_typescript() {
                         other => panic!("unobserved Bundle call kind {other}"),
                     };
                     let requests = expected["resolver_requests"].as_array().unwrap().len() as u64;
-                    assert_eq!(session.activity().emit_resolver_borrows()-before,if sources.is_empty(){0}else{requests},"{id}: resolver request count");
+                    assert_eq!(session.activity().emit_resolver_borrows()-before.emit_resolver_borrows(),if sources.is_empty(){0}else{requests},"{id}: resolver request count");
+                    assert_request_activity(before, session.activity(), case);
                     assert_call(complete_call(expected,&sink,fields),expected,id);
                     *counts.entry(expected["kind"].as_str().unwrap().to_owned()).or_default() += 1;
                 }
+                let before_diagnostics = session.activity();
                 let diagnostics_after = session.get_program_diagnostics()?;
+                assert_eq!(session.activity(), before_diagnostics, "{id}: final diagnostics activity");
                 assert_eq!(json!({"options":diagnostics(diagnostics_after.options()),"syntactic":diagnostics(diagnostics_after.syntactic()),
                     "global":diagnostics(diagnostics_after.global()),"semantic":diagnostics(diagnostics_after.semantic())}),
                     case["typescript_observation"]["program_diagnostics_after_calls"],"{id}: same-state final diagnostics");

@@ -1,4 +1,4 @@
-//! Original D-only candidates, through ordinary production Program/command emission.
+//! Original D and D/E candidates through ordinary production Program/command emission.
 //! Frozen census/oracle membership is not an admission or a promised success count.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -478,6 +478,39 @@ fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, V
             );
         });
     let outcome = command.emit();
+    let activity = outcome.h2_activity();
+    for (slice, requested) in [
+        (
+            tsc_emitter::H2RuntimeSlice::H2_7d,
+            case["effective_options"]["outFile"]
+                .as_str()
+                .is_some_and(|path| !path.is_empty()),
+        ),
+        (
+            tsc_emitter::H2RuntimeSlice::H2_7e,
+            case["effective_options"]["declarationMap"] == true,
+        ),
+    ] {
+        assert_eq!(
+            activity.runtime_slice(slice),
+            u64::from(requested),
+            "{}: {} request",
+            case["case_id"],
+            slice.name()
+        );
+    }
+    for slice in tsc_emitter::H2RuntimeSlice::ALL {
+        if slice == tsc_emitter::H2RuntimeSlice::H2_7a || slice > tsc_emitter::H2RuntimeSlice::H2_7e
+        {
+            assert_eq!(
+                activity.runtime_slice(slice),
+                0,
+                "{}: inactive {}",
+                case["case_id"],
+                slice.name()
+            );
+        }
+    }
     let maps = outcome.source_maps().map(|maps| {
         maps.iter().map(|map| json!({
         "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
@@ -586,7 +619,7 @@ fn assert_original_source(row: &Value) {
     assert_eq!(json!(digest(&bytes)), source["sha256"], "{path:?}");
 }
 
-/// Preserve all 35 later intersections without treating facet comparisons or
+/// Preserve the 32 later-owner intersections without treating facet comparisons or
 /// a present typed error as a complete TS tuple. Only noEmit's loader gate is
 /// independently established here; the other entrances are recorded for review.
 fn assert_reference(
@@ -598,10 +631,6 @@ fn assert_reference(
     let options = &case["effective_options"];
     let owner = owners(row);
     let gate = match owner.as_slice() {
-        [d, e] if d == "H2.7d" && e == "H2.7e" => {
-            assert_eq!(options["declarationMap"], true);
-            "ordinary emitter option/profile: bundle declarationMap; D/E integration unadmitted"
-        }
         [d, a] if d == "H2.7d" && a == "H2.8a" => {
             assert!(options.get("rootDir").is_some() || options.get("outDir").is_some());
             "ordinary emitter validate_emit_request: rootDir/outDir"
@@ -735,7 +764,9 @@ fn h2_7d_original_corpus_matches_production_command_tuples() {
             continue;
         }
         let case = inputs[id];
-        if owners(row) != ["H2.7d"] {
+        if !matches!(owners(row).as_slice(), [d] if d == "H2.7d")
+            && owners(row) != ["H2.7d", "H2.7e"]
+        {
             references += 1;
             assert_reference(row, case, &input_artifact, &libraries);
             continue;
@@ -784,8 +815,8 @@ fn h2_7d_original_corpus_matches_production_command_tuples() {
             eprintln!("H2.7d original EXACT x2 {id}");
         }
     }
-    assert_eq!(compared, 280);
-    assert_eq!(references, 35);
+    assert_eq!(compared, 283);
+    assert_eq!(references, 32);
     // Distinct original IDs, never band totals added together. These are local
     // comparison results only; runtime activity/admission remains separately owned.
     eprintln!("H2.7d original: compared={compared}, exact={exact}, references={references}, H2.6c exact overlap={exact_overlap}, exact IDs outside H2.6c={}; union=325, input-preserving repetitions=2", exact - exact_overlap);
@@ -795,7 +826,7 @@ fn h2_7d_original_corpus_matches_production_command_tuples() {
         failures.len(),
         failures.join("\n")
     );
-    assert_eq!(exact, 280);
-    assert_eq!(exact_overlap, 154);
-    assert_eq!(exact - exact_overlap, 126);
+    assert_eq!(exact, 283);
+    assert_eq!(exact_overlap, 155);
+    assert_eq!(exact - exact_overlap, 128);
 }

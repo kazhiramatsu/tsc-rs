@@ -3,15 +3,17 @@
 This standalone compiler test joins the unchanged candidate census, original
 inputs and complete TS 6.0.3 observations. The first complete production run
 compared all 280 D-only inputs twice: 178 exact and 102 failing cases (242.70s).
-The second run incorporates diagnosed option, JSON and input-projection fixes;
-its result remains pending.
+The second run incorporated option, JSON and input-projection fixes: 274 exact
+and six failing D-only cases, each twice (243.06s). The third candidate fixes
+those six declaration/computed-field cases and includes the original three D/E
+intersections, for 283 complete comparisons per repetition. Its result is pending.
 No candidate is admitted by adding this test. All D-only failures remain failures;
 there is no allowlist, diagnostic replacement or input reduction.
 
 | Frozen owner set | Original IDs | Comparison in this packet | H2.6c overlap |
 | --- | ---: | --- | ---: |
 | D only | 280 | Ordinary production command tuple, two fresh Programs per ID | 154 |
-| D + E | 3 | Original inputs/oracles retained; bundle maps remain a separate integration boundary | 1 |
+| D + E | 3 | Same original production command comparison, including complete map bytes and metadata | 1 |
 | D + H2.8a | 23 | Reference: rootDir 4, outDir 19; emitter option/profile entrance | 16 |
 | D + H2.8b | 5 | Reference: importHelpers 2, incremental 1, composite 1, insensitive host 1 | 1 |
 | D + H2.9 | 4 | noEmit loader refusal 3, each twice; malformed JS source reference 1 | 0 |
@@ -19,8 +21,8 @@ there is no allowlist, diagnostic replacement or input reduction.
 | E + H2.8c | 2 | Transpile references, five original units each; no whole-Program oracle | 0 |
 
 The union remains 325: D 315 + E 13 - compound 3. The all-owner historical overlap
-is 177. If all 280 D-only comparisons pass, 154 repeat historical H2.6c IDs and 126
-are outside that historical set. These are distinct input IDs, not additional
+is 177. The third candidate compares 283 D/D+E cases: 155 repeat historical
+H2.6c IDs and 128 are outside that historical set. These are distinct input IDs, not additional
 runtime activity/admission counts. Actual local exact counts are printed after
 both repetitions; a successful reference check never increments that count.
 
@@ -73,7 +75,7 @@ corrected by `1d1ae2bd` (`d621cb63` / `a47f64e8` in integration). The comparison
 does not initialize a getter session, inject a common directory/source order,
 provide a mock resolver, concatenate per-source output, or infer status/exit.
 
-Every D-only repetition compares source and standard-library order, every callback
+Every eligible D/D+E repetition compares source and standard-library order, every callback
 path/order/byte/BOM/sourceFiles/metadata field, reported diagnostics, emitSkipped,
 emit diagnostics, emittedFiles, sourceMaps (including canonical JSON bytes), status
 writes and exit code. Absent and empty values remain distinct. Failures are
@@ -87,11 +89,11 @@ these originals into generated configs would change absolute paths, config
 diagnostic locations or project lib defaults, so such CLI controls require their
 own explicitly separate evidence.
 
-The 35 later-owner originals remain references. noEmit is tested at
+The 32 later-owner originals remain references. noEmit is tested at
 `load_emitting_program`'s `ValidateOptions` entrance. rootDir/outDir and
 incremental/composite have ordinary emitter profile gates; malformed JS reaches
 the `ParseDiagnosticsDeferred`/H2.9 source boundary. Bundle maps require the D/E
-connection. ImportHelpers and case-insensitive host have no independent ordinary
+connection and now compare as three full original observations. ImportHelpers and case-insensitive host have no independent ordinary
 refusal in the pre-connection tree: root must review their bundle guards when the
 blanket outFile refusal is removed. This draft neither converts those three rows
 to successes nor claims their future typed refusal has been measured.
@@ -102,3 +104,9 @@ rows), output collisions, invalid option combinations and TS diagnostics such as
 facet look like a complete Program success. Getter/forced/cache and sink-failure
 integration, CLI subprocesses, canary/global profile and formal adoption remain
 separately owned. Existing E tests and all TS fixtures are unchanged.
+
+The runtime canary candidate also checks one D request for each nonempty outFile
+and one E request for declarationMap=true at every validated ordinary call.
+These assertions do not add fields to the frozen TypeScript tuples. Public
+getters/forced emits, cache/empty/exception cases and the older-profile rejection
+boundary have separate focused controls; formal adoption is still pending.
