@@ -1034,7 +1034,12 @@ pub fn emit_files_with_activity(
                     Err(error) => return Err(error.into()),
                 };
                 javascript_printed = true;
-                if declaration_path.is_some() {
+                // TS transformNodes.dispose clears annotated parse nodes for a
+                // SourceFile root. A Bundle root has no parse SourceFile and
+                // retains its children's metadata for declaration emission.
+                if declaration_path.is_some()
+                    && matches!(transformed_root, TransformRoot::Bundle(_))
+                {
                     parsed_emit_metadata =
                         Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
                 }

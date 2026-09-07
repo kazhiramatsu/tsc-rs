@@ -406,3 +406,45 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+// Reuse the original old input/host/library-prefix path and complete comparison.
+// This regression creates no measurement artifact or admission entry.
+#[test]
+fn nonbundle_declaration_maps_dispose_javascript_parse_metadata() -> Result<(), Box<dyn Error>> {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?;
+    let qualification = pinned(
+        &workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
+        "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec",
+    )?;
+    let cases = validate_h2_6c_qualification(&qualification)?;
+    let inputs = H2_6cExecutionInputs::load(&workspace)?;
+    for target in ["es2015", "es2022", "esnext"] {
+        let id = format!(
+            "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3D{target}"
+        );
+        let case = cases
+            .iter()
+            .find(|case| case["case_id"] == id)
+            .ok_or_else(|| failure(format!("missing original {id}")))?;
+        let observed = collect_case(&workspace, case, &inputs)?;
+        assert_eq!(
+            observed["prepared"]["option_facets"]["outFile"],
+            Value::Null
+        );
+        assert_eq!(observed["native_and_json_repetitions_equal"], true, "{id}");
+        let repetitions = array(&observed, "observations")?;
+        assert_eq!(repetitions.len(), 2);
+        for run in repetitions {
+            assert_eq!(
+                run["comparison_kind"], "exact",
+                "{id}: {}",
+                run["old_comparison"]
+            );
+            assert_eq!(run["activity"]["D"], 0, "{id}");
+            assert_eq!(run["activity"]["E"], 1, "{id}");
+        }
+    }
+    Ok(())
+}

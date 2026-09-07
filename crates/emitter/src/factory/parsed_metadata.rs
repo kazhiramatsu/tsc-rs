@@ -11,7 +11,9 @@ use crate::{EmitConstantValue, EmitFlags, EmitHost, EmitMetadata, TransformError
 
 /// Metadata actually attached to original parse nodes by a completed
 /// JavaScript transform/print. It is passed only to the declaration transform
-/// of that same ordinary emit. Fresh getter/forced operations start empty.
+/// of that same ordinary Bundle emit. SourceFile roots dispose their annotated
+/// parse nodes before declaration emission; fresh getter/forced operations also
+/// start empty.
 ///
 /// Synthetic nodes and their `original` chains are never projected into this
 /// snapshot. The portable packet covers the observed flags/typeNode/constantValue
