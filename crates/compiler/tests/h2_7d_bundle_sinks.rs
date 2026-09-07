@@ -371,7 +371,10 @@ fn bundle_callback_exceptions_preserve_one_request_per_option() {
                     let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         session.emit_with_reported_diagnostics(&mut sink)
                     }));
-                    let exception = returned.expect_err("controlled Bundle callback must unwind");
+                    let exception = match returned {
+                        Err(exception) => exception,
+                        Ok(_) => panic!("controlled Bundle callback must unwind"),
+                    };
                     assert_eq!(exception.downcast_ref::<&str>(),
                         Some(&"H2.7 bundle controlled callback exception"));
                     let after = session.activity();
