@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "ab992329b6ed779169a3bc13750e72c82672fc290f7864f4bf669cf07dccdf19"
+    "sha256": "8d75517f922c97a1fe807fbefa80ed69a7943751b76c101008bb150868a15c56"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
-    "sha256": "565dad2632f44cc9e8bacba6166d0ee3082b7bc3d4cb01d57585c3f62881e0d0"
+    "sha256": "4aa93e382a226760568bbbd865126925ecc8814951346d4f1ecd25b155a519e7"
   },
   "inputs": {
     "owner_inventory": {
@@ -206,28 +206,28 @@
       "retained_arms": [
         {
           "name": "DeclarationOnly",
-          "line": 222,
-          "span_sha256": "dce84ef19b0e7382e9fd65300bb331e08753846c3cb37d44ea5c73b3caf2f4b1"
+          "line": 231,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuilderSignature",
-          "line": 227,
-          "span_sha256": "dce84ef19b0e7382e9fd65300bb331e08753846c3cb37d44ea5c73b3caf2f4b1"
+          "line": 236,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "DeclarationMap",
-          "line": 243,
-          "span_sha256": "dce84ef19b0e7382e9fd65300bb331e08753846c3cb37d44ea5c73b3caf2f4b1"
+          "line": 251,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuildInfo",
-          "line": 247,
-          "span_sha256": "dce84ef19b0e7382e9fd65300bb331e08753846c3cb37d44ea5c73b3caf2f4b1"
+          "line": 255,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "ScriptOutputMissingJavaScriptPath",
-          "line": 253,
-          "span_sha256": "dce84ef19b0e7382e9fd65300bb331e08753846c3cb37d44ea5c73b3caf2f4b1"
+          "line": 261,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         }
       ],
       "sha256_at_h2_6c_close": "ac36b2be2a480b0fce8b25a3983a9ec4e0c63661f138b45fcf31db1124c4fa3e"
@@ -239,7 +239,7 @@
         {
           "name": "composite",
           "line": 149,
-          "span_sha256": "d2ce0160a953a69092f0b3aece9412dcd2d8099130898dab3346a783bf05ce62"
+          "span_sha256": "6989d50f565df3bc031a11a54a3031588953dc39a9c9f67175c0778cef7416eb"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -274,15 +274,15 @@
     }
   ],
   "transition_landing": {
-    "next_slice": "H2.7c",
-    "next_slice_scope": "declaration-diagnostics-and-options",
-    "next_runtime_activation_slice": "H2.7c",
+    "next_slice": "H2.7d",
+    "next_slice_scope": "bundles-and-outfile",
+    "next_runtime_activation_slice": "H2.7d",
     "completed_slice": "H2.5g",
-    "inactive_runtime_slice_count": 10,
-    "completed_runtime_slices": 26,
+    "inactive_runtime_slice_count": 9,
+    "completed_runtime_slices": 27,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 10753,
-    "executed_candidates": 11272,
+    "runtime_admissions": 10784,
+    "executed_candidates": 11303,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
@@ -297,5 +297,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "0e682efd6dba96b2f56bb346f1255bd079344356a776b30347ea5eb313c561b9"
+  "close_fingerprint_sha256": "de669b66d37aa9fba393c13ec32b3b5b9db7c24b0439881503a53ee50a808211"
 }

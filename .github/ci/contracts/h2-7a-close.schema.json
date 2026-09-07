@@ -977,31 +977,31 @@
       ],
       "properties": {
         "next_slice": {
-          "const": "H2.7c"
+          "const": "H2.7d"
         },
         "next_slice_scope": {
-          "const": "declaration-diagnostics-and-options"
+          "const": "bundles-and-outfile"
         },
         "next_runtime_activation_slice": {
-          "const": "H2.7c"
+          "const": "H2.7d"
         },
         "completed_slice": {
           "const": "H2.5g"
         },
         "inactive_runtime_slice_count": {
-          "const": 10
+          "const": 9
         },
         "completed_runtime_slices": {
-          "const": 26
+          "const": 27
         },
         "next_slice_runtime_slice_delta": {
           "const": 0
         },
         "runtime_admissions": {
-          "const": 10753
+          "const": 10784
         },
         "executed_candidates": {
-          "const": 11272
+          "const": 11303
         },
         "unexecuted_candidates": {
           "const": 0

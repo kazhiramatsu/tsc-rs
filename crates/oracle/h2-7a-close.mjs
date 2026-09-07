@@ -45,15 +45,15 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: PLAN_RELATIVE_PATH,
     historicalSha256: EXPECTED_PLAN_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_shape", line: 210 }),
+    item: Object.freeze({ name: "validate_bootstrap_shape", line: 219 }),
     arms: Object.freeze([
-      Object.freeze({ name: "DeclarationOnly", line: 222, marker: "EmitMode::DeclarationOnly" }),
-      Object.freeze({ name: "BuilderSignature", line: 227, marker: "EmitMode::BuilderSignature" }),
-      Object.freeze({ name: "DeclarationMap", line: 243, marker: "UnsupportedEmitFeature::DeclarationMap" }),
-      Object.freeze({ name: "BuildInfo", line: 247, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({ name: "DeclarationOnly", line: 231, marker: "EmitMode::DeclarationOnly" }),
+      Object.freeze({ name: "BuilderSignature", line: 236, marker: "EmitMode::BuilderSignature" }),
+      Object.freeze({ name: "DeclarationMap", line: 251, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 255, marker: "UnsupportedEmitFeature::BuildInfo));" }),
       Object.freeze({
         name: "ScriptOutputMissingJavaScriptPath",
-        line: 253,
+        line: 261,
         marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
       }),
     ]),
@@ -64,7 +64,8 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     item: Object.freeze({ name: "validate_emit_options", line: 95 }),
     arms: Object.freeze([
       // Ordinary maps, getters and forced declarations are observed in E m3/m4.
-      // Bundle composition remains guarded in planning and printing.
+      // Bundle composition uses the shared production workers; later option
+      // and malformed-root boundaries remain at their existing owners.
       // The ordinary/getter request flavors share this validator.
       // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
       // prerequisite are covered by focused complete observations.
@@ -88,8 +89,8 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     path: PRINTER_RELATIVE_PATH,
     item: Object.freeze({ name: "print", line: 1066 }),
     arms: Object.freeze([
-      // The dispatch now prints global scripts and delegates retained
-      // declaration/module/JSON/recording guards to printer/bundle.rs.
+      // The dispatch delegates source-file/bundle printing and retained
+      // unsupported shape checks to printer/bundle.rs.
       // That complete callee is pinned in the live runtime input closure.
       Object.freeze({ name: "BundleDispatch", line: 1082, marker: "PrintRequest::Bundle" }),
     ]),
@@ -534,21 +535,21 @@ function loadParentProfile() {
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b"]) &&
-      parent.transition.inactive_runtime_slice_count === 10 &&
-      parent.transition.next_runtime_activation_slice === "H2.7c" &&
-      parent.summary.completed_runtime_slices === 26 &&
+        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b", "H2.7c"]) &&
+      parent.transition.inactive_runtime_slice_count === 9 &&
+      parent.transition.next_runtime_activation_slice === "H2.7d" &&
+      parent.summary.completed_runtime_slices === 27 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_753 &&
-      parent.summary.executed_candidates === 11_272 &&
+      parent.summary.runtime_admissions === 10_784 &&
+      parent.summary.executed_candidates === 11_303 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "H2.5g parent profile content is not the closed H2.7b state",
+    "H2.5g parent profile content is not the closed H2.7c state",
   );
   requireCondition(
-    parent.transition.next_slice === "H2.7c" &&
-      parent.transition.next_slice_scope === "declaration-diagnostics-and-options",
-    "parent transition has not landed H2.7c",
+    parent.transition.next_slice === "H2.7d" &&
+      parent.transition.next_slice_scope === "bundles-and-outfile",
+    "parent transition has not landed H2.7d",
   );
   return parent;
 }
@@ -865,15 +866,15 @@ function refusalSurfaces() {
 
 function transitionLandingRecord() {
   return {
-    next_slice: "H2.7c",
-    next_slice_scope: "declaration-diagnostics-and-options",
-    next_runtime_activation_slice: "H2.7c",
+    next_slice: "H2.7d",
+    next_slice_scope: "bundles-and-outfile",
+    next_runtime_activation_slice: "H2.7d",
     completed_slice: "H2.5g",
-    inactive_runtime_slice_count: 10,
-    completed_runtime_slices: 26,
+    inactive_runtime_slice_count: 9,
+    completed_runtime_slices: 27,
     next_slice_runtime_slice_delta: 0,
-    runtime_admissions: 10_753,
-    executed_candidates: 11_272,
+    runtime_admissions: 10_784,
+    executed_candidates: 11_303,
     unexecuted_candidates: 0,
     undispositioned_candidates: 0,
   };
@@ -881,18 +882,18 @@ function transitionLandingRecord() {
 
 function assertParentLanding(parent) {
   requireCondition(
-    parent.transition.next_slice === "H2.7c" &&
-      parent.transition.next_slice_scope === "declaration-diagnostics-and-options" &&
-      parent.transition.next_runtime_activation_slice === "H2.7c" &&
+    parent.transition.next_slice === "H2.7d" &&
+      parent.transition.next_slice_scope === "bundles-and-outfile" &&
+      parent.transition.next_runtime_activation_slice === "H2.7d" &&
       parent.transition.completed_slice === "H2.5g" &&
-      parent.transition.inactive_runtime_slice_count === 10 &&
-      parent.summary.completed_runtime_slices === 26 &&
+      parent.transition.inactive_runtime_slice_count === 9 &&
+      parent.summary.completed_runtime_slices === 27 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_753 &&
-      parent.summary.executed_candidates === 11_272 &&
+      parent.summary.runtime_admissions === 10_784 &&
+      parent.summary.executed_candidates === 11_303 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "transition_landing: parent has not landed H2.7c",
+    "transition_landing: parent has not landed H2.7d",
   );
 }
 
@@ -1140,7 +1141,7 @@ function printSelftest(context) {
       }),
     parent.transition.next_slice === "H2.7a"
       ? "transition_landing: parent not yet landed (next_slice=H2.7a)"
-      : "transition_landing: parent landed (next_slice=H2.7c)",
+      : "transition_landing: parent landed (next_slice=H2.7d)",
     "H2.7a close selftest is green",
   ];
   process.stdout.write(lines.join("\n") + "\n");
