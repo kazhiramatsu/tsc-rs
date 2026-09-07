@@ -165,7 +165,6 @@ fn validate_emit_options(
     }
     for (present, name) in [
         (options.root_dir.is_some(), "rootDir"),
-        (options.out_file.is_some(), "outFile"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
     ] {
         if present {
@@ -193,6 +192,18 @@ pub fn validate_forced_declaration_request(host: &dyn EmitHost) -> Result<(), Em
 fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(), EmitFailure> {
     let options = host.compiler_options();
     validate_emit_options(options, operation)?;
+    if options
+        .out_file
+        .as_deref()
+        .is_some_and(|path| !path.is_empty())
+    {
+        if options.import_helpers == Some(true) {
+            return unsupported("importHelpers");
+        }
+        if !host.use_case_sensitive_file_names() {
+            return unsupported("useCaseSensitiveFileNames");
+        }
+    }
     let mut emit_eligible_sources = 0usize;
     let mut javascript_sources = 0usize;
     let mut json_sources = 0usize;
@@ -700,6 +711,61 @@ pub(crate) fn source_mapping_url_for_output(
     Ok(encode_uri(map_basename))
 }
 
+pub(crate) struct ResolverGlobalNameOracle<'resolver>(pub(crate) &'resolver dyn EmitResolver);
+
+impl crate::GlobalNameOracle for ResolverGlobalNameOracle<'_> {
+    fn has_global_name(&self, name: &str) -> Result<bool, crate::EmitResolverError> {
+        self.0.has_global_name(name)
+    }
+}
+
+/// Mount the exact ordered members of one planned root. Cross-file declaration
+/// lookup mounts the remaining Program sources separately without widening it.
+pub(crate) fn mount_emit_root(
+    arena: &mut TransformArena,
+    host: &dyn EmitHost,
+    root: &EmitRoot,
+) -> Result<TransformRoot, EmitFailure> {
+    let mut sources = Vec::with_capacity(root.source_files().len());
+    for &source in root.source_files() {
+        let file = host.source_file(source).ok_or(EmitFailure::Contract(
+            EmitContractViolation::PlannedSourceMissing(source),
+        ))?;
+        let syntax = file.syntax().ok_or(EmitFailure::Contract(
+            EmitContractViolation::CheckedSyntaxUnavailable(source),
+        ))?;
+        sources.push(arena.add_source(syntax, Some(source)));
+    }
+    Ok(match root {
+        EmitRoot::SourceFile(_) => TransformRoot::SourceFile(sources[0]),
+        EmitRoot::Bundle(_) => TransformRoot::Bundle(crate::TransformBundle::new(sources)),
+    })
+}
+
+pub(crate) fn transformed_source_paths(
+    result: &crate::TransformationResult<'_>,
+    root: &TransformRoot,
+    host: &dyn EmitHost,
+) -> Result<Vec<std::path::PathBuf>, EmitFailure> {
+    let sources = match root {
+        TransformRoot::SourceFile(source) => std::slice::from_ref(source),
+        TransformRoot::Bundle(bundle) => bundle.sources(),
+    };
+    sources
+        .iter()
+        .map(|&source| {
+            let source_id = result.arena().source(source)?.program_source().ok_or(
+                crate::TransformError::MissingProgramSource(result.arena().root(source)?),
+            )?;
+            host.source_file(source_id)
+                .map(|file| file.path().to_path_buf())
+                .ok_or(EmitFailure::Contract(
+                    EmitContractViolation::PlannedSourceMissing(source_id),
+                ))
+        })
+        .collect()
+}
+
 pub fn emit_files_with_activity(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -783,11 +849,13 @@ pub fn emit_files_with_activity(
             .with_remove_comments(options.remove_comments == Some(true))
             .with_no_emit_helpers(options.no_emit_helpers == Some(true))
             .with_import_helpers(options.import_helpers == Some(true))
+            .with_module_kind(options.emit_module_kind())
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
-    let mut artifacts = Vec::with_capacity(preflight.plan().units().len() * 3);
+    let mut artifacts = Vec::with_capacity(2);
+    let mut written_paths = std::collections::BTreeSet::new();
     // The list orders each text before its map, while callbacks write each
     // map before its text. A declaration map is listed whenever its print
     // branch ran, independently of the sink disposition.
@@ -809,14 +877,22 @@ pub fn emit_files_with_activity(
     let mut emit_skipped = false;
     let mut diagnostics: DiagnosticList = Vec::new();
     for unit in preflight.plan().units() {
-        let EmitRoot::SourceFile(source_id) = unit.root() else {
-            return Err(EmitFailure::Unsupported(
+        let source_id = *unit
+            .root()
+            .source_files()
+            .first()
+            .ok_or(EmitFailure::Unsupported(
                 crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
-        let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
-            EmitContractViolation::PlannedSourceMissing(*source_id),
+            ))?;
+        let source = host.source_file(source_id).ok_or(EmitFailure::Contract(
+            EmitContractViolation::PlannedSourceMissing(source_id),
         ))?;
+        let source_path = match unit.root() {
+            EmitRoot::SourceFile(_) => Some(source.path()),
+            EmitRoot::Bundle(_) => None,
+        };
+        let mut parsed_emit_metadata = None;
+        let mut javascript_printed = false;
         let javascript_path = unit
             .paths()
             .javascript_path()
@@ -834,26 +910,37 @@ pub fn emit_files_with_activity(
             if preflight.is_emit_blocked(host, javascript_path) {
                 emit_skipped = true;
             } else {
-                let syntax = source.syntax().ok_or(EmitFailure::Contract(
-                    EmitContractViolation::CheckedSyntaxUnavailable(*source_id),
-                ))?;
                 let mut arena = TransformArena::new();
-                let transform_source = arena.add_source(syntax, Some(*source_id));
+                let transform_root = mount_emit_root(&mut arena, host, unit.root())?;
                 let transformers = get_script_transformers_with_activity(
-                    options, resolver, host, *source_id, activity,
+                    options, resolver, host, source_id, activity,
                 )?;
                 activity.construct_transform_context();
-                let mut transformation = transform_nodes(
-                    arena,
-                    vec![TransformRoot::SourceFile(transform_source)],
-                    transformers,
-                    false,
-                )?;
+                let mut transformation =
+                    transform_nodes(arena, vec![transform_root], transformers, false)?;
+                let transformed_root = match transformation.roots() {
+                    [root] => root.clone(),
+                    _ => {
+                        return Err(EmitFailure::Transform(Box::new(
+                            crate::TransformError::UnsupportedCompilerOption {
+                                option: "script transformer contract",
+                                detail: "script transform must produce exactly one root",
+                            },
+                        )))
+                    }
+                };
+                let source_files =
+                    transformed_source_paths(&transformation, &transformed_root, host)?;
+                let print_request = match &transformed_root {
+                    TransformRoot::SourceFile(source) => PrintRequest::SourceFile(*source),
+                    TransformRoot::Bundle(bundle) => PrintRequest::Bundle(bundle.clone()),
+                };
                 let transform_diagnostics = transformation.diagnostics().to_vec();
                 // tsc-port: shouldEmitSourceMaps @6.0.3
                 // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
                 // tsc-span: _tsc.js:116805-116807
-                let json_source = source.path().to_string_lossy().ends_with(".json");
+                let json_source =
+                    source_path.is_some_and(|path| path.to_string_lossy().ends_with(".json"));
                 let recording_enabled = javascript_map_options_enabled && !json_source;
                 if recording_enabled
                     && options.inline_source_map != Some(true)
@@ -864,11 +951,11 @@ pub fn emit_files_with_activity(
                     ));
                 }
                 let recording_inputs = recording_enabled.then(|| {
-                    source_map_recording_inputs_for(
+                    source_map_recording_inputs_for_output(
                         &map_lane_inputs(host),
                         options,
                         javascript_path,
-                        source.path(),
+                        source_path,
                     )
                 });
                 if recording_inputs.is_some() {
@@ -886,20 +973,32 @@ pub fn emit_files_with_activity(
                 } else if options.declaration == Some(true) {
                     activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
                 }
-                let (printed, fallback_source_map) = match printer.print(
-                    &mut transformation,
-                    PrintRequest::SourceFile(transform_source),
-                    recording_inputs.clone(),
-                ) {
+                let printed_result = match &transformed_root {
+                    TransformRoot::Bundle(_) => printer.print_javascript_with_global_names(
+                        &mut transformation,
+                        print_request.clone(),
+                        recording_inputs.clone(),
+                        &ResolverGlobalNameOracle(resolver),
+                    ),
+                    TransformRoot::SourceFile(_) => printer.print(
+                        &mut transformation,
+                        print_request.clone(),
+                        recording_inputs.clone(),
+                    ),
+                };
+                let (printed, fallback_source_map) = match printed_result {
                     Ok(printed) => (printed, None),
                     Err(crate::PrinterError::Unsupported(
                         crate::UnsupportedEmitFeature::JavaScriptMap,
-                    )) if options.declaration == Some(true) && recording_inputs.is_some() => {
-                        let printed = printer.print(
-                            &mut transformation,
-                            PrintRequest::SourceFile(transform_source),
-                            None,
-                        )?;
+                    )) if options.declaration == Some(true)
+                        && recording_inputs.is_some()
+                        && matches!(transformed_root, TransformRoot::SourceFile(_)) =>
+                    {
+                        let TransformRoot::SourceFile(transform_source) = transformed_root else {
+                            unreachable!()
+                        };
+                        let printed = printer.print(&mut transformation, print_request, None)?;
+                        let syntax = transformation.arena().source(transform_source)?.syntax();
                         let mut recording = crate::source_map::SourceMapRecording::new(
                             recording_inputs.expect("recording input matched above"),
                         );
@@ -912,6 +1011,12 @@ pub fn emit_files_with_activity(
                     }
                     Err(error) => return Err(error.into()),
                 };
+                javascript_printed = true;
+                if declaration_path.is_some() {
+                    parsed_emit_metadata =
+                        Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
+                }
+                transformation.dispose();
                 if recording_enabled {
                     let map_path = javascript_map_path.as_ref();
                     let mut generator = fallback_source_map
@@ -928,13 +1033,13 @@ pub fn emit_files_with_activity(
                             .collect(),
                         map_json.clone().into_boxed_str(),
                     ));
-                    let url = source_mapping_url(
+                    let url = source_mapping_url_for_output(
                         &map_lane_inputs(host),
                         options,
                         &map_json,
                         javascript_path,
                         map_path.map(std::path::PathBuf::as_path),
-                        source.path(),
+                        source_path,
                     )?;
                     let mut javascript_text = printed.text().to_owned();
                     let mut url_position = printed.end().position();
@@ -952,7 +1057,7 @@ pub fn emit_files_with_activity(
                         artifacts.push(EmitArtifact::javascript_map(
                             map_path.clone(),
                             map_json,
-                            Some(vec![source.path().to_path_buf()]),
+                            Some(source_files.clone()),
                         ));
                     }
                     activity.create_javascript_artifact();
@@ -960,7 +1065,7 @@ pub fn emit_files_with_activity(
                         javascript_path,
                         javascript_text,
                         options.emit_bom == Some(true),
-                        Some(vec![source.path().to_path_buf()]),
+                        Some(source_files.clone()),
                         EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
                     ));
                 } else {
@@ -969,12 +1074,21 @@ pub fn emit_files_with_activity(
                         javascript_path,
                         printed.text(),
                         options.emit_bom == Some(true),
-                        Some(vec![source.path().to_path_buf()]),
+                        Some(source_files.clone()),
                         EmitTextMetadata::new(transform_diagnostics, None),
                     ));
                 }
             }
         }
+
+        // printSourceFileOrBundle writes JavaScript before starting the
+        // declaration transform. Retain those callbacks if a later stage fails.
+        written_paths.extend(write_artifacts(
+            std::mem::take(&mut artifacts),
+            sink,
+            &mut diagnostics,
+            activity,
+        ));
 
         let mut printed_declaration_map_path = None;
         if let Some(declaration_path) = declaration_path.as_deref() {
@@ -983,11 +1097,12 @@ pub fn emit_files_with_activity(
                 host,
                 &preflight,
                 &declaration_paths,
-                *source_id,
+                unit.root(),
                 declaration_path,
                 unit.paths().declaration_map_path(),
                 activity,
                 false,
+                parsed_emit_metadata.as_ref(),
             )?;
             emit_skipped |= declaration.decl_blocked;
             diagnostics.extend(declaration.diagnostics);
@@ -1006,15 +1121,20 @@ pub fn emit_files_with_activity(
             // path as skipped. An all-.d.ts program has no units to visit.
             emit_skipped = true;
         }
+        written_paths.extend(write_artifacts(
+            std::mem::take(&mut artifacts),
+            sink,
+            &mut diagnostics,
+            activity,
+        ));
         unit_listing.push(UnitListing {
-            javascript_path,
-            javascript_map_path,
+            javascript_path: javascript_path.filter(|_| javascript_printed),
+            javascript_map_path: javascript_map_path.filter(|_| javascript_printed),
             declaration_path,
             declaration_map_path: printed_declaration_map_path,
         });
     }
 
-    let written_paths = write_artifacts(artifacts, sink, &mut diagnostics, activity);
     let emitted_files = emitted_files_enabled.then(|| {
         let mut listing = Vec::new();
         for UnitListing {
@@ -1024,16 +1144,11 @@ pub fn emit_files_with_activity(
             declaration_map_path,
         } in unit_listing
         {
-            if let Some(javascript_path) = javascript_path {
-                if written_paths.contains(&javascript_path) {
-                    listing.push(javascript_path);
-                }
-            }
-            if let Some(map_path) = map_path {
-                if written_paths.contains(&map_path) {
-                    listing.push(map_path);
-                }
-            }
+            // emitJsFileOrBundle ignores skippedDtsWrite: after successful
+            // printing both planned JS members are listed. Only declarations
+            // use the write callback's skipped disposition below.
+            listing.extend(javascript_path);
+            listing.extend(map_path);
             if let Some(declaration_path) = declaration_path {
                 if written_paths.contains(&declaration_path) {
                     listing.push(declaration_path);
@@ -1120,11 +1235,6 @@ pub fn emit_forced_declarations_with_activity(
     let mut diagnostics = Vec::new();
     let mut emit_skipped = false;
     for unit in preflight.plan().units() {
-        let EmitRoot::SourceFile(source) = unit.root() else {
-            return Err(EmitFailure::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
         let path = unit
             .paths()
             .declaration_path()
@@ -1134,11 +1244,12 @@ pub fn emit_forced_declarations_with_activity(
             host,
             &preflight,
             &paths,
-            *source,
+            unit.root(),
             path,
             unit.paths().declaration_map_path(),
             activity,
             true,
+            None,
         )?;
         emit_skipped |= declaration.decl_blocked;
         diagnostics.extend(declaration.diagnostics);

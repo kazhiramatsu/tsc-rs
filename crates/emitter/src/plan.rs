@@ -43,6 +43,15 @@ pub enum EmitRoot {
     Bundle(EmitBundle),
 }
 
+impl EmitRoot {
+    pub fn source_files(&self) -> &[SourceFileId] {
+        match self {
+            Self::SourceFile(source) => std::slice::from_ref(source),
+            Self::Bundle(bundle) => bundle.source_files(),
+        }
+    }
+}
+
 /// Independent emit mode corresponding to TypeScript's internal emit-only
 /// and build-info controls.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -214,7 +223,7 @@ impl EmitOutputPlan {
             ));
         }
         for unit in &self.units {
-            if matches!(unit.root, EmitRoot::Bundle(_)) {
+            if matches!(&unit.root, EmitRoot::Bundle(bundle) if bundle.source_files().is_empty()) {
                 return Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot));
             }
             match unit.mode {
@@ -236,8 +245,7 @@ impl EmitOutputPlan {
                 }
             }
             // h2-6a-m-3 G8: a planned `.js.map` is a supported unit member.
-            // H2.7e admits a non-bundle declaration map only alongside its
-            // declaration text member; bundle roots remain rejected above.
+            // Declaration maps require their declaration text member.
             if unit.paths.declaration_map.is_some() && unit.paths.declaration.is_none() {
                 return Err(EmitFailure::Unsupported(
                     UnsupportedEmitFeature::DeclarationMap,
