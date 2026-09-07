@@ -1,9 +1,23 @@
-# H2.7d/e completion and transition — draft
+# H2.7d/e completion and transition
 
-Status (2026-09-07): **local comparisons pass; hosted acceptance and adoption
-are pending**. This record prepares the separate H2.7d and H2.7e closures in
-dependency order. It records no passing D-only intermediate runtime and no
-D/E hosted run. Root integration, PR delivery and final adoption remain open.
+Status: **complete**, adopted 2026-09-07. Runtime delivery is
+[PR #511](https://github.com/kazhiramatsu/tsc-rs/pull/511), merged at
+2026-09-07 13:34:12 UTC as `ad84a7e6e46bd7c5ccd9ac1eb78580dab18151a2`.
+[Hosted acceptance 34123778139](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34123778139) passed on
+`7db1e4d595d5f5ca25c569a80190ecdfddd8a8c9`: acceptance 45m14s, job 45m28s
+(job 101747561233, completed 2026-09-07 13:32:48 UTC).
+
+The complete log preserves all 29 historical conformance/H1/H2 summaries
+outside the intentionally updated H2.6c band. H2.6c passes 643 candidates:
+481 exact, 158 known, four deferred and 17 current refusal migrations, twice.
+The final D/E comparison confirms the exact 283 D and eight E-only original
+ID sets, each twice, against the frozen 291-case joint qualification.
+
+The first and second failed runs and their bounded corrections remain dated
+history below. H2.7d and H2.7e close in dependency order under one final runtime.
+The user-authorized lightweight workflow uses this existing hosted acceptance
+before runtime landing and local metadata regeneration afterward. Historical
+certificate walks and full developer CI were omitted.
 
 ## Scope and observable contract
 
@@ -74,18 +88,18 @@ references and builder runtime retain their H2.8, API1 and BLD1 boundaries.
 
 | Evidence | Result |
 | --- | --- |
-| [Original D corpus](h2-7d-original-corpus.md), including shared 3 | 283 complete production tuples, twice |
-| [Original E-only corpus](h2-7e-original-corpus.md) | 8 complete tuples twice and 16 CLI runs; final rerun 33.28s |
-| Bundle internal comparisons | 130 complete comparisons; final rerun 86.31s |
-| Ordinary/getter/forced Program paths | 4 Bundle Program tests; final E API rerun: 532 calls and 130 final diagnostic snapshots pass in 59.86s |
-| [Bundle sinks](h2-7de-bundle-sinks.md) and request canaries | 10 sink cases twice plus 4 stateful callback throws twice; final rerun 16.07s |
+| [Original D corpus](h2-7d-original-corpus.md), including shared 3 | 283 complete production tuples twice; final naming-correction rerun 304.80s |
+| [Original E-only corpus](h2-7e-original-corpus.md) | 8 complete tuples twice and 16 CLI runs; final naming-correction rerun 18.94s |
+| Bundle internal comparisons | 130 complete comparisons in 86.31s, before the two hosted corrections |
+| Ordinary/getter/forced Program paths | 4 Bundle Program tests; latest full E API rerun after SourceFile buffering: 532 calls and 130 snapshots in 59.37s |
+| [Bundle sinks](h2-7de-bundle-sinks.md) and request canaries | 10 sink cases twice plus 4 stateful callback throws twice; buffering-correction rerun 12.81s |
 | Old H2.6c routes, third collector | 160 exact + 17 typed refusals, each twice; 106.04s |
 | Full local H2.6c acceptance | 481 exact / 158 known / 4 deferred; 17 refusal migrations, twice; B activity 552 |
-| Emitter regressions | 480 unit tests and 451 contracts pass |
+| Emitter regressions | 480 unit tests pass before hosted corrections; all 451 contracts pass again after the final correction (1.63s) |
 | Adjacent compiler contracts | 21 pass in 427.96s, including declaration transformer replay, all 16 H2.7c contracts and dormant H2.7a controls |
 | Populated legacy registries and historical controls | 19 pass in 194.39s, including missing/duplicate/unknown IDs and changed result rejection |
 | Qualification and metadata | 41 policy controls, 28 source pins, four schemas and profile/foundation/close freshness pass |
-| Static checks | All-target Clippy with warnings denied passes for emitter, checker, compiler, xtask, program and harness; formatting and diff checks pass |
+| Static checks | All-target Clippy passes for six changed crates; emitter/compiler/xtask pass again after the final correction (60.74s), with warnings denied; formatting and diff checks pass |
 
 The old collector (`target/h2-6c-de-legacy177-third.json`) reports no unstable,
 setup-failure or comparison-failure IDs. First-repetition successful activity is
@@ -102,7 +116,8 @@ members from the old D/E overlap. The manifest shrinks from 318 known to 158;
 exact cases rise from 321 to 481. Original input/TS expectations and the four
 source-deferred rows remain unchanged. The earlier 188/451 profile snapshot is
 historical; current transition fields match the measured 481/158 manifest.
-This is local acceptance evidence; hosted acceptance remains pending.
+The accepted hosted run independently confirms these H2.6c totals, the 17
+refusal migrations, and all final D/E original comparisons.
 
 ## Ordinary source failure boundary correction
 
@@ -167,16 +182,26 @@ artifacts are regenerated and fresh; four metadata schemas, formatting and
 the original H2.7a runtime-contract equality check pass. The corrected final
 candidate still requires its own hosted acceptance result before adoption.
 
-## Pending adoption
+## Adoption and transition
 
-Complete the existing single-job hosted acceptance with the registered joint
-band and measured legacy promotions. Record the actual candidate, passing run
-URL and delivery identity here before marking either slice complete.
+The D/E closure activates both slices in dependency order and adds 291 band
+admissions once: summary 11,075 admissions / 11,594 executed, 29 completed
+runtime slices and 7 inactive slices. Both next fields become H2.8a
+(`full-output-matrix`); H2.8a is not activated by this close. Final D coverage
+283 / E coverage 11 is distinct from the ordered deltas 280 / 11. Old H2.6c
+overlap 160 is not an additional increment, and current H2.6c transition counts
+remain 481 exact / 158 known / 4 deferred.
 
-The prepared metadata transition adds 291 band admissions: summary 11,075
-admissions/11,594 executed, completed runtime slices 29, inactive 7, next and
-next-runtime H2.8a (`full-output-matrix`). Original H2.5g admission fields and
-H2.7a dormant evidence remain historical. The future D/E close patch preserves
-the current H2.6c transition counts of 481/158. Synchronize the D/E adoption
-state in the live profile/schema, slice index and README only with actual adoption.
-STAGE is unchanged.
+The profile generator/schema and live parent mirrors in the H2.5h foundation
+and H2.7a close move together with the shared qualification/input bindings.
+The original H2.5g admission fields and H2.7a dormant runtime evidence remain
+historical. Current profile, foundation and close generation and freshness checks pass.
+All four metadata schemas pass, the original H2.5g admitted profile is unchanged,
+and the dormant H2.7a runtime contract remains byte-equivalent as parsed JSON.
+The D/E joint qualification binds its artifact, generator, schema and nine
+direct inputs; its 291-case admission increment is counted once. These checks
+were performed after this metadata transition on 2026-09-07.
+
+The README, current schedule and separate D/E slice-index rows adopt this
+completed record together. STAGE, the pinned
+TypeScript version and H2.8/H2.9/API1/BLD1 owner boundaries remain unchanged.

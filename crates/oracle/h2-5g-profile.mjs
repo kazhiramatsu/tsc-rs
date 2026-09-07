@@ -523,6 +523,58 @@ function withFingerprint(value, field) {
   return { ...value, [field]: sha256(Buffer.from(canonical(value), "utf8")) };
 }
 
+function declarationOutputQualificationEvidence() {
+  const artifactPath = "ratchets/h2-7de-qualification.v1.json";
+  const generatorPath = "crates/oracle/h2-7de-qualification.mjs";
+  // Reuse the frozen join's exact source/input/observation/disposition checks.
+  // --check executes no TypeScript compiler and reads no Rust/hosted results.
+  execFileSync(process.execPath, [path.join(WORKSPACE, generatorPath), "--check"], {
+    cwd: WORKSPACE,
+    stdio: "pipe",
+    maxBuffer: 1024 * 1024,
+  });
+  const band = readJson(artifactPath);
+  const eligible = band.cases.filter((row) => row.disposition === "eligible-for-rust-comparison");
+  const deferred = band.cases.filter((row) => row.disposition === "deferred");
+  const inBand = (rows, owner) => rows.filter((row) => row.bands.includes(owner)).length;
+  requireCondition(
+    band.kind === "h2-7de-qualification" &&
+      band.status === "qualified-typescript-oracle" && band.repetitions === 2 &&
+      band.cases.length === 325 && new Set(band.cases.map((row) => row.case_id)).size === 325 &&
+      eligible.length === 291 && deferred.length === 34 &&
+      inBand(band.cases, "H2.7d") === 315 && inBand(eligible, "H2.7d") === 283 &&
+      inBand(deferred, "H2.7d") === 32 &&
+      inBand(band.cases, "H2.7e") === 13 && inBand(eligible, "H2.7e") === 11 &&
+      inBand(deferred, "H2.7e") === 2 &&
+      eligible.filter((row) => row.bands.length === 2).length === 3 &&
+      deferred.every((row) => row.bands.length === 1) &&
+      canonical(band.summary.union) === canonical({ candidates: 325, eligible: 291, deferred: 34 }) &&
+      canonical(band.summary.bands) === canonical({
+        "H2.7d": { candidates: 315, eligible: 283, deferred: 32 },
+        "H2.7e": { candidates: 13, eligible: 11, deferred: 2 },
+      }) &&
+      canonical(band.summary.intersection) === canonical({ candidates: 3, eligible: 3, deferred: 0 }),
+    "H2.7d/e close requires the frozen union325/eligible291/deferred34 and D283/E11/intersection3",
+  );
+  requireCondition(
+    !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7d-known-divergences.v1.json")) &&
+      !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7e-known-divergences.v1.json")) &&
+      !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7de-known-divergences.v1.json")),
+    "H2.7d/e close requires absent divergence manifests",
+  );
+  const identities = [band.generator, band.contract, ...band.inputs];
+  requireCondition(
+    identities.every((record) => canonical(record) === canonical(pathHash(record.path))),
+    "H2.7d/e qualification producer or direct input identity changed",
+  );
+  return {
+    artifact: pathHash(artifactPath),
+    generator: band.generator,
+    contract: band.contract,
+    direct_inputs: band.inputs,
+  };
+}
+
 function buildArtifact() {
   const qualification = readJson(QUALIFICATION_RELATIVE_PATH);
   const ownerControls = readJson(OWNER_CONTROLS_RELATIVE_PATH);
@@ -682,6 +734,7 @@ function buildArtifact() {
       !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7c-known-divergences.v1.json")),
     "H2.7c close requires the original 31/11 band and an absent divergence manifest",
   );
+  const declarationOutputQualification = declarationOutputQualificationEvidence();
   const runtimeInputPaths = [
     ...parentProfile.runtime_inputs.map((record) => record.path),
     ...NEW_RUNTIME_INPUTS,
@@ -765,19 +818,19 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        // H2.7c ca adds the 31 exact original declaration-option cases.
+        // H2.7d/e adds 291 band admissions, unique within their shared union.
         // The original admitted_profile remains the frozen H2.5g band.
-        next_slice: "H2.7d",
-        next_slice_scope: "bundles-and-outfile",
-        next_runtime_activation_slice: "H2.7d",
+        next_slice: "H2.8a",
+        next_slice_scope: "full-output-matrix",
+        next_runtime_activation_slice: "H2.8a",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
           "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a",
-          "H2.6b", "H2.6c", "H2.7b", "H2.7c",
+          "H2.6b", "H2.6c", "H2.7b", "H2.7c", "H2.7d", "H2.7e",
         ],
-        inactive_runtime_slice_count: 9,
+        inactive_runtime_slice_count: 7,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -825,6 +878,27 @@ function buildArtifact() {
         h2_7c_exact_cases: 31,
         h2_7c_known_divergences: 0,
         h2_7c_source_deferred_cases: 11,
+        // Final per-band coverage overlaps by three. The joint band is counted
+        // once; the dependency-order deltas assign the shared rows to E.
+        // These deltas do not assert a separately tested D-only runtime state.
+        h2_7d_candidate_cases: 315,
+        h2_7d_admitted_cases: 283,
+        h2_7d_exact_cases: 283,
+        h2_7d_known_divergences: 0,
+        h2_7d_source_deferred_cases: 32,
+        h2_7e_candidate_cases: 13,
+        h2_7e_admitted_cases: 11,
+        h2_7e_exact_cases: 11,
+        h2_7e_known_divergences: 0,
+        h2_7e_source_deferred_cases: 2,
+        h2_7de_candidate_cases: 325,
+        h2_7de_admitted_cases: 291,
+        h2_7de_exact_cases: 291,
+        h2_7de_known_divergences: 0,
+        h2_7de_source_deferred_cases: 34,
+        h2_7de_intersection_cases: 3,
+        h2_7d_runtime_admissions_delta: 280,
+        h2_7e_runtime_admissions_delta: 11,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",
@@ -846,6 +920,7 @@ function buildArtifact() {
           generator: pathHash("crates/oracle/h2-5g-owner-controls.mjs"),
           contract: pathHash(".github/ci/contracts/h2-5g-owner-controls.schema.json"),
         },
+        declaration_output_qualification: declarationOutputQualification,
         qualification_vfs_overlay_test: pathHash(
           "crates/oracle/vfs-directory-overlay.test.mjs",
         ),
@@ -858,10 +933,10 @@ function buildArtifact() {
         hosted_gate_scope: "fixed-unsplit-ts-tests-only",
       },
       summary: {
-        completed_runtime_slices: 27,
+        completed_runtime_slices: 29,
         next_slice_runtime_slice_delta: 0,
-        runtime_admissions: 10_784,
-        executed_candidates: 11_303,
+        runtime_admissions: 11_075,
+        executed_candidates: 11_594,
         h2_5g_executed_candidates: 9_027,
         h2_5g_global_future_rows: 2_883,
         unexecuted_candidates: 0,

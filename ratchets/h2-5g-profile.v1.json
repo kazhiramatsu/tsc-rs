@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "fa4c83fe93827bbad8f87120e5b4ddf41787e89b423757128d0f4a8e75941987"
+    "sha256": "f82f82d56bdf916ba00292d8e5ddcbc27823654ea3fc5a0a6f15aa6ad964c6e2"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "aca756d2ca6c1cbbd397d52acdcfe5fe52cf56c21a9a287fad654ba5a0250def"
+    "sha256": "b5fae62e59713af31a69c79f8588442efbe3e85262006182eed791ef201e5124"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -1508,9 +1508,9 @@
   },
   "transition": {
     "completed_slice": "H2.5g",
-    "next_slice": "H2.7d",
-    "next_slice_scope": "bundles-and-outfile",
-    "next_runtime_activation_slice": "H2.7d",
+    "next_slice": "H2.8a",
+    "next_slice_scope": "full-output-matrix",
+    "next_runtime_activation_slice": "H2.8a",
     "active_runtime_slices": [
       "H2.1a",
       "H2.1b",
@@ -1539,9 +1539,11 @@
       "H2.6b",
       "H2.6c",
       "H2.7b",
-      "H2.7c"
+      "H2.7c",
+      "H2.7d",
+      "H2.7e"
     ],
-    "inactive_runtime_slice_count": 9,
+    "inactive_runtime_slice_count": 7,
     "classic_jsx_tsx_owner": "complete",
     "automatic_jsx_runtime_owner": "complete",
     "json_output_owner": "complete",
@@ -1589,6 +1591,24 @@
     "h2_7c_exact_cases": 31,
     "h2_7c_known_divergences": 0,
     "h2_7c_source_deferred_cases": 11,
+    "h2_7d_candidate_cases": 315,
+    "h2_7d_admitted_cases": 283,
+    "h2_7d_exact_cases": 283,
+    "h2_7d_known_divergences": 0,
+    "h2_7d_source_deferred_cases": 32,
+    "h2_7e_candidate_cases": 13,
+    "h2_7e_admitted_cases": 11,
+    "h2_7e_exact_cases": 11,
+    "h2_7e_known_divergences": 0,
+    "h2_7e_source_deferred_cases": 2,
+    "h2_7de_candidate_cases": 325,
+    "h2_7de_admitted_cases": 291,
+    "h2_7de_exact_cases": 291,
+    "h2_7de_known_divergences": 0,
+    "h2_7de_source_deferred_cases": 34,
+    "h2_7de_intersection_cases": 3,
+    "h2_7d_runtime_admissions_delta": 280,
+    "h2_7e_runtime_admissions_delta": 11,
     "h2_5g_global_future_rows": 2883,
     "h2_5g_source_deferred_cases": 516,
     "deferred_failure_boundary": "typed failure before first sink write"
@@ -1619,6 +1639,58 @@
         "sha256": "9b12f3cc631b0c834aa85fc96197e90834d8c9e21ef109ced4976f76d0a519ae"
       }
     },
+    "declaration_output_qualification": {
+      "artifact": {
+        "path": "ratchets/h2-7de-qualification.v1.json",
+        "sha256": "2eeaa53fe5ce648ce1abdd0ea0d031fa53c1ed045b74c6e210a4876a4a8db02e"
+      },
+      "generator": {
+        "path": "crates/oracle/h2-7de-qualification.mjs",
+        "sha256": "bfabf32047b6c11a94697b0699386c910d2ce2eea1c1eb826c1bd235ab8d3926"
+      },
+      "contract": {
+        "path": ".github/ci/contracts/h2-7de-qualification.schema.json",
+        "sha256": "be3acc9270c4e127b0897cedc8dc11bafce5da143f1bd2a962ec88d66723c374"
+      },
+      "direct_inputs": [
+        {
+          "path": "ratchets/h2-7de-candidates.v1.json",
+          "sha256": "1af6d75acf8212135a0850c5ff09487a5589de4d0f825ff1f0e9bc8e3f0f141d"
+        },
+        {
+          "path": "ratchets/h2-7de-candidate-inputs.v1.json",
+          "sha256": "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a"
+        },
+        {
+          "path": "ratchets/h2-7de-observations.v1.json",
+          "sha256": "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2"
+        },
+        {
+          "path": "crates/oracle/h2-7de-candidates.mjs",
+          "sha256": "0c1947c53ae421dd7859af4d391306dcc2c60bb45ceec75767dbd73069a389d7"
+        },
+        {
+          "path": "crates/oracle/h2-7de-observations.mjs",
+          "sha256": "9a525d7db81a634725c2d5a6cbc01c3219e835109ed0927eaf35a213f18401e5"
+        },
+        {
+          "path": "crates/oracle/vfs-directory-overlay.mjs",
+          "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+        },
+        {
+          "path": "vendor/typescript-6.0.3/lib/typescript.js",
+          "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+        },
+        {
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+          "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+        },
+        {
+          "path": ".node-version",
+          "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+        }
+      ]
+    },
     "qualification_vfs_overlay_test": {
       "path": "crates/oracle/vfs-directory-overlay.test.mjs",
       "sha256": "d0151dc5fc0091d8c43052d08166d61c18a528781c095f169536825dc3803603"
@@ -1644,15 +1716,15 @@
     "hosted_gate_scope": "fixed-unsplit-ts-tests-only"
   },
   "summary": {
-    "completed_runtime_slices": 27,
+    "completed_runtime_slices": 29,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 10784,
-    "executed_candidates": 11303,
+    "runtime_admissions": 11075,
+    "executed_candidates": 11594,
     "h2_5g_executed_candidates": 9027,
     "h2_5g_global_future_rows": 2883,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "bbbd0e3c45c530675816d9ec8f61620fa7d9c73640f5f92f7edb1b671c62b24a"
+  "profile_fingerprint_sha256": "666f9a3de7cf1d358967f8a13abb2cc6c0fb55a5c52291f57e6c38c059bb2069"
 }

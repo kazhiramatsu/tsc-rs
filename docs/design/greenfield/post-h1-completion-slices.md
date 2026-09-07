@@ -1,17 +1,22 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
-Status (2026-09-07): H2.5a–H2.5g are qualified; H2.5h and H2.6a–H2.6c
-have landed with their shrink-only residual queues; H2.7a's dormant declaration
-foundation has landed; **H2.7b and H2.7c are complete**.
-The [H2.7c close record](slices/h2-7c-ca.md) adopts merged PR #510's passing
-hosted acceptance on the preserved-reference correction. All historical bands
-and H2.7c pass twice. The 42 original declaration-option cases retain 31 exact
-and 11 deferred cases; the 244 focused windows and 56 additional complete
-preserved-reference API calls also pass. The live profile advances to
-**H2.7d, bundles and outFile**. Bundle output and declaration maps are being
-implemented and compared in parallel under H2.7d/H2.7e; their candidate work
-has not yet been adopted into the runtime profile. Ordinary targeted emit
-references retain H2.8d ownership. STAGE is unchanged.
+Status (`2026-09-07`): H2.5a–H2.5g are qualified; H2.5h and
+H2.6a–H2.6c have landed with their shrink-only residual queues; H2.7a's dormant
+declaration foundation has landed; **H2.7b–H2.7e are complete**.
+The [D/E close record](slices/h2-7de-ca.md) is tied to
+[passing run 34123778139](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34123778139) and runtime
+merge `ad84a7e6e46bd7c5ccd9ac1eb78580dab18151a2` for PR #511. Its shared original
+band contains 325 cases: 291 exact and 34 later-owned. Final coverage is D 283
+and E 11 with three shared cases; admission deltas are D 280 then E 11, counting
+the joint 291 once. These are band admissions, not globally new case IDs.
+Historical H2.6c acceptance is 481 exact / 158 known / 4 deferred, with 17
+current refusal migrations; its old 160 promotions add no extra D/E admissions.
+The live profile advances to **H2.8a, the full output matrix**, with 29 completed
+runtime slices and 7 inactive slices. Ordinary targeted emit remains H2.8d;
+general config/host, transpile, noEmit, custom transforms and builder/project
+references retain their H2.8, H2.9, API1 and BLD1 owners. STAGE is unchanged.
+The [H2.7c close](slices/h2-7c-ca.md) retains PR #510's prior hosted evidence,
+31 exact / 11 deferred cases, 244 focused windows and 56 reference API calls.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing
 hosted acceptance before landing runtime changes. The historical certificate

@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "92f854f24e2288243a79a4bd96cbb43dce21248051afeea38aadbd69f786081d"
+    "sha256": "1c99c11811d108b208e58b792c8565c6238bb1354d3094d6c82e28ffe106d20d"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
-    "sha256": "4aa93e382a226760568bbbd865126925ecc8814951346d4f1ecd25b155a519e7"
+    "sha256": "b04ffeb6717b6105f942b294ab42f1d9c102ed0a78e104950b5af68ab768a2d0"
   },
   "inputs": {
     "owner_inventory": {
@@ -274,15 +274,15 @@
     }
   ],
   "transition_landing": {
-    "next_slice": "H2.7d",
-    "next_slice_scope": "bundles-and-outfile",
-    "next_runtime_activation_slice": "H2.7d",
+    "next_slice": "H2.8a",
+    "next_slice_scope": "full-output-matrix",
+    "next_runtime_activation_slice": "H2.8a",
     "completed_slice": "H2.5g",
-    "inactive_runtime_slice_count": 9,
-    "completed_runtime_slices": 27,
+    "inactive_runtime_slice_count": 7,
+    "completed_runtime_slices": 29,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 10784,
-    "executed_candidates": 11303,
+    "runtime_admissions": 11075,
+    "executed_candidates": 11594,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
@@ -297,5 +297,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "5ad8ad2b6fcc789076a9ce31be33302375315e889c59d25a47b4cfd08dea6f75"
+  "close_fingerprint_sha256": "fc38c323fe98b08a919e7877200c6107fdcbb5b854747bc9621177feeaca63e4"
 }

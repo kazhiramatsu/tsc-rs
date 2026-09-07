@@ -535,21 +535,21 @@ function loadParentProfile() {
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b", "H2.7c"]) &&
-      parent.transition.inactive_runtime_slice_count === 9 &&
-      parent.transition.next_runtime_activation_slice === "H2.7d" &&
-      parent.summary.completed_runtime_slices === 27 &&
+        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b", "H2.7c", "H2.7d", "H2.7e"]) &&
+      parent.transition.inactive_runtime_slice_count === 7 &&
+      parent.transition.next_runtime_activation_slice === "H2.8a" &&
+      parent.summary.completed_runtime_slices === 29 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_784 &&
-      parent.summary.executed_candidates === 11_303 &&
+      parent.summary.runtime_admissions === 11_075 &&
+      parent.summary.executed_candidates === 11_594 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "H2.5g parent profile content is not the closed H2.7c state",
+    "H2.5g parent profile content is not the closed H2.7e state",
   );
   requireCondition(
-    parent.transition.next_slice === "H2.7d" &&
-      parent.transition.next_slice_scope === "bundles-and-outfile",
-    "parent transition has not landed H2.7d",
+    parent.transition.next_slice === "H2.8a" &&
+      parent.transition.next_slice_scope === "full-output-matrix",
+    "parent transition has not landed H2.8a",
   );
   return parent;
 }
@@ -866,15 +866,15 @@ function refusalSurfaces() {
 
 function transitionLandingRecord() {
   return {
-    next_slice: "H2.7d",
-    next_slice_scope: "bundles-and-outfile",
-    next_runtime_activation_slice: "H2.7d",
+    next_slice: "H2.8a",
+    next_slice_scope: "full-output-matrix",
+    next_runtime_activation_slice: "H2.8a",
     completed_slice: "H2.5g",
-    inactive_runtime_slice_count: 9,
-    completed_runtime_slices: 27,
+    inactive_runtime_slice_count: 7,
+    completed_runtime_slices: 29,
     next_slice_runtime_slice_delta: 0,
-    runtime_admissions: 10_784,
-    executed_candidates: 11_303,
+    runtime_admissions: 11_075,
+    executed_candidates: 11_594,
     unexecuted_candidates: 0,
     undispositioned_candidates: 0,
   };
@@ -882,18 +882,18 @@ function transitionLandingRecord() {
 
 function assertParentLanding(parent) {
   requireCondition(
-    parent.transition.next_slice === "H2.7d" &&
-      parent.transition.next_slice_scope === "bundles-and-outfile" &&
-      parent.transition.next_runtime_activation_slice === "H2.7d" &&
+    parent.transition.next_slice === "H2.8a" &&
+      parent.transition.next_slice_scope === "full-output-matrix" &&
+      parent.transition.next_runtime_activation_slice === "H2.8a" &&
       parent.transition.completed_slice === "H2.5g" &&
-      parent.transition.inactive_runtime_slice_count === 9 &&
-      parent.summary.completed_runtime_slices === 27 &&
+      parent.transition.inactive_runtime_slice_count === 7 &&
+      parent.summary.completed_runtime_slices === 29 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_784 &&
-      parent.summary.executed_candidates === 11_303 &&
+      parent.summary.runtime_admissions === 11_075 &&
+      parent.summary.executed_candidates === 11_594 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "transition_landing: parent has not landed H2.7d",
+    "transition_landing: parent has not landed H2.8a",
   );
 }
 
@@ -1141,7 +1141,7 @@ function printSelftest(context) {
       }),
     parent.transition.next_slice === "H2.7a"
       ? "transition_landing: parent not yet landed (next_slice=H2.7a)"
-      : "transition_landing: parent landed (next_slice=H2.7d)",
+      : "transition_landing: parent landed (next_slice=H2.8a)",
     "H2.7a close selftest is green",
   ];
   process.stdout.write(lines.join("\n") + "\n");
