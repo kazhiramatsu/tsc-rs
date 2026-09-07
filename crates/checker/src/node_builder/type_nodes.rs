@@ -1052,6 +1052,33 @@ pub(super) fn clone_parse_node_to_source(
     clone_parse_node(checker, arena, node)
 }
 
+/// The parameter-name producer calls factory.cloneNode without setTextRange.
+/// Preserve the parse origin for ownership while keeping the clone synthesized.
+/// tsc-port: parameterToParameterDeclarationName @6.0.3
+/// tsc-hash: f8c988288813b2b174b4e49718f6864d442cbfe82334ec499d89013ec3df06a4
+/// tsc-span: _tsc.js:52876-52909
+pub(super) fn clone_parameter_name_to_source(
+    checker: &CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    node: NodeId,
+) -> BuildResult<Option<TransformNode>> {
+    let Some(mut original) = project_parse_node(checker, arena, node)? else {
+        return Ok(None);
+    };
+    if original.source() != target {
+        original = arena
+            .factory()
+            .clone_node_to_source(original, target)
+            .map_err(factory_error)?;
+    }
+    arena
+        .factory()
+        .clone_node(original)
+        .map(Some)
+        .map_err(factory_error)
+}
+
 pub(super) fn range_synthesized_node_to_parse(
     checker: &CheckerState<'_>,
     arena: &mut TransformArena,

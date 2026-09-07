@@ -300,7 +300,7 @@ impl DeclarationTransformer<'_> {
                             parameters,
                             None,
                         )?;
-                        Ok(VisitResult::Node(update_from_created(cx, input, created)?))
+                        Ok(VisitResult::Node(created))
                     }
                     SyntaxKind::MethodDeclaration => {
                         let NodeData::MethodDeclaration(data) =
@@ -341,7 +341,7 @@ impl DeclarationTransformer<'_> {
                                 r#type,
                                 None,
                             )?;
-                            Ok(VisitResult::Node(update_from_created(cx, input, created)?))
+                            Ok(VisitResult::Node(created))
                         }
                     }
                     SyntaxKind::GetAccessor => {
@@ -1401,21 +1401,4 @@ fn update_literal_type(
     let flags = cx.arena().transform_flags(original);
     cx.factory()?
         .update_node(original, NodeData::LiteralType(data), flags)
-}
-
-fn update_from_created(
-    cx: &mut TransformationContext,
-    original: TransformNode,
-    created: TransformNode,
-) -> Result<TransformNode, TransformError> {
-    // Same-kind create/update bridge; updating the original retains its JSDoc array.
-    let created_record = cx.arena().node(created)?.clone();
-    if cx.arena().node(original)?.kind != created_record.kind {
-        return Err(DeclarationTransformer::contract(
-            "same-kind declaration update received a cross-kind node",
-        ));
-    }
-    let flags = cx.arena().transform_flags(created);
-    cx.factory()?
-        .update_node(original, created_record.data, flags)
 }

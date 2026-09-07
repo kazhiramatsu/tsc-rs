@@ -11,6 +11,7 @@ mod activity;
 mod artifact;
 mod builtins;
 mod comment_cursor;
+mod declaration_map;
 mod declarations;
 mod error;
 mod execute;
@@ -35,6 +36,9 @@ pub use artifact::{
 pub use builtins::{
     get_script_transformers, get_script_transformers_for_source, transform_class_fields,
     transform_ecmascript_module, transform_type_script,
+};
+pub use declaration_map::{
+    declaration_map_recording_inputs_for, finish_declaration_map, DeclarationMapEmit,
 };
 pub use declarations::{
     get_declaration_diagnostics, transform_declaration_unit_for_harness,

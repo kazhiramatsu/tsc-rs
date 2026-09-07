@@ -19,7 +19,7 @@ use super::signatures::{
     elide_initializer_and_set_emit_flags, parameter_scope_symbols, track_computed_name,
 };
 use super::type_nodes::{
-    checker_abort_error, clone_parse_node_to_source, create_identifier, create_node,
+    checker_abort_error, clone_parameter_name_to_source, create_identifier, create_node,
     create_node_array, create_token, factory_error, project_parse_node, set_no_ascii_escaping,
     type_to_type_node_helper, BuildResult,
 };
@@ -474,7 +474,7 @@ fn serialize_parameter_name_from_parse(
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
-            let name = clone_parse_node_to_source(checker, arena, target, name)?.unwrap_or(
+            let name = clone_parameter_name_to_source(checker, arena, target, name)?.unwrap_or(
                 create_identifier(arena, target, &checker.symbol_display_name(symbol))?,
             );
             Ok(set_no_ascii_escaping(arena, name))
@@ -485,7 +485,7 @@ fn serialize_parameter_name_from_parse(
                 _ => None,
             };
             let name = right
-                .map(|right| clone_parse_node_to_source(checker, arena, target, right))
+                .map(|right| clone_parameter_name_to_source(checker, arena, target, right))
                 .transpose()?
                 .flatten()
                 .unwrap_or(create_identifier(

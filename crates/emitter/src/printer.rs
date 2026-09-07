@@ -1060,10 +1060,11 @@ impl Printer {
             PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::JavaScriptMap,
             )),
-            PrintRequest::Declaration(source) => self.print_declaration(
+            PrintRequest::Declaration(source) => self.print_declaration_with_recording(
                 transformation,
                 source,
                 DeclarationPrintHandlers::new(&UnavailableDeclarationGlobalNameOracle),
+                recording,
             ),
         }
     }
@@ -1080,7 +1081,25 @@ impl Printer {
         source: TransformSourceId,
         handlers: DeclarationPrintHandlers<'_>,
     ) -> Result<PrintedText, PrinterError> {
-        self.print_source_file(transformation, source, None, Some(handlers.has_global_name))
+        self.print_declaration_with_recording(transformation, source, handlers, None)
+    }
+
+    /// Print one declaration root using the same source-map recorder as
+    /// JavaScript. Declaration transforms retain original node ranges; the
+    /// declaration printer omits brace positions and inline source content.
+    pub fn print_declaration_with_recording(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        handlers: DeclarationPrintHandlers<'_>,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+    ) -> Result<PrintedText, PrinterError> {
+        self.print_source_file(
+            transformation,
+            source,
+            recording,
+            Some(handlers.has_global_name),
+        )
     }
 
     /// tsc-port: writeNode @6.0.3
@@ -16703,9 +16722,12 @@ fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
     let prefix = &source[..byte];
     let starts = compute_line_starts(prefix);
     let line = u32::try_from(starts.len().saturating_sub(1)).expect("comment line exceeds u32");
-    let line_start = starts.last().copied().unwrap_or(0) as usize;
-    let character = u32::try_from(prefix[line_start..].encode_utf16().count())
-        .expect("comment character exceeds u32");
+    // compute_line_starts returns UTF-16 offsets, not byte offsets. Keep
+    // both operands in that domain after non-ASCII text on an earlier line.
+    let line_start = starts.last().copied().unwrap_or(0);
+    let character = u32::try_from(prefix.encode_utf16().count())
+        .expect("comment position exceeds u32")
+        - line_start;
     (line, character)
 }
 
