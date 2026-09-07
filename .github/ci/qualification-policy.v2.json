@@ -44,7 +44,7 @@
       "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs": "c8ac3f2567dd40aef3bea0a813d9a0a8bf8966bd470e16322a7801be5c3e2f38",
       "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs": "e0630f9762d1776c27c74ec00ae1084a21476704272e5b2c39a588989067f494",
       "crates/xtask/src/h2_6c_de_promotions.rs": "3b30467cfda0bfab4c0aa27474ddad25c32090ecd1c4ff762e12209de410c0a0",
-      "crates/xtask/src/h2_6c_refusal_migrations.rs": "094e2fe181ca62f77b5ac1ad3080801707c66b3120d555a43c442e446d1f781d"
+      "crates/xtask/src/h2_6c_refusal_migrations.rs": "35f4e3af0beea245bce4d431620a9542d93872a9e42a0a7e7ac65331b9d170e7"
     }
   },
   "local_full_gate": {

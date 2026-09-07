@@ -85,6 +85,7 @@ references and builder runtime retain their H2.8, API1 and BLD1 boundaries.
 | Adjacent compiler contracts | 21 pass in 427.96s, including declaration transformer replay, all 16 H2.7c contracts and dormant H2.7a controls |
 | Populated legacy registries and historical controls | 19 pass in 194.39s, including missing/duplicate/unknown IDs and changed result rejection |
 | Qualification and metadata | 41 policy controls, 28 source pins, four schemas and profile/foundation/close freshness pass |
+| Static checks | All-target Clippy with warnings denied passes for emitter, checker, compiler, xtask, program and harness; formatting and diff checks pass |
 
 The old collector (`target/h2-6c-de-legacy177-third.json`) reports no unstable,
 setup-failure or comparison-failure IDs. First-repetition successful activity is

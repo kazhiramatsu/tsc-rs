@@ -496,7 +496,7 @@
     },
     {
       "path": "crates/xtask/src/h2_6c_refusal_migrations.rs",
-      "sha256": "094e2fe181ca62f77b5ac1ad3080801707c66b3120d555a43c442e446d1f781d"
+      "sha256": "35f4e3af0beea245bce4d431620a9542d93872a9e42a0a7e7ac65331b9d170e7"
     },
     {
       "path": "crates/xtask/src/h2_7de_acceptance.rs",
@@ -512,7 +512,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs",
-      "sha256": "cd4509f26a6d49df34fe0424d6e54b06dced7dd5b5ed44d5126c0bbfdf400de4"
+      "sha256": "9f4e9b470c5ff24a7f6ee9b5fd0164a2f3bdfffcdc40945ecac95e16fa098505"
     },
     {
       "path": "crates/compiler/tests/fixtures/declaration-maps.json",
@@ -1654,5 +1654,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7072343f1db2f61343827906ed5c7ef81970bb1abe08edb7cc0d4ae01559e962"
+  "profile_fingerprint_sha256": "e754c55626763d26513c41672b2588eb4946927a2b7807566d19aa78cab98cf7"
 }

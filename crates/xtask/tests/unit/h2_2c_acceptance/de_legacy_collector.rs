@@ -393,7 +393,7 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
         "unstable_ids":unstable,"setup_failure_ids":setup_failures,"comparison_failure_ids":comparison_failures,
         "registered_rows":0,"adoption":false,
         "error_activity":"unavailable from the unchanged consuming API; never inferred zero"});
-    write!(output, "],\"summary\":{summary}}}\n")?;
+    writeln!(output, "],\"summary\":{summary}}}")?;
     output.flush()?;
     eprintln!(
         "legacy177 measurement: {summary}; saved {}",

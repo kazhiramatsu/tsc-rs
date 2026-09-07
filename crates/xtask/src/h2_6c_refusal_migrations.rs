@@ -309,10 +309,10 @@ pub(super) fn observe(
     if row.current_option != current_option
         || !active
         || sink_writes != [0, 0]
-        || !options
+        || options
             .out_file
             .as_deref()
-            .is_some_and(|path| !path.is_empty())
+            .is_none_or(|path| path.is_empty())
     {
         return Err(failure(format!(
             "{case_id}: current typed refusal boundary differs"
