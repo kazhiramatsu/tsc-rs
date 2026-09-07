@@ -963,7 +963,7 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<EmitCommandOutcome, DriverError> {
-        let current_directory = self.prepared.current_directory().to_path_buf();
+        let current_directory = self.prepared.current_directory().display().to_path_buf();
         self.emit_for_cli(sink)
             .map(|outcome| EmitCommandOutcome::new(outcome, &current_directory))
     }
