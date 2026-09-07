@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "093f3175b480905a6be8186f66b672afda4cd9b99bf6cf4ecebe397c72a82003"
+    "sha256": "963274e57a9f6c1fbe5d4eb20cfd9d2ecca3250c8528692e43fee3c68aac9e4e"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "1bae4f3856a7b91fb7f0e4ca1fba80f9214460fbdf129c4d2a3c6c19c65d7b7b"
+    "sha256": "55ecae07b722ca2ffd249a9a6f3e2eca4b15f06f23c1bb57395bbe46df4e1f75"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -1348,9 +1348,9 @@
   },
   "transition": {
     "completed_slice": "H2.5g",
-    "next_slice": "H2.7c",
-    "next_slice_scope": "declaration-diagnostics-and-options",
-    "next_runtime_activation_slice": "H2.7c",
+    "next_slice": "H2.7d",
+    "next_slice_scope": "bundles-and-outfile",
+    "next_runtime_activation_slice": "H2.7d",
     "active_runtime_slices": [
       "H2.1a",
       "H2.1b",
@@ -1378,9 +1378,10 @@
       "H2.6a",
       "H2.6b",
       "H2.6c",
-      "H2.7b"
+      "H2.7b",
+      "H2.7c"
     ],
-    "inactive_runtime_slice_count": 10,
+    "inactive_runtime_slice_count": 9,
     "classic_jsx_tsx_owner": "complete",
     "automatic_jsx_runtime_owner": "complete",
     "json_output_owner": "complete",
@@ -1423,6 +1424,11 @@
     "h2_7b_exact_cases": 1557,
     "h2_7b_known_divergences": 0,
     "h2_7b_source_deferred_cases": 36,
+    "h2_7c_candidate_cases": 42,
+    "h2_7c_admitted_cases": 31,
+    "h2_7c_exact_cases": 31,
+    "h2_7c_known_divergences": 0,
+    "h2_7c_source_deferred_cases": 11,
     "h2_5g_global_future_rows": 2883,
     "h2_5g_source_deferred_cases": 516,
     "deferred_failure_boundary": "typed failure before first sink write"
@@ -1478,15 +1484,15 @@
     "hosted_gate_scope": "fixed-unsplit-ts-tests-only"
   },
   "summary": {
-    "completed_runtime_slices": 26,
+    "completed_runtime_slices": 27,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 10753,
-    "executed_candidates": 11272,
+    "runtime_admissions": 10784,
+    "executed_candidates": 11303,
     "h2_5g_executed_candidates": 9027,
     "h2_5g_global_future_rows": 2883,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "9bec68c3f5aa29219a02bec81cf3da49faab12e11cc06f934b2750404639f20e"
+  "profile_fingerprint_sha256": "0658679fa28082a8b6902b0c9a40dcc8a4270e63affa9b52bb12d130bd327151"
 }

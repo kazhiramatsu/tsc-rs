@@ -91,7 +91,7 @@ invitation to fill in the answer during implementation.
 
 | [H2.7b / ca completion and transition](h2-7b-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #509 | 1,557 exact / 0 known / 36 deferred; next H2.7c; completed runtime count 26. The lightweight workflow retains the hosted runtime evidence and omits the historical certificate walk. |
 
-| [H2.7c declaration diagnostics and options](h2-7c.md) | Twelve locally validated packets, formal corpus qualification and a runtime canary candidate; adoption and hosted acceptance remain open (2026-09-07) | stripInternal, declaration blocking, isolated diagnostics, declarationDir, public getters and forced emit. Current production passes 244 focused windows twice (241 exact / three outDir refusals), plus the original corpus with 31 exact / one rootDir refusal. The 42-row qualification retains 11 later-owner cases. Request accounting and old-profile refusal controls pass. STAGE is unchanged. |
+| [H2.7c declaration diagnostics and options](h2-7c.md) / [completion and transition](h2-7c-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #510 | Hosted acceptance passes all historical bands and H2.7c: 31 exact / 11 deferred; 244 focused windows checked twice, plus 56 preserved-reference API calls. Next H2.7d; completed runtime count 27. STAGE is unchanged. |
 
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1
@@ -110,7 +110,7 @@ H2.6b closed on the h2/6b-ca train (PR #482, 2026-08-28), H2.6c closed on the
 h2/6c-close train (PR #495 @5b4c626a, 2026-08-31), and the H2.7a
 dormant-foundation era ran m-1 through m-4 (PRs #496-#500) and closes on
 the h2/7a-ca train under [h2-7a-ca.md](h2-7a-ca.md) — zero runtime
-admissions, `next_slice` → H2.7b; H2.7b is now complete under [h2-7b-ca.md](h2-7b-ca.md), and H2.7c is next. Read-only
+admissions, `next_slice` → H2.7b; H2.7b is now complete under [h2-7b-ca.md](h2-7b-ca.md), H2.7c is complete under [h2-7c-ca.md](h2-7c-ca.md), and H2.7d is next. Read-only
 work may overlap only under an indexed packet; no stage-table row authorizes
 production code.
 

@@ -530,21 +530,21 @@ function loadParentProfile() {
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b"]) &&
-      parent.transition.inactive_runtime_slice_count === 10 &&
-      parent.transition.next_runtime_activation_slice === "H2.7c" &&
-      parent.summary.completed_runtime_slices === 26 &&
+        canonical([...ACTIVE_RUNTIME_SLICES, "H2.7b", "H2.7c"]) &&
+      parent.transition.inactive_runtime_slice_count === 9 &&
+      parent.transition.next_runtime_activation_slice === "H2.7d" &&
+      parent.summary.completed_runtime_slices === 27 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_753 &&
-      parent.summary.executed_candidates === 11_272 &&
+      parent.summary.runtime_admissions === 10_784 &&
+      parent.summary.executed_candidates === 11_303 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "H2.5g parent profile content is not the closed H2.7b state",
+    "H2.5g parent profile content is not the closed H2.7c state",
   );
   requireCondition(
-    parent.transition.next_slice === "H2.7c" &&
-      parent.transition.next_slice_scope === "declaration-diagnostics-and-options",
-    "parent transition has not landed H2.7c",
+    parent.transition.next_slice === "H2.7d" &&
+      parent.transition.next_slice_scope === "bundles-and-outfile",
+    "parent transition has not landed H2.7d",
   );
   return parent;
 }
@@ -861,15 +861,15 @@ function refusalSurfaces() {
 
 function transitionLandingRecord() {
   return {
-    next_slice: "H2.7c",
-    next_slice_scope: "declaration-diagnostics-and-options",
-    next_runtime_activation_slice: "H2.7c",
+    next_slice: "H2.7d",
+    next_slice_scope: "bundles-and-outfile",
+    next_runtime_activation_slice: "H2.7d",
     completed_slice: "H2.5g",
-    inactive_runtime_slice_count: 10,
-    completed_runtime_slices: 26,
+    inactive_runtime_slice_count: 9,
+    completed_runtime_slices: 27,
     next_slice_runtime_slice_delta: 0,
-    runtime_admissions: 10_753,
-    executed_candidates: 11_272,
+    runtime_admissions: 10_784,
+    executed_candidates: 11_303,
     unexecuted_candidates: 0,
     undispositioned_candidates: 0,
   };
@@ -877,18 +877,18 @@ function transitionLandingRecord() {
 
 function assertParentLanding(parent) {
   requireCondition(
-    parent.transition.next_slice === "H2.7c" &&
-      parent.transition.next_slice_scope === "declaration-diagnostics-and-options" &&
-      parent.transition.next_runtime_activation_slice === "H2.7c" &&
+    parent.transition.next_slice === "H2.7d" &&
+      parent.transition.next_slice_scope === "bundles-and-outfile" &&
+      parent.transition.next_runtime_activation_slice === "H2.7d" &&
       parent.transition.completed_slice === "H2.5g" &&
-      parent.transition.inactive_runtime_slice_count === 10 &&
-      parent.summary.completed_runtime_slices === 26 &&
+      parent.transition.inactive_runtime_slice_count === 9 &&
+      parent.summary.completed_runtime_slices === 27 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      parent.summary.runtime_admissions === 10_753 &&
-      parent.summary.executed_candidates === 11_272 &&
+      parent.summary.runtime_admissions === 10_784 &&
+      parent.summary.executed_candidates === 11_303 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
-    "transition_landing: parent has not landed H2.7c",
+    "transition_landing: parent has not landed H2.7d",
   );
 }
 
@@ -1136,7 +1136,7 @@ function printSelftest(context) {
       }),
     parent.transition.next_slice === "H2.7a"
       ? "transition_landing: parent not yet landed (next_slice=H2.7a)"
-      : "transition_landing: parent landed (next_slice=H2.7c)",
+      : "transition_landing: parent landed (next_slice=H2.7d)",
     "H2.7a close selftest is green",
   ];
   process.stdout.write(lines.join("\n") + "\n");

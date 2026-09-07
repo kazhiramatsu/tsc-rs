@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.7c",
-        "next_slice_scope": "declaration-diagnostics-and-options",
-        "next_runtime_activation_slice": "H2.7c",
+        "next_slice": "H2.7d",
+        "next_slice_scope": "bundles-and-outfile",
+        "next_runtime_activation_slice": "H2.7d",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -255,9 +255,10 @@
           "H2.6a",
           "H2.6b",
           "H2.6c",
-          "H2.7b"
+          "H2.7b",
+          "H2.7c"
         ],
-        "inactive_runtime_slice_count": 10,
+        "inactive_runtime_slice_count": 9,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -302,7 +303,12 @@
         "h2_7b_admitted_cases": 1557,
         "h2_7b_exact_cases": 1557,
         "h2_7b_known_divergences": 0,
-        "h2_7b_source_deferred_cases": 36
+        "h2_7b_source_deferred_cases": 36,
+        "h2_7c_candidate_cases": 42,
+        "h2_7c_admitted_cases": 31,
+        "h2_7c_exact_cases": 31,
+        "h2_7c_known_divergences": 0,
+        "h2_7c_source_deferred_cases": 11
       }
     },
     "evidence": {
@@ -395,10 +401,10 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 26,
+        "completed_runtime_slices": 27,
         "next_slice_runtime_slice_delta": 0,
-        "runtime_admissions": 10753,
-        "executed_candidates": 11272,
+        "runtime_admissions": 10784,
+        "executed_candidates": 11303,
         "h2_5g_executed_candidates": 9027,
         "h2_5g_global_future_rows": 2883,
         "unexecuted_candidates": 0,

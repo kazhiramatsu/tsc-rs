@@ -628,6 +628,17 @@ function buildArtifact() {
       !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7b-known-divergences.v1.json")),
     "H2.7b close requires the frozen 1,557/36 band and an absent divergence manifest",
   );
+  const declarationOptionsBand = readJson("ratchets/h2-7c-qualification.v1.json");
+  requireCondition(
+    declarationOptionsBand.status === "qualified-typescript-oracle" &&
+      declarationOptionsBand.summary.corpus === 42 &&
+      declarationOptionsBand.summary.exact === 31 &&
+      declarationOptionsBand.summary.deferred === 11 &&
+      declarationOptionsBand.summary.boundary_probes === 1 &&
+      declarationOptionsBand.cases.filter((row) => row.disposition === "exact").length === 31 &&
+      !fs.existsSync(path.join(WORKSPACE, "ratchets/h2-7c-known-divergences.v1.json")),
+    "H2.7c close requires the original 31/11 band and an absent divergence manifest",
+  );
   const runtimeInputPaths = [
     ...parentProfile.runtime_inputs.map((record) => record.path),
     ...NEW_RUNTIME_INPUTS,
@@ -711,19 +722,19 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        // H2.7b ca: all 1,557 admitted declaration cases are exact.
+        // H2.7c ca adds the 31 exact original declaration-option cases.
         // The original admitted_profile remains the frozen H2.5g band.
-        next_slice: "H2.7c",
-        next_slice_scope: "declaration-diagnostics-and-options",
-        next_runtime_activation_slice: "H2.7c",
+        next_slice: "H2.7d",
+        next_slice_scope: "bundles-and-outfile",
+        next_runtime_activation_slice: "H2.7d",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
           "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a",
-          "H2.6b", "H2.6c", "H2.7b",
+          "H2.6b", "H2.6c", "H2.7b", "H2.7c",
         ],
-        inactive_runtime_slice_count: 10,
+        inactive_runtime_slice_count: 9,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -766,6 +777,11 @@ function buildArtifact() {
         h2_7b_exact_cases: 1_557,
         h2_7b_known_divergences: 0,
         h2_7b_source_deferred_cases: 36,
+        h2_7c_candidate_cases: 42,
+        h2_7c_admitted_cases: 31,
+        h2_7c_exact_cases: 31,
+        h2_7c_known_divergences: 0,
+        h2_7c_source_deferred_cases: 11,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",
@@ -799,10 +815,10 @@ function buildArtifact() {
         hosted_gate_scope: "fixed-unsplit-ts-tests-only",
       },
       summary: {
-        completed_runtime_slices: 26,
+        completed_runtime_slices: 27,
         next_slice_runtime_slice_delta: 0,
-        runtime_admissions: 10_753,
-        executed_candidates: 11_272,
+        runtime_admissions: 10_784,
+        executed_candidates: 11_303,
         h2_5g_executed_candidates: 9_027,
         h2_5g_global_future_rows: 2_883,
         unexecuted_candidates: 0,

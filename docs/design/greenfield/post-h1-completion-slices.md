@@ -2,30 +2,16 @@
 
 Status (2026-09-07): H2.5a–H2.5g are qualified; H2.5h and H2.6a–H2.6c
 have landed with their shrink-only residual queues; H2.7a's dormant declaration
-foundation has landed; **H2.7b non-bundle declaration output is complete**.
-The [H2.7b close record](slices/h2-7b-ca.md) adopts PR #509's passing hosted
-acceptance: 1,557 exact, zero known divergences, 36 deferred. The live profile
-advances to **H2.7c, declaration diagnostics and options**. The
-[twelve locally validated implementation packets](slices/h2-7c.md) cover
-stripInternal, declaration output blocking, isolated inference and parameter,
-accessor/computed-name, enum, expando/augmentation and private-type diagnostics,
-plus declarationDir, public getters and forced declaration emission. The current
-production source passes 244 focused windows twice: 241 complete matches and
-three retained H2.8a outDir refusals with zero writes. The API packets contribute
-19 getter programs and 37 forced programs. Their commit `95f30f0f` passes full
-diagnostic conformance (7,691 cases, FP/FN zero) and the frozen declaration band
-(1,557 exact / zero known / 36 deferred). The twelfth packet repairs three
-relative declarationDir callback paths incorrectly made absolute and adds 14
-path/collision/reference windows. Its original-input probe passes 31 exact
-cases and one retained rootDir refusal, twice, and output-planning controls
-pass. The formal TypeScript qualification now records all 42 original corpus
-rows (31 exact candidates, 11 deferred), with 32 repeated observations identical
-to the draft, and separately pins the 244 focused windows. The shared Rust
-corpus comparator is connected to hosted acceptance; focused controls stay
-local under the existing policy. The runtime request canary now passes the
-same complete comparisons and its profile controls; whole-slice adoption and
-hosted acceptance remain open. Ordinary
-emitOnly references retain H2.8d ownership. STAGE is unchanged.
+foundation has landed; **H2.7b and H2.7c are complete**.
+The [H2.7c close record](slices/h2-7c-ca.md) adopts merged PR #510's passing
+hosted acceptance on the preserved-reference correction. All historical bands
+and H2.7c pass twice. The 42 original declaration-option cases retain 31 exact
+and 11 deferred cases; the 244 focused windows and 56 additional complete
+preserved-reference API calls also pass. The live profile advances to
+**H2.7d, bundles and outFile**. Bundle output and declaration maps are being
+implemented and compared in parallel under H2.7d/H2.7e; their candidate work
+has not yet been adopted into the runtime profile. Ordinary targeted emit
+references retain H2.8d ownership. STAGE is unchanged.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing
 hosted acceptance before landing runtime changes. The historical certificate
