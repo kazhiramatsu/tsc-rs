@@ -2951,7 +2951,19 @@ fn normalized_oracle_write_kind(
         "mjs" => (EmitArtifactKind::JavaScript, path.ends_with(".mjs")),
         "cjs" => (EmitArtifactKind::JavaScript, path.ends_with(".cjs")),
         "jsx" => (EmitArtifactKind::JavaScript, path.ends_with(".jsx")),
-        "source-map" => (EmitArtifactKind::JavaScriptMap, path.ends_with(".map")),
+        // The frozen TS observer calls every .map file "source-map".
+        // Recover its producer from the retained output suffix.
+        "source-map" => (
+            if [".d.ts.map", ".d.mts.map", ".d.cts.map"]
+                .iter()
+                .any(|suffix| path.ends_with(suffix))
+            {
+                EmitArtifactKind::DeclarationMap
+            } else {
+                EmitArtifactKind::JavaScriptMap
+            },
+            path.ends_with(".map"),
+        ),
         "declaration" => (
             EmitArtifactKind::Declaration,
             path.ends_with(".d.ts") || path.ends_with(".d.mts") || path.ends_with(".d.cts"),
@@ -3096,6 +3108,7 @@ fn vectorize_writes(
                 }
                 let expected_callback = expected_write_bytes(expected, "callback")?;
                 let legacy_base_diverging = actual.path() != Path::new(expected_path)
+                    || actual.kind() != expected_kind
                     || actual.callback_text().as_bytes() != expected_callback
                     || expected["write_byte_order_mark"].as_bool()
                         != Some(actual.write_byte_order_mark());
