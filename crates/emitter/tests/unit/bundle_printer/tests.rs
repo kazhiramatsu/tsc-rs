@@ -252,11 +252,10 @@ fn global_script_bundles_match_complete_typescript_output_bytes_twice() {
 }
 
 #[test]
-fn declaration_external_module_and_json_bundle_members_remain_typed_controls() {
+fn declaration_and_untransformed_external_module_members_require_their_printers() {
     for (name, text) in [
         ("types.d.ts", "declare const value: number;"),
         ("external.ts", "export const value = 1;"),
-        ("data.json", "{\"value\":1}"),
     ] {
         let source = parse_source_file(name, text, Default::default(), None);
         let mut arena = crate::TransformArena::new();

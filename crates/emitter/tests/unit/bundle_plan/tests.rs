@@ -1,5 +1,4 @@
-//! Complete planning comparisons; the accompanying emit bytes are references
-//! for the still-dormant H2.7d runtime owner.
+//! Complete planning comparisons; production emission has separate full-tuple controls.
 use serde_json::{json, Value};
 use tsc_syntax::{parse_source_file, SourceFile};
 use tsc_types::CompilerOptions;
@@ -421,45 +420,46 @@ fn h2_7d_retained_module_facts_plan_without_borrowing_checked_syntax() {
 }
 
 #[test]
-fn h2_7d_planning_keeps_runtime_bundles_as_prewrite_refusals() {
+fn bundle_shape_is_valid_but_older_profiles_still_reject_emit_requests() {
     let cases = cases();
     let host = Host::from_case(&cases[0]);
     let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-    assert_eq!(
-        preflight.plan().validate_bootstrap_shape(),
-        Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
-    );
+    assert_eq!(preflight.plan().validate_bootstrap_shape(), Ok(()));
     let mut sink = crate::MemoryOutputSink::new();
-    let mut activity = crate::H2ActivityCanary::h2_7b_profile();
+    let mut activity = crate::H2ActivityCanary::h2_7c_profile();
     let before = activity.counters();
-    let error = crate::emit_files_with_activity(
-        &crate::UnavailableEmitResolver,
-        &host,
-        preflight,
-        EmitSelection::WholeProgram,
-        &crate::EmitDiagnosticGate::default(),
-        &mut sink,
-        &mut activity,
-    )
-    .unwrap_err();
-    assert_eq!(
-        error,
-        EmitFailure::UnsupportedCompilerOption { option: "outFile" }
-    );
+    let denied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::emit_files_with_activity(
+            &crate::UnavailableEmitResolver,
+            &host,
+            preflight,
+            EmitSelection::WholeProgram,
+            &crate::EmitDiagnosticGate::default(),
+            &mut sink,
+            &mut activity,
+        )
+    }))
+    .expect_err("ordinary Bundle request needs H2.7d admission");
+    assert!(denied
+        .downcast_ref::<String>()
+        .unwrap()
+        .contains("unadmitted H2 runtime activity: H2.7d"));
     assert!(sink.writes().is_empty());
     assert_eq!(activity.counters(), before);
-    let error = crate::emit_forced_declarations_with_activity(
-        &crate::UnavailableEmitResolver,
-        &host,
-        EmitSelection::WholeProgram,
-        &mut sink,
-        &mut activity,
-    )
-    .unwrap_err();
-    assert_eq!(
-        error,
-        EmitFailure::UnsupportedCompilerOption { option: "outFile" }
-    );
+    let denied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::emit_forced_declarations_with_activity(
+            &crate::UnavailableEmitResolver,
+            &host,
+            EmitSelection::WholeProgram,
+            &mut sink,
+            &mut activity,
+        )
+    }))
+    .expect_err("forced Bundle request needs H2.7d admission");
+    assert!(denied
+        .downcast_ref::<String>()
+        .unwrap()
+        .contains("unadmitted H2 runtime activity: H2.7d"));
     assert!(sink.writes().is_empty());
     assert_eq!(activity.counters(), before);
 }
