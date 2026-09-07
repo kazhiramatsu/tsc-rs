@@ -39,7 +39,8 @@ pub use builtins::{
     transform_ecmascript_module, transform_type_script,
 };
 pub use declaration_map::{
-    declaration_map_recording_inputs_for, finish_declaration_map, DeclarationMapEmit,
+    declaration_bundle_map_recording_inputs_for, declaration_map_recording_inputs_for,
+    finish_declaration_bundle_map, finish_declaration_map, DeclarationMapEmit,
 };
 pub use declarations::{
     get_declaration_diagnostics, transform_declaration_unit_for_harness,

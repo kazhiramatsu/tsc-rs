@@ -1,16 +1,16 @@
-//! Non-bundle declaration-map recording and artifact construction.
+//! Declaration-map recording inputs and artifact construction.
 //!
 //! The declaration lane shares the JavaScript map generator, path workers and
 //! UTF-16 writer positions. Its map options explicitly omit both inline flags.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tsc_diagnostics::Diagnostic;
 use tsc_types::CompilerOptions;
 
 use crate::{
-    source_map_recording_inputs_for, source_mapping_url, EmitArtifact, EmitContractViolation,
-    EmitFailure, EmitTextMetadata, MapLaneInputs, NewLineKind, PrintedText, SourceMapObservation,
+    source_map_recording_inputs_for, EmitArtifact, EmitContractViolation, EmitFailure,
+    EmitTextMetadata, MapLaneInputs, NewLineKind, PrintedText, SourceMapObservation,
     SourceMapRecordingInputs,
 };
 
@@ -18,13 +18,27 @@ use crate::{
 /// tsc-port: emitDeclarationFileOrBundle @6.0.3
 /// tsc-hash: 8275307ffb4a07e3c7d8b7a5d7f2acf16bfe01c5f746285165c54dc225904434
 /// tsc-span: _tsc.js:116640-116715
-fn map_options(options: &CompilerOptions) -> CompilerOptions {
+pub(crate) fn map_options(options: &CompilerOptions) -> CompilerOptions {
     CompilerOptions {
         source_map: options.declaration_map,
         source_root: options.source_root.clone(),
         map_root: options.map_root.clone(),
         ..CompilerOptions::default()
     }
+}
+
+/// A Bundle has no single source file for mapRoot directory nesting.
+pub fn declaration_bundle_map_recording_inputs_for(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    declaration_path: &Path,
+) -> SourceMapRecordingInputs {
+    crate::execute::source_map_recording_inputs_for_output(
+        lane,
+        &map_options(options),
+        declaration_path,
+        None,
+    )
 }
 
 pub fn declaration_map_recording_inputs_for(
@@ -60,6 +74,57 @@ pub fn finish_declaration_map(
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
 ) -> Result<DeclarationMapEmit, EmitFailure> {
+    finish_declaration_map_for_output(
+        lane,
+        options,
+        declaration_path,
+        map_path,
+        Some(source_path),
+        &[source_path.to_path_buf()],
+        printed,
+        diagnostics,
+        new_line,
+    )
+}
+
+/// Callback sourceFiles are the entire emitted Bundle source list, including
+/// sources which record no mappings. They are independent of generator sources.
+#[allow(clippy::too_many_arguments)]
+pub fn finish_declaration_bundle_map(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    declaration_path: &Path,
+    map_path: &Path,
+    source_files: &[PathBuf],
+    printed: &PrintedText,
+    diagnostics: Vec<Diagnostic>,
+    new_line: NewLineKind,
+) -> Result<DeclarationMapEmit, EmitFailure> {
+    finish_declaration_map_for_output(
+        lane,
+        options,
+        declaration_path,
+        map_path,
+        None,
+        source_files,
+        printed,
+        diagnostics,
+        new_line,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_declaration_map_for_output(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    declaration_path: &Path,
+    map_path: &Path,
+    source_path: Option<&Path>,
+    source_files: &[PathBuf],
+    printed: &PrintedText,
+    diagnostics: Vec<Diagnostic>,
+    new_line: NewLineKind,
+) -> Result<DeclarationMapEmit, EmitFailure> {
     let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
         EmitContractViolation::SourceMapRecordingUnavailable,
     ))?;
@@ -72,7 +137,7 @@ pub fn finish_declaration_map(
             .collect(),
         map_json.clone().into_boxed_str(),
     );
-    let url = source_mapping_url(
+    let url = crate::execute::source_mapping_url_for_output(
         lane,
         &map_options(options),
         &map_json,
@@ -93,12 +158,12 @@ pub fn finish_declaration_map(
     text.push_str("//# sourceMappingURL=");
     text.push_str(&url);
     Ok(DeclarationMapEmit {
-        map: EmitArtifact::declaration_map(map_path, map_json, Some(vec![source_path.into()])),
+        map: EmitArtifact::declaration_map(map_path, map_json, Some(source_files.to_vec())),
         declaration: EmitArtifact::declaration(
             declaration_path,
             text,
             options.emit_bom == Some(true),
-            Some(vec![source_path.into()]),
+            Some(source_files.to_vec()),
             EmitTextMetadata::new(diagnostics, Some(url_position)),
         ),
         observation,
