@@ -48,21 +48,27 @@ adds `./` when needed, while the bundle's own common-directory name has no
 such prefix. The case-insensitive control is a direct helper reference, not
 admission of the later host-casing owner.
 
-The existing Rust checker already projects
-`get_external_module_file_from_declaration` through `EmitResolver`. Current
-AMD's `external_module_name_literal` worker consults that method
-only when some source has an explicit module name, then selects only that
-explicit name. Its wrapper-name branch also selects only `module_name`.
-System similarly selects only an explicit wrapper name, while dependency
-groups currently use the original literal text. Thus outFile support needs
-the shared resolved-file/path-name decision in both transforms, and System
-grouping must occur after the decision. An unavailable required resolver
-answer must retain a typed failure instead of silently selecting a fallback.
-The declaration-bundle visitor must keep its distinct `.d.ts` exclusion;
-the JavaScript helper cannot be reused as an identical decision.
+The candidate implementation uses the existing checked
+`get_external_module_file_from_declaration` projection. AMD/UMD and System
+share the explicit-name/path-name worker for wrappers and dependencies. System
+rewrites dependency names before grouping; AMD retains each dependency entry.
+Required outFile resolver answers propagate typed errors, and a detached
+transformer request without an emit host refuses outFile. The declaration
+visitor can use `get_resolved_external_module_name(host, file, reference_file)`
+while retaining its separate declaration-file and bare-import decisions.
+
+The 14 path helper observations and source identities from all 24 reference
+cases match twice, including empty explicit names and declaration files. These
+checks compare the source-identity facets only; the four renamedDependencies
+API references do not acquire a Rust API implementation. The hostless boundary
+control also passes (three tests), and all 95 existing builtin transformer unit
+controls pass. Emitter all-target Clippy also passes with warnings denied;
+the complete TypeScript observer recheck, formatting and diff checks pass.
+Full bundle JavaScript bytes, merged System setters, declaration
+wrappers and complete original-corpus tuples still require the shared-writer and
+declaration visitor integration. The production outFile guard remains in place.
 
 Reproduction: `node scripts/observe-bundle-module-identities.mjs --check`.
 Both fresh-Program repetitions and a complete second observer run match the
-fixture. These observations supply the next implementation packet; bundle
-transform, printer, resolver and complete Rust byte comparisons remain owned
-by the implementation and original-corpus acceptance work.
+fixture. The whole-Program tuple expectations remain unchanged; helper equality and
+existing transform regressions do not replace their eventual Rust comparison.

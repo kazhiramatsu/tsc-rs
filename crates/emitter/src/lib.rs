@@ -15,6 +15,7 @@ mod declaration_map;
 mod declarations;
 mod error;
 mod execute;
+mod external_module_names;
 mod factory;
 mod host;
 mod metadata;

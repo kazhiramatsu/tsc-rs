@@ -6,9 +6,10 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::{
-    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitResolver, EmitResolverNode,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitHost, EmitResolver,
+    EmitResolverNode, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    UnsupportedEmitFeature,
 };
 
 use super::{
@@ -25,15 +26,18 @@ use super::{
 pub(super) fn transform_system_module<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(SystemModuleTransformer {
         resolver,
+        host,
         always_strict: options.always_strict_effective(),
     })
 }
 
 struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     always_strict: bool,
 }
 
@@ -88,9 +92,22 @@ impl Transformer for SystemModuleTransformer<'_> {
             self.resolver,
             super::MODULE_SYSTEM,
         )?;
-        let info = SystemModuleInfo::collect(context.arena(), source, root, common)?;
-        let mut visitor =
-            SystemVisitor::new(context, source, self.resolver, info, self.always_strict);
+        let info = SystemModuleInfo::collect(
+            context.arena(),
+            source,
+            root,
+            common,
+            self.resolver,
+            self.host,
+        )?;
+        let mut visitor = SystemVisitor::new(
+            context,
+            source,
+            self.resolver,
+            self.host,
+            info,
+            self.always_strict,
+        );
         let updated = visitor.transform_source_file(root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
@@ -163,6 +180,8 @@ impl SystemModuleInfo {
         source: TransformSourceId,
         root: TransformNode,
         common: CommonJsModuleInfo,
+        resolver: &dyn EmitResolver,
+        host: Option<&dyn EmitHost>,
     ) -> Result<Self, TransformError> {
         let statements = source_file_statement_nodes(arena, source, root)?;
         let mut group_indices = BTreeMap::<String, usize>::new();
@@ -186,11 +205,15 @@ impl SystemModuleInfo {
             }
             .and_then(|id| arena.node_ref(source, id));
             if let Some(module_specifier) = module_specifier {
-                let text = string_literal_text(arena, module_specifier)?.to_owned();
+                let original_text = string_literal_text(arena, module_specifier)?;
+                let text = crate::external_module_names::resolved_external_module_name_literal(
+                    host, resolver, arena, *statement,
+                )?
+                .unwrap_or_else(|| original_text.to_owned());
                 let index = if let Some(index) = group_indices.get(&text).copied() {
                     index
                 } else {
-                    let base = generated_module_name(&text);
+                    let base = generated_module_name(original_text);
                     let ordinal = generated_names.entry(base.clone()).or_insert(0);
                     *ordinal += 1;
                     let index = dependency_groups.len();
@@ -314,6 +337,7 @@ struct SystemVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     info: SystemModuleInfo,
     always_strict: bool,
     exports_name: String,
@@ -444,6 +468,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        host: Option<&'resolver dyn EmitHost>,
         info: SystemModuleInfo,
         always_strict: bool,
     ) -> Self {
@@ -454,6 +479,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
+            host,
             info,
             always_strict,
             exports_name,
@@ -581,14 +607,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let system = self.create_identifier("System")?;
         let register = self.create_property_access(system, "register")?;
         let mut arguments = Vec::new();
-        if let Some(module_name) = self
-            .context
-            .arena()
-            .source(self.source)?
-            .syntax()
-            .module_name
-            .clone()
-        {
+        if let Some(module_name) = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        ) {
             arguments.push(self.create_string_literal(&module_name)?);
         }
         arguments.push(dependencies);

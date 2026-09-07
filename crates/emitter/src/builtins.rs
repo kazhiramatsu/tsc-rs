@@ -146,6 +146,17 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
+    if host.is_none()
+        && options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+    {
+        return Err(TransformError::UnsupportedCompilerOption {
+            option: "outFile",
+            detail: "bundle module names require a Program emit host",
+        });
+    }
     if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
@@ -292,7 +303,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
         transform_ecmascript_module(options)
     } else if options.emit_module_kind() == MODULE_SYSTEM {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
-        system::transform_system_module(options, resolver)
+        system::transform_system_module(options, resolver, host.map(|(host, _)| host))
     } else {
         let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
@@ -4771,13 +4782,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             dependency_elements.push(self.create_string_literal(&path)?);
         }
         let dependencies = self.create_array_literal(dependency_elements)?;
-        let module_name = self
-            .context
-            .arena()
-            .source(self.source)?
-            .syntax()
-            .module_name
-            .clone();
+        let module_name = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        );
 
         let wrapper = if self.module_kind == MODULE_AMD {
             let define = self.create_identifier("define")?;
@@ -9269,39 +9277,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         declaration: TransformNode,
         fallback: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let declaration = self.context.arena().get_original_node(declaration);
-        let has_module_name_source = self.host.is_some_and(|host| {
-            host.source_file_ids().iter().copied().any(|source| {
-                host.source_file(source)
-                    .and_then(|source| source.syntax())
-                    .is_some_and(|source| source.module_name.is_some())
-            })
-        });
-        let target = if has_module_name_source {
-            if let Some(declaration) = self.context.arena().parse_tree_resolver_node(declaration)? {
-                match self
-                    .resolver
-                    .get_external_module_file_from_declaration(declaration)
-                {
-                    Ok(target) => target,
-                    Err(EmitResolverError::Unavailable {
-                        method: EmitResolverMethod::GetExternalModuleFileFromDeclaration,
-                        ..
-                    }) => None,
-                    Err(error) => return Err(error.into()),
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let module_name = self.host.and_then(|host| {
-            target
-                .and_then(|target| host.source_file(target.source()))
-                .and_then(|source| source.syntax())
-                .and_then(|source| source.module_name.clone())
-        });
+        let module_name = crate::external_module_names::resolved_external_module_name_literal(
+            self.host,
+            self.resolver,
+            self.context.arena(),
+            declaration,
+        )?;
         if let Some(module_name) = module_name {
             self.create_string_literal(&module_name)
         } else {
