@@ -95,8 +95,8 @@ repetitions. The log is `target/h2-7de-h2-6c-acceptance-shrink-test-profile.log`
 B activity is 552: the prior 293 declaration members plus the measured 259
 members from the old D/E overlap. The manifest shrinks from 318 known to 158;
 exact cases rise from 321 to 481. Original input/TS expectations and the four
-source-deferred rows remain unchanged. The old 188/451 profile fields describe
-an earlier snapshot and must not be reported as the current manifest.
+source-deferred rows remain unchanged. The earlier 188/451 profile snapshot is
+historical; current transition fields match the measured 481/158 manifest.
 This is local acceptance evidence; hosted acceptance remains pending.
 
 ## Pending adoption
@@ -108,7 +108,7 @@ URL and delivery identity here before marking either slice complete.
 The prepared metadata transition adds 291 band admissions: summary 11,075
 admissions/11,594 executed, completed runtime slices 29, inactive 7, next and
 next-runtime H2.8a (`full-output-matrix`). Original H2.5g admission fields and
-H2.7a dormant evidence remain historical. The future close patch updates live
-H2.6c transition counts to the locally validated 481/158 manifest. Synchronize the
-live profile/schema, slice index and README only with actual adoption.
+H2.7a dormant evidence remain historical. The future D/E close patch preserves
+the current H2.6c transition counts of 481/158. Synchronize the D/E adoption
+state in the live profile/schema, slice index and README only with actual adoption.
 STAGE is unchanged.
