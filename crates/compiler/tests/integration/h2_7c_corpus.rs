@@ -163,10 +163,15 @@ pub(super) fn assert_corpus(artifact: &Value) {
                         prepared,
                         &case["typescript_observation"],
                     );
+                    // This unchanged original also belongs to the older H2.6c
+                    // exact band. TS2322 stops its legacy diagnostic gate before
+                    // the newly admitted declaration getter is reached.
+                    let legacy_early_gate =
+                        case_id == "typescript-6.0.3/compiler/noEmitOnError.ts#default";
                     assert_eq!(
                         activity.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-                        1,
-                        "{case_id}: one admitted declaration option request"
+                        u64::from(!legacy_early_gate),
+                        "{case_id}: new declaration request or legacy early gate"
                     );
                     for slice in tsc_emitter::H2RuntimeSlice::ALL {
                         if slice == tsc_emitter::H2RuntimeSlice::H2_7a
