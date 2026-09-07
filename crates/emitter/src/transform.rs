@@ -258,17 +258,52 @@ impl UnsupportedTransformFeature {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransformBundle {
     sources: Box<[TransformSourceId]>,
+    synthetic_file_references: Option<Vec<tsc_syntax::FileReference>>,
+    synthetic_type_references: Option<Vec<tsc_syntax::TypeReferenceDirective>>,
+    synthetic_lib_references: Option<Vec<tsc_syntax::FileReference>>,
 }
 
 impl TransformBundle {
     pub fn new(sources: Vec<TransformSourceId>) -> Self {
         Self {
             sources: sources.into_boxed_slice(),
+            synthetic_file_references: None,
+            synthetic_type_references: None,
+            synthetic_lib_references: None,
         }
     }
 
     pub fn sources(&self) -> &[TransformSourceId] {
         &self.sources
+    }
+
+    pub fn synthetic_file_references(&self) -> Option<&[tsc_syntax::FileReference]> {
+        self.synthetic_file_references.as_deref()
+    }
+
+    pub fn synthetic_type_references(&self) -> Option<&[tsc_syntax::TypeReferenceDirective]> {
+        self.synthetic_type_references.as_deref()
+    }
+
+    pub fn synthetic_lib_references(&self) -> Option<&[tsc_syntax::FileReference]> {
+        self.synthetic_lib_references.as_deref()
+    }
+
+    pub(crate) fn with_sources(mut self, sources: Vec<TransformSourceId>) -> Self {
+        self.sources = sources.into_boxed_slice();
+        self
+    }
+
+    pub(crate) fn with_synthetic_references(
+        mut self,
+        files: Vec<tsc_syntax::FileReference>,
+        types: Vec<tsc_syntax::TypeReferenceDirective>,
+        libs: Vec<tsc_syntax::FileReference>,
+    ) -> Self {
+        self.synthetic_file_references = Some(files);
+        self.synthetic_type_references = Some(types);
+        self.synthetic_lib_references = Some(libs);
+        self
     }
 }
 
@@ -864,7 +899,7 @@ pub trait Transformer {
         for source in bundle.sources() {
             sources.push(transform_source_with_helpers(self, context, *source)?);
         }
-        Ok(TransformBundle::new(sources))
+        Ok(bundle.with_sources(sources))
     }
 
     fn substitute_node(
@@ -954,9 +989,10 @@ impl TransformationResult<'_> {
     pub(crate) fn finalize_bundle_generated_names_for_print(
         &mut self,
         sources: &[TransformSourceId],
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<(), TransformError> {
         self.context
-            .finalize_bundle_generated_binding_names_for_print(sources)
+            .finalize_bundle_generated_binding_names_for_print(sources, global_name_oracle)
     }
 
     pub fn roots(&self) -> &[TransformRoot] {

@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+mod bundle;
 mod diagnostics;
 mod ensure;
 mod isolated;
@@ -41,6 +42,12 @@ use self::tracker::DeclarationSymbolTracker;
 /// Caller-owned declaration-output paths. The dormant transformer deliberately
 /// does not reconstruct output planning.
 pub trait DeclarationPathResolver {
+    /// Forced declaration path for the whole output bundle. Source-file
+    /// diagnostic getters retain their separate per-source paths.
+    fn bundle_declaration_file_path(&self) -> Option<PathBuf> {
+        None
+    }
+
     /// tsrs-native: dormant declaration-output path injection (h2-7a-m-4 §5.8).
     fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf>;
 
@@ -243,14 +250,10 @@ impl Transformer for DeclarationTransformer<'_> {
 
     fn transform_bundle(
         &mut self,
-        _context: &mut TransformationContext,
-        _bundle: crate::TransformBundle,
+        context: &mut TransformationContext,
+        bundle: crate::TransformBundle,
     ) -> Result<crate::TransformBundle, TransformError> {
-        // Declaration bundles require their shared-reference and ambient
-        // module visitor; ordinary per-source composition is not equivalent.
-        Err(TransformError::Unsupported(
-            crate::UnsupportedEmitFeature::BundleRoot,
-        ))
+        bundle::transform_bundle(self, context, bundle)
     }
 
     fn dispose(&mut self) {}

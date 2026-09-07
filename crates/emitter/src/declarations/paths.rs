@@ -14,6 +14,8 @@ pub struct PlanDeclarationPaths {
     paths: BTreeMap<SourceFileId, EmitOutputPaths>,
     source_paths: BTreeMap<SourceFileId, PathBuf>,
     root_declaration_paths: BTreeMap<SourceFileId, PathBuf>,
+    bundle_declaration_path: Option<PathBuf>,
+    bundle_reference_paths: BTreeMap<SourceFileId, PathBuf>,
 }
 
 impl PlanDeclarationPaths {
@@ -40,10 +42,33 @@ impl PlanDeclarationPaths {
                     .map(|emit_source| (source, emit_source.path().to_path_buf()))
             })
             .collect();
+        let bundle_declaration_path = host
+            .compiler_options()
+            .out_file
+            .as_deref()
+            .filter(|path| !path.is_empty())
+            .and_then(|path| {
+                crate::plan::get_output_paths_for_bundle(host.compiler_options(), path, true)
+                    .declaration_path()
+                    .map(Path::to_path_buf)
+            });
+        let bundle_reference_paths = if bundle_declaration_path.is_some() {
+            host.source_file_ids()
+                .iter()
+                .filter_map(|&id| {
+                    host.source_file(id)
+                        .map(|file| (id, crate::plan::declaration_output_path(file.path(), host)))
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
         Self {
             paths,
             source_paths,
             root_declaration_paths: BTreeMap::new(),
+            bundle_declaration_path,
+            bundle_reference_paths,
         }
     }
 
@@ -84,6 +109,10 @@ impl PlanDeclarationPaths {
 }
 
 impl DeclarationPathResolver for PlanDeclarationPaths {
+    fn bundle_declaration_file_path(&self) -> Option<PathBuf> {
+        self.bundle_declaration_path.clone()
+    }
+
     fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf> {
         self.root_declaration_paths
             .get(&source)
@@ -97,10 +126,15 @@ impl DeclarationPathResolver for PlanDeclarationPaths {
     }
 
     fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        self.paths
+        self.bundle_reference_paths
             .get(&source)
-            .and_then(|paths| paths.declaration_path().or_else(|| paths.javascript_path()))
-            .map(Path::to_path_buf)
-            .or_else(|| self.source_paths.get(&source).cloned())
+            .cloned()
+            .or_else(|| {
+                self.paths
+                    .get(&source)
+                    .and_then(|paths| paths.declaration_path().or_else(|| paths.javascript_path()))
+                    .map(Path::to_path_buf)
+                    .or_else(|| self.source_paths.get(&source).cloned())
+            })
     }
 }

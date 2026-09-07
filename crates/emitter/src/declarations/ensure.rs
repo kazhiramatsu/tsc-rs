@@ -489,13 +489,20 @@ impl DeclarationTransformer<'_> {
                 .node(parent)
                 .is_ok_and(|node| node.kind == SyntaxKind::SourceFile)
         });
-        let (mask, additions) = if !parent_is_file {
+        let parent_is_bundled_external_file = parent_is_file
+            && self.state()?.is_bundled_emit
+            && cx
+                .arena()
+                .source(node.source())?
+                .syntax()
+                .external_module_indicator
+                .is_some();
+        let (mask, additions) = if !parent_is_file || parent_is_bundled_external_file {
             (
                 ModifierFlags::from_bits(mask.bits() ^ ModifierFlags::AMBIENT.bits()),
                 ModifierFlags::NONE,
             )
         } else {
-            debug_assert!(!self.state()?.is_bundled_emit);
             (mask, additions)
         };
         mask_modifier_flags(cx, node, mask, additions)

@@ -1842,7 +1842,23 @@ impl Printer {
             }
             writer.write_line(false);
         }
-        for reference in &source.referenced_files {
+        self.emit_reference_directives(
+            &source.referenced_files,
+            &source.type_reference_directives,
+            &source.lib_reference_directives,
+            writer,
+        );
+        Ok(())
+    }
+
+    fn emit_reference_directives(
+        &self,
+        files: &[tsc_syntax::FileReference],
+        types: &[tsc_syntax::TypeReferenceDirective],
+        libs: &[tsc_syntax::FileReference],
+        writer: &mut TextWriter,
+    ) {
+        for reference in files {
             let preserve = if reference.preserve {
                 "preserve=\"true\" "
             } else {
@@ -1854,7 +1870,7 @@ impl Printer {
             ));
             writer.write_line(false);
         }
-        for reference in &source.type_reference_directives {
+        for reference in types {
             let resolution_mode = match reference.resolution_mode {
                 Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Import) => {
                     "resolution-mode=\"import\" "
@@ -1875,7 +1891,7 @@ impl Printer {
             ));
             writer.write_line(false);
         }
-        for reference in &source.lib_reference_directives {
+        for reference in libs {
             let preserve = if reference.preserve {
                 "preserve=\"true\" "
             } else {
@@ -1887,7 +1903,6 @@ impl Printer {
             ));
             writer.write_line(false);
         }
-        Ok(())
     }
 
     fn is_system_register_statement(

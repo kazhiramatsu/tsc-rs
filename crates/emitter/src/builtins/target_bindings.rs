@@ -846,6 +846,7 @@ impl TransformationContext {
     pub(crate) fn finalize_bundle_generated_binding_names_for_print(
         &mut self,
         sources: &[TransformSourceId],
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<(), TransformError> {
         // TypeScript resets generatedNames once after writeBundle, while
         // writeFile resets it after each standalone source (_tsc.js:
@@ -859,7 +860,7 @@ impl TransformationContext {
                 source,
                 root,
                 GeneratedNameReservedSetPolicy::PrintSource(&reserved),
-                None,
+                global_name_oracle,
                 Some(&mut generated_names),
             )?;
             let mut events = Vec::new();

@@ -1,6 +1,6 @@
 //! Shared-writer bundle printing. Runtime outFile routing remains a separate
-//! admission boundary; declaration, external-module and map composition are
-//! retained typed controls until their corresponding owners are connected.
+//! admission boundary. Internal declaration and AMD/System workers share this
+//! writer; bundle map composition retains its typed control.
 use super::*;
 
 struct BundleSource {
@@ -18,8 +18,47 @@ impl Printer {
         bundle: &TransformBundle,
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
+        if self.options.declaration_syntax {
+            return self.print_declaration_bundle(
+                transformation,
+                bundle,
+                DeclarationPrintHandlers::new(&UnavailableDeclarationGlobalNameOracle),
+                recording,
+            );
+        }
+        self.print_bundle_worker(transformation, bundle, recording, None)
+    }
+
+    /// Print the declaration visitor's complete bundle with one writer and
+    /// shared synthetic references. Bundle map composition remains separate.
+    pub fn print_declaration_bundle(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        bundle: &TransformBundle,
+        handlers: DeclarationPrintHandlers<'_>,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+    ) -> Result<PrintedText, PrinterError> {
+        if !self.options.declaration_syntax {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::BundleRoot,
+            ));
+        }
+        self.print_bundle_worker(
+            transformation,
+            bundle,
+            recording,
+            Some(handlers.has_global_name),
+        )
+    }
+
+    fn print_bundle_worker(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        bundle: &TransformBundle,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
+    ) -> Result<PrintedText, PrinterError> {
         if recording.is_some()
-            || self.options.declaration_syntax
             || !transformation.roots().iter().any(|root| {
                 matches!(root, crate::TransformRoot::Bundle(transformed) if transformed == bundle)
             })
@@ -29,11 +68,14 @@ impl Printer {
         let mut sources = Vec::with_capacity(bundle.sources().len());
         for &source_id in bundle.sources() {
             let source = transformation.arena().source(source_id)?.syntax();
-            if source.is_declaration_file
-                || (source.external_module_indicator.is_some()
-                    && !matches!(self.options.module_kind, Some(2 | 4)))
-                || source.file_name.to_ascii_lowercase().ends_with(".json")
-            {
+            if if self.options.declaration_syntax {
+                !source.is_declaration_file
+            } else {
+                source.is_declaration_file
+                    || source.external_module_indicator.is_some()
+                        && !matches!(self.options.module_kind, Some(2 | 4))
+                    || source.file_name.to_ascii_lowercase().ends_with(".json")
+            } {
                 return Err(PrinterError::Unsupported(
                     UnsupportedEmitFeature::BundleRoot,
                 ));
@@ -63,7 +105,8 @@ impl Printer {
                 helpers,
             });
         }
-        transformation.finalize_bundle_generated_names_for_print(bundle.sources())?;
+        transformation
+            .finalize_bundle_generated_names_for_print(bundle.sources(), global_name_oracle)?;
         let mut writer = create_text_writer(self.options.new_line);
         // writeBundle / emitShebangIfNeeded (_tsc.js:117058-117070,
         // 119824-119840): the first shebang anywhere in the bundle wins.
@@ -112,6 +155,12 @@ impl Printer {
                 self.emit_helpers(&helpers, &mut writer)?;
             }
         }
+        self.emit_reference_directives(
+            bundle.synthetic_file_references().unwrap_or_default(),
+            bundle.synthetic_type_references().unwrap_or_default(),
+            bundle.synthetic_lib_references().unwrap_or_default(),
+            &mut writer,
+        );
         for mut source in sources {
             source
                 .helpers

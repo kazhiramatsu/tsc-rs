@@ -498,7 +498,7 @@ fn active_out_file(host: &dyn EmitHost) -> Option<&str> {
 /// tsc-port: getOutputPathsForBundle @6.0.3
 /// tsc-hash: c901ed763ea596470c0d7ac24a1dedf99dfcc4781e59eb4871e9b0743abc4775
 /// tsc-span: _tsc.js:116365-116372
-fn get_output_paths_for_bundle(
+pub(crate) fn get_output_paths_for_bundle(
     options: &tsc_types::CompilerOptions,
     out_file: &str,
     force_dts_paths: bool,
