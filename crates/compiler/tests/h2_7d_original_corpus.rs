@@ -148,6 +148,9 @@ impl CompilerHost for OriginalCorpusHost {
     }
 
     fn directory_exists(&self, path: &Path) -> Result<bool, tsc_host::HostError> {
+        if self.0.directory_exists(path)? {
+            return Ok(true);
+        }
         let lookup = path.to_str().map(|name| name.trim_end_matches('/'));
         match lookup {
             Some(name) if !name.is_empty() => self.0.directory_exists(Path::new(name)),
