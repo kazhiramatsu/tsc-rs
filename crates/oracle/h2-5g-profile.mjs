@@ -93,7 +93,8 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
-  // Parallel H2.7d/e foundations; runtime option refusals remain in place.
+  // Parallel H2.7d/e foundations and ordinary nonbundle map candidate.
+  // Formal runtime adoption and the remaining API/bundle boundaries stay separate.
   "crates/compiler/tests/fixtures/declaration-maps.json",
   "crates/compiler/tests/h2_7e_declaration_maps.rs",
   "crates/emitter/src/declaration_map.rs",
@@ -101,6 +102,10 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/unit/bundle_plan/tests.rs",
   "crates/program/tests/h2_7d_bundle_source_facts.rs",
   "crates/compiler/tests/fixtures/declaration-map-apis.json",
+  "crates/compiler/tests/fixtures/declaration-maps-runtime.json",
+  "crates/emitter/tests/fixtures/bundle-module-identities.json",
+  "crates/emitter/tests/fixtures/bundle-transform.json",
+  "crates/emitter/tests/unit/bundle_transform/tests.rs",
   "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/xtask/src/h2_7c_acceptance.rs",
@@ -661,8 +666,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 289,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 289)`,
+    runtimeInputSet.size === 293,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 293)`,
   );
 
   return withFingerprint(

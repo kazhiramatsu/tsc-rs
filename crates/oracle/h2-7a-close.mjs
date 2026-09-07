@@ -49,11 +49,11 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     arms: Object.freeze([
       Object.freeze({ name: "DeclarationOnly", line: 222, marker: "EmitMode::DeclarationOnly" }),
       Object.freeze({ name: "BuilderSignature", line: 227, marker: "EmitMode::BuilderSignature" }),
-      Object.freeze({ name: "DeclarationMap", line: 242, marker: "UnsupportedEmitFeature::DeclarationMap" }),
-      Object.freeze({ name: "BuildInfo", line: 246, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({ name: "DeclarationMap", line: 243, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 247, marker: "UnsupportedEmitFeature::BuildInfo));" }),
       Object.freeze({
         name: "ScriptOutputMissingJavaScriptPath",
-        line: 252,
+        line: 253,
         marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
       }),
     ]),
@@ -63,11 +63,13 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     historicalSha256: EXPECTED_EXECUTE_SHA256,
     item: Object.freeze({ name: "validate_emit_options", line: 85 }),
     arms: Object.freeze([
-      Object.freeze({ name: "declarationMap", line: 134, marker: "options.declaration_map == Some(true)" }),
+      // Ordinary nonbundle maps with declarations are supported; this arm
+      // retains getter/forced requests and disabled declaration options.
+      Object.freeze({ name: "declarationMap", line: 138, marker: "options.declaration_map == Some(true)" }),
       // The ordinary/getter request flavors share this validator.
       // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
       // prerequisite are covered by focused complete observations.
-      Object.freeze({ name: "composite", line: 140, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "composite", line: 147, marker: "(options.composite == Some(true), \"composite\")" }),
     ]),
   }),
   Object.freeze({

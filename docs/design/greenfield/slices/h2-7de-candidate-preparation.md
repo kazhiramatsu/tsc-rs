@@ -130,3 +130,23 @@ profile/close freshness, the 325-candidate preparer, 39 CI policy controls,
 formatting and frozen qualification/foundation bytes pass. This isolated
 snapshot does not include the later H2.7c isolated-prerequisite canary fix;
 its hosted failure and correction remain recorded in the H2.7c slice log.
+
+## Ordinary map candidate and adjacent bundle foundations
+
+The next integration snapshot includes the corrected H2.7c request marker
+and ordinary nonbundle declaration maps from `acf34ad2`. All 18 H2.7c
+contracts pass again (zero ignored, 413.12s), as do all six map entries (zero
+ignored, 88.35s): direct map recording, 27 complete Program observations and
+real CLI outcomes, API/sink controls, failure CLI controls and retained API/
+bundle refusals. The Program source-fact integration also passes its five
+emitter controls and one complete loader comparison (54 observations twice,
+plus the retained noEmit refusal; one loader test, 22.14s).
+
+The input closure now includes the ordinary map fixture, module-identity
+references and per-source bundle-transform helper controls, reaching 293
+identities. The source-span records retain only the declarationMap refusals
+that still apply to the candidate: getters, forced requests and disabled
+declarations, plus a malformed plan with a map but no declaration member.
+All formal admission/next-slice counters and the historical H2.7a runtime
+contract remain unchanged. The new helper-phase compiler comparisons and
+remaining declaration-map API/bundle work precede any runtime adoption.
