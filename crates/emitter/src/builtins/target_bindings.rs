@@ -639,7 +639,7 @@ fn finalize_generated_binding_names_with_policy(
         // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
         // text base covers bases outside the numbered family.
         if let Some(parent) = entry.derived_from {
-            if !assigned.contains_key(&parent) {
+            if let std::collections::btree_map::Entry::Vacant(entry) = assigned.entry(parent) {
                 if let Some(base) = context.generated_binding_numbered_base(parent) {
                     let name = allocate_numbered_name_with_global_oracle(
                         &mut scopes,
@@ -647,7 +647,7 @@ fn finalize_generated_binding_names_with_policy(
                         false,
                         global_name_oracle,
                     )?;
-                    assigned.insert(parent, name);
+                    entry.insert(name);
                     shared_numbered_bindings.insert(parent);
                 }
             }
