@@ -8,7 +8,7 @@ use tsc_compiler::{DriverError, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitIoError, EmitIoOperation, EmitOutcome,
-    EmitWriteDisposition, EmitWriteMetadata, OutputSink,
+    EmitWriteDisposition, EmitWriteMetadata, H2RuntimeSlice, OutputSink,
 };
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -350,4 +350,55 @@ fn ordinary_bundle_sink_commands_match_complete_typescript_twice() {
     assert_eq!(direct_exceptions, 4 * 2);
     assert_eq!(callbacks, 34 * 2);
     assert_eq!(materialized, 22 * 2);
+}
+
+#[test]
+fn bundle_callback_exceptions_preserve_one_request_per_option() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/bundle-sinks.json")).unwrap();
+    let libs = libraries();
+    let mut compared = 0;
+    for case in fixture["cases"].as_array().unwrap() {
+        let expected = &case["typescript_observation"]["call"];
+        if expected["exception"].is_null() {
+            continue;
+        }
+        let id = case["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            ProgramSession::new(prepare(case, &libs))
+                .with_declarations(|session| {
+                    let before = session.activity();
+                    let mut sink = Sink::new(case);
+                    let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        session.emit_with_reported_diagnostics(&mut sink)
+                    }));
+                    let exception = returned.expect_err("controlled Bundle callback must unwind");
+                    assert_eq!(exception.downcast_ref::<&str>(),
+                        Some(&"H2.7 bundle controlled callback exception"));
+                    let after = session.activity();
+                    for slice in [H2RuntimeSlice::H2_7d, H2RuntimeSlice::H2_7e] {
+                        assert_eq!(after.runtime_slice(slice) - before.runtime_slice(slice), 1,
+                            "{id}: {} after callback unwind, repetition {repetition}", slice.name());
+                    }
+                    for slice in [H2RuntimeSlice::H2_7a, H2RuntimeSlice::H2_8a,
+                        H2RuntimeSlice::H2_8b, H2RuntimeSlice::H2_8c, H2RuntimeSlice::H2_8d,
+                        H2RuntimeSlice::H2_8e, H2RuntimeSlice::H2_9] {
+                        assert_eq!(before.runtime_slice(slice), 0, "{id}: {} before", slice.name());
+                        assert_eq!(after.runtime_slice(slice), 0, "{id}: {} after", slice.name());
+                    }
+                    // The same untouched TS command tuple also fixes the exact
+                    // partial-write boundary for each of the four callback sites.
+                    let indices = sink.writes.iter().filter(|write| write["sink_materialized"] == true)
+                        .map(|write| write["index"].clone()).collect::<Vec<_>>();
+                    let actual = json!({"kind":"ordinary-command", "target_source":null,
+                        "writes":sink.writes, "reported_diagnostics":[], "status_writes":[],
+                        "exit_code":null, "emit_result":null,
+                        "exception":{"name":"Error", "message":"H2.7 bundle controlled callback exception"},
+                        "materialized_write_indices":indices, "materialized_files":sink.materialized_files});
+                    assert_eq!(&actual, expected, "{id}: stateful callback tuple, repetition {repetition}");
+                    Ok(())
+                }).unwrap();
+            compared += 1;
+        }
+    }
+    assert_eq!(compared, 4 * 2);
 }
