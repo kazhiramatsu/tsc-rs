@@ -143,8 +143,8 @@
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 316,
-      "maxItems": 316,
+      "minItems": 323,
+      "maxItems": 323,
       "items": {
         "$ref": "#/$defs/path_hash"
       }
@@ -293,8 +293,8 @@
         "h2_6b_source_deferred_cases": 0,
         "h2_6c_candidate_cases": 643,
         "h2_6c_admitted_cases": 639,
-        "h2_6c_exact_cases": 188,
-        "h2_6c_known_divergences": 451,
+        "h2_6c_exact_cases": 481,
+        "h2_6c_known_divergences": 158,
         "h2_6c_source_deferred_cases": 4,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,

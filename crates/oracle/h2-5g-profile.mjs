@@ -708,8 +708,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 316,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 316)`,
+    runtimeInputSet.size === 323,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 323)`,
   );
 
   return withFingerprint(
@@ -812,8 +812,8 @@ function buildArtifact() {
         h2_6b_source_deferred_cases: 0,
         h2_6c_candidate_cases: 643,
         h2_6c_admitted_cases: 639,
-        h2_6c_exact_cases: 188,
-        h2_6c_known_divergences: 451,
+        h2_6c_exact_cases: 481,
+        h2_6c_known_divergences: 158,
         h2_6c_source_deferred_cases: 4,
         h2_7b_candidate_cases: 1_593,
         h2_7b_admitted_cases: 1_557,

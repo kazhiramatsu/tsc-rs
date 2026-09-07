@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "a9d1cc8e61bcd75724ef841f05962e2db439e2bfb9d9ac3902324977bd4ab720"
+    "sha256": "fa4c83fe93827bbad8f87120e5b4ddf41787e89b423757128d0f4a8e75941987"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "da0b2feecc863aa43cd97d4f7f2aa7c4f1f01517e79577b00f58d7c404dbbeeb"
+    "sha256": "aca756d2ca6c1cbbd397d52acdcfe5fe52cf56c21a9a287fad654ba5a0250def"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -200,7 +200,7 @@
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "ace4a987b4cc007833b3b06d91d51c87b97f559aa798c8d8641d2d3d3c5f79bc"
+      "sha256": "6305bf4ead003d22d20493d81203c644a146fbd9b9122ad7bfb8fe45bf7e0dcc"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -248,7 +248,7 @@
     },
     {
       "path": "crates/harness/src/upstream_suites/execution.rs",
-      "sha256": "7f6b4759e39c4fb830695c4d481a3d44e79f094356ef11e486b06ddc382e33e0"
+      "sha256": "1d1538bb720655e054e73c10136644062d4b028cc6678db15f704c89b72428a9"
     },
     {
       "path": "crates/harness/src/upstream_suites/execution/project.rs",
@@ -320,7 +320,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "a4ff51fca73af258cfed08031ad90cfae295affb9e37238ed8a1cf66e5a7581f"
+      "sha256": "1c4c4b797e8ecbddd482fb07195772f92f5a252fb9314ee56a791edf6231fd17"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -340,7 +340,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "fe3523a0c4b6e0b420861e5f10e51dd44a140aa4c5e21a9687b9873fc3134a3b"
+      "sha256": "cce2d047fee897509be747f7154b419e0c9ece3671c01aacccc281ebf23c5e0d"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -360,7 +360,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
-      "sha256": "36e95ef752add110dacd3da9ab7eb2bdb69b516ba5f262267f2a23e82c786cad"
+      "sha256": "87f3dd5f37edb3154deae12bad3878833c5fe61b4e5b07fedee13c79aa15c9d0"
     },
     {
       "path": "crates/xtask/tests/unit/h2_2d_acceptance/tests.rs",
@@ -487,6 +487,34 @@
       "sha256": "2354d799cf4c5fa0883bb491ca895649bb7d08875da2cfefe8b9a53082af97ab"
     },
     {
+      "path": "crates/xtask/tests/unit/h2_2c_acceptance/de_registry_contracts.rs",
+      "sha256": "ec9fb42d1a1f59a57bb38f8e857905c3123ac2002e0fcefa1c93a96dc6879eb4"
+    },
+    {
+      "path": "crates/xtask/src/h2_6c_de_promotions.rs",
+      "sha256": "3b30467cfda0bfab4c0aa27474ddad25c32090ecd1c4ff762e12209de410c0a0"
+    },
+    {
+      "path": "crates/xtask/src/h2_6c_refusal_migrations.rs",
+      "sha256": "094e2fe181ca62f77b5ac1ad3080801707c66b3120d555a43c442e446d1f781d"
+    },
+    {
+      "path": "crates/xtask/src/h2_7de_acceptance.rs",
+      "sha256": "26b428e316fb10e4b102feafb679d68977a1a59075dc2af5d340adc5203ad72c"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "c8ac3f2567dd40aef3bea0a813d9a0a8bf8966bd470e16322a7801be5c3e2f38"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
+      "sha256": "e0630f9762d1776c27c74ec00ae1084a21476704272e5b2c39a588989067f494"
+    },
+    {
+      "path": "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs",
+      "sha256": "cd4509f26a6d49df34fe0424d6e54b06dced7dd5b5ed44d5126c0bbfdf400de4"
+    },
+    {
       "path": "crates/compiler/tests/fixtures/declaration-maps.json",
       "sha256": "417d5114944a79e0160fb1b60d6c1be7a242c8549fd4b5b80ea1d496600f2fa8"
     },
@@ -496,7 +524,7 @@
     },
     {
       "path": "crates/compiler/tests/h2_7e_original_corpus.rs",
-      "sha256": "de5558791184d743abe1ccb1708295395311700d2a7de1220e9d2926ee7d1a4b"
+      "sha256": "429312addb822c83e99f400d00a334204ee730c75b6e916823dfd463810136a6"
     },
     {
       "path": "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
@@ -516,15 +544,15 @@
     },
     {
       "path": "crates/compiler/tests/h2_7d_original_corpus.rs",
-      "sha256": "249a383ff671e82d047dfa4c21c16740c54fe05fc209d6c3b37c8701e9c442ee"
+      "sha256": "74ec2077229c5e0b4b33a8cea948af5be1ce75c3cfbf6056a74655e31407987b"
     },
     {
       "path": "crates/compiler/tests/h2_7d_bundle_sinks.rs",
-      "sha256": "31606f6290836fe12d0dd86dabee3d2f52467963f6e9b796e73aca2292d0c58a"
+      "sha256": "49ce06b45f8f45e1e8675a226ab7bd5beeb3cc13fafd4557a0424be7b878f563"
     },
     {
       "path": "crates/emitter/src/factory/parsed_metadata.rs",
-      "sha256": "3ec021d914d3681edca884ca8cd9c8a3dcacf1674121a11d2d9ed986e1ed4b1d"
+      "sha256": "9a8ba207b713125515d8b63cb1615650f0a70977b9269c9737684bd356d13903"
     },
     {
       "path": "crates/emitter/tests/fixtures/bundle-declaration-map-paths.json",
@@ -568,7 +596,7 @@
     },
     {
       "path": "crates/emitter/tests/unit/bundle_plan/tests.rs",
-      "sha256": "aadce6d7679a5cb443c1d691c5de1095222e75fc00503cd71f3ba8fcedbb831b"
+      "sha256": "788ab6396e901d8e519f2dc0cb1589c79880ffb6390af1c1d6f93db759128605"
     },
     {
       "path": "crates/program/tests/h2_7d_bundle_source_facts.rs",
@@ -604,7 +632,7 @@
     },
     {
       "path": "crates/emitter/tests/unit/bundle_printer/tests.rs",
-      "sha256": "ac566b5fc0cb9da239743c5882981d3d1b00afacbfd30f164fd4210b3de13d6d"
+      "sha256": "6d3d320a0a468fdb3fd981e58be80e7efdf9c1a0c8420ea4fb19366bacc4e834"
     },
     {
       "path": "crates/emitter/src/external_module_names.rs",
@@ -1288,7 +1316,7 @@
     },
     {
       "path": "crates/harness/tests/unit/upstream_suites/execution_tests.rs",
-      "sha256": "92cca35c5cf09e5a29f03ea5f7df75566e0174617b0c33921c5845a55fdc50ad"
+      "sha256": "13b2ca3f1407809d5f06112db75de30df89b176a2c054010dc76e9ef8254a1a7"
     },
     {
       "path": "crates/harness/tests/integration/h2_5h_project_emit.rs",
@@ -1548,8 +1576,8 @@
     "h2_6b_source_deferred_cases": 0,
     "h2_6c_candidate_cases": 643,
     "h2_6c_admitted_cases": 639,
-    "h2_6c_exact_cases": 188,
-    "h2_6c_known_divergences": 451,
+    "h2_6c_exact_cases": 481,
+    "h2_6c_known_divergences": 158,
     "h2_6c_source_deferred_cases": 4,
     "h2_7b_candidate_cases": 1593,
     "h2_7b_admitted_cases": 1557,
@@ -1626,5 +1654,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "365e01a08f7adc312bdb4ccbbd9af0d7abd68d8f4abbca43e84c53e43e5b6255"
+  "profile_fingerprint_sha256": "7072343f1db2f61343827906ed5c7ef81970bb1abe08edb7cc0d4ae01559e962"
 }

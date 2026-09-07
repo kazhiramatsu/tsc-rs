@@ -1315,8 +1315,8 @@ function loadParentProfile(requireParent) {
       parent.transition.h2_6b_source_deferred_cases === 0 &&
       parent.transition.h2_6c_candidate_cases === 643 &&
       parent.transition.h2_6c_admitted_cases === 639 &&
-      parent.transition.h2_6c_exact_cases === 188 &&
-      parent.transition.h2_6c_known_divergences === 451 &&
+      parent.transition.h2_6c_exact_cases === 481 &&
+      parent.transition.h2_6c_known_divergences === 158 &&
       parent.transition.h2_6c_source_deferred_cases === 4 &&
       parent.summary.completed_runtime_slices === 27 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
