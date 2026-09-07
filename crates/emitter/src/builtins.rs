@@ -8264,6 +8264,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
         if is_dynamic_import {
+            // visitImportCallExpression keeps native import() for module None
+            // at ES2020 and later, even when this module visitor is selected
+            // (_tsc.js:110952-110955).
+            if self.module_kind == MODULE_NONE && self.target >= ScriptTarget::ES2020 {
+                return self.update_generic(original, NodeData::CallExpression(data));
+            }
             let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
             if matches!(
                 self.module_kind,
@@ -8292,6 +8298,23 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 data.type_arguments = None;
                 return self.update_generic_without_visit(original, NodeData::CallExpression(data));
             }
+            // Resolve literal dynamic imports through the same bundle module
+            // identity protocol as static imports (_tsc.js:110956-110958).
+            let external_module_name = if arguments.first().is_some_and(|argument| {
+                self.context
+                    .arena()
+                    .node(*argument)
+                    .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
+            }) {
+                crate::external_module_names::resolved_external_module_name_literal(
+                    self.host,
+                    self.resolver,
+                    self.context.arena(),
+                    original,
+                )?
+            } else {
+                None
+            };
             // AMD emits its executor parameters before the dependency
             // expression. Reserve those generated bindings before descending
             // into a nested import so ordinal assignment follows emit order.
@@ -8308,10 +8331,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .copied()
                 .map(|argument| self.visit(argument.node()))
                 .transpose()?;
-            if let Some(amd_bindings) = amd_bindings {
-                let argument = argument
+            let argument = if let Some(module_name) = external_module_name.filter(|name| {
+                !argument.is_some_and(|argument| {
+                    self.context.arena().node(argument).is_ok_and(|node| {
+                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_ref() == name.as_str())
+                    })
+                })
+            }) {
+                Some(self.create_string_literal(&module_name)?)
+            } else {
+                argument
                     .map(|argument| self.rewrite_import_argument(argument))
-                    .transpose()?;
+                    .transpose()?
+            };
+            if let Some(amd_bindings) = amd_bindings {
                 let transformed = self.create_amd_dynamic_import(argument, amd_bindings)?;
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
@@ -8321,9 +8354,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
             }
-            let argument = argument
-                .map(|argument| self.rewrite_import_argument(argument))
-                .transpose()?;
             let transformed = self.create_common_js_dynamic_import_value(argument, false)?;
             self.set_original_and_range(transformed, original)?;
             return Ok(transformed);
@@ -8572,7 +8602,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         argument: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let argument = match argument {
-            Some(argument) => self.rewrite_import_argument(argument)?,
+            Some(argument) => argument,
             None => self.create_void_zero()?,
         };
         if self.is_simple_copiable_expression(argument)? {
