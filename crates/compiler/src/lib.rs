@@ -956,6 +956,18 @@ impl ProgramSession {
         })
     }
 
+    /// Retain ordinary Program emission and its production command reporting
+    /// without initializing a declaration-diagnostic session.
+    #[doc(hidden)]
+    pub fn emit_command_for_harness(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<EmitCommandOutcome, DriverError> {
+        let current_directory = self.prepared.current_directory().to_path_buf();
+        self.emit_for_cli(sink)
+            .map(|outcome| EmitCommandOutcome::new(outcome, &current_directory))
+    }
+
     /// Emit through the harness-only bounded library-prefix scope.
     #[doc(hidden)]
     pub fn emit_with_reported_diagnostics_for_harness_with_lib_bundle(
