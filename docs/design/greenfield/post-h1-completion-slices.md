@@ -6,11 +6,13 @@ foundation has landed; **H2.7b non-bundle declaration output is complete**.
 The [H2.7b close record](slices/h2-7b-ca.md) adopts PR #509's passing hosted
 acceptance: 1,557 exact, zero known divergences, 36 deferred. The live profile
 advances to **H2.7c, declaration diagnostics and options**. The
-[bounded implementation packets](slices/h2-7c.md) cover stripInternal,
-declaration output blocking, common isolated declaration inference and
-implicit-undefined parameter diagnostics (including parameter properties);
-accessor and other specialized isolated diagnostics, remaining H2.7c options
-and getter routes are still open. STAGE is unchanged.
+[nine locally validated implementation packets](slices/h2-7c.md) cover
+stripInternal, declaration output blocking, isolated inference and parameter,
+accessor/computed-name, enum, expando/augmentation and private-type diagnostics,
+plus declarationDir. The focused comparison passes 174 windows twice: 171
+complete matches and three retained H2.8a outDir refusals with zero writes.
+Full diagnostic conformance and the frozen declaration band pass. Public
+getters and forced declaration APIs remain open. STAGE is unchanged.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing
 hosted acceptance before landing runtime changes. The historical certificate

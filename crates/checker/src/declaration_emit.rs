@@ -427,9 +427,10 @@ impl CheckerState<'_> {
         node: NodeId,
         session_token: u64,
     ) -> CheckResult<Vec<EmitFunctionProperty>> {
-        if !self.emit_is_parse_tree_node(node)
-            || self.kind_of(node) != SyntaxKind::FunctionDeclaration
-        {
+        // getParseTreeNode returns an existing parse node before applying
+        // its kind predicate (_tsc.js:11426-11436). The isolated tracker
+        // therefore also queries VariableDeclaration for arrow expandos.
+        if !self.emit_is_parse_tree_node(node) {
             return Ok(Vec::new());
         }
         let Some(_) = self.node_symbol(node) else {

@@ -30,6 +30,10 @@ pub(super) fn assert_cases(artifact: &Value) {
     let mut failures = Vec::new();
     for case in cases {
         let case_id = case["case_id"].as_str().expect("case id");
+        let config_path = case["config_path"]
+            .as_str()
+            .unwrap_or("/project/tsconfig.json");
+        let config_base = Path::new(config_path).parent().expect("config directory");
         let result = std::panic::catch_unwind(|| {
             let mut builder = MemoryCompilerHost::builder("/project");
             let mut roots = Vec::new();
@@ -47,7 +51,7 @@ pub(super) fn assert_cases(artifact: &Value) {
                 }
             }
             if let Some(config) = case["config"].as_str() {
-                builder = builder.file("/project/tsconfig.json", config.as_bytes());
+                builder = builder.file(config_path, config.as_bytes());
             }
             let host = builder.build().expect("memory host");
             let mut options = CompilerOptions::default();
@@ -57,6 +61,8 @@ pub(super) fn assert_cases(artifact: &Value) {
                     "module" => options.module = Some(value.as_i64().unwrap() as i32),
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
+                    "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+                    "outDir" => options.out_dir = value.as_str().map(str::to_owned),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
                     "strict" => options.strict = value.as_bool(),
                     "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
@@ -76,9 +82,9 @@ pub(super) fn assert_cases(artifact: &Value) {
                     let plan = parse_config_root_plan(
                         &CompilerConfigHost::new(&host),
                         ConfigRootPlanRequest {
-                            file_name: "/project/tsconfig.json".to_owned(),
+                            file_name: config_path.to_owned(),
                             text: config.to_owned(),
-                            base_path: "/project".to_owned(),
+                            base_path: config_base.to_string_lossy().into_owned(),
                         },
                     )
                     .expect("config plan");
@@ -95,6 +101,23 @@ pub(super) fn assert_cases(artifact: &Value) {
                     )
                     .expect("direct program")
                 };
+                if let Some(option) = case["rust_expected_unsupported_option"].as_str() {
+                    let mut sink = tsc_compiler::MemoryOutputSink::new();
+                    let error = tsc_compiler::ProgramSession::new(prepared)
+                        .emit(&mut sink)
+                        .expect_err("retained later-slice boundary");
+                    assert!(
+                        matches!(error, tsc_compiler::DriverError::Emit(
+                            tsc_emitter::EmitFailure::UnsupportedCompilerOption { option: actual }
+                        ) if actual == option),
+                        "{case_id}: expected the {option} boundary",
+                    );
+                    assert!(
+                        sink.writes().is_empty(),
+                        "{case_id}: no writes before refusal"
+                    );
+                    continue;
+                }
                 let blocked = prepared.compiler_options().no_emit_on_error == Some(true)
                     && case["typescript_observation"]["emit_result"]["emit_skipped"] == true;
                 let activity =

@@ -143,8 +143,8 @@
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 264,
-      "maxItems": 264,
+      "minItems": 274,
+      "maxItems": 274,
       "items": {
         "$ref": "#/$defs/path_hash"
       }

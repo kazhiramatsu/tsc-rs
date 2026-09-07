@@ -12,40 +12,21 @@ use super::tracker::text_of_node;
 /// tsc-port: createGetIsolatedDeclarationErrors @6.0.3
 /// tsc-hash: b3e7aef2bd5f93d15e0b3987570eae6e9e2e3bd63234699fde0320e8eb7e0326
 /// tsc-span: _tsc.js:114054-114246
-/// Accessor pairs and private type names retain their typed boundary until
-/// their resolver observations are implemented.
+/// Accessor diagnostics use callback-projected symbol declarations in the
+/// tracker, as does the entity-in-type classification from existing checker predicates.
 pub(crate) fn inference_error(
     source: &SourceFile,
     node: NodeId,
     parameter_add_undefined: Option<bool>,
 ) -> Result<Diagnostic, TransformError> {
     let record = source.arena.node(node);
-    if ancestor(source, Some(node), |kind| {
-        kind == SyntaxKind::HeritageClause
-    })
-    .is_some()
-    {
+    if is_in_heritage_clause(source, node) {
         return Ok(diagnostic_for_source_node(
             source,
             node,
             &d::Extends_clause_can_t_contain_an_expression_with_isolatedDeclarations,
             &[],
         ));
-    }
-    let mut entity = node;
-    while let Some(parent) = source.arena.node(entity).parent {
-        let kind = source.arena.node(parent).kind;
-        if matches!(
-            kind,
-            SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
-        ) {
-            entity = parent;
-            continue;
-        }
-        if (SyntaxKind::FirstTypeNode..=SyntaxKind::LastTypeNode).contains(&kind) {
-            return unsupported();
-        }
-        break;
     }
     match &record.data {
         NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => unsupported(),
@@ -117,6 +98,30 @@ pub(crate) fn inference_error(
         }
         _ => expression_error(source, node, None),
     }
+}
+
+/// tsc-port: createEntityInTypeNodeError @6.0.3
+/// tsc-hash: 46c286508f1b29370500f49e1b4c0fa9403c95fcf2448ed7d27c0d9215457d53
+/// tsc-span: _tsc.js:114214-114222
+pub(crate) fn entity_in_type_node_error(
+    source: &SourceFile,
+    node: NodeId,
+) -> Result<Diagnostic, TransformError> {
+    let mut diagnostic = diagnostic_for_source_node(
+        source,
+        node,
+        &d::Type_containing_private_name_0_can_t_be_used_with_isolatedDeclarations,
+        &[text_of_node(source, node)],
+    );
+    add_parent_suggestion(source, node, &mut diagnostic)?;
+    Ok(diagnostic)
+}
+
+pub(crate) fn is_in_heritage_clause(source: &SourceFile, node: NodeId) -> bool {
+    ancestor(source, Some(node), |kind| {
+        kind == SyntaxKind::HeritageClause
+    })
+    .is_some()
 }
 
 fn declaration_error(source: &SourceFile, node: NodeId) -> Result<Diagnostic, TransformError> {
@@ -312,6 +317,7 @@ fn error_message(kind: SyntaxKind) -> Result<&'static DiagnosticMessage, Transfo
     Ok(match kind {
         SyntaxKind::FunctionExpression | SyntaxKind::FunctionDeclaration | SyntaxKind::ArrowFunction => &d::Function_must_have_an_explicit_return_type_annotation_with_isolatedDeclarations,
         SyntaxKind::MethodDeclaration | SyntaxKind::ConstructSignature => &d::Method_must_have_an_explicit_return_type_annotation_with_isolatedDeclarations,
+        SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => &d::At_least_one_accessor_must_have_an_explicit_type_annotation_with_isolatedDeclarations,
         SyntaxKind::Parameter => &d::Parameter_must_have_an_explicit_type_annotation_with_isolatedDeclarations,
         SyntaxKind::VariableDeclaration => &d::Variable_must_have_an_explicit_type_annotation_with_isolatedDeclarations,
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => &d::Property_must_have_an_explicit_type_annotation_with_isolatedDeclarations,
@@ -334,6 +340,8 @@ fn suggestion(kind: SyntaxKind) -> Result<&'static DiagnosticMessage, TransformE
         SyntaxKind::FunctionDeclaration | SyntaxKind::ConstructSignature => {
             &d::Add_a_return_type_to_the_function_declaration
         }
+        SyntaxKind::GetAccessor => &d::Add_a_return_type_to_the_get_accessor_declaration,
+        SyntaxKind::SetAccessor => &d::Add_a_type_to_parameter_of_the_set_accessor_declaration,
         SyntaxKind::Parameter => &d::Add_a_type_annotation_to_the_parameter_0,
         SyntaxKind::VariableDeclaration => &d::Add_a_type_annotation_to_the_variable_0,
         SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {

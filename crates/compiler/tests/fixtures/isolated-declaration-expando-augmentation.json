@@ -1,0 +1,2628 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsExpandoFunctions.ts#enabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+          "text": "export function foo() {}\n\nfoo.apply = () => {}\nfoo.call = ()=> {}\nfoo.bind = ()=> {}\nfoo.caller = ()=> {}\nfoo.toString = ()=> {}\nfoo.length = 10\nfoo.length = 10\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "c5c88b532c942b2f71aeb0774931567b5a85dfbbabb70093c2837f435f76efff",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsExpandoFunctions.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZnVuY3Rpb24gZm9vKCkgeyB9DQpmb28uYXBwbHkgPSAoKSA9PiB7IH07DQpmb28uY2FsbCA9ICgpID0+IHsgfTsNCmZvby5iaW5kID0gKCkgPT4geyB9Ow0KZm9vLmNhbGxlciA9ICgpID0+IHsgfTsNCmZvby50b1N0cmluZyA9ICgpID0+IHsgfTsNCmZvby5sZW5ndGggPSAxMDsNCmZvby5sZW5ndGggPSAxMDsNCg==",
+            "callback_utf8_bytes": 277,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZnVuY3Rpb24gZm9vKCkgeyB9DQpmb28uYXBwbHkgPSAoKSA9PiB7IH07DQpmb28uY2FsbCA9ICgpID0+IHsgfTsNCmZvby5iaW5kID0gKCkgPT4geyB9Ow0KZm9vLmNhbGxlciA9ICgpID0+IHsgfTsNCmZvby50b1N0cmluZyA9ICgpID0+IHsgfTsNCmZvby5sZW5ndGggPSAxMDsNCmZvby5sZW5ndGggPSAxMDsNCg==",
+            "materialized_utf8_bytes": 277,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsExpandoFunctions.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 16,
+            "length": 3,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+                "start": 16,
+                "length": 3,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 26,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 66,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 85,
+            "length": 10,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 106,
+            "length": 12,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 129,
+            "length": 10,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 16,
+              "length": 3,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+                  "start": 16,
+                  "length": 3,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 26,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 66,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 85,
+              "length": 10,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 106,
+              "length": 12,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 129,
+              "length": 10,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsExpandoFunctions.ts#disabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+          "text": "export function foo() {}\n\nfoo.apply = () => {}\nfoo.call = ()=> {}\nfoo.bind = ()=> {}\nfoo.caller = ()=> {}\nfoo.toString = ()=> {}\nfoo.length = 10\nfoo.length = 10\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "c5c88b532c942b2f71aeb0774931567b5a85dfbbabb70093c2837f435f76efff",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsExpandoFunctions.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZnVuY3Rpb24gZm9vKCkgeyB9DQpmb28uYXBwbHkgPSAoKSA9PiB7IH07DQpmb28uY2FsbCA9ICgpID0+IHsgfTsNCmZvby5iaW5kID0gKCkgPT4geyB9Ow0KZm9vLmNhbGxlciA9ICgpID0+IHsgfTsNCmZvby50b1N0cmluZyA9ICgpID0+IHsgfTsNCmZvby5sZW5ndGggPSAxMDsNCmZvby5sZW5ndGggPSAxMDsNCg==",
+            "callback_utf8_bytes": 277,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZnVuY3Rpb24gZm9vKCkgeyB9DQpmb28uYXBwbHkgPSAoKSA9PiB7IH07DQpmb28uY2FsbCA9ICgpID0+IHsgfTsNCmZvby5iaW5kID0gKCkgPT4geyB9Ow0KZm9vLmNhbGxlciA9ICgpID0+IHsgfTsNCmZvby50b1N0cmluZyA9ICgpID0+IHsgfTsNCmZvby5sZW5ndGggPSAxMDsNCmZvby5sZW5ndGggPSAxMDsNCg==",
+            "materialized_utf8_bytes": 277,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsExpandoFunctions.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/isolatedDeclarationErrorsExpandoFunctions.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgZm9vIHsNCiAgICB2YXIgYXBwbHk6ICgpID0+IHZvaWQ7DQogICAgdmFyIGNhbGw6ICgpID0+IHZvaWQ7DQogICAgdmFyIGJpbmQ6ICgpID0+IHZvaWQ7DQogICAgdmFyIGNhbGxlcjogKCkgPT4gdm9pZDsNCiAgICB2YXIgdG9TdHJpbmc6ICgpID0+IHZvaWQ7DQogICAgdmFyIGxlbmd0aDogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 240,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgZm9vIHsNCiAgICB2YXIgYXBwbHk6ICgpID0+IHZvaWQ7DQogICAgdmFyIGNhbGw6ICgpID0+IHZvaWQ7DQogICAgdmFyIGJpbmQ6ICgpID0+IHZvaWQ7DQogICAgdmFyIGNhbGxlcjogKCkgPT4gdm9pZDsNCiAgICB2YXIgdG9TdHJpbmc6ICgpID0+IHZvaWQ7DQogICAgdmFyIGxlbmd0aDogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 240,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsExpandoFunctions.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsExpandoFunctions.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+          "text": "export function foo() {}\n\nfoo.apply = () => {}\nfoo.call = ()=> {}\nfoo.bind = ()=> {}\nfoo.caller = ()=> {}\nfoo.toString = ()=> {}\nfoo.length = 10\nfoo.length = 10\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "c5c88b532c942b2f71aeb0774931567b5a85dfbbabb70093c2837f435f76efff",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 16,
+            "length": 3,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+                "start": 16,
+                "length": 3,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 26,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 66,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 85,
+            "length": 10,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 106,
+            "length": 12,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+            "start": 129,
+            "length": 10,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 16,
+              "length": 3,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+                  "start": 16,
+                  "length": 3,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 26,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 66,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 85,
+              "length": 10,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 106,
+              "length": 12,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsExpandoFunctions.ts",
+              "start": 129,
+              "length": 10,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts#enabled",
+      "files": [
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "callback_utf8_bytes": 347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "materialized_utf8_bytes": 347,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/child1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/child1.ts",
+            "start": 169,
+            "length": 6,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/child1.ts",
+                "start": 169,
+                "length": 6,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9026,
+            "category": "Error",
+            "file": "/project/parent.ts",
+            "start": 0,
+            "length": 34,
+            "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/child1.ts",
+              "start": 169,
+              "length": 6,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/child1.ts",
+                  "start": 169,
+                  "length": 6,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9026,
+              "category": "Error",
+              "file": "/project/parent.ts",
+              "start": 0,
+              "length": 34,
+              "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts#disabled",
+      "files": [
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "callback_utf8_bytes": 347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "materialized_utf8_bytes": 347,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/child1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/child1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "materialized_utf8_bytes": 220,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/child1.ts",
+            "start": 169,
+            "length": 6,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/child1.ts",
+                "start": 169,
+                "length": 6,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9026,
+            "category": "Error",
+            "file": "/project/parent.ts",
+            "start": 0,
+            "length": 34,
+            "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/child1.ts",
+              "start": 169,
+              "length": 6,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/child1.ts",
+                  "start": 169,
+                  "length": 6,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9026,
+              "category": "Error",
+              "file": "/project/parent.ts",
+              "start": 0,
+              "length": 34,
+              "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts-reversed-roots#enabled",
+      "files": [
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        },
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/child1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "callback_utf8_bytes": 347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "materialized_utf8_bytes": 347,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/child1.ts",
+            "start": 169,
+            "length": 6,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/child1.ts",
+                "start": 169,
+                "length": 6,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9026,
+            "category": "Error",
+            "file": "/project/parent.ts",
+            "start": 0,
+            "length": 34,
+            "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/child1.ts",
+              "start": 169,
+              "length": 6,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/child1.ts",
+                  "start": 169,
+                  "length": 6,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9026,
+              "category": "Error",
+              "file": "/project/parent.ts",
+              "start": 0,
+              "length": 34,
+              "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts-reversed-roots#disabled",
+      "files": [
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        },
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/child1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuY2hpbGQxID0gY2hpbGQxOw0KZnVuY3Rpb24gY2hpbGQxKHByb3RvdHlwZSkgew0KICAgIHByb3RvdHlwZS5hZGQgPSAoYSwgYikgPT4gYSArIGI7DQp9DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/child1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "materialized_utf8_bytes": 220,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/child1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "callback_utf8_bytes": 347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUGFyZW50VGhpbmcgPSB2b2lkIDA7DQpjb25zdCBjaGlsZDFfMSA9IHJlcXVpcmUoIi4vY2hpbGQxIik7IC8vIHRoaXMgaW1wb3J0IHNob3VsZCBzdGlsbCBleGlzdCBpbiBzb21lIGZvcm0gaW4gdGhlIG91dHB1dCwgc2luY2UgaXQgYXVnbWVudHMgdGhpcyBtb2R1bGUNCmNsYXNzIFBhcmVudFRoaW5nIHsNCn0NCmV4cG9ydHMuUGFyZW50VGhpbmcgPSBQYXJlbnRUaGluZzsNCigwLCBjaGlsZDFfMS5jaGlsZDEpKFBhcmVudFRoaW5nLnByb3RvdHlwZSk7DQo=",
+            "materialized_utf8_bytes": 347,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsAugmentation.ts-reversed-roots#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/parent.ts",
+          "text": "import { child1 } from './child1'; // this import should still exist in some form in the output, since it augments this module\n\nexport class ParentThing implements ParentThing {}\n\nchild1(ParentThing.prototype);"
+        },
+        {
+          "path": "/project/child1.ts",
+          "text": "import { ParentThing } from './parent';\n\ndeclare module './parent' {\n    interface ParentThing {\n        add: (a: number, b: number) => number;\n    }\n}\n\nexport function child1(prototype: ParentThing) {\n    prototype.add = (a: number, b: number) => a + b;\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "1c37b28e1ab1cfa23752251c994d97cedd8ce1b39922bd5dd7e85ad6fb689d35",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/child1.ts",
+            "start": 169,
+            "length": 6,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/child1.ts",
+                "start": 169,
+                "length": 6,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9026,
+            "category": "Error",
+            "file": "/project/parent.ts",
+            "start": 0,
+            "length": 34,
+            "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/child1.ts",
+              "start": 169,
+              "length": 6,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/child1.ts",
+                  "start": 169,
+                  "length": 6,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9026,
+              "category": "Error",
+              "file": "/project/parent.ts",
+              "start": 0,
+              "length": 34,
+              "message": "Declaration emit for this file requires preserving this import for augmentations. This is not supported with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-property-targets#enabled",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\nexport function named(): void {}\nnamed[\"value\"] = 1;\nnamed.value = 2;\nexport const arrow = (): void => {};\narrow.extra = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/properties.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXJyb3cgPSB2b2lkIDA7DQpleHBvcnRzLm5hbWVkID0gbmFtZWQ7DQpmdW5jdGlvbiBuYW1lZCgpIHsgfQ0KbmFtZWRbInZhbHVlIl0gPSAxOw0KbmFtZWQudmFsdWUgPSAyOw0KY29uc3QgYXJyb3cgPSAoKSA9PiB7IH07DQpleHBvcnRzLmFycm93ID0gYXJyb3c7DQpleHBvcnRzLmFycm93LmV4dHJhID0gMTsNCg==",
+            "callback_utf8_bytes": 265,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXJyb3cgPSB2b2lkIDA7DQpleHBvcnRzLm5hbWVkID0gbmFtZWQ7DQpmdW5jdGlvbiBuYW1lZCgpIHsgfQ0KbmFtZWRbInZhbHVlIl0gPSAxOw0KbmFtZWQudmFsdWUgPSAyOw0KY29uc3QgYXJyb3cgPSAoKSA9PiB7IH07DQpleHBvcnRzLmFycm93ID0gYXJyb3c7DQpleHBvcnRzLmFycm93LmV4dHJhID0gMTsNCg==",
+            "materialized_utf8_bytes": 265,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 34,
+            "length": 14,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 108,
+            "length": 11,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 34,
+              "length": 14,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 108,
+              "length": 11,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-property-targets#disabled",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\nexport function named(): void {}\nnamed[\"value\"] = 1;\nnamed.value = 2;\nexport const arrow = (): void => {};\narrow.extra = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/properties.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXJyb3cgPSB2b2lkIDA7DQpleHBvcnRzLm5hbWVkID0gbmFtZWQ7DQpmdW5jdGlvbiBuYW1lZCgpIHsgfQ0KbmFtZWRbInZhbHVlIl0gPSAxOw0KbmFtZWQudmFsdWUgPSAyOw0KY29uc3QgYXJyb3cgPSAoKSA9PiB7IH07DQpleHBvcnRzLmFycm93ID0gYXJyb3c7DQpleHBvcnRzLmFycm93LmV4dHJhID0gMTsNCg==",
+            "callback_utf8_bytes": 265,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYXJyb3cgPSB2b2lkIDA7DQpleHBvcnRzLm5hbWVkID0gbmFtZWQ7DQpmdW5jdGlvbiBuYW1lZCgpIHsgfQ0KbmFtZWRbInZhbHVlIl0gPSAxOw0KbmFtZWQudmFsdWUgPSAyOw0KY29uc3QgYXJyb3cgPSAoKSA9PiB7IH07DQpleHBvcnRzLmFycm93ID0gYXJyb3c7DQpleHBvcnRzLmFycm93LmV4dHJhID0gMTsNCg==",
+            "materialized_utf8_bytes": 265,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/properties.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gbmFtZWQoKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBuYW1lZCB7DQogICAgdmFyIHZhbHVlOiBudW1iZXI7DQp9DQpleHBvcnQgZGVjbGFyZSBjb25zdCBhcnJvdzogew0KICAgICgpOiB2b2lkOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 171,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gbmFtZWQoKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBuYW1lZCB7DQogICAgdmFyIHZhbHVlOiBudW1iZXI7DQp9DQpleHBvcnQgZGVjbGFyZSBjb25zdCBhcnJvdzogew0KICAgICgpOiB2b2lkOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 171,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/expando-property-targets#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\nexport function named(): void {}\nnamed[\"value\"] = 1;\nnamed.value = 2;\nexport const arrow = (): void => {};\narrow.extra = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 34,
+            "length": 14,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 108,
+            "length": 11,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 34,
+              "length": 14,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 108,
+              "length": 11,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/declared-and-expando-properties#enabled",
+      "files": [
+        {
+          "path": "/project/mixed.ts",
+          "text": "\nexport function declared(): void {}\nexport namespace declared { export let value: number; }\ndeclared.value = 1;\nexport function mixed(): void {}\nexport namespace mixed { export let declared: number; }\nmixed.declared = 1;\nmixed.extra = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/mixed.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZGVjbGFyZWQgPSBkZWNsYXJlZDsNCmV4cG9ydHMubWl4ZWQgPSBtaXhlZDsNCmZ1bmN0aW9uIGRlY2xhcmVkKCkgeyB9DQooZnVuY3Rpb24gKGRlY2xhcmVkKSB7DQp9KShkZWNsYXJlZCB8fCAoZXhwb3J0cy5kZWNsYXJlZCA9IGRlY2xhcmVkID0ge30pKTsNCmRlY2xhcmVkLnZhbHVlID0gMTsNCmZ1bmN0aW9uIG1peGVkKCkgeyB9DQooZnVuY3Rpb24gKG1peGVkKSB7DQp9KShtaXhlZCB8fCAoZXhwb3J0cy5taXhlZCA9IG1peGVkID0ge30pKTsNCm1peGVkLmRlY2xhcmVkID0gMTsNCm1peGVkLmV4dHJhID0gMjsNCg==",
+            "callback_utf8_bytes": 382,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZGVjbGFyZWQgPSBkZWNsYXJlZDsNCmV4cG9ydHMubWl4ZWQgPSBtaXhlZDsNCmZ1bmN0aW9uIGRlY2xhcmVkKCkgeyB9DQooZnVuY3Rpb24gKGRlY2xhcmVkKSB7DQp9KShkZWNsYXJlZCB8fCAoZXhwb3J0cy5kZWNsYXJlZCA9IGRlY2xhcmVkID0ge30pKTsNCmRlY2xhcmVkLnZhbHVlID0gMTsNCmZ1bmN0aW9uIG1peGVkKCkgeyB9DQooZnVuY3Rpb24gKG1peGVkKSB7DQp9KShtaXhlZCB8fCAoZXhwb3J0cy5taXhlZCA9IG1peGVkID0ge30pKTsNCm1peGVkLmRlY2xhcmVkID0gMTsNCm1peGVkLmV4dHJhID0gMjsNCg==",
+            "materialized_utf8_bytes": 382,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/mixed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/mixed.ts",
+            "start": 222,
+            "length": 11,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/mixed.ts",
+              "start": 222,
+              "length": 11,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/declared-and-expando-properties#disabled",
+      "files": [
+        {
+          "path": "/project/mixed.ts",
+          "text": "\nexport function declared(): void {}\nexport namespace declared { export let value: number; }\ndeclared.value = 1;\nexport function mixed(): void {}\nexport namespace mixed { export let declared: number; }\nmixed.declared = 1;\nmixed.extra = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/mixed.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZGVjbGFyZWQgPSBkZWNsYXJlZDsNCmV4cG9ydHMubWl4ZWQgPSBtaXhlZDsNCmZ1bmN0aW9uIGRlY2xhcmVkKCkgeyB9DQooZnVuY3Rpb24gKGRlY2xhcmVkKSB7DQp9KShkZWNsYXJlZCB8fCAoZXhwb3J0cy5kZWNsYXJlZCA9IGRlY2xhcmVkID0ge30pKTsNCmRlY2xhcmVkLnZhbHVlID0gMTsNCmZ1bmN0aW9uIG1peGVkKCkgeyB9DQooZnVuY3Rpb24gKG1peGVkKSB7DQp9KShtaXhlZCB8fCAoZXhwb3J0cy5taXhlZCA9IG1peGVkID0ge30pKTsNCm1peGVkLmRlY2xhcmVkID0gMTsNCm1peGVkLmV4dHJhID0gMjsNCg==",
+            "callback_utf8_bytes": 382,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZGVjbGFyZWQgPSBkZWNsYXJlZDsNCmV4cG9ydHMubWl4ZWQgPSBtaXhlZDsNCmZ1bmN0aW9uIGRlY2xhcmVkKCkgeyB9DQooZnVuY3Rpb24gKGRlY2xhcmVkKSB7DQp9KShkZWNsYXJlZCB8fCAoZXhwb3J0cy5kZWNsYXJlZCA9IGRlY2xhcmVkID0ge30pKTsNCmRlY2xhcmVkLnZhbHVlID0gMTsNCmZ1bmN0aW9uIG1peGVkKCkgeyB9DQooZnVuY3Rpb24gKG1peGVkKSB7DQp9KShtaXhlZCB8fCAoZXhwb3J0cy5taXhlZCA9IG1peGVkID0ge30pKTsNCm1peGVkLmRlY2xhcmVkID0gMTsNCm1peGVkLmV4dHJhID0gMjsNCg==",
+            "materialized_utf8_bytes": 382,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/mixed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/mixed.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZGVjbGFyZWQoKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBkZWNsYXJlZCB7DQogICAgbGV0IHZhbHVlOiBudW1iZXI7DQp9DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBtaXhlZCgpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIG1peGVkIHsNCiAgICB2YXIgZXh0cmE6IG51bWJlcjsNCn0NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtaXhlZCB7DQogICAgbGV0IGRlY2xhcmVkOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 272,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZGVjbGFyZWQoKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBkZWNsYXJlZCB7DQogICAgbGV0IHZhbHVlOiBudW1iZXI7DQp9DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBtaXhlZCgpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIG1peGVkIHsNCiAgICB2YXIgZXh0cmE6IG51bWJlcjsNCn0NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtaXhlZCB7DQogICAgbGV0IGRlY2xhcmVkOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 272,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/mixed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/declared-and-expando-properties#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/mixed.ts",
+          "text": "\nexport function declared(): void {}\nexport namespace declared { export let value: number; }\ndeclared.value = 1;\nexport function mixed(): void {}\nexport namespace mixed { export let declared: number; }\nmixed.declared = 1;\nmixed.extra = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/mixed.ts",
+            "start": 222,
+            "length": 11,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/mixed.ts",
+              "start": 222,
+              "length": 11,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-true#enabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "callback_utf8_bytes": 162,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "materialized_utf8_bytes": 162,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 61,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 61,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-true#disabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "callback_utf8_bytes": 162,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "materialized_utf8_bytes": 162,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIGYgew0KICAgIHZhciBoaWRkZW46IG51bWJlcjsNCiAgICB2YXIgdmlzaWJsZTogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIGYgew0KICAgIHZhciBoaWRkZW46IG51bWJlcjsNCiAgICB2YXIgdmlzaWJsZTogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-true#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 61,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 61,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-false#enabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "callback_utf8_bytes": 162,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "materialized_utf8_bytes": 162,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 61,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 61,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-false#disabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "callback_utf8_bytes": 162,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpmdW5jdGlvbiBmKCkgeyB9DQovKiogQGludGVybmFsICovDQpmLmhpZGRlbiA9IDE7DQpmLnZpc2libGUgPSAyOw0K",
+            "materialized_utf8_bytes": 162,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIGYgew0KICAgIHZhciBoaWRkZW46IG51bWJlcjsNCiAgICB2YXIgdmlzaWJsZTogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIGYgew0KICAgIHZhciBoaWRkZW46IG51bWJlcjsNCiAgICB2YXIgdmlzaWJsZTogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/expando-internal-property-false#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nexport function f(): void {}\n/** @internal */\nf.hidden = 1;\nf.visible = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 47,
+            "length": 8,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          },
+          {
+            "code": 9023,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 61,
+            "length": 9,
+            "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 47,
+              "length": 8,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            },
+            {
+              "code": 9023,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 61,
+              "length": 9,
+              "message": "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/erased-import#enabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { value } from './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/erased-import#disabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { value } from './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/erased-import#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import { value } from './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgcDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/explicit-side-effect-import#enabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 137,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 137,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 52,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 52,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/explicit-side-effect-import#disabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 137,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 137,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 52,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 52,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/explicit-side-effect-import#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/parent.ts",
+          "text": "import './value'; export const p: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parent.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "callback_utf8_bytes": 137,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucCA9IHZvaWQgMDsNCnJlcXVpcmUoIi4vdmFsdWUiKTsNCmV4cG9ydHMucCA9IDE7DQo=",
+            "materialized_utf8_bytes": 137,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 52,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICcuL3ZhbHVlJzsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHA6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 52,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parent.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

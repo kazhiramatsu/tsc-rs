@@ -88,3 +88,18 @@ mod h2_7c_isolated_inference;
 
 #[path = "integration/h2_7c_isolated_parameters.rs"]
 mod h2_7c_isolated_parameters;
+
+#[path = "integration/h2_7c_isolated_accessors.rs"]
+mod h2_7c_isolated_accessors;
+
+#[path = "integration/h2_7c_isolated_enums.rs"]
+mod h2_7c_isolated_enums;
+
+#[path = "integration/h2_7c_isolated_expando_augmentation.rs"]
+mod h2_7c_isolated_expando_augmentation;
+
+#[path = "integration/h2_7c_isolated_private_types.rs"]
+mod h2_7c_isolated_private_types;
+
+#[path = "integration/h2_7c_declaration_dir.rs"]
+mod h2_7c_declaration_dir;

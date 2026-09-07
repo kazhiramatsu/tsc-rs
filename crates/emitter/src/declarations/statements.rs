@@ -323,11 +323,6 @@ fn transform_top_level_declaration_worker(
                     transformer.required_resolver_node(context, input)?,
                 )?;
                 if is_expando && should_emit_function_properties(transformer, context, input)? {
-                    if transformer.options.isolated_declarations == Some(true) {
-                        transformer.tracker.report_expando_function_errors();
-                        let effects = transformer.tracker.take_pending_effects();
-                        materialize_effects(context, transformer.host, effects)?;
-                    }
                     // tsc-port: transformTopLevelDeclaration returns the complete
                     // expando replacement; the helper already includes the cleaned
                     // function when default-export lowering needs one
@@ -692,18 +687,23 @@ fn transform_top_level_declaration_worker(
                         SyntaxKind::EnumMember,
                         "name",
                     )?;
-                    // Isolated enum diagnostics need the resolver's external-
-                    // reference flag, which this packet does not expose yet.
-                    if transformer.options.isolated_declarations == Some(true)
-                        && member_data.initializer.is_some()
-                    {
-                        return Err(TransformError::Unsupported(
-                            crate::UnsupportedEmitFeature::IsolatedDeclarations,
-                        ));
-                    }
                     let value = transformer.resolver.get_enum_member_value(
                         transformer.required_resolver_node(context, member)?,
                     )?;
+                    if transformer.options.isolated_declarations == Some(true)
+                        && member_data.initializer.is_some()
+                        && value
+                            .as_ref()
+                            .is_some_and(crate::EmitEnumMemberValue::has_external_references)
+                        && context.arena().node(name)?.kind != SyntaxKind::ComputedPropertyName
+                    {
+                        transformer.tracker.report_diagnostic_at(
+                            super::tracker::TrackerAnchor::Transform(member),
+                            &tsc_diagnostics::gen::Enum_member_initializers_must_be_computable_without_references_to_external_symbols_with_isolatedDeclarations,
+                        );
+                        let effects = transformer.tracker.take_pending_effects();
+                        materialize_effects(context, transformer.host, effects)?;
+                    }
                     let initializer = value
                         .as_ref()
                         .and_then(crate::EmitEnumMemberValue::value)
@@ -1666,9 +1666,12 @@ pub(crate) fn transform_import_declaration(
                     return Ok(VisitResult::None);
                 }
                 if transformer.options.isolated_declarations == Some(true) {
-                    return Err(TransformError::Unsupported(
-                        crate::UnsupportedEmitFeature::IsolatedDeclarations,
-                    ));
+                    transformer.tracker.report_diagnostic_at(
+                        super::tracker::TrackerAnchor::Transform(declaration),
+                        &tsc_diagnostics::gen::Declaration_emit_for_this_file_requires_preserving_this_import_for_augmentations_This_is_not_supported_with_isolatedDeclarations,
+                    );
+                    let effects = transformer.tracker.take_pending_effects();
+                    materialize_effects(context, transformer.host, effects)?;
                 }
                 let module_specifier = rewrite_module_specifier(
                     transformer,
@@ -1852,6 +1855,18 @@ fn expando_declaration_arm(
     let properties = transformer
         .resolver
         .get_properties_of_container_function(resolver_node)?;
+    if transformer.options.isolated_declarations == Some(true) {
+        // reportExpandoFunctionErrors performs its own query after the
+        // transform's initial property query (_tsc.js:115400-115402).
+        let diagnostic_properties = transformer
+            .resolver
+            .get_properties_of_container_function(resolver_node)?;
+        transformer
+            .tracker
+            .report_expando_function_errors(&diagnostic_properties);
+        let effects = transformer.tracker.take_pending_effects();
+        materialize_effects(context, transformer.host, effects)?;
+    }
     let had_properties = !properties.is_empty();
     let enclosing_resolver = transformer
         .state()?

@@ -1,0 +1,1757 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsEnums.ts#enabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsEnums.ts",
+          "text": "declare function computed(x: number): number;\n\nenum E {\n    A = computed(0),\n    B = computed(1),\n    C = computed(2),\n    D = computed(3),\n}\n\n\nenum F {\n    A = E.A,\n    B = A,\n}\n\n\nenum Flag {\n    A = 1 >> 1,\n    B = 2 >> 2,\n    C = 3 >> 2,\n    AB = A | B,\n    ABC = Flag.AB | C,\n    AC = Flag[\"A\"] | C,\n}\n\nconst EV = 1;\nenum ExtFlags {\n    D = 4 >> 1,\n    E = EV,\n    ABCD = Flag.ABC | D,\n    AC = Flag[\"A\"] | D,\n}\n\n\nenum Str {\n    A = \"A\",\n    B = \"B\",\n    AB = A + B\n}\n\n\nenum StrExt {\n    D = \"D\",\n    ABD = Str.AB + D,\n    AD = Str[\"A\"] + D,\n}"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "4a5be44eb87e79733b1670d8b4c787612593d435662649fc6219f7ce5c39ed6a",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsEnums.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIkEiXSA9IGNvbXB1dGVkKDApXSA9ICJBIjsNCiAgICBFW0VbIkIiXSA9IGNvbXB1dGVkKDEpXSA9ICJCIjsNCiAgICBFW0VbIkMiXSA9IGNvbXB1dGVkKDIpXSA9ICJDIjsNCiAgICBFW0VbIkQiXSA9IGNvbXB1dGVkKDMpXSA9ICJEIjsNCn0pKEUgfHwgKEUgPSB7fSkpOw0KdmFyIEY7DQooZnVuY3Rpb24gKEYpIHsNCiAgICBGW0ZbIkEiXSA9IEUuQV0gPSAiQSI7DQogICAgRltGWyJCIl0gPSBGLkFdID0gIkIiOw0KfSkoRiB8fCAoRiA9IHt9KSk7DQp2YXIgRmxhZzsNCihmdW5jdGlvbiAoRmxhZykgew0KICAgIEZsYWdbRmxhZ1siQSJdID0gMF0gPSAiQSI7DQogICAgRmxhZ1tGbGFnWyJCIl0gPSAwXSA9ICJCIjsNCiAgICBGbGFnW0ZsYWdbIkMiXSA9IDBdID0gIkMiOw0KICAgIEZsYWdbRmxhZ1siQUIiXSA9IDBdID0gIkFCIjsNCiAgICBGbGFnW0ZsYWdbIkFCQyJdID0gMF0gPSAiQUJDIjsNCiAgICBGbGFnW0ZsYWdbIkFDIl0gPSAwXSA9ICJBQyI7DQp9KShGbGFnIHx8IChGbGFnID0ge30pKTsNCmNvbnN0IEVWID0gMTsNCnZhciBFeHRGbGFnczsNCihmdW5jdGlvbiAoRXh0RmxhZ3MpIHsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siRCJdID0gMl0gPSAiRCI7DQogICAgRXh0RmxhZ3NbRXh0RmxhZ3NbIkUiXSA9IDFdID0gIkUiOw0KICAgIEV4dEZsYWdzW0V4dEZsYWdzWyJBQkNEIl0gPSAyXSA9ICJBQkNEIjsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siQUMiXSA9IDJdID0gIkFDIjsNCn0pKEV4dEZsYWdzIHx8IChFeHRGbGFncyA9IHt9KSk7DQp2YXIgU3RyOw0KKGZ1bmN0aW9uIChTdHIpIHsNCiAgICBTdHJbIkEiXSA9ICJBIjsNCiAgICBTdHJbIkIiXSA9ICJCIjsNCiAgICBTdHJbIkFCIl0gPSAiQUIiOw0KfSkoU3RyIHx8IChTdHIgPSB7fSkpOw0KdmFyIFN0ckV4dDsNCihmdW5jdGlvbiAoU3RyRXh0KSB7DQogICAgU3RyRXh0WyJEIl0gPSAiRCI7DQogICAgU3RyRXh0WyJBQkQiXSA9ICJBQkQiOw0KICAgIFN0ckV4dFsiQUQiXSA9ICJBRCI7DQp9KShTdHJFeHQgfHwgKFN0ckV4dCA9IHt9KSk7DQo=",
+            "callback_utf8_bytes": 1079,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIkEiXSA9IGNvbXB1dGVkKDApXSA9ICJBIjsNCiAgICBFW0VbIkIiXSA9IGNvbXB1dGVkKDEpXSA9ICJCIjsNCiAgICBFW0VbIkMiXSA9IGNvbXB1dGVkKDIpXSA9ICJDIjsNCiAgICBFW0VbIkQiXSA9IGNvbXB1dGVkKDMpXSA9ICJEIjsNCn0pKEUgfHwgKEUgPSB7fSkpOw0KdmFyIEY7DQooZnVuY3Rpb24gKEYpIHsNCiAgICBGW0ZbIkEiXSA9IEUuQV0gPSAiQSI7DQogICAgRltGWyJCIl0gPSBGLkFdID0gIkIiOw0KfSkoRiB8fCAoRiA9IHt9KSk7DQp2YXIgRmxhZzsNCihmdW5jdGlvbiAoRmxhZykgew0KICAgIEZsYWdbRmxhZ1siQSJdID0gMF0gPSAiQSI7DQogICAgRmxhZ1tGbGFnWyJCIl0gPSAwXSA9ICJCIjsNCiAgICBGbGFnW0ZsYWdbIkMiXSA9IDBdID0gIkMiOw0KICAgIEZsYWdbRmxhZ1siQUIiXSA9IDBdID0gIkFCIjsNCiAgICBGbGFnW0ZsYWdbIkFCQyJdID0gMF0gPSAiQUJDIjsNCiAgICBGbGFnW0ZsYWdbIkFDIl0gPSAwXSA9ICJBQyI7DQp9KShGbGFnIHx8IChGbGFnID0ge30pKTsNCmNvbnN0IEVWID0gMTsNCnZhciBFeHRGbGFnczsNCihmdW5jdGlvbiAoRXh0RmxhZ3MpIHsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siRCJdID0gMl0gPSAiRCI7DQogICAgRXh0RmxhZ3NbRXh0RmxhZ3NbIkUiXSA9IDFdID0gIkUiOw0KICAgIEV4dEZsYWdzW0V4dEZsYWdzWyJBQkNEIl0gPSAyXSA9ICJBQkNEIjsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siQUMiXSA9IDJdID0gIkFDIjsNCn0pKEV4dEZsYWdzIHx8IChFeHRGbGFncyA9IHt9KSk7DQp2YXIgU3RyOw0KKGZ1bmN0aW9uIChTdHIpIHsNCiAgICBTdHJbIkEiXSA9ICJBIjsNCiAgICBTdHJbIkIiXSA9ICJCIjsNCiAgICBTdHJbIkFCIl0gPSAiQUIiOw0KfSkoU3RyIHx8IChTdHIgPSB7fSkpOw0KdmFyIFN0ckV4dDsNCihmdW5jdGlvbiAoU3RyRXh0KSB7DQogICAgU3RyRXh0WyJEIl0gPSAiRCI7DQogICAgU3RyRXh0WyJBQkQiXSA9ICJBQkQiOw0KICAgIFN0ckV4dFsiQUQiXSA9ICJBRCI7DQp9KShTdHJFeHQgfHwgKFN0ckV4dCA9IHt9KSk7DQo=",
+            "materialized_utf8_bytes": 1079,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsEnums.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 157,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 170,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 357,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 369,
+            "length": 4,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 394,
+            "length": 2,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 505,
+            "length": 3,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 527,
+            "length": 2,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 157,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 170,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 357,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 369,
+              "length": 4,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 394,
+              "length": 2,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 505,
+              "length": 3,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 527,
+              "length": 2,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsEnums.ts#disabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsEnums.ts",
+          "text": "declare function computed(x: number): number;\n\nenum E {\n    A = computed(0),\n    B = computed(1),\n    C = computed(2),\n    D = computed(3),\n}\n\n\nenum F {\n    A = E.A,\n    B = A,\n}\n\n\nenum Flag {\n    A = 1 >> 1,\n    B = 2 >> 2,\n    C = 3 >> 2,\n    AB = A | B,\n    ABC = Flag.AB | C,\n    AC = Flag[\"A\"] | C,\n}\n\nconst EV = 1;\nenum ExtFlags {\n    D = 4 >> 1,\n    E = EV,\n    ABCD = Flag.ABC | D,\n    AC = Flag[\"A\"] | D,\n}\n\n\nenum Str {\n    A = \"A\",\n    B = \"B\",\n    AB = A + B\n}\n\n\nenum StrExt {\n    D = \"D\",\n    ABD = Str.AB + D,\n    AD = Str[\"A\"] + D,\n}"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "4a5be44eb87e79733b1670d8b4c787612593d435662649fc6219f7ce5c39ed6a",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsEnums.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIkEiXSA9IGNvbXB1dGVkKDApXSA9ICJBIjsNCiAgICBFW0VbIkIiXSA9IGNvbXB1dGVkKDEpXSA9ICJCIjsNCiAgICBFW0VbIkMiXSA9IGNvbXB1dGVkKDIpXSA9ICJDIjsNCiAgICBFW0VbIkQiXSA9IGNvbXB1dGVkKDMpXSA9ICJEIjsNCn0pKEUgfHwgKEUgPSB7fSkpOw0KdmFyIEY7DQooZnVuY3Rpb24gKEYpIHsNCiAgICBGW0ZbIkEiXSA9IEUuQV0gPSAiQSI7DQogICAgRltGWyJCIl0gPSBGLkFdID0gIkIiOw0KfSkoRiB8fCAoRiA9IHt9KSk7DQp2YXIgRmxhZzsNCihmdW5jdGlvbiAoRmxhZykgew0KICAgIEZsYWdbRmxhZ1siQSJdID0gMF0gPSAiQSI7DQogICAgRmxhZ1tGbGFnWyJCIl0gPSAwXSA9ICJCIjsNCiAgICBGbGFnW0ZsYWdbIkMiXSA9IDBdID0gIkMiOw0KICAgIEZsYWdbRmxhZ1siQUIiXSA9IDBdID0gIkFCIjsNCiAgICBGbGFnW0ZsYWdbIkFCQyJdID0gMF0gPSAiQUJDIjsNCiAgICBGbGFnW0ZsYWdbIkFDIl0gPSAwXSA9ICJBQyI7DQp9KShGbGFnIHx8IChGbGFnID0ge30pKTsNCmNvbnN0IEVWID0gMTsNCnZhciBFeHRGbGFnczsNCihmdW5jdGlvbiAoRXh0RmxhZ3MpIHsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siRCJdID0gMl0gPSAiRCI7DQogICAgRXh0RmxhZ3NbRXh0RmxhZ3NbIkUiXSA9IDFdID0gIkUiOw0KICAgIEV4dEZsYWdzW0V4dEZsYWdzWyJBQkNEIl0gPSAyXSA9ICJBQkNEIjsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siQUMiXSA9IDJdID0gIkFDIjsNCn0pKEV4dEZsYWdzIHx8IChFeHRGbGFncyA9IHt9KSk7DQp2YXIgU3RyOw0KKGZ1bmN0aW9uIChTdHIpIHsNCiAgICBTdHJbIkEiXSA9ICJBIjsNCiAgICBTdHJbIkIiXSA9ICJCIjsNCiAgICBTdHJbIkFCIl0gPSAiQUIiOw0KfSkoU3RyIHx8IChTdHIgPSB7fSkpOw0KdmFyIFN0ckV4dDsNCihmdW5jdGlvbiAoU3RyRXh0KSB7DQogICAgU3RyRXh0WyJEIl0gPSAiRCI7DQogICAgU3RyRXh0WyJBQkQiXSA9ICJBQkQiOw0KICAgIFN0ckV4dFsiQUQiXSA9ICJBRCI7DQp9KShTdHJFeHQgfHwgKFN0ckV4dCA9IHt9KSk7DQo=",
+            "callback_utf8_bytes": 1079,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIkEiXSA9IGNvbXB1dGVkKDApXSA9ICJBIjsNCiAgICBFW0VbIkIiXSA9IGNvbXB1dGVkKDEpXSA9ICJCIjsNCiAgICBFW0VbIkMiXSA9IGNvbXB1dGVkKDIpXSA9ICJDIjsNCiAgICBFW0VbIkQiXSA9IGNvbXB1dGVkKDMpXSA9ICJEIjsNCn0pKEUgfHwgKEUgPSB7fSkpOw0KdmFyIEY7DQooZnVuY3Rpb24gKEYpIHsNCiAgICBGW0ZbIkEiXSA9IEUuQV0gPSAiQSI7DQogICAgRltGWyJCIl0gPSBGLkFdID0gIkIiOw0KfSkoRiB8fCAoRiA9IHt9KSk7DQp2YXIgRmxhZzsNCihmdW5jdGlvbiAoRmxhZykgew0KICAgIEZsYWdbRmxhZ1siQSJdID0gMF0gPSAiQSI7DQogICAgRmxhZ1tGbGFnWyJCIl0gPSAwXSA9ICJCIjsNCiAgICBGbGFnW0ZsYWdbIkMiXSA9IDBdID0gIkMiOw0KICAgIEZsYWdbRmxhZ1siQUIiXSA9IDBdID0gIkFCIjsNCiAgICBGbGFnW0ZsYWdbIkFCQyJdID0gMF0gPSAiQUJDIjsNCiAgICBGbGFnW0ZsYWdbIkFDIl0gPSAwXSA9ICJBQyI7DQp9KShGbGFnIHx8IChGbGFnID0ge30pKTsNCmNvbnN0IEVWID0gMTsNCnZhciBFeHRGbGFnczsNCihmdW5jdGlvbiAoRXh0RmxhZ3MpIHsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siRCJdID0gMl0gPSAiRCI7DQogICAgRXh0RmxhZ3NbRXh0RmxhZ3NbIkUiXSA9IDFdID0gIkUiOw0KICAgIEV4dEZsYWdzW0V4dEZsYWdzWyJBQkNEIl0gPSAyXSA9ICJBQkNEIjsNCiAgICBFeHRGbGFnc1tFeHRGbGFnc1siQUMiXSA9IDJdID0gIkFDIjsNCn0pKEV4dEZsYWdzIHx8IChFeHRGbGFncyA9IHt9KSk7DQp2YXIgU3RyOw0KKGZ1bmN0aW9uIChTdHIpIHsNCiAgICBTdHJbIkEiXSA9ICJBIjsNCiAgICBTdHJbIkIiXSA9ICJCIjsNCiAgICBTdHJbIkFCIl0gPSAiQUIiOw0KfSkoU3RyIHx8IChTdHIgPSB7fSkpOw0KdmFyIFN0ckV4dDsNCihmdW5jdGlvbiAoU3RyRXh0KSB7DQogICAgU3RyRXh0WyJEIl0gPSAiRCI7DQogICAgU3RyRXh0WyJBQkQiXSA9ICJBQkQiOw0KICAgIFN0ckV4dFsiQUQiXSA9ICJBRCI7DQp9KShTdHJFeHQgfHwgKFN0ckV4dCA9IHt9KSk7DQo=",
+            "materialized_utf8_bytes": 1079,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsEnums.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/isolatedDeclarationErrorsEnums.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBjb21wdXRlZCh4OiBudW1iZXIpOiBudW1iZXI7DQpkZWNsYXJlIGVudW0gRSB7DQogICAgQSwNCiAgICBCLA0KICAgIEMsDQogICAgRA0KfQ0KZGVjbGFyZSBlbnVtIEYgew0KICAgIEEsDQogICAgQg0KfQ0KZGVjbGFyZSBlbnVtIEZsYWcgew0KICAgIEEgPSAwLA0KICAgIEIgPSAwLA0KICAgIEMgPSAwLA0KICAgIEFCID0gMCwNCiAgICBBQkMgPSAwLA0KICAgIEFDID0gMA0KfQ0KZGVjbGFyZSBjb25zdCBFViA9IDE7DQpkZWNsYXJlIGVudW0gRXh0RmxhZ3Mgew0KICAgIEQgPSAyLA0KICAgIEUgPSAxLA0KICAgIEFCQ0QgPSAyLA0KICAgIEFDID0gMg0KfQ0KZGVjbGFyZSBlbnVtIFN0ciB7DQogICAgQSA9ICJBIiwNCiAgICBCID0gIkIiLA0KICAgIEFCID0gIkFCIg0KfQ0KZGVjbGFyZSBlbnVtIFN0ckV4dCB7DQogICAgRCA9ICJEIiwNCiAgICBBQkQgPSAiQUJEIiwNCiAgICBBRCA9ICJBRCINCn0NCg==",
+            "callback_utf8_bytes": 475,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBjb21wdXRlZCh4OiBudW1iZXIpOiBudW1iZXI7DQpkZWNsYXJlIGVudW0gRSB7DQogICAgQSwNCiAgICBCLA0KICAgIEMsDQogICAgRA0KfQ0KZGVjbGFyZSBlbnVtIEYgew0KICAgIEEsDQogICAgQg0KfQ0KZGVjbGFyZSBlbnVtIEZsYWcgew0KICAgIEEgPSAwLA0KICAgIEIgPSAwLA0KICAgIEMgPSAwLA0KICAgIEFCID0gMCwNCiAgICBBQkMgPSAwLA0KICAgIEFDID0gMA0KfQ0KZGVjbGFyZSBjb25zdCBFViA9IDE7DQpkZWNsYXJlIGVudW0gRXh0RmxhZ3Mgew0KICAgIEQgPSAyLA0KICAgIEUgPSAxLA0KICAgIEFCQ0QgPSAyLA0KICAgIEFDID0gMg0KfQ0KZGVjbGFyZSBlbnVtIFN0ciB7DQogICAgQSA9ICJBIiwNCiAgICBCID0gIkIiLA0KICAgIEFCID0gIkFCIg0KfQ0KZGVjbGFyZSBlbnVtIFN0ckV4dCB7DQogICAgRCA9ICJEIiwNCiAgICBBQkQgPSAiQUJEIiwNCiAgICBBRCA9ICJBRCINCn0NCg==",
+            "materialized_utf8_bytes": 475,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsEnums.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsEnums.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsEnums.ts",
+          "text": "declare function computed(x: number): number;\n\nenum E {\n    A = computed(0),\n    B = computed(1),\n    C = computed(2),\n    D = computed(3),\n}\n\n\nenum F {\n    A = E.A,\n    B = A,\n}\n\n\nenum Flag {\n    A = 1 >> 1,\n    B = 2 >> 2,\n    C = 3 >> 2,\n    AB = A | B,\n    ABC = Flag.AB | C,\n    AC = Flag[\"A\"] | C,\n}\n\nconst EV = 1;\nenum ExtFlags {\n    D = 4 >> 1,\n    E = EV,\n    ABCD = Flag.ABC | D,\n    AC = Flag[\"A\"] | D,\n}\n\n\nenum Str {\n    A = \"A\",\n    B = \"B\",\n    AB = A + B\n}\n\n\nenum StrExt {\n    D = \"D\",\n    ABD = Str.AB + D,\n    AD = Str[\"A\"] + D,\n}"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "4a5be44eb87e79733b1670d8b4c787612593d435662649fc6219f7ce5c39ed6a",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 157,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 170,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 357,
+            "length": 1,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 369,
+            "length": 4,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 394,
+            "length": 2,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 505,
+            "length": 3,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsEnums.ts",
+            "start": 527,
+            "length": 2,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 157,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 170,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 357,
+              "length": 1,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 369,
+              "length": 4,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 394,
+              "length": 2,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 505,
+              "length": 3,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsEnums.ts",
+              "start": 527,
+              "length": 2,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-local-values#enabled",
+      "files": [
+        {
+          "path": "/project/values.ts",
+          "text": "\nexport enum Numbers { Zero, One = 1, Minus = -1, Combination = One | Zero, Next }\nexport enum Strings { A = \"a\", B = \"b\", AB = A + B }\nexport const enum Const { A = 1, B = A << 1 }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/values.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 610,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 610,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/values.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 254,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-local-values#disabled",
+      "files": [
+        {
+          "path": "/project/values.ts",
+          "text": "\nexport enum Numbers { Zero, One = 1, Minus = -1, Combination = One | Zero, Next }\nexport enum Strings { A = \"a\", B = \"b\", AB = A + B }\nexport const enum Const { A = 1, B = A << 1 }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/values.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 610,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 610,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/values.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 254,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-local-values#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/values.ts",
+          "text": "\nexport enum Numbers { Zero, One = 1, Minus = -1, Combination = One | Zero, Next }\nexport enum Strings { A = \"a\", B = \"b\", AB = A + B }\nexport const enum Const { A = 1, B = A << 1 }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/values.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 610,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuU3RyaW5ncyA9IGV4cG9ydHMuTnVtYmVycyA9IHZvaWQgMDsNCnZhciBOdW1iZXJzOw0KKGZ1bmN0aW9uIChOdW1iZXJzKSB7DQogICAgTnVtYmVyc1tOdW1iZXJzWyJaZXJvIl0gPSAwXSA9ICJaZXJvIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk9uZSJdID0gMV0gPSAiT25lIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk1pbnVzIl0gPSAtMV0gPSAiTWludXMiOw0KICAgIE51bWJlcnNbTnVtYmVyc1siQ29tYmluYXRpb24iXSA9IDFdID0gIkNvbWJpbmF0aW9uIjsNCiAgICBOdW1iZXJzW051bWJlcnNbIk5leHQiXSA9IDJdID0gIk5leHQiOw0KfSkoTnVtYmVycyB8fCAoZXhwb3J0cy5OdW1iZXJzID0gTnVtYmVycyA9IHt9KSk7DQp2YXIgU3RyaW5nczsNCihmdW5jdGlvbiAoU3RyaW5ncykgew0KICAgIFN0cmluZ3NbIkEiXSA9ICJhIjsNCiAgICBTdHJpbmdzWyJCIl0gPSAiYiI7DQogICAgU3RyaW5nc1siQUIiXSA9ICJhYiI7DQp9KShTdHJpbmdzIHx8IChleHBvcnRzLlN0cmluZ3MgPSBTdHJpbmdzID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 610,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/values.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBOdW1iZXJzIHsNCiAgICBaZXJvID0gMCwNCiAgICBPbmUgPSAxLA0KICAgIE1pbnVzID0gLTEsDQogICAgQ29tYmluYXRpb24gPSAxLA0KICAgIE5leHQgPSAyDQp9DQpleHBvcnQgZGVjbGFyZSBlbnVtIFN0cmluZ3Mgew0KICAgIEEgPSAiYSIsDQogICAgQiA9ICJiIiwNCiAgICBBQiA9ICJhYiINCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGVudW0gQ29uc3Qgew0KICAgIEEgPSAxLA0KICAgIEIgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 254,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/values.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-external-values#enabled",
+      "files": [
+        {
+          "path": "/project/external.ts",
+          "text": "\nconst value = 1;\ndeclare function computed(): number;\nexport enum E { Own = 1, Local = Own + 1, External = value, Unknown = computed() }\nexport enum F { Other = E.Own, Bracket = E[\"Own\"] }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRiA9IGV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgRVtFWyJPd24iXSA9IDFdID0gIk93biI7DQogICAgRVtFWyJMb2NhbCJdID0gMl0gPSAiTG9jYWwiOw0KICAgIEVbRVsiRXh0ZXJuYWwiXSA9IDFdID0gIkV4dGVybmFsIjsNCiAgICBFW0VbIlVua25vd24iXSA9IGNvbXB1dGVkKCldID0gIlVua25vd24iOw0KfSkoRSB8fCAoZXhwb3J0cy5FID0gRSA9IHt9KSk7DQp2YXIgRjsNCihmdW5jdGlvbiAoRikgew0KICAgIEZbRlsiT3RoZXIiXSA9IDFdID0gIk90aGVyIjsNCiAgICBGW0ZbIkJyYWNrZXQiXSA9IDFdID0gIkJyYWNrZXQiOw0KfSkoRiB8fCAoZXhwb3J0cy5GID0gRiA9IHt9KSk7DQo=",
+            "callback_utf8_bytes": 467,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRiA9IGV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgRVtFWyJPd24iXSA9IDFdID0gIk93biI7DQogICAgRVtFWyJMb2NhbCJdID0gMl0gPSAiTG9jYWwiOw0KICAgIEVbRVsiRXh0ZXJuYWwiXSA9IDFdID0gIkV4dGVybmFsIjsNCiAgICBFW0VbIlVua25vd24iXSA9IGNvbXB1dGVkKCldID0gIlVua25vd24iOw0KfSkoRSB8fCAoZXhwb3J0cy5FID0gRSA9IHt9KSk7DQp2YXIgRjsNCihmdW5jdGlvbiAoRikgew0KICAgIEZbRlsiT3RoZXIiXSA9IDFdID0gIk90aGVyIjsNCiAgICBGW0ZbIkJyYWNrZXQiXSA9IDFdID0gIkJyYWNrZXQiOw0KfSkoRiB8fCAoZXhwb3J0cy5GID0gRiA9IHt9KSk7DQo=",
+            "materialized_utf8_bytes": 467,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 97,
+            "length": 8,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 154,
+            "length": 5,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 169,
+            "length": 7,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 97,
+              "length": 8,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 154,
+              "length": 5,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 169,
+              "length": 7,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-external-values#disabled",
+      "files": [
+        {
+          "path": "/project/external.ts",
+          "text": "\nconst value = 1;\ndeclare function computed(): number;\nexport enum E { Own = 1, Local = Own + 1, External = value, Unknown = computed() }\nexport enum F { Other = E.Own, Bracket = E[\"Own\"] }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRiA9IGV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgRVtFWyJPd24iXSA9IDFdID0gIk93biI7DQogICAgRVtFWyJMb2NhbCJdID0gMl0gPSAiTG9jYWwiOw0KICAgIEVbRVsiRXh0ZXJuYWwiXSA9IDFdID0gIkV4dGVybmFsIjsNCiAgICBFW0VbIlVua25vd24iXSA9IGNvbXB1dGVkKCldID0gIlVua25vd24iOw0KfSkoRSB8fCAoZXhwb3J0cy5FID0gRSA9IHt9KSk7DQp2YXIgRjsNCihmdW5jdGlvbiAoRikgew0KICAgIEZbRlsiT3RoZXIiXSA9IDFdID0gIk90aGVyIjsNCiAgICBGW0ZbIkJyYWNrZXQiXSA9IDFdID0gIkJyYWNrZXQiOw0KfSkoRiB8fCAoZXhwb3J0cy5GID0gRiA9IHt9KSk7DQo=",
+            "callback_utf8_bytes": 467,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRiA9IGV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgRVtFWyJPd24iXSA9IDFdID0gIk93biI7DQogICAgRVtFWyJMb2NhbCJdID0gMl0gPSAiTG9jYWwiOw0KICAgIEVbRVsiRXh0ZXJuYWwiXSA9IDFdID0gIkV4dGVybmFsIjsNCiAgICBFW0VbIlVua25vd24iXSA9IGNvbXB1dGVkKCldID0gIlVua25vd24iOw0KfSkoRSB8fCAoZXhwb3J0cy5FID0gRSA9IHt9KSk7DQp2YXIgRjsNCihmdW5jdGlvbiAoRikgew0KICAgIEZbRlsiT3RoZXIiXSA9IDFdID0gIk90aGVyIjsNCiAgICBGW0ZbIkJyYWNrZXQiXSA9IDFdID0gIkJyYWNrZXQiOw0KfSkoRiB8fCAoZXhwb3J0cy5GID0gRiA9IHt9KSk7DQo=",
+            "materialized_utf8_bytes": 467,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/external.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBPd24gPSAxLA0KICAgIExvY2FsID0gMiwNCiAgICBFeHRlcm5hbCA9IDEsDQogICAgVW5rbm93bg0KfQ0KZXhwb3J0IGRlY2xhcmUgZW51bSBGIHsNCiAgICBPdGhlciA9IDEsDQogICAgQnJhY2tldCA9IDENCn0NCg==",
+            "callback_utf8_bytes": 151,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBPd24gPSAxLA0KICAgIExvY2FsID0gMiwNCiAgICBFeHRlcm5hbCA9IDEsDQogICAgVW5rbm93bg0KfQ0KZXhwb3J0IGRlY2xhcmUgZW51bSBGIHsNCiAgICBPdGhlciA9IDEsDQogICAgQnJhY2tldCA9IDENCn0NCg==",
+            "materialized_utf8_bytes": 151,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-external-values#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/external.ts",
+          "text": "\nconst value = 1;\ndeclare function computed(): number;\nexport enum E { Own = 1, Local = Own + 1, External = value, Unknown = computed() }\nexport enum F { Other = E.Own, Bracket = E[\"Own\"] }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 97,
+            "length": 8,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 154,
+            "length": 5,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          },
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/external.ts",
+            "start": 169,
+            "length": 7,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 97,
+              "length": 8,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 154,
+              "length": 5,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            },
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/external.ts",
+              "start": 169,
+              "length": 7,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-other-file-values#enabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "const enumSharedValue = 1;\n"
+        },
+        {
+          "path": "/project/enum.ts",
+          "text": "enum E { Value = enumSharedValue }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgZW51bVNoYXJlZFZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 43,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgZW51bVNoYXJlZFZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 43,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBlbnVtU2hhcmVkVmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBlbnVtU2hhcmVkVmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/enum.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIlZhbHVlIl0gPSAxXSA9ICJWYWx1ZSI7DQp9KShFIHx8IChFID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIlZhbHVlIl0gPSAxXSA9ICJWYWx1ZSI7DQp9KShFIHx8IChFID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/enum.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/enum.ts",
+            "start": 9,
+            "length": 5,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/enum.ts",
+              "start": 9,
+              "length": 5,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-other-file-values#disabled",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "const enumSharedValue = 1;\n"
+        },
+        {
+          "path": "/project/enum.ts",
+          "text": "enum E { Value = enumSharedValue }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgZW51bVNoYXJlZFZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 43,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgZW51bVNoYXJlZFZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 43,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBlbnVtU2hhcmVkVmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBlbnVtU2hhcmVkVmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/enum.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIlZhbHVlIl0gPSAxXSA9ICJWYWx1ZSI7DQp9KShFIHx8IChFID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEU7DQooZnVuY3Rpb24gKEUpIHsNCiAgICBFW0VbIlZhbHVlIl0gPSAxXSA9ICJWYWx1ZSI7DQp9KShFIHx8IChFID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/enum.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/enum.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBlbnVtIEUgew0KICAgIFZhbHVlID0gMQ0KfQ0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBlbnVtIEUgew0KICAgIFZhbHVlID0gMQ0KfQ0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/enum.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-other-file-values#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/value.ts",
+          "text": "const enumSharedValue = 1;\n"
+        },
+        {
+          "path": "/project/enum.ts",
+          "text": "enum E { Value = enumSharedValue }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/enum.ts",
+            "start": 9,
+            "length": 5,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/enum.ts",
+              "start": 9,
+              "length": 5,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-computed-name#enabled",
+      "files": [
+        {
+          "path": "/project/computed.ts",
+          "text": "\nconst key = \"value\";\nconst external = 1;\nexport enum E { [key] = external }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/computed.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IGtleSA9ICJ2YWx1ZSI7DQpjb25zdCBleHRlcm5hbCA9IDE7DQp2YXIgRTsNCihmdW5jdGlvbiAoRSkgew0KICAgIEVbRVtrZXldID0gMV0gPSBrZXk7DQp9KShFIHx8IChleHBvcnRzLkUgPSBFID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 226,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IGtleSA9ICJ2YWx1ZSI7DQpjb25zdCBleHRlcm5hbCA9IDE7DQp2YXIgRTsNCihmdW5jdGlvbiAoRSkgew0KICAgIEVbRVtrZXldID0gMV0gPSBrZXk7DQp9KShFIHx8IChleHBvcnRzLkUgPSBFID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 226,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/computed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/computed.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBba2V5XSA9IDENCn0NCg==",
+            "callback_utf8_bytes": 43,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBba2V5XSA9IDENCn0NCg==",
+            "materialized_utf8_bytes": 43,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/computed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1164,
+            "category": "Error",
+            "file": "/project/computed.ts",
+            "start": 58,
+            "length": 5,
+            "message": "Computed property names are not allowed in enums.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "adjacent/enum-computed-name#disabled",
+      "files": [
+        {
+          "path": "/project/computed.ts",
+          "text": "\nconst key = \"value\";\nconst external = 1;\nexport enum E { [key] = external }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/computed.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IGtleSA9ICJ2YWx1ZSI7DQpjb25zdCBleHRlcm5hbCA9IDE7DQp2YXIgRTsNCihmdW5jdGlvbiAoRSkgew0KICAgIEVbRVtrZXldID0gMV0gPSBrZXk7DQp9KShFIHx8IChleHBvcnRzLkUgPSBFID0ge30pKTsNCg==",
+            "callback_utf8_bytes": 226,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IGtleSA9ICJ2YWx1ZSI7DQpjb25zdCBleHRlcm5hbCA9IDE7DQp2YXIgRTsNCihmdW5jdGlvbiAoRSkgew0KICAgIEVbRVtrZXldID0gMV0gPSBrZXk7DQp9KShFIHx8IChleHBvcnRzLkUgPSBFID0ge30pKTsNCg==",
+            "materialized_utf8_bytes": 226,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/computed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/computed.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBba2V5XSA9IDENCn0NCg==",
+            "callback_utf8_bytes": 43,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBba2V5XSA9IDENCn0NCg==",
+            "materialized_utf8_bytes": 43,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/computed.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1164,
+            "category": "Error",
+            "file": "/project/computed.ts",
+            "start": 58,
+            "length": 5,
+            "message": "Computed property names are not allowed in enums.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "adjacent/enum-computed-name#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/computed.ts",
+          "text": "\nconst key = \"value\";\nconst external = 1;\nexport enum E { [key] = external }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 1164,
+            "category": "Error",
+            "file": "/project/computed.ts",
+            "start": 58,
+            "length": 5,
+            "message": "Computed property names are not allowed in enums.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 1164,
+              "category": "Error",
+              "file": "/project/computed.ts",
+              "start": 58,
+              "length": 5,
+              "message": "Computed property names are not allowed in enums.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-true#enabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 44,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 44,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-true#disabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 44,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 44,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-true#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "callback_utf8_bytes": 44,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICBQdWJsaWMgPSAyDQp9DQo=",
+            "materialized_utf8_bytes": 44,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-false#enabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 53,
+            "length": 6,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 53,
+              "length": 6,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-false#disabled",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/internal.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "callback_utf8_bytes": 264,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRSA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlID0gMTsNCnZhciBFOw0KKGZ1bmN0aW9uIChFKSB7DQogICAgLyoqIEBpbnRlcm5hbCAqLyBFW0VbIkhpZGRlbiJdID0gMV0gPSAiSGlkZGVuIjsNCiAgICBFW0VbIlB1YmxpYyJdID0gMl0gPSAiUHVibGljIjsNCn0pKEUgfHwgKGV4cG9ydHMuRSA9IEUgPSB7fSkpOw0K",
+            "materialized_utf8_bytes": 264,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/internal.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICAvKiogQGludGVybmFsICovIEhpZGRlbiA9IDEsDQogICAgUHVibGljID0gMg0KfQ0K",
+            "callback_utf8_bytes": 78,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZW51bSBFIHsNCiAgICAvKiogQGludGVybmFsICovIEhpZGRlbiA9IDEsDQogICAgUHVibGljID0gMg0KfQ0K",
+            "materialized_utf8_bytes": 78,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/internal.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/enum-internal-member-false#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/internal.ts",
+          "text": "\nconst value = 1;\nexport enum E {\n  /** @internal */ Hidden = value,\n  Public = 2,\n}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "stripInternal": false,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9020,
+            "category": "Error",
+            "file": "/project/internal.ts",
+            "start": 53,
+            "length": 6,
+            "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9020,
+              "category": "Error",
+              "file": "/project/internal.ts",
+              "start": 53,
+              "length": 6,
+              "message": "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ]
+}

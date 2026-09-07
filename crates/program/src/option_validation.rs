@@ -35,6 +35,7 @@ pub enum CompilerOptionViolation {
     IsolatedDeclarationsConflictsWithAllowJs,
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
+    DeclarationDirectoryRequiresDeclaration,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
     InvalidJsxFactory { value: String },
@@ -67,9 +68,8 @@ impl CompilerOptionViolation {
             Self::IsolatedDeclarationsRequiresDeclaration => {
                 &["isolatedDeclarations", "declaration"]
             }
-            Self::EmitDeclarationOnlyRequiresDeclaration => {
-                &["emitDeclarationOnly", "declaration", "composite"]
-            }
+            Self::EmitDeclarationOnlyRequiresDeclaration => &["emitDeclarationOnly", "declaration"],
+            Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -131,6 +131,10 @@ impl CompilerOptionViolation {
                     "declaration".to_owned(),
                     "composite".to_owned(),
                 ],
+            ),
+            Self::DeclarationDirectoryRequiresDeclaration => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &["declarationDir".to_owned(), "declaration".to_owned(), "composite".to_owned()],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -273,6 +277,17 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     }
     if map_root && !(source_map || options.declaration_map == Some(true)) {
         violations.push(CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap);
+    }
+    // declarationDir prerequisite (:124866-124869); the outFile profile
+    // remains the separately refused H2.7d bundle axis.
+    if options
+        .declaration_dir
+        .as_deref()
+        .is_some_and(|directory| !directory.is_empty())
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
+    {
+        violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
     }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)

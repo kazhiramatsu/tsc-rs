@@ -207,13 +207,6 @@ fn declaration_family_options_remain_typed_refusals() {
     );
     assert_unsupported_option(
         CompilerOptions {
-            declaration_dir: Some("/control/declarations".to_owned()),
-            ..CompilerOptions::default()
-        },
-        "declarationDir",
-    );
-    assert_unsupported_option(
-        CompilerOptions {
             out_file: Some("/control/bundle.js".to_owned()),
             ..CompilerOptions::default()
         },

@@ -77,10 +77,10 @@ pub use printer::{
     SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
-    EmitExportContainerMode, EmitFunctionProperty, EmitImportIncludeReason,
-    EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost, EmitNodeBuilderFlags,
-    EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
+    EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,
+    EmitImportIncludeReason, EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost,
+    EmitNodeBuilderFlags, EmitResolutionMode, EmitResolver, EmitResolverError, EmitResolverMethod,
+    EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
     EmitSymbolExpansionOut, EmitSymbolMeaning, EmitSymbolTracker, EmitTrackerAccess,
     EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,

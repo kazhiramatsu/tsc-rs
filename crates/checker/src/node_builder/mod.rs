@@ -111,6 +111,76 @@ pub(crate) fn tracker_node_description(
     }
 }
 
+/// The entity-in-type guard from createGetIsolatedDeclarationErrors
+/// (_tsc.js:114094), using the existing isPartOfTypeNode owner.
+fn tracker_is_entity_in_type_node(
+    checker: &crate::state::CheckerState<'_>,
+    node: tsc_syntax::NodeId,
+) -> bool {
+    use tsc_syntax::SyntaxKind;
+    (checker.is_part_of_type_node(node)
+        || checker
+            .parent_of(node)
+            .is_some_and(|parent| checker.kind_of(parent) == SyntaxKind::TypeQuery))
+        && (matches!(
+            checker.kind_of(node),
+            SyntaxKind::Identifier | SyntaxKind::QualifiedName
+        ) || checker.is_entity_name_expression(node))
+}
+
+/// tsc-port: getAllAccessorDeclarations @6.0.3
+/// tsc-hash: 8e23b58d85c286c6344992bac81b90a2c92285508dcf40a9c80d316dca13286a
+/// tsc-span: _tsc.js:16719-16760
+/// Project the accessor pair consumed by the diagnostic. The syntactic
+/// builder's getAllAccessorDeclarationsForDeclaration is a different owner.
+fn tracker_accessor_declarations(
+    checker: &crate::state::CheckerState<'_>,
+    node: tsc_syntax::NodeId,
+) -> Option<tsc_emitter::EmitAccessorDeclarations> {
+    use tsc_syntax::SyntaxKind;
+    let kind = checker.kind_of(node);
+    if !matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
+        return None;
+    }
+    let source = checker.binder.source_of_node(node);
+    let mut result = tsc_emitter::EmitAccessorDeclarations::default();
+    if tsc_binder::node_util::has_dynamic_name(source, node) {
+        let description = Some(tracker_node_description(checker, node));
+        if kind == SyntaxKind::GetAccessor {
+            result.get_accessor = description;
+        } else {
+            result.set_accessor = description;
+        }
+        return Some(result);
+    }
+    let symbol = checker.binder.node_symbol(node)?;
+    let name = |node| {
+        tsc_binder::node_util::get_name_of_declaration(checker.binder.source_of_node(node), node)
+            .and_then(|name| checker.property_name_for_property_name_node(name))
+    };
+    let accessor_name = name(node);
+    let accessor_static = checker.has_static_modifier(node);
+    for &member in &checker.binder.symbol(symbol).declarations {
+        let member_kind = checker.kind_of(member);
+        if matches!(
+            member_kind,
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) && checker.has_static_modifier(member) == accessor_static
+            && name(member) == accessor_name
+        {
+            let slot = if member_kind == SyntaxKind::GetAccessor {
+                &mut result.get_accessor
+            } else {
+                &mut result.set_accessor
+            };
+            if slot.is_none() {
+                *slot = Some(tracker_node_description(checker, member));
+            }
+        }
+    }
+    Some(result)
+}
+
 /// The declaration facts read directly from upstream's optional `symbol`
 /// argument by the syntactic variable-declaration arm. Keeping them beside
 /// the opaque checker identity avoids widening the dormant seam with symbol-
@@ -684,6 +754,22 @@ impl StandaloneTrackerAccess<'_, '_> {
 }
 
 impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
+    fn is_entity_in_type_node(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.invalid_token())?;
+        Ok(tracker_is_entity_in_type_node(self.checker, node))
+    }
+
+    fn accessor_declarations(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<tsc_emitter::EmitAccessorDeclarations, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.invalid_token())?;
+        tracker_accessor_declarations(self.checker, node).ok_or_else(|| self.invalid_token())
+    }
+
     fn parent_node(
         &mut self,
         node: tsc_emitter::EmitTrackerNode,

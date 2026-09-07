@@ -63,6 +63,7 @@ pub(crate) struct DiagnosticSpec {
 pub(crate) enum TrackerEffect {
     Diagnostic(DiagnosticSpec),
     IsolatedInference(TrackerAnchor),
+    IsolatedPrivateType(TrackerAnchor),
     IsolatedParameter {
         anchor: TrackerAnchor,
         add_undefined: bool,
@@ -212,10 +213,116 @@ impl<'t> DeclarationSymbolTracker<'t> {
     /// tsc-port: reportExpandoFunctionErrors @6.0.3
     /// tsc-hash: ad70a87485461e78fb80c07131d4df898fcc9f49f901be20c3abbc2d9dc0603e
     /// tsc-span: _tsc.js:114316-114326
-    pub(crate) fn report_expando_function_errors(&mut self) {
-        self.pending_effects.push_back(TrackerEffect::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations,
-        ));
+    pub(crate) fn report_expando_function_errors(
+        &mut self,
+        properties: &[crate::EmitFunctionProperty],
+    ) {
+        for property in properties {
+            let Some(declaration) = property.value_declaration else {
+                continue;
+            };
+            let Some(source) = self
+                .host
+                .source_file(declaration.source())
+                .and_then(|file| file.syntax())
+            else {
+                self.pending_effects.push_back(TrackerEffect::Contract(
+                    "expando value declaration has no source syntax",
+                ));
+                continue;
+            };
+            let target = match &source.arena.node(declaration.node()).data {
+                NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                    declaration.node()
+                }
+                NodeData::BinaryExpression(binary) => {
+                    let Some(left) = binary.left else {
+                        self.pending_effects.push_back(TrackerEffect::Contract(
+                            "expando assignment has no left operand",
+                        ));
+                        continue;
+                    };
+                    left
+                }
+                _ => continue,
+            };
+            self.report_diagnostic_at(
+                TrackerAnchor::resolver(crate::EmitResolverNode::new(declaration.source(), target)),
+                &d::Assigning_properties_to_functions_without_declaring_them_is_not_supported_with_isolatedDeclarations_Add_an_explicit_declaration_for_the_properties_assigned_to_this_function,
+            );
+        }
+    }
+
+    pub(crate) fn report_diagnostic_at(
+        &mut self,
+        anchor: TrackerAnchor,
+        message: &'static DiagnosticMessage,
+    ) {
+        self.pending_effects
+            .push_back(TrackerEffect::Diagnostic(DiagnosticSpec {
+                message,
+                args: Vec::new(),
+                anchor,
+                related: Vec::new(),
+            }));
+    }
+
+    /// tsc-port: createAccessorTypeError @6.0.3
+    /// tsc-hash: 69275636e581b6fc01ecb033d3c8c676a9b89ca27099a3598c0320898e66166c
+    /// tsc-span: _tsc.js:114140-114151
+    fn report_accessor_type_error(
+        &mut self,
+        access: &mut dyn EmitTrackerAccess,
+        node: EmitTrackerNode,
+    ) -> Result<(), EmitResolverError> {
+        let description = access.describe_node(node);
+        let accessors = access.accessor_declarations(node)?;
+        let mut anchor = TrackerAnchor::Resolver(description);
+        if let Some(parse) = description.parse.or(description.original) {
+            if let Some(source) = self
+                .host
+                .source_file(parse.source())
+                .and_then(|file| file.syntax())
+            {
+                if let NodeData::SetAccessor(setter) = &source.arena.node(parse.node()).data {
+                    if let Some(parameter) = setter
+                        .parameters
+                        .and_then(|parameters| source.arena.node_array(parameters).nodes.first())
+                        .copied()
+                    {
+                        anchor = TrackerAnchor::resolver(crate::EmitResolverNode::new(
+                            parse.source(),
+                            parameter,
+                        ));
+                    }
+                }
+            }
+        }
+        let related = [
+            (
+                accessors.set_accessor,
+                &d::Add_a_type_to_parameter_of_the_set_accessor_declaration,
+            ),
+            (
+                accessors.get_accessor,
+                &d::Add_a_return_type_to_the_get_accessor_declaration,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(node, message)| {
+            node.map(|node| RelatedDiagnosticSpec {
+                message,
+                args: Vec::new(),
+                anchor: TrackerAnchor::Resolver(node),
+                only_when_anchor_parent_is_variable: false,
+            })
+        })
+        .collect();
+        self.pending_effects.push_back(TrackerEffect::Diagnostic(DiagnosticSpec {
+            message: &d::At_least_one_accessor_must_have_an_explicit_type_annotation_with_isolatedDeclarations,
+            args: Vec::new(), anchor, related,
+        }));
+        Ok(())
     }
 
     pub(crate) fn report_isolated_inference(&mut self, anchor: TrackerAnchor) {
@@ -323,19 +430,56 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
             return Ok(());
         }
         if let Some(parse) = description.parse.or(description.original) {
-            let kind = self
+            let source = self
                 .host
                 .source_file(parse.source())
-                .and_then(|source| source.syntax())
-                .map(|source| source.arena.node(parse.node()).kind);
+                .and_then(|file| file.syntax());
+            let kind = source.map(|source| source.arena.node(parse.node()).kind);
+            if source
+                .is_some_and(|source| super::isolated::is_in_heritage_clause(source, parse.node()))
+            {
+                self.report_isolated_inference(TrackerAnchor::Resolver(description));
+                return Ok(());
+            }
+            if access.is_entity_in_type_node(node)? {
+                self.pending_effects
+                    .push_back(TrackerEffect::IsolatedPrivateType(TrackerAnchor::Resolver(
+                        description,
+                    )));
+                return Ok(());
+            }
+            if matches!(
+                kind,
+                Some(SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
+            ) {
+                return self.report_accessor_type_error(access, node);
+            }
             if kind == Some(SyntaxKind::VariableDeclaration)
                 && access.is_expando_function_declaration(node)?
             {
-                self.report_expando_function_errors();
+                let properties = access.get_properties_of_container_function(node)?;
+                self.report_expando_function_errors(&properties);
                 return Ok(());
             }
             if kind == Some(SyntaxKind::Parameter) {
                 let parent = access.parent_node(node)?;
+                if source.is_some_and(|source| {
+                    source
+                        .arena
+                        .node(parse.node())
+                        .parent
+                        .is_some_and(|parent| {
+                            source.arena.node(parent).kind == SyntaxKind::SetAccessor
+                        })
+                }) {
+                    if let Some(parent) = parent {
+                        return self.report_accessor_type_error(access, parent);
+                    }
+                    self.pending_effects.push_back(TrackerEffect::Contract(
+                        "setter parameter has no callback parent",
+                    ));
+                    return Ok(());
+                }
                 let add_undefined = access.requires_adding_implicit_undefined(node, parent)?;
                 self.pending_effects
                     .push_back(TrackerEffect::IsolatedParameter {
@@ -593,6 +737,12 @@ pub(crate) fn materialize_effects(
             } => {
                 let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
                     super::isolated::inference_error(source, node, Some(add_undefined))
+                })??;
+                cx.add_diagnostic(diagnostic)?;
+            }
+            TrackerEffect::IsolatedPrivateType(anchor) => {
+                let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
+                    super::isolated::entity_in_type_node_error(source, node)
                 })??;
                 cx.add_diagnostic(diagnostic)?;
             }

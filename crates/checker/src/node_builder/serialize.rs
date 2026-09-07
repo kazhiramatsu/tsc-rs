@@ -1415,6 +1415,27 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
 }
 
 impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
+    fn is_entity_in_type_node(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let node = self
+            .tracker_node(node)
+            .ok_or_else(|| self.invalid_token_error(None))?;
+        Ok(super::tracker_is_entity_in_type_node(self.checker, node))
+    }
+
+    fn accessor_declarations(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<tsc_emitter::EmitAccessorDeclarations, tsc_emitter::EmitResolverError> {
+        let node = self
+            .tracker_node(node)
+            .ok_or_else(|| self.invalid_token_error(None))?;
+        super::tracker_accessor_declarations(self.checker, node)
+            .ok_or_else(|| self.invalid_token_error(None))
+    }
+
     fn parent_node(
         &mut self,
         node: EmitTrackerNode,

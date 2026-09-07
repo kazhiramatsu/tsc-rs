@@ -554,7 +554,11 @@ fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
     let relocated = options
         .declaration_dir
         .as_deref()
-        .or(options.out_dir.as_deref())
+        .filter(|directory| !directory.is_empty())
+        .or(options
+            .out_dir
+            .as_deref()
+            .filter(|directory| !directory.is_empty()))
         .map(|directory| source_file_path_in_new_dir(source_file, host, directory))
         .unwrap_or_else(|| source_file.to_path_buf());
     let lower = relocated.to_string_lossy().to_ascii_lowercase();

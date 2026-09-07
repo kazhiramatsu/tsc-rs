@@ -64,10 +64,9 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     item: Object.freeze({ name: "validate_bootstrap_emit_options", line: 74 }),
     arms: Object.freeze([
       Object.freeze({ name: "declarationMap", line: 114, marker: "options.declaration_map == Some(true)" }),
-      // H2.7c stripInternal and the emitDeclarationOnly prerequisite are
-      // covered by focused complete observations instead of typed refusals.
+      // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
+      // prerequisite are covered by focused complete observations.
       Object.freeze({ name: "composite", line: 120, marker: "(options.composite == Some(true), \"composite\")" }),
-      Object.freeze({ name: "declarationDir", line: 139, marker: "options.declaration_dir.is_some()" }),
     ]),
   }),
   Object.freeze({

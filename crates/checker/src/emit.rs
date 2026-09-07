@@ -938,6 +938,7 @@ impl CheckerState<'_> {
             Some(EmitEnumMemberValue::new(
                 result.value.map(project_constant_value),
                 result.is_syntactically_string,
+                result.has_external_references,
             ))
         })
     }

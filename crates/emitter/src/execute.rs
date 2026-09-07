@@ -136,7 +136,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
     for (present, name) in [
         (options.root_dir.is_some(), "rootDir"),
-        (options.declaration_dir.is_some(), "declarationDir"),
         (options.out_file.is_some(), "outFile"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
     ] {
