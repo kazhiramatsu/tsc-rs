@@ -192,41 +192,124 @@ fn h2_7e_nonbundle_declaration_maps_match_typescript() {
                 .collect::<Vec<_>>();
             let expected = &case["typescript_observation"];
             for _ in 0..2 {
-                check_program_with_authoritative_modules_at_for_emit(&[], &inputs, &[], &metadata, &options, "/project", &NoModuleRequests, |snapshot, checker, checked| {
-                    assert!(checked.partial_checks.is_empty());
-                    let host = Host {snapshot, options: &options, ids: (0..inputs.len()).map(|id| SourceFileId::from_raw(id as u32)).collect(), common: Path::new(expected["common_source_directory"].as_str().unwrap())};
-                    let preflight = preflight_emit(&host, tsc_emitter::EmitSelection::WholeProgram).unwrap();
-                    let paths = PlanDeclarationPaths::new(&host, &preflight);
-                    let lane = MapLaneInputs {common_source_directory: expected["common_source_directory"].as_str().unwrap().to_owned(), current_directory: "/project".to_owned(), use_case_sensitive_source_keys: true};
-                    let newline = if options.new_line == Some(0) {NewLineKind::CarriageReturnLineFeed} else {NewLineKind::LineFeed};
-                    let mut writes = Vec::new(); let mut observations = Vec::new();
-                    checker.with_emit_resolver(|resolver| {
-                        for unit in preflight.plan().units() {
-                            let tsc_emitter::EmitRoot::SourceFile(source) = unit.root() else {panic!("non-bundle fixture")};
-                            let mut observer = |_| {};
-                            let (outcome, mut transformed) = transform_declaration_unit_with_observer_for_harness(resolver, &host, &preflight, &paths, *source, &mut observer).unwrap();
-                            assert!(!outcome.decl_blocked, "{id}: {:?}", outcome.diagnostics);
-                            assert!(outcome.diagnostics.is_empty());
-                            let TransformRoot::SourceFile(root) = transformed.roots()[0] else {panic!("source root")};
-                            let declaration_path = unit.paths().declaration_path().unwrap();
-                            let map_path = unit.paths().declaration_map_path().unwrap();
-                            let source_path = host.source_file(*source).unwrap().path();
-                            let recording = declaration_map_recording_inputs_for(&lane, &options, declaration_path, source_path);
-                            assert!(!recording.inline_sources);
-                            let printer_options = PrinterOptions::new(newline).with_remove_comments(options.remove_comments == Some(true)).with_no_emit_helpers(true).with_declaration_syntax(true).with_only_print_js_doc_style(true).with_omit_brace_source_map_positions(true).with_target(options.emit_script_target()).with_source_file_text_mode(SourceFileTextMode::Canonical);
-                            let names = GlobalNames(resolver);
-                            let printed = create_printer(printer_options).print_declaration_with_recording(&mut transformed, root, DeclarationPrintHandlers::new(&names), Some(recording)).unwrap();
-                            let mapped = finish_declaration_map(&lane, &options, declaration_path, map_path, source_path, &printed, outcome.diagnostics, newline).unwrap();
-                            observations.push(json!({"inputSourceFileNames":mapped.observation.input_source_files(), "sourceMap":serde_json::from_str::<Value>(mapped.observation.canonical_json()).unwrap()}));
-                            writes.push(mapped.map); writes.push(mapped.declaration);
-                            transformed.dispose();
+                check_program_with_authoritative_modules_at_for_emit(
+                    &[],
+                    &inputs,
+                    &[],
+                    &metadata,
+                    &options,
+                    "/project",
+                    &NoModuleRequests,
+                    |snapshot, checker, checked| {
+                        assert!(checked.partial_checks.is_empty());
+                        let host = Host {
+                            snapshot,
+                            options: &options,
+                            ids: (0..inputs.len())
+                                .map(|id| SourceFileId::from_raw(id as u32))
+                                .collect(),
+                            common: Path::new(
+                                expected["common_source_directory"].as_str().unwrap(),
+                            ),
+                        };
+                        let preflight =
+                            preflight_emit(&host, tsc_emitter::EmitSelection::WholeProgram)
+                                .unwrap();
+                        let paths = PlanDeclarationPaths::new(&host, &preflight);
+                        let lane = MapLaneInputs {
+                            common_source_directory: expected["common_source_directory"]
+                                .as_str()
+                                .unwrap()
+                                .to_owned(),
+                            current_directory: "/project".to_owned(),
+                            use_case_sensitive_source_keys: true,
+                        };
+                        let newline = if options.new_line == Some(0) {
+                            NewLineKind::CarriageReturnLineFeed
+                        } else {
+                            NewLineKind::LineFeed
+                        };
+                        let mut writes = Vec::new();
+                        let mut observations = Vec::new();
+                        checker.with_emit_resolver(|resolver| {
+                            for unit in preflight.plan().units() {
+                                let tsc_emitter::EmitRoot::SourceFile(source) = unit.root() else {
+                                    panic!("non-bundle fixture")
+                                };
+                                let mut observer = |_| {};
+                                let (outcome, mut transformed) =
+                                    transform_declaration_unit_with_observer_for_harness(
+                                        resolver,
+                                        &host,
+                                        &preflight,
+                                        &paths,
+                                        *source,
+                                        &mut observer,
+                                    )
+                                    .unwrap();
+                                assert!(!outcome.decl_blocked, "{id}: {:?}", outcome.diagnostics);
+                                assert!(outcome.diagnostics.is_empty());
+                                let TransformRoot::SourceFile(root) = transformed.roots()[0] else {
+                                    panic!("source root")
+                                };
+                                let declaration_path = unit.paths().declaration_path().unwrap();
+                                let map_path = unit.paths().declaration_map_path().unwrap();
+                                let source_path = host.source_file(*source).unwrap().path();
+                                let recording = declaration_map_recording_inputs_for(
+                                    &lane,
+                                    &options,
+                                    declaration_path,
+                                    source_path,
+                                );
+                                assert!(!recording.inline_sources);
+                                let printer_options = PrinterOptions::new(newline)
+                                    .with_remove_comments(options.remove_comments == Some(true))
+                                    .with_no_emit_helpers(true)
+                                    .with_declaration_syntax(true)
+                                    .with_only_print_js_doc_style(true)
+                                    .with_omit_brace_source_map_positions(true)
+                                    .with_target(options.emit_script_target())
+                                    .with_source_file_text_mode(SourceFileTextMode::Canonical);
+                                let names = GlobalNames(resolver);
+                                let printed = create_printer(printer_options)
+                                    .print_declaration_with_recording(
+                                        &mut transformed,
+                                        root,
+                                        DeclarationPrintHandlers::new(&names),
+                                        Some(recording),
+                                    )
+                                    .unwrap();
+                                let mapped = finish_declaration_map(
+                                    &lane,
+                                    &options,
+                                    declaration_path,
+                                    map_path,
+                                    source_path,
+                                    &printed,
+                                    outcome.diagnostics,
+                                    newline,
+                                )
+                                .unwrap();
+                                observations.push(json!({
+                                    "inputSourceFileNames": mapped.observation.input_source_files(),
+                                    "sourceMap": serde_json::from_str::<Value>(
+                                        mapped.observation.canonical_json()
+                                    ).unwrap()
+                                }));
+                                writes.push(mapped.map);
+                                writes.push(mapped.declaration);
+                                transformed.dispose();
+                            }
+                        });
+                        let expected_writes = expected["writes"].as_array().unwrap();
+                        assert_eq!(writes.len(), expected_writes.len());
+                        for (actual, expected) in writes.iter().zip(expected_writes) {
+                            assert_artifact(actual, expected);
                         }
-                    });
-                    let expected_writes = expected["writes"].as_array().unwrap();
-                    assert_eq!(writes.len(), expected_writes.len());
-                    for (actual, expected) in writes.iter().zip(expected_writes) {assert_artifact(actual, expected);}
-                    assert_eq!(json!(observations), expected["emit_result"]["source_maps"]);
-                }).unwrap();
+                        assert_eq!(json!(observations), expected["emit_result"]["source_maps"]);
+                    },
+                )
+                .unwrap();
             }
         });
         if let Err(error) = checked {

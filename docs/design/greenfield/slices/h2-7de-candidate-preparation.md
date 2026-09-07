@@ -112,3 +112,21 @@ the one-shot emit tuple; host resolution traces and the project runner's
 separate declaration recheck are not claimed. Focused worker controls have
 separate denominators and are not added to these original case IDs. These
 TypeScript observations do not certify any Rust implementation.
+
+## Combined foundation validation
+
+An isolated integration branch combines the candidate census, dormant outFile
+planning and nonbundle declaration-map recording on H2.7c candidate `10976ac9`.
+All 20 selected compiler contracts pass (zero ignored, 481.06s), covering the
+H2.7c original and focused comparisons plus the retained declaration replay
+and fault control. The 24 nonbundle map recordings also match twice (one test,
+zero ignored). This validates the shared printer/comment/range changes together
+with the planning foundation; it does not enable outFile or ordinary map emit.
+
+The live input closure includes the five new foundation implementation and
+test files, growing from 282 to 287. Admission, next-slice and the historical
+H2.7a runtime contract remain unchanged. Both affected artifact schemas,
+profile/close freshness, the 325-candidate preparer, 39 CI policy controls,
+formatting and frozen qualification/foundation bytes pass. This isolated
+snapshot does not include the later H2.7c isolated-prerequisite canary fix;
+its hosted failure and correction remain recorded in the H2.7c slice log.

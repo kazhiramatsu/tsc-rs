@@ -45,15 +45,15 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: PLAN_RELATIVE_PATH,
     historicalSha256: EXPECTED_PLAN_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_shape", line: 206 }),
+    item: Object.freeze({ name: "validate_bootstrap_shape", line: 210 }),
     arms: Object.freeze([
-      Object.freeze({ name: "DeclarationOnly", line: 218, marker: "EmitMode::DeclarationOnly" }),
-      Object.freeze({ name: "BuilderSignature", line: 223, marker: "EmitMode::BuilderSignature" }),
-      Object.freeze({ name: "DeclarationMap", line: 238, marker: "UnsupportedEmitFeature::DeclarationMap" }),
-      Object.freeze({ name: "BuildInfo", line: 242, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({ name: "DeclarationOnly", line: 222, marker: "EmitMode::DeclarationOnly" }),
+      Object.freeze({ name: "BuilderSignature", line: 227, marker: "EmitMode::BuilderSignature" }),
+      Object.freeze({ name: "DeclarationMap", line: 242, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 246, marker: "UnsupportedEmitFeature::BuildInfo));" }),
       Object.freeze({
         name: "ScriptOutputMissingJavaScriptPath",
-        line: 248,
+        line: 252,
         marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
       }),
     ]),

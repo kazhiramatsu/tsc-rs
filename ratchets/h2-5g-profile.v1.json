@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "986e9183a5f6329a7a2f43b179ea1c63eb6593b92a49a74ffa9ff3569cc87c3e"
+    "sha256": "b44908c7e39f77bfbd51e2e8396d58e757a40c552e79016015bc099ab1fb2441"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "d93bc5c4827aa7adadaa7e578aec5296dfc96b835382c80931004b30bbd5e48c"
+    "sha256": "e7889290461c60e81db78c936151e5c74e7efbae81b6ae46e716f0e4f5ab75e8"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -160,7 +160,7 @@
     },
     {
       "path": "crates/compiler/src/lib.rs",
-      "sha256": "8aa7e465cde3cde9e7cd5b076d65835cbd1afe3cf64bb61f43892f19e955b80a"
+      "sha256": "f91b1eeeec28f80f5f6f595965524f3e84293710498dad636a168a9f039fd490"
     },
     {
       "path": "crates/compiler/tests/integration/emit_session_contract.rs",
@@ -212,7 +212,7 @@
     },
     {
       "path": "crates/emitter/src/lib.rs",
-      "sha256": "384d2de7efc2501d5c2c555f53aec1ec88aa6b54fc5f368a6ef5fc7b64f041df"
+      "sha256": "46fe893972c44ca0cd37117abb9efb3092ca28dbf55698f1f447ca189e484e2e"
     },
     {
       "path": "crates/emitter/src/metadata.rs",
@@ -220,11 +220,11 @@
     },
     {
       "path": "crates/emitter/src/plan.rs",
-      "sha256": "e1499493a2c3a4f23ce6f3f536635db403804e418beeb7dacdd71f7ffe08ed36"
+      "sha256": "2727ad6d1029255a6a4494e309f6e0cb1f0008f830542cd6583771e5091351f1"
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "e2df51f455439e914cfe943482a07d0313fc2e73a7f9b7f7d2c0b74f60d623c2"
+      "sha256": "ede23e0d70e7950518033189fb88467be3dec41384a88dadda2e4e8dea7daad8"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -487,6 +487,26 @@
       "sha256": "2354d799cf4c5fa0883bb491ca895649bb7d08875da2cfefe8b9a53082af97ab"
     },
     {
+      "path": "crates/compiler/tests/fixtures/declaration-maps.json",
+      "sha256": "417d5114944a79e0160fb1b60d6c1be7a242c8549fd4b5b80ea1d496600f2fa8"
+    },
+    {
+      "path": "crates/compiler/tests/h2_7e_declaration_maps.rs",
+      "sha256": "fb842cc0422e7dbec6d16c214a44f3563483ded9287aad0439d7a90afa91385a"
+    },
+    {
+      "path": "crates/emitter/src/declaration_map.rs",
+      "sha256": "d8ba00e4ae2d9f0eb105e5bf4e72f804692a7712ee6deb854485aefa2d89c99c"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/bundle-plan.json",
+      "sha256": "c33d0c7460ab56b10a2510dd2e369235d78b0f82ee11b0cecb1c2ad7d1065d39"
+    },
+    {
+      "path": "crates/emitter/tests/unit/bundle_plan/tests.rs",
+      "sha256": "2f13eaff637cd3e3ef663beae245bd977f967f6d13f0fafc604f4c8cbc3bc0db"
+    },
+    {
       "path": "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
       "sha256": "c90b870f8d1d83fe22ae3e274777b2723eb328974f677cdc1f3b134a53fefdef"
     },
@@ -696,11 +716,11 @@
     },
     {
       "path": "crates/checker/src/node_builder/serialize.rs",
-      "sha256": "2adce538399a4e3d2ce859bdbf244488c6608d952fe51bc12ca7703fdb74853e"
+      "sha256": "1f3ec654ee5eeb0a4b2912858128a522236ecbbc922ca1830b96af6fd79be27d"
     },
     {
       "path": "crates/checker/src/node_builder/signatures.rs",
-      "sha256": "f14adc7d6c3fb15565c47b46d8a6b878a91cd5fe3099862022898ff3660b3d60"
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
     },
     {
       "path": "crates/checker/src/node_builder/specifier.rs",
@@ -716,7 +736,7 @@
     },
     {
       "path": "crates/checker/src/node_builder/type_nodes.rs",
-      "sha256": "ecc955f94ddd3c851128091ff4d25d597dd12e359b2c8ddd32d21220f81f2985"
+      "sha256": "9e221d9709cc0979f50e700fce82d7df7f11c04fd01d14173d197f41fcb4f141"
     },
     {
       "path": "crates/checker/src/syntactic_type_node_builder.rs",
@@ -1208,7 +1228,7 @@
     },
     {
       "path": "crates/emitter/src/declarations/subtree.rs",
-      "sha256": "f3454408543277b47da00c93b1b263c7be09c105f87b01b5e006f242f953c783"
+      "sha256": "af11871c8bd9ee4d23c130f148cdb2321791c99555ab26886e6cc261f8ef354d"
     },
     {
       "path": "crates/emitter/src/declarations/tracker.rs",
@@ -1484,5 +1504,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "a646f3186dbee7ea4ec1080662f2873384d1707a5ed669f48bf010bd25480045"
+  "profile_fingerprint_sha256": "7f7daab900baf87c09614d5d79cc90d87be4b7b14d1edb85af4bf9d945c51e20"
 }
