@@ -505,6 +505,40 @@ fn h2_7d_system_generated_names_match_bundle_and_standalone_javascript_twice() {
     compare_cases(&cases.iter().collect::<Vec<_>>());
 }
 
+#[test]
+fn h2_7d_amd_and_system_underscore_aliases_match_complete_javascript_twice() {
+    assert_compiled_worktree();
+    let fixture = fixture(
+        include_bytes!("../../emitter/tests/fixtures/module-alias-underscores.json"),
+        "3e11ab4114bb54e131597c1bdacfcbbd60618d785917bb49007923bfb4f1fcf5",
+    );
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 6);
+    assert_eq!(
+        cases
+            .iter()
+            .map(|case| case["case_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "amd/bundle/dep_",
+            "amd/bundle/dep__",
+            "amd/standalone/dep__",
+            "system/bundle/dep_",
+            "system/bundle/dep__",
+            "system/standalone/dep__",
+        ]),
+    );
+    assert!(
+        cases
+            .iter()
+            .all(|case| case["api_reference"] == false
+                && case["roots"].as_array().unwrap().len() == 3)
+    );
+    // The unchanged fixture retains full JS/declaration Program tuples.
+    // This comparison adds only the real checked JS transform/print facets.
+    compare_cases(&cases.iter().collect::<Vec<_>>());
+}
+
 fn compare_cases(cases: &[&Value]) {
     let mut libraries = Vec::new();
     for entry in std::fs::read_dir(workspace().join("vendor/typescript-6.0.3/lib")).unwrap() {

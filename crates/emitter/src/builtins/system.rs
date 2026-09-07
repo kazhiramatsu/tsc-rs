@@ -2848,7 +2848,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         } else {
             TargetBinding::allocate_numbered(
                 self.context,
-                base.trim_end_matches('_').to_owned(),
+                base.strip_suffix('_').unwrap_or(base).to_owned(),
                 name.clone(),
             )?
         };
@@ -3332,11 +3332,11 @@ pub(super) fn collect_identifier_texts(
 }
 
 fn unique_generated_name(used: &mut BTreeSet<String>, base: &str) -> String {
-    let base = base.trim_end_matches('_');
     let mut ordinal = 1usize;
     loop {
-        let candidate = if base.is_empty() {
-            format!("_{ordinal}")
+        // makeUniqueName appends a separator only when the base lacks one.
+        let candidate = if base.ends_with('_') {
+            format!("{base}{ordinal}")
         } else {
             format!("{base}_{ordinal}")
         };

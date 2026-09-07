@@ -66,3 +66,5 @@ claimed by this oracle-only packet.
 ```sh
 taskpolicy -b nice -n 15 node scripts/observe-module-alias-underscores.mjs --check
 ```
+
+The compiler comparison now checks all six new JavaScript observations twice with the actual Program resolver, together with the unchanged 20 original module controls and 12 System name controls. AMD factory parameters and body references share generated binding identities; normalized prefixes remove only one allocator separator, preserving module-name underscores. All 38 complete JavaScript byte comparisons pass (three tests, 43.77s). The adjacent ordinary declaration bundle comparison retains all 19 cases twice (14.83s), and the complete stateful declaration reference suite passes (three tests, 56.24s). These internal transform/print comparisons do not confer full Program admission.

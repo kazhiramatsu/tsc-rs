@@ -2552,8 +2552,15 @@ impl GeneratedModuleNameAllocator {
         for ordinal in 1usize.. {
             let candidate = format!("{base}{ordinal}");
             if self.used_names.insert(candidate.clone()) {
-                self.generated_bases
-                    .insert(candidate.clone(), base.trim_end_matches('_').to_owned());
+                // The numbered binding allocator adds exactly one separator.
+                // Remove that one separator from this already-normalized prefix,
+                // preserving any underscores belonging to the module basename.
+                self.generated_bases.insert(
+                    candidate.clone(),
+                    base.strip_suffix('_')
+                        .expect("numbered module prefix has a separator")
+                        .to_owned(),
+                );
                 return candidate.into_boxed_str();
             }
         }
@@ -4411,6 +4418,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     rewrite_relative_import_extensions: bool,
     target: ScriptTarget,
     info: CommonJsModuleInfo,
+    generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
     dynamic_import_ordinal: usize,
@@ -4441,6 +4449,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
             target: options.target,
             info,
+            generated_module_bindings: BTreeMap::new(),
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             dynamic_import_ordinal: 0,
@@ -8981,14 +8990,34 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
+        let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: text.to_owned(),
                 text: text.to_owned(),
             }),
             TransformFlags::NONE,
-        )
+        )?;
+        // AMD import/re-export aliases are generated identities, not their
+        // provisional text. Factory parameters and body references must share
+        // one binding so bundle finalization can rename both. Standalone AMD
+        // uses the same identity and the existing per-file name reset.
+        if self.module_kind == MODULE_AMD {
+            if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
+                let binding = match self.generated_module_bindings.entry(text.to_owned()) {
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(target_bindings::TargetBinding::allocate_numbered(
+                            self.context,
+                            base.clone(),
+                            text.to_owned(),
+                        )?)
+                    }
+                    std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+                };
+                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+            }
+        }
+        Ok(identifier)
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
