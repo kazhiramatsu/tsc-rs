@@ -38,6 +38,7 @@ pub enum CompilerOptionViolation {
     DeclarationDirectoryRequiresDeclaration,
     DeclarationDirectoryConflictsWithOutFile,
     DeclarationMapRequiresDeclaration,
+    OutFileRequiresAmdOrSystemModule,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
     InvalidJsxFactory { value: String },
@@ -74,6 +75,7 @@ impl CompilerOptionViolation {
             Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
             Self::DeclarationDirectoryConflictsWithOutFile => &["declarationDir", "outFile"],
             Self::DeclarationMapRequiresDeclaration => &["declarationMap", "declaration"],
+            Self::OutFileRequiresAmdOrSystemModule => &["outFile", "module"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -147,6 +149,10 @@ impl CompilerOptionViolation {
             Self::DeclarationMapRequiresDeclaration => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 &["declarationMap".to_owned(), "declaration".to_owned(), "composite".to_owned()],
+            ),
+            Self::OutFileRequiresAmdOrSystemModule => MessageChain::new(
+                &gen::Only_amd_and_system_modules_are_supported_alongside_0,
+                &["outFile".to_owned()],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -315,6 +321,20 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         && options.composite != Some(true)
     {
         violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
+    }
+    // verifyCompilerOptions (:124891-124894) tests the raw module option,
+    // including JavaScript falsiness of None=0. An absent module instead
+    // belongs to the source-dependent TS6131 branch, not this relation.
+    if options
+        .out_file
+        .as_deref()
+        .is_some_and(|path| !path.is_empty())
+        && options.emit_declaration_only != Some(true)
+        && options
+            .module
+            .is_some_and(|module| !matches!(module, 0 | 2 | 4))
+    {
+        violations.push(CompilerOptionViolation::OutFileRequiresAmdOrSystemModule);
     }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)

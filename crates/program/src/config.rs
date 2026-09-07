@@ -3149,6 +3149,7 @@ fn option_relationship_diagnostics(
         isolated_declarations: config_option_bool(options, "isolatedDeclarations"),
         declaration: config_option_bool(options, "declaration"),
         declaration_dir: config_option_string(options, "declarationDir"),
+        out_file: config_option_string(options, "outFile"),
         emit_declaration_only: config_option_bool(options, "emitDeclarationOnly"),
         composite: config_option_bool(options, "composite"),
         jsx: config_option_i32(options, "jsx"),
