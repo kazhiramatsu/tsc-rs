@@ -8334,7 +8334,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let argument = if let Some(module_name) = external_module_name.filter(|name| {
                 !argument.is_some_and(|argument| {
                     self.context.arena().node(argument).is_ok_and(|node| {
-                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_ref() == name.as_str())
+                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_str() == name.as_str())
                     })
                 })
             }) {
