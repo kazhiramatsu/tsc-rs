@@ -1686,7 +1686,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         match self.context.arena().node(target)?.data.clone() {
             NodeData::Identifier(data) => {
                 let local = data.text;
-                let target = self.create_identifier(&local)?;
                 let assignment = self.create_assignment(target, value)?;
                 plan.push_binding(local, assignment);
                 Ok(())

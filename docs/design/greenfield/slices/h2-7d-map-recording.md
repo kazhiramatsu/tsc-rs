@@ -176,28 +176,30 @@ controls retain the distinct complete JavaScript source list and filtered
 ordinary declaration source list. Public execution, cold API behavior, sink
 failure order and final admission remain separately verified by their owners.
 
-## Candidate verification status
+## Internal verification status
 
-The follow-up JSON/portable-metadata candidate preserves the original twelve
-map references and six metadata references byte-for-byte. The expanded
-observer reproduces 84 fresh Programs in both `--write` and `--check`. The
-original twelve map cases and nineteen declaration visitor cases pass twice;
-both parameter-property targets and the three unchanged runtime-comment-owner
-inputs pass ordinary/fresh-forced comparison twice. Five snapshot unit tests
-pass, including exact constant bits/code units and comment-owner exclusion.
+The JSON/portable-metadata follow-up preserves the original twelve map
+references and six metadata references byte-for-byte. The expanded observer
+reproduces 84 fresh Programs in both `--write` and `--check`. All twenty map
+inputs (including eight JSON controls), nineteen earlier declaration visitor
+inputs, and eleven metadata inputs in ordinary/fresh-forced modes pass twice:
+122 complete internal comparisons in the combined three-test run (50.63 s).
 
-Seven of eight JSON cases pass twice. The map-enabled mixed System case still
-differs in JavaScript mappings for `export const moduleValue: number = 2`;
-source lists, inline content, and the corresponding unmapped full output agree.
-Its unchanged expected mapping remains a failing comparison pending the
-System producer owner. After the constant substitution correction, all eleven
-metadata inputs pass ordinary/fresh-forced comparison twice (44 complete
-comparisons, including the exact constant bits/code units). The six existing
-constant-enum grammar/comment controls also pass. Adjacent contracts pass
-449 tests, shared source-map units pass 19, and emitter/compiler all-target
-clippy passes with warnings denied after the separate generated-name map-entry
-cleanup. The outstanding System map comparison means this packet and public
-Bundle behavior are not yet claimed complete.
+The mixed System map initially differed because `flatten_system_binding_target`
+replaced a parsed assignment identifier with a fresh name. The TypeScript
+variable-declaration producer retains the visited parsed name. An independent
+identity probe preserved the full original tuple twice; replacing only that
+name with a synthetic identifier reproduced the former Rust map bytes twice.
+Removing the extra Rust identifier creation restores the mappings without
+changing the generic printer or generated-name finalizer.
+
+Five snapshot unit tests pass, including exact constant bits/code units and
+JavaScript comment-owner exclusion. Adjacent contracts pass 449 tests and
+shared source-map units pass 19. After the constant substitution correction,
+all six existing constant-enum grammar/comment controls pass. Emitter/compiler
+all-target clippy passes with warnings denied after the separate generated-name
+map-entry cleanup. Public execution, cold API sequences, sink faults, original
+corpus comparison and activity admission remain independent integration work.
 
 ```sh
 node scripts/observe-bundle-maps.mjs --check
