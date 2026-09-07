@@ -4614,6 +4614,7 @@ fn config_module_resolution_options(
         lib: config_option_lib(options),
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
+        no_emit_for_js_files: None, // internal Program API option, not a tsconfig setting
         no_emit: config_option_bool(options, "noEmit"),
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         emit_bom: config_option_bool(options, "emitBOM"),

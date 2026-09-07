@@ -16,6 +16,7 @@ pub struct EmitSource<'host> {
     path: &'host Path,
     canonical_path: &'host Path,
     may_be_emitted: bool,
+    may_emit_forced_declaration: bool,
     implied_node_format_for_emit: Option<ResolutionMode>,
     syntax: Option<&'host SourceFile>,
 }
@@ -34,6 +35,7 @@ impl<'host> EmitSource<'host> {
             path,
             canonical_path,
             may_be_emitted,
+            may_emit_forced_declaration: may_be_emitted,
             implied_node_format_for_emit,
             syntax,
         }
@@ -53,6 +55,15 @@ impl<'host> EmitSource<'host> {
 
     pub const fn may_be_emitted(self) -> bool {
         self.may_be_emitted
+    }
+
+    pub const fn with_may_emit_forced_declaration(mut self, eligible: bool) -> Self {
+        self.may_emit_forced_declaration = eligible;
+        self
+    }
+
+    pub const fn may_emit_forced_declaration(self) -> bool {
+        self.may_emit_forced_declaration
     }
 
     /// The already-computed `getImpliedNodeFormatForEmitWorker` result owned

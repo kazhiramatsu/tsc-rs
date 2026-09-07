@@ -1953,7 +1953,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         {
             // tsc sourceFileMayBeEmitted: a JSON source is copied only when a
             // distinct output location (or a future bundle output) exists.
-            prepared = prepared.with_may_be_emitted(false);
+            prepared = prepared
+                .with_may_be_emitted(false)
+                .with_may_emit_forced_declaration(true);
         }
         if let Some(package_scope) = package_scope {
             prepared =
@@ -3027,7 +3029,11 @@ fn publish_program(
         let prepared = staged_source
             .prepared
             .clone()
-            .with_may_be_emitted(may_be_emitted);
+            .with_may_be_emitted(may_be_emitted)
+            .with_may_emit_forced_declaration(
+                staged_source.prepared.may_emit_forced_declaration()
+                    && staged_source.has_non_external_reason,
+            );
         let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;

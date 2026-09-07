@@ -103,3 +103,9 @@ mod h2_7c_isolated_private_types;
 
 #[path = "integration/h2_7c_declaration_dir.rs"]
 mod h2_7c_declaration_dir;
+
+#[path = "integration/h2_7c_declaration_getters.rs"]
+mod h2_7c_declaration_getters;
+
+#[path = "integration/h2_7c_forced_declarations.rs"]
+mod h2_7c_forced_declarations;

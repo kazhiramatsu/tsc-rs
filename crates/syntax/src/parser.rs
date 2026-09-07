@@ -9743,8 +9743,9 @@ impl<'text> Parser<'text> {
             let node = self.arena.node_mut(id);
             node.pos = pos as u32;
             node.end = end as u32;
-            node.flags |=
-                (self.context_flags & (NodeFlags::CONTEXT_FLAGS | NodeFlags::JS_DOC)).bits();
+            // finishNode preserves every current parser context flag,
+            // including JsonFile, which is outside NodeFlags.ContextFlags.
+            node.flags |= self.context_flags.bits();
             if self.parse_error_before_next_finished_node {
                 self.parse_error_before_next_finished_node = false;
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
@@ -9937,8 +9938,7 @@ fn parse_source_file_from_snapshot_worker(
     (source, incremental_stats)
 }
 
-/// tsc Parser.parseJsonText. The JavaScriptFile/JsonFile context flags are
-/// not stamped (nothing consumes them yet).
+/// tsc Parser.parseJsonText, including the JSON/JavaScript context flags.
 #[allow(dead_code)]
 fn parse_json_text(file_name: String, text: String) -> SourceFile {
     parse_json_text_from_snapshot(
@@ -9964,8 +9964,11 @@ pub fn parse_json_text_from_snapshot_with_bases(
         snapshot.shared_positions(),
         ScriptTarget::ES2015,
         LanguageVariant::Standard,
-        false,
+        true,
     );
+    // initializeState(JSON) and parseJsonText stamp these flags on all nodes.
+    parser.context_flags |= NodeFlags::JSON_FILE;
+    parser.source_flags = parser.context_flags;
     if node_id_base != 0 || node_array_id_base != 0 {
         debug_assert!(parser.arena.is_empty());
         parser.arena = NodeArena::with_bases(node_id_base, node_array_id_base);

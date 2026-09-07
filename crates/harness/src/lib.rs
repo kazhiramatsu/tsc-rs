@@ -340,6 +340,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         strict_property_initialization: bool_option("strictPropertyInitialization"),
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
+        no_emit_for_js_files: None, // internal Program API option
         no_emit: bool_option("noEmit"),
         list_emitted_files: bool_option("listEmittedFiles"),
         emit_bom: bool_option("emitBOM"),

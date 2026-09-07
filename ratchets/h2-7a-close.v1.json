@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "56e541792747c0ad5f39417f766f35cc837196e24808e91b518a6c90629d719c"
+    "sha256": "6ef54d4fded4e29fb7696e7a5d635b04ab62905925836fbaf3e26fa2c2e25713"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
@@ -238,13 +238,13 @@
       "retained_arms": [
         {
           "name": "declarationMap",
-          "line": 114,
-          "span_sha256": "b53024d4841998894adbeda682601d724ba08d93b043f5788887a631a819fa50"
+          "line": 134,
+          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
         },
         {
           "name": "composite",
-          "line": 120,
-          "span_sha256": "b53024d4841998894adbeda682601d724ba08d93b043f5788887a631a819fa50"
+          "line": 140,
+          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -302,5 +302,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "26309f01446b9c409a23336520bb255237fd6c4d8bf549bff672167764adbd2f"
+  "close_fingerprint_sha256": "83289d0b63980d3ce0841aca4b13fc0899252b506f55609b3e028e88af95d0b6"
 }

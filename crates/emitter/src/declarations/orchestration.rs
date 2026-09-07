@@ -76,12 +76,12 @@ impl GlobalNameOracle for ResolverGlobalNameOracle<'_> {
 /// Run the declaration transform solely for diagnostics, without constructing
 /// a printer or applying the per-output path blocking rules.
 ///
-/// The caller supplies a source selected by getSourceFilesToEmit. JSON is the
-/// remaining exclusion in the upstream declaration-diagnostic worker.
+/// The source is filtered by getSourceFilesToEmit and the JSON exclusion.
+/// Program callers prepare the per-file resolver before reaching this worker.
 /// tsc-port: getDeclarationDiagnostics @6.0.3
 /// tsc-hash: b34e4107425e1377261d1f20e0c23e3d970722b026812172da73afad146434a8
 /// tsc-span: _tsc.js:114249-114263
-pub(crate) fn get_declaration_diagnostics(
+pub fn get_declaration_diagnostics(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
     paths: &dyn DeclarationPathResolver,
@@ -91,11 +91,13 @@ pub(crate) fn get_declaration_diagnostics(
     let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
         EmitContractViolation::PlannedSourceMissing(source),
     ))?;
-    if emit_source
-        .path()
-        .to_string_lossy()
-        .to_ascii_lowercase()
-        .ends_with(".json")
+    if !crate::get_source_files_to_emit(host, crate::EmitSelection::TargetSourceFile(source))?
+        .contains(&source)
+        || emit_source
+            .path()
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .ends_with(".json")
     {
         return Ok(Vec::new());
     }
@@ -124,6 +126,7 @@ pub(crate) fn get_declaration_diagnostics(
 /// tsc-port: emitDeclarationFileOrBundle @6.0.3
 /// tsc-hash: 8275307ffb4a07e3c7d8b7a5d7f2acf16bfe01c5f746285165c54dc225904434
 /// tsc-span: _tsc.js:116640-116715
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_declaration_unit(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -132,6 +135,7 @@ pub(crate) fn emit_declaration_unit(
     source: SourceFileId,
     declaration_path: &Path,
     activity: &mut H2ActivityCanary,
+    force_dts_emit: bool,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
     let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
         EmitContractViolation::PlannedSourceMissing(source),
@@ -139,7 +143,7 @@ pub(crate) fn emit_declaration_unit(
     let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
         EmitContractViolation::CheckedSyntaxUnavailable(source),
     ))?;
-    if syntax.file_name.to_ascii_lowercase().ends_with(".json") {
+    if !force_dts_emit && syntax.file_name.to_ascii_lowercase().ends_with(".json") {
         return Ok(DeclarationUnitEmit {
             diagnostics: Vec::new(),
             decl_blocked: false,
@@ -149,11 +153,12 @@ pub(crate) fn emit_declaration_unit(
 
     activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
 
-    // `emitOnly`, `forceDtsEmit`, and `noCheck` are unavailable on this
-    // production route, leaving the live fourth disjunct of 116649-116653.
-    if !resolver
-        .can_include_bind_and_check_diagnostics(source)
-        .map_err(TransformError::from)?
+    // This forced route is declaration-only, so it skips source checking
+    // and must collect linked aliases before transforming (:116649-116653).
+    if force_dts_emit
+        || !resolver
+            .can_include_bind_and_check_diagnostics(source)
+            .map_err(TransformError::from)?
     {
         collect_linked_aliases_for_declaration(resolver, source, syntax)?;
     }
@@ -180,7 +185,7 @@ pub(crate) fn emit_declaration_unit(
     let diagnostics_blocked = !diagnostics.is_empty();
     let path_blocked = !diagnostics_blocked && preflight.is_emit_blocked(host, declaration_path);
     let decl_blocked = diagnostics_blocked || path_blocked || options.no_emit == Some(true);
-    if decl_blocked {
+    if decl_blocked && !force_dts_emit {
         result.dispose();
         return Ok(DeclarationUnitEmit {
             diagnostics,
@@ -240,7 +245,7 @@ pub(crate) fn emit_declaration_unit(
     );
     Ok(DeclarationUnitEmit {
         diagnostics,
-        decl_blocked: false,
+        decl_blocked,
         artifact: Some(artifact),
     })
 }

@@ -53,6 +53,34 @@ impl<'program> CheckerSession<'program> {
         operation(self)
     }
 
+    /// tsc-port: getEmitResolver @6.0.3
+    /// tsc-hash: 117340a1fd0f33afef752cc545f66125543fc3a9fd75b7c152e546461b65516a
+    /// tsc-span: _tsc.js:47561-47564
+    /// Complete the selected source before lending this same session's resolver.
+    /// The compiler owns the declaration getter cache, so cached requests do
+    /// not reach this preparation step again.
+    pub fn prepare_declaration_source(
+        &self,
+        source: AuthoritativeSourceToken,
+    ) -> Result<Vec<crate::PartialCheck>, crate::AuthoritativeModuleFailure> {
+        let mut state = self.state.borrow_mut();
+        let index = state
+            .authoritative_source_index_by_token
+            .get(&source)
+            .copied()
+            .ok_or_else(|| crate::AuthoritativeModuleFailure::InvalidMetadata {
+                detail: format!(
+                    "declaration getter source token {} is not in this Program",
+                    source.0
+                ),
+            })?;
+        state.check_source_file(index);
+        if let Some(failure) = state.take_authoritative_module_failure() {
+            return Err(failure);
+        }
+        Ok(state.partial_check_records.clone())
+    }
+
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use tsc_program::SourceFileId;
 
-use crate::{EmitHost, EmitOutputPaths, EmitPreflight, EmitRoot};
+use crate::{EmitFailure, EmitHost, EmitOutputPaths, EmitPreflight, EmitRoot, EmitSelection};
 
 use super::DeclarationPathResolver;
 
@@ -13,6 +13,7 @@ use super::DeclarationPathResolver;
 pub struct PlanDeclarationPaths {
     paths: BTreeMap<SourceFileId, EmitOutputPaths>,
     source_paths: BTreeMap<SourceFileId, PathBuf>,
+    root_declaration_paths: BTreeMap<SourceFileId, PathBuf>,
 }
 
 impl PlanDeclarationPaths {
@@ -42,16 +43,57 @@ impl PlanDeclarationPaths {
         Self {
             paths,
             source_paths,
+            root_declaration_paths: BTreeMap::new(),
         }
+    }
+
+    /// The declaration transform uses forced paths for its own directory
+    /// (_tsc.js:114541-114545) and ordinary paths for references (:114598).
+    /// A diagnostic getter computes this read-only projection without an
+    /// output plan, blocking diagnostics, or an output sink.
+    pub fn for_declaration_diagnostics(host: &dyn EmitHost) -> Result<Self, EmitFailure> {
+        let mut result = Self::default();
+        for &source in host.source_file_ids() {
+            let file = host.source_file(source).ok_or(EmitFailure::Contract(
+                crate::EmitContractViolation::PlannedSourceMissing(source),
+            ))?;
+            result
+                .source_paths
+                .insert(source, file.path().to_path_buf());
+            if crate::plan::source_file_may_emit_forced_declaration(file, host) {
+                result.root_declaration_paths.insert(
+                    source,
+                    crate::plan::declaration_output_path(file.path(), host),
+                );
+            }
+        }
+        for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
+            let file = host.source_file(source).ok_or(EmitFailure::Contract(
+                crate::EmitContractViolation::PlannedSourceMissing(source),
+            ))?;
+            result
+                .paths
+                .insert(source, crate::get_output_paths_for(file, host)?);
+            result.root_declaration_paths.insert(
+                source,
+                crate::plan::declaration_output_path(file.path(), host),
+            );
+        }
+        Ok(result)
     }
 }
 
 impl DeclarationPathResolver for PlanDeclarationPaths {
     fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        self.paths
+        self.root_declaration_paths
             .get(&source)
-            .and_then(EmitOutputPaths::declaration_path)
-            .map(Path::to_path_buf)
+            .cloned()
+            .or_else(|| {
+                self.paths
+                    .get(&source)
+                    .and_then(EmitOutputPaths::declaration_path)
+                    .map(Path::to_path_buf)
+            })
     }
 
     fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf> {

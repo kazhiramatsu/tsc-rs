@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "580ea6a883ecbdccc3c8072adf9e9c41eb8331abd64120f3fc973ab6671b527f"
+    "sha256": "b0fc7f81dd35715f46fb7f66c088a9c78768e8175de59514b3d0a4e849d0f7be"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "5834be8e2fc97c34e270f1754257fcce83f14039967f06156adead17b5b74021"
+    "sha256": "73a4c96bfb0400c218294bb592b3e7d99fdcc732d4866a80f19c79181f4e060d"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -144,7 +144,7 @@
   "runtime_inputs": [
     {
       "path": "crates/checker/src/emit.rs",
-      "sha256": "07be0f463b1ab37a85c143b16e91137213bc173cc489d0955c65a9c20793f027"
+      "sha256": "cbfd792866e4419563bc4bb222482c586b84f948ebe68179fb64de36b3ce1262"
     },
     {
       "path": "crates/checker/src/evaluate.rs",
@@ -152,7 +152,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c"
+      "sha256": "a85ce80967b0dd6746f9d0155f967c67d1071c9598a31b0e55880f34297bf946"
     },
     {
       "path": "crates/checker/src/modules.rs",
@@ -160,7 +160,7 @@
     },
     {
       "path": "crates/compiler/src/lib.rs",
-      "sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125"
+      "sha256": "bfb85be5fde9d40ec774835d7f044b5122829223f66a24cc35ddc333aa6e07f2"
     },
     {
       "path": "crates/compiler/tests/integration/emit_session_contract.rs",
@@ -200,7 +200,7 @@
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "ef845822637edf853bd90eb1396283b3dfd0eff301056ade1ca5578872f66f08"
+      "sha256": "a31f7dd9bb632871a6fb8c9ada66e5ac920d76208e55eca5bf958819d4909e09"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -208,11 +208,11 @@
     },
     {
       "path": "crates/emitter/src/host.rs",
-      "sha256": "09f93daa6327259c0fc806f513421b91540af4dbb143d8c1a26dd205fbaefbcc"
+      "sha256": "9fa594441b0c0e4a307e499971c63648fe0731eb18cd21cbf144c2a668cb24d4"
     },
     {
       "path": "crates/emitter/src/lib.rs",
-      "sha256": "fa02770aea2c4d8773f414736a8e953978abb06b770fe06606b7a2acfdeaefc8"
+      "sha256": "384d2de7efc2501d5c2c555f53aec1ec88aa6b54fc5f368a6ef5fc7b64f041df"
     },
     {
       "path": "crates/emitter/src/metadata.rs",
@@ -220,11 +220,11 @@
     },
     {
       "path": "crates/emitter/src/plan.rs",
-      "sha256": "f6fff61f2ac8b647c77dd5ebd11f4a27e93e7993ac0d684b917d165e51809780"
+      "sha256": "27b30fa42f5f8b1a12283d4af26295cf30692cb50649fcb655189469260b0f3e"
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "345aaedf65370deab218e826960d62a2d5c3394de208d8b9ba604372feefb561"
+      "sha256": "e2df51f455439e914cfe943482a07d0313fc2e73a7f9b7f7d2c0b74f60d623c2"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -256,11 +256,11 @@
     },
     {
       "path": "crates/program/src/prepared.rs",
-      "sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da"
+      "sha256": "d6d47902bd7111d7c21499ecd34c08f827ebca5fbb8e1791cb96d14e8630e213"
     },
     {
       "path": "crates/program/src/loader.rs",
-      "sha256": "f6c231fa1fc7d3302a4a6af24ae2c10014bb83699bf3e444697c4f010d1f8321"
+      "sha256": "52f528f12127d571d0ce8a22d1673f46a287298c74aa4b95a09abd67011d23b7"
     },
     {
       "path": "crates/program/src/module_requests.rs",
@@ -280,7 +280,7 @@
     },
     {
       "path": "crates/syntax/src/parser.rs",
-      "sha256": "63b36eb856ed92d77eb77a634a963b3a8d383ff4bb31429311350378c14e3d18"
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
     },
     {
       "path": "crates/syntax/tests/unit/incremental/tests.rs",
@@ -288,7 +288,7 @@
     },
     {
       "path": "crates/syntax/tests/unit/parser/tests.rs",
-      "sha256": "c1657d31b3fce2ff23f0fd1b5682f7737ee1bae4216477743b4d0f6a5d5acdd9"
+      "sha256": "dec74cf626d4c889f309da15a468aec50b3a4a07dc37cd5d2b489c8fdd2f08e2"
     },
     {
       "path": "crates/xtask/src/h2_1a_acceptance.rs",
@@ -380,7 +380,7 @@
     },
     {
       "path": "crates/types/src/options.rs",
-      "sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
+      "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
     },
     {
       "path": "crates/program/tests/integration/no_lib_program_loader_contract.rs",
@@ -565,6 +565,26 @@
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_dir.rs",
       "sha256": "8b95bfd48aa9d376187aacbdcc572045bf7ece244d4301a06f5b428d3cb0b2e7"
+    },
+    {
+      "path": "crates/compiler/src/declaration_diagnostics.rs",
+      "sha256": "1c455a3cfacd907a28a657900d1a0df1067cd48b824f6474ee7f934f3f6508dc"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/declaration-getters.json",
+      "sha256": "25093d68ab723ab4027a6a45025840324e454f71fc2ff43f85ab3e8538f2679c"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+      "sha256": "0e07c43cc9928726c8a07837aabbe305a9c5da1277642740eb47e8e4291f6d97"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/forced-declarations.json",
+      "sha256": "4a8e17708b7b4edec981e9be40ef03d28afdb0e9a7ccf545a7c4896818783cdc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+      "sha256": "ab03841f4c941fd89a5c798268a9daab75b6e465fd2e1cd042d83ed18a84ad2b"
     },
     {
       "path": "crates/checker/src/inference.rs",
@@ -864,7 +884,7 @@
     },
     {
       "path": "crates/checker/tests/unit/lib/tests.rs",
-      "sha256": "47b8cbc16c0ea17fae6d20ef7a5b4afc88f38a2b614f1b80c6bba7a58d6eb8b4"
+      "sha256": "0b6879fa45fd9e574cbee93d9d70064a458a5e8a029697c8e76f658f61bb66d1"
     },
     {
       "path": "crates/checker/tests/unit/literals/tests.rs",
@@ -916,7 +936,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "4068a5261122515c78c3e52ac2d0a96124961ef8ef0313da1edcd34c3a9fd5b4"
+      "sha256": "6c1d9541b5611d2dd2d0575409598067ae278c83928f123b215caaaa3298fc06"
     },
     {
       "path": "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
@@ -1004,7 +1024,7 @@
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb"
+      "sha256": "0328f7d28750e8be4c1fe8b00cac26b0493ffe082ca2cd28284673f481068c29"
     },
     {
       "path": "crates/harness/tests/integration/upstream_execution_plan.rs",
@@ -1016,7 +1036,7 @@
     },
     {
       "path": "crates/program/src/config.rs",
-      "sha256": "042044b707ea436c728797651df47a3b6faf3fcc0507b225aa1988f3e7a566b4"
+      "sha256": "6ccfb9af670015d31150fcec8cf05ad339acb1bf0380ed78bc5d2e0916b752fd"
     },
     {
       "path": "crates/program/src/lib.rs",
@@ -1152,11 +1172,11 @@
     },
     {
       "path": "crates/emitter/src/declarations/mod.rs",
-      "sha256": "599efc22297d9d6ca8abe05ea6221b6ae91036822939d218dbb4606018041015"
+      "sha256": "26fa55878585a4b4c7c17578f1ec160eeb2ea81e1fba7b0256e856d593f6c2a7"
     },
     {
       "path": "crates/emitter/src/declarations/orchestration.rs",
-      "sha256": "6b10c3f2ed3d649050b533f35c468f14b034a20907c223cc59ca1239f9a71594"
+      "sha256": "e2d65c90968a15753f8bba84c7a9d5bc1f21db2ea111caffe1709f58b34c7bad"
     },
     {
       "path": "crates/emitter/src/declarations/root.rs",
@@ -1236,7 +1256,7 @@
     },
     {
       "path": "crates/emitter/src/declarations/paths.rs",
-      "sha256": "c05ab242d9052c21f3895b977a04f5f5e946c8ff0722268379e4c47cf71f0146"
+      "sha256": "159b18ca1ee0324f2f5d0885fdd5f282ff6056bac184ca8100dd7c138d6ce4de"
     }
   ],
   "admitted_profile": {
@@ -1452,5 +1472,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "c52343de9b177ec49d07805b86d11e9563e128884def10f6427487e60138a321"
+  "profile_fingerprint_sha256": "6fdfd10b1b7f7933a29e358be87620875dd7054ac743ec61d1dc5a2d2a6ce035"
 }

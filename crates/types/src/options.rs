@@ -200,6 +200,8 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// Internal sourceFileMayBeEmitted gate, applied before forced declaration selection.
+    pub no_emit_for_js_files: Option<bool>,
     /// Include the independent `EmitResult.emittedFiles` observation. The
     /// write callback keeps its own ordering and must never be reconstructed
     /// from this list.
