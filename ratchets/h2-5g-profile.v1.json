@@ -200,7 +200,7 @@
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "ec9e8266c2a1a609514479d503bf49601469b2d3f942a232979766cc5549f22a"
+      "sha256": "93c8cb9125452dfe215bdb130bd952ed50fd1a35446b9fd8018eefdc6106283c"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -360,7 +360,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
-      "sha256": "2953be54e4787df6ee24f437b88911a8ca1a35d1ef97ff2942e771c49ffa3bbf"
+      "sha256": "36e95ef752add110dacd3da9ab7eb2bdb69b516ba5f262267f2a23e82c786cad"
     },
     {
       "path": "crates/xtask/tests/unit/h2_2d_acceptance/tests.rs",
@@ -492,7 +492,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_corpus.rs",
-      "sha256": "4b044619add9f00a2c7debba1fab2dd8db8dc449039e658ec9b99eb08f859807"
+      "sha256": "7aa3f5786798da6cab35c46962a7655f830ea0e00b5a216f48333d73cdee758a"
     },
     {
       "path": "crates/xtask/src/h2_7c_acceptance.rs",
@@ -1484,5 +1484,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7fc9dd3ca25b72aea7ec7222268001d21e22f73a71929862dcf4cf953841c831"
+  "profile_fingerprint_sha256": "34464fe7a7459001bb61651d142ab2ae6c7b70d2769e9eba9c0ff94516cd31b1"
 }

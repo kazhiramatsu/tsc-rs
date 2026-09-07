@@ -665,16 +665,15 @@ pub fn emit_files_with_activity(
         ));
     }
 
-    // Observe the admitted declaration request even when option diagnostics,
-    // noEmitOnError, or a declaration-only input prevent every transform.
-    // JavaScript-only noEmitOnError and the isolatedDeclarations prerequisite
-    // diagnostic without declaration output remain in the earlier runtime band.
-    if options.strip_internal == Some(true)
+    // Newly admitted declaration options require H2.7c even when diagnostics
+    // or a declaration-only input prevent every transform. The noEmitOnError
+    // declaration getter is observed below only if the older diagnostic gate
+    // reaches it; an early return from that gate keeps its previous owner.
+    let declaration_option_request = options.strip_internal == Some(true)
         || (options.isolated_declarations == Some(true) && options.declaration == Some(true))
         || options.declaration_dir.is_some()
-        || (options.no_emit_on_error == Some(true) && options.declaration == Some(true))
-        || (options.emit_declaration_only == Some(true) && options.declaration != Some(true))
-    {
+        || (options.emit_declaration_only == Some(true) && options.declaration != Some(true));
+    if declaration_option_request {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
     }
 
@@ -688,6 +687,9 @@ pub fn emit_files_with_activity(
         if diagnostics.is_empty()
             && (options.declaration == Some(true) || options.composite == Some(true))
         {
+            if !declaration_option_request {
+                activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+            }
             // TypeScript checks declarations across the whole program before
             // any JavaScript emit, even for a targeted emit request.
             for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
