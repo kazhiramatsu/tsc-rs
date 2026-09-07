@@ -92,6 +92,9 @@ fn options(case: &Value) -> CompilerOptions {
             "sourceRoot" => options.source_root = value.as_str().map(str::to_owned),
             "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
             "emitBOM" => options.emit_bom = value.as_bool(),
+            "noResolve" => options.no_resolve = value.as_bool(),
+            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+            "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
             other => panic!("unprojected API option {other}"),
         }
     }
@@ -116,12 +119,19 @@ fn prepared(case: &Value) -> PreparedProgram {
             builder = builder.file(format!("/lib/{name}"), std::fs::read(entry.path()).unwrap());
         }
     }
-    let roots = case["files"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|file| PathBuf::from(file["path"].as_str().unwrap()))
-        .collect::<Vec<_>>();
+    let roots = if let Some(roots) = case["roots"].as_array() {
+        roots
+            .iter()
+            .map(|root| PathBuf::from(root.as_str().unwrap()))
+            .collect::<Vec<_>>()
+    } else {
+        case["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|file| PathBuf::from(file["path"].as_str().unwrap()))
+            .collect::<Vec<_>>()
+    };
     let options = options(case);
     let load = if options.no_emit == Some(true) {
         load_program
@@ -269,6 +279,57 @@ fn h2_7e_stateful_program_calls_and_diagnostics_match_typescript() {
         serde_json::from_str(include_str!("fixtures/declaration-map-apis.json")).unwrap();
     assert_eq!(fixture["repetitions"], 2);
     assert_eq!(fixture["cases"].as_array().unwrap().len(), 54);
+    let counts = assert_stateful_program_cases(&fixture);
+    assert_eq!(counts.get("declaration-diagnostics"), Some(&(77 * 2)));
+    assert_eq!(counts.get("forced-declarations"), Some(&(92 * 2)));
+    assert_eq!(counts.get("ordinary-command"), Some(&(20 * 2)));
+    assert_eq!(counts.get("ordinary-noEmit-boundary"), Some(&2));
+}
+
+#[test]
+fn h2_7e_preserved_source_references_use_forced_declaration_paths() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/declaration-reference-paths.json")).unwrap();
+    assert_eq!(fixture["repetitions"], 2);
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 8);
+    let counts = assert_stateful_program_cases(&fixture);
+    assert_eq!(counts.get("declaration-diagnostics"), Some(&(24 * 2)));
+    assert_eq!(counts.get("forced-declarations"), Some(&(24 * 2)));
+    assert_eq!(counts.get("ordinary-command"), Some(&(8 * 2)));
+    assert_eq!(counts.get("ordinary-noEmit-boundary"), None);
+    let adjacent = fixture["adjacent_out_dir_observations"].as_array().unwrap();
+    assert_eq!(adjacent.len(), 8);
+    for case in adjacent {
+        for _ in 0..2 {
+            let mut entered = false;
+            let error = ProgramSession::new(prepared(case))
+                .with_declarations(|_| {
+                    entered = true;
+                    Ok(())
+                })
+                .unwrap_err();
+            assert!(!entered, "outDir remains an H2.8a request boundary");
+            assert!(matches!(
+                error,
+                DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" })
+            ));
+        }
+    }
+}
+
+#[test]
+fn h2_7e_preserved_reference_target_families_match_typescript() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/declaration-reference-paths.json")).unwrap();
+    let supplemental = &fixture["supplemental_reference_targets"];
+    assert_eq!(supplemental.as_array().unwrap().len(), 3);
+    let counts = assert_stateful_program_cases(&json!({"cases": supplemental}));
+    assert_eq!(counts.get("declaration-diagnostics"), Some(&(9 * 2)));
+    assert_eq!(counts.get("forced-declarations"), Some(&(9 * 2)));
+    assert_eq!(counts.get("ordinary-command"), Some(&(3 * 2)));
+}
+
+fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::<String, usize>::new();
     let mut failures = Vec::new();
     for case in fixture["cases"].as_array().unwrap() {
@@ -453,8 +514,5 @@ fn h2_7e_stateful_program_calls_and_diagnostics_match_typescript() {
         failures.len(),
         failures.join("\n")
     );
-    assert_eq!(counts.get("declaration-diagnostics"), Some(&(77 * 2)));
-    assert_eq!(counts.get("forced-declarations"), Some(&(92 * 2)));
-    assert_eq!(counts.get("ordinary-command"), Some(&(20 * 2)));
-    assert_eq!(counts.get("ordinary-noEmit-boundary"), Some(&2));
+    counts
 }
