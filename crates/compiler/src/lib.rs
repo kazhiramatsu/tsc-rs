@@ -920,6 +920,110 @@ impl ProgramSession {
         self.emit_with_command_outcome(sink, None)
     }
 
+    /// Borrow the production checked host and live resolver for internal
+    /// transform/print comparisons. This eager ordinary-emission facet keeps
+    /// the prepared options, source identities, libraries and module tables.
+    /// It does not run the public emit option guard, create artifacts/sinks,
+    /// or confer runtime admission; public Program emit remains unchanged.
+    ///
+    /// The callback cannot retain the host/resolver borrow. The owned return
+    /// includes the authoritative CheckResult, whose whole-Program semantic
+    /// diagnostics remain explicitly available. None means the checker did
+    /// not construct a snapshot/call the callback (the empty-Program case).
+    /// This eager seam must not represent a cold getter or fresh forced emit.
+    #[doc(hidden)]
+    pub fn with_checked_emit_resolver_for_harness<R>(
+        self,
+        operation: impl FnOnce(
+            &dyn EmitHost,
+            &dyn tsc_emitter::EmitResolver,
+            &CheckResult,
+        ) -> Result<R, DriverError>,
+    ) -> Result<(Option<R>, CheckResult), DriverError> {
+        self.require_mode(PreparedProgramMode::Emit)?;
+        let prepared = self.prepared;
+        let emit_host = PreparedEmitHost::new(&prepared)?;
+        let inputs = project_checker_inputs(&prepared)?;
+        // The eager checker currently harvests authoritative failures before
+        // its emit callback. Preserve failures from first-time emit queries as
+        // well: the delegate owns every resolution rule, this wrapper only
+        // retains the first exact failed request for the outer driver result.
+        struct ObservedProvider<'a> {
+            inner: PreparedModuleProvider<'a>,
+            failure: RefCell<Option<AuthoritativeModuleFailure>>,
+        }
+        impl AuthoritativeModuleProvider for ObservedProvider<'_> {
+            fn resolve_module(
+                &self,
+                request: AuthoritativeModuleRequest<'_>,
+            ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>
+            {
+                let result = self.inner.resolve_module(request);
+                if let Err(failure) = &result {
+                    let mut first = self.failure.borrow_mut();
+                    if first.is_none() {
+                        *first = Some(AuthoritativeModuleFailure::Lookup {
+                            source_token: request.source_token,
+                            containing_file: request.containing_file.to_owned(),
+                            specifier: request.specifier.to_owned(),
+                            mode: request.mode,
+                            failure: *failure,
+                        });
+                    }
+                }
+                result
+            }
+        }
+        let provider = ObservedProvider {
+            inner: PreparedModuleProvider {
+                prepared: &prepared,
+                request_plans: RefCell::new(BTreeMap::new()),
+            },
+            failure: RefCell::new(None),
+        };
+        let mut pending_operation = Some(operation);
+        let mut operation_result = None;
+        let checked = check_program_with_authoritative_modules_at_for_emit(
+            &inputs.libs,
+            &inputs.files,
+            &inputs.lib_metadata,
+            &inputs.file_metadata,
+            prepared.compiler_options(),
+            &inputs.current_directory,
+            &provider,
+            |snapshot, checker, checked| {
+                if let Some(partial) = checked.partial_checks.first() {
+                    operation_result = Some(Err(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                    }));
+                    return;
+                }
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                operation_result = Some(checker.with_emit_resolver(|resolver| {
+                    pending_operation
+                        .take()
+                        .expect("checked harness callback runs once")(
+                        &checked_host,
+                        resolver,
+                        checked,
+                    )
+                }));
+            },
+        )
+        .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
+        if let Some(failure) = provider.failure.into_inner() {
+            return Err(map_authoritative_failure(&prepared, failure));
+        }
+        Ok((operation_result.transpose()?, checked))
+    }
+
     /// h2-6a-m-2 §8-A.1 harness-print bridge: run the production
     /// plan → checker-resolver → transform → print pipeline and return
     /// each script unit's printed text (with an optionally injected
