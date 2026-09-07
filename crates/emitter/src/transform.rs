@@ -6,8 +6,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourcePositionError, TransformArena,
-    TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourceFileId, SourcePositionError,
+    TransformArena, TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
 /// Fallible declaration-printer projection of the checker's global-name
@@ -1234,6 +1234,9 @@ pub enum TransformError {
         parent: TransformNode,
     },
     MissingProgramSource(TransformNode),
+    ParsedEmitMetadataSourceMismatch(SourceFileId),
+    ParsedEmitMetadataNotPortable(TransformNode),
+    ParsedEmitMetadataRestoreConflict(TransformNode),
     ResolverNodeNotInParseTree(TransformNode),
     InvalidSourceRange {
         node: TransformNode,
@@ -1285,6 +1288,18 @@ pub enum TransformError {
 impl fmt::Display for TransformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ParsedEmitMetadataSourceMismatch(source) => write!(
+                formatter,
+                "parsed emit metadata requires the same original Program source {source:?}"
+            ),
+            Self::ParsedEmitMetadataNotPortable(node) => write!(
+                formatter,
+                "parsed emit metadata at {node:?} requires an unsupported cross-arena identity"
+            ),
+            Self::ParsedEmitMetadataRestoreConflict(node) => write!(
+                formatter,
+                "parsed emit metadata target {node:?} already has emit metadata"
+            ),
             Self::UnknownSource(source) => {
                 write!(formatter, "unknown transform source {}", source.raw())
             }

@@ -61,8 +61,8 @@ pub use execute::{
     EmitDiagnosticGate, MapLaneInputs,
 };
 pub use factory::{
-    GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
-    TransformSource, TransformSourceId, TypeParenthesizer,
+    GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
+    TransformNodeArray, TransformSource, TransformSourceId, TypeParenthesizer,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{

@@ -1448,17 +1448,10 @@ impl Printer {
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
         let mut writer = create_text_writer(self.options.new_line);
-        let source_text = transformation.arena().source(source_id)?.syntax().text();
         if let Some(inputs) = recording {
-            let mut active = crate::source_map::SourceMapRecording::new(inputs);
-            let file_name = transformation
-                .arena()
-                .source(source_id)?
-                .syntax()
-                .file_name
-                .clone();
-            active.set_current_source(source_id, &file_name, source_text);
-            writer.set_source_map_recording(Some(active));
+            writer
+                .set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(inputs)));
+            self.set_source_map_source(transformation, source_id, &mut writer)?;
         }
         let helpers = self.sorted_source_emit_helpers(transformation, source_id)?;
         let system_scoped_helpers = !helpers.is_empty()
@@ -1516,6 +1509,21 @@ impl Printer {
             end,
             source_map,
         })
+    }
+
+    /// The source switch shared by writeFile and writeBundle. Register even
+    /// an empty source; bundle prologues can register a later source first.
+    fn set_source_map_source(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source_id: TransformSourceId,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if let Some(recording) = writer.recording_mut() {
+            let source = transformation.arena().source(source_id)?.syntax();
+            recording.set_current_source(source_id, &source.file_name, source.text());
+        }
+        Ok(())
     }
 
     fn sorted_source_emit_helpers(

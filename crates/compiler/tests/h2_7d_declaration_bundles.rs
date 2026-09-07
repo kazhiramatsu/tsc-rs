@@ -40,6 +40,13 @@ fn options(value: &Value) -> CompilerOptions {
             "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
             "stripInternal" => options.strip_internal = value.as_bool(),
             "noEmitOnError" => options.no_emit_on_error = value.as_bool(),
+            "sourceMap" => options.source_map = value.as_bool(),
+            "declarationMap" => options.declaration_map = value.as_bool(),
+            "inlineSourceMap" => options.inline_source_map = value.as_bool(),
+            "inlineSources" => options.inline_sources = value.as_bool(),
+            "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
+            "alwaysStrict" => options.always_strict = value.as_bool(),
+            "noResolve" => options.no_resolve = value.as_bool(),
             other => panic!("unprojected option {other}"),
         }
     }
@@ -410,23 +417,7 @@ fn ordinary_declaration_bundles_match_typescript_visitor_and_printer_twice() {
         "../../emitter/tests/fixtures/bundle-declarations.json"
     ))
     .unwrap();
-    let library_directory =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib");
-    let libraries = std::fs::read_dir(library_directory)
-        .unwrap()
-        .map(|entry| entry.unwrap())
-        .filter(|entry| {
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            name.starts_with("lib.") && name.ends_with(".d.ts")
-        })
-        .map(|entry| {
-            (
-                entry.file_name().to_string_lossy().into_owned(),
-                std::fs::read(entry.path()).unwrap(),
-            )
-        })
-        .collect::<Vec<_>>();
+    let libraries = libraries();
     let deferred = [
         "diagnostics/no-emit-on-error",
         "diagnostics/semantic-gate",
@@ -480,5 +471,543 @@ fn ordinary_declaration_bundles_match_typescript_visitor_and_printer_twice() {
         }
     }
     assert_eq!(compared, 19);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn libraries() -> Vec<(String, Vec<u8>)> {
+    let library_directory =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib");
+    std::fs::read_dir(library_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .filter(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with("lib.") && name.ends_with(".d.ts")
+        })
+        .map(|entry| {
+            (
+                entry.file_name().to_string_lossy().into_owned(),
+                std::fs::read(entry.path()).unwrap(),
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
+fn compare_map_artifact(actual: &tsc_emitter::EmitArtifact, expected: &Value) {
+    assert_eq!(
+        actual.path().to_string_lossy(),
+        expected["path"].as_str().unwrap()
+    );
+    assert_eq!(
+        actual.callback_bytes(),
+        base64::engine::general_purpose::STANDARD
+            .decode(expected["callback_utf8_base64"].as_str().unwrap())
+            .unwrap()
+    );
+    assert_eq!(
+        json!(actual.callback_bytes().len()),
+        expected["callback_utf8_bytes"]
+    );
+    assert_eq!(
+        json!(actual.write_byte_order_mark()),
+        expected["write_byte_order_mark"]
+    );
+    assert_eq!(
+        actual.materialized_bytes().as_ref(),
+        base64::engine::general_purpose::STANDARD
+            .decode(expected["materialized_utf8_base64"].as_str().unwrap())
+            .unwrap()
+    );
+    assert_eq!(
+        json!(actual.materialized_bytes().len()),
+        expected["materialized_utf8_bytes"]
+    );
+    assert_eq!(
+        json!(actual.source_files().map(|files| files
+            .iter()
+            .map(|file| file.to_string_lossy().into_owned())
+            .collect::<Vec<_>>())),
+        expected["source_files"]
+    );
+    assert_eq!(expected["data_build_info"], Value::Null);
+    match actual.metadata() {
+        Some(tsc_emitter::EmitWriteMetadata::Text(data)) => {
+            assert_eq!(actual.kind(), tsc_emitter::EmitArtifactKind::Declaration);
+            assert_eq!(expected["data_present"], true);
+            assert_eq!(
+                expected["data_keys"],
+                json!(["sourceMapUrlPos", "diagnostics"])
+            );
+            assert!(data.diagnostics().is_empty());
+            assert_eq!(expected["data_diagnostics"], json!([]));
+            assert_eq!(
+                json!(data.source_map_url_position().map(|pos| pos.value())),
+                expected["data_source_map_url_pos"]
+            );
+        }
+        None => {
+            assert_eq!(actual.kind(), tsc_emitter::EmitArtifactKind::DeclarationMap);
+            for key in ["data_keys", "data_diagnostics", "data_source_map_url_pos"] {
+                assert_eq!(expected[key], Value::Null);
+            }
+            assert_eq!(expected["data_present"], false);
+        }
+        _ => panic!("unexpected build info"),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn compare_recorded_output(
+    case: &Value,
+    printed: &tsc_emitter::PrintedText,
+    path: &Path,
+    map_path: Option<&Path>,
+    map_options: &CompilerOptions,
+    lane: &tsc_emitter::MapLaneInputs,
+    first_source_path: &Path,
+    declaration: bool,
+    source_files: &[PathBuf],
+    map_observations: &mut Vec<Value>,
+) {
+    let expected = &case["typescript_observation"];
+    let write = expected["writes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|write| write["path"] == path.to_string_lossy().as_ref())
+        .unwrap();
+    let newline = if case["options"]["newLine"] == 0 {
+        "\r\n"
+    } else {
+        "\n"
+    };
+    if declaration {
+        let artifacts = tsc_emitter::finish_declaration_bundle_map(
+            lane,
+            map_options,
+            path,
+            map_path.unwrap(),
+            source_files,
+            printed,
+            vec![],
+            if newline == "\r\n" {
+                NewLineKind::CarriageReturnLineFeed
+            } else {
+                NewLineKind::LineFeed
+            },
+        )
+        .unwrap();
+        for artifact in [&artifacts.map, &artifacts.declaration] {
+            let expected_write = expected["writes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|write| write["path"] == artifact.path().to_string_lossy().as_ref())
+                .unwrap();
+            compare_map_artifact(artifact, expected_write);
+        }
+        map_observations.push(
+            json!({ "input_source_file_names": artifacts.observation.input_source_files(),
+            "source_map_json": artifacts.observation.canonical_json() }),
+        );
+        return;
+    }
+    let mut text = printed.text().to_owned();
+    if let Some(generator) = printed.source_map() {
+        let mut generator = generator.clone();
+        let map_json = generator.to_json_string();
+        map_observations.push(json!({
+            "input_source_file_names": generator.raw_sources(), "source_map_json": map_json,
+        }));
+        if let Some(map_path) = map_path {
+            let map_write = expected["writes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|write| write["path"] == map_path.to_string_lossy().as_ref())
+                .unwrap();
+            let expected_map = base64::engine::general_purpose::STANDARD
+                .decode(map_write["callback_utf8_base64"].as_str().unwrap())
+                .unwrap();
+            assert_eq!(
+                map_json.as_bytes(),
+                expected_map,
+                "{} map bytes",
+                case["case_id"]
+            );
+            assert_eq!(map_write["write_byte_order_mark"], false);
+            assert_eq!(map_write["data_present"], false);
+            assert_eq!(map_write["source_files"], write["source_files"]);
+        }
+        // These unchanged inputs have no root options. The existing URL
+        // worker therefore does not consult its standalone source argument.
+        assert!(map_options.map_root.is_none() && map_options.source_root.is_none());
+        let url = tsc_emitter::source_mapping_url(
+            lane,
+            map_options,
+            &map_json,
+            path,
+            map_path,
+            first_source_path,
+        )
+        .unwrap();
+        if printed.end().column() != 0 {
+            text.push_str(newline);
+        }
+        assert_eq!(
+            json!(text.encode_utf16().count()),
+            write["data_source_map_url_pos"]
+        );
+        text.push_str("//# sourceMappingURL=");
+        text.push_str(&url);
+    } else {
+        assert_eq!(write["data_source_map_url_pos"], Value::Null);
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(write["callback_utf8_base64"].as_str().unwrap())
+        .unwrap();
+    assert_eq!(
+        text.as_bytes(),
+        bytes,
+        "{} {} text",
+        case["case_id"],
+        if declaration {
+            "declaration"
+        } else {
+            "JavaScript"
+        }
+    );
+    assert_eq!(json!(text.len()), write["callback_utf8_bytes"]);
+    let bom = case["options"]["emitBOM"] == true;
+    assert_eq!(write["write_byte_order_mark"], bom);
+    let materialized = if bom {
+        [&[239, 187, 191][..], text.as_bytes()].concat()
+    } else {
+        text.into_bytes()
+    };
+    assert_eq!(
+        materialized,
+        base64::engine::general_purpose::STANDARD
+            .decode(write["materialized_utf8_base64"].as_str().unwrap())
+            .unwrap()
+    );
+}
+
+fn compare_bundle_recording(
+    case: &Value,
+    host: &dyn EmitHost,
+    resolver: &dyn EmitResolver,
+    forced: bool,
+) {
+    use tsc_emitter::{
+        get_script_transformers_for_source, source_map_recording_inputs_for, MapLaneInputs,
+        PrintRequest,
+    };
+    let options = host.compiler_options();
+    assert!(options.source_root.is_none() && options.map_root.is_none());
+    let expected = &case["typescript_observation"];
+    let preflight = preflight_emit(host, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(preflight.plan().units().len(), 1);
+    let unit = &preflight.plan().units()[0];
+    let EmitRoot::Bundle(root) = unit.root() else {
+        panic!("bundle unit")
+    };
+    let source_names = root
+        .source_files()
+        .iter()
+        .map(|&id| {
+            host.source_file(id)
+                .unwrap()
+                .path()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        json!(source_names),
+        expected["program_source_order"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|name| !name.as_str().unwrap().ends_with(".d.ts"))
+            .cloned()
+            .collect::<Value>()
+    );
+    for write in expected["writes"].as_array().unwrap() {
+        assert_eq!(write["source_files"], json!(source_names));
+    }
+    let first = root.source_files()[0];
+    let first_source_path = host.source_file(first).unwrap().path().to_path_buf();
+    let common = host
+        .common_source_directory()
+        .to_string_lossy()
+        .replace('\\', "/");
+    let lane = MapLaneInputs {
+        common_source_directory: if common.ends_with('/') {
+            common
+        } else {
+            format!("{common}/")
+        },
+        current_directory: host
+            .current_directory()
+            .to_string_lossy()
+            .replace('\\', "/"),
+        use_case_sensitive_source_keys: host.use_case_sensitive_file_names(),
+    };
+    let new_line = if options.new_line == Some(0) {
+        NewLineKind::CarriageReturnLineFeed
+    } else {
+        NewLineKind::LineFeed
+    };
+    let mut maps = Vec::new();
+    let mut parsed_metadata = None;
+    for declaration in [false, true] {
+        if forced && !declaration {
+            continue;
+        }
+        let Some(path) = (if declaration {
+            unit.paths().declaration_path()
+        } else {
+            unit.paths().javascript_path()
+        }) else {
+            continue;
+        };
+        assert!(!preflight.is_emit_blocked(host, path));
+        let mut arena = TransformArena::new();
+        let ids = host
+            .source_file_ids()
+            .iter()
+            .map(|&id| {
+                (
+                    id,
+                    arena.add_source(host.source_file(id).unwrap().syntax().unwrap(), Some(id)),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let selected = root.source_files().iter().map(|id| ids[id]).collect();
+        if declaration {
+            if let Some(snapshot) = &parsed_metadata {
+                arena.restore_parsed_emit_metadata(snapshot, host).unwrap();
+            }
+        }
+        let paths = PlanDeclarationPaths::new(host, &preflight);
+        let transformers: Vec<Box<dyn tsc_emitter::Transformer + '_>> = if declaration {
+            vec![Box::new(DeclarationTransformer::new(
+                options, resolver, host, &paths,
+            ))]
+        } else {
+            get_script_transformers_for_source(options, resolver, host, first).unwrap()
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::Bundle(TransformBundle::new(selected))],
+            transformers,
+            false,
+        )
+        .unwrap();
+        assert!(result.diagnostics().is_empty());
+        let TransformRoot::Bundle(bundle) = result.roots()[0].clone() else {
+            panic!("bundle result")
+        };
+        let map_options = if declaration {
+            CompilerOptions {
+                source_map: options.declaration_map,
+                source_root: options.source_root.clone(),
+                map_root: options.map_root.clone(),
+                ..CompilerOptions::default()
+            }
+        } else {
+            options.clone()
+        };
+        let recording = (map_options.source_map == Some(true)
+            || map_options.inline_source_map == Some(true))
+        .then(|| {
+            if declaration {
+                tsc_emitter::declaration_bundle_map_recording_inputs_for(&lane, options, path)
+            } else {
+                source_map_recording_inputs_for(&lane, &map_options, path, &first_source_path)
+            }
+        });
+        let printer_options = PrinterOptions::new(new_line)
+            .with_target(options.emit_script_target())
+            .with_module_kind(options.emit_module_kind())
+            .with_remove_comments(options.remove_comments == Some(true))
+            .with_no_emit_helpers(declaration || options.no_emit_helpers == Some(true))
+            .with_import_helpers(options.import_helpers == Some(true))
+            .with_source_file_text_mode(SourceFileTextMode::Canonical)
+            .with_declaration_syntax(declaration)
+            .with_only_print_js_doc_style(declaration)
+            .with_omit_brace_source_map_positions(declaration);
+        let mut printer = create_printer(printer_options);
+        let names = GlobalNames(resolver);
+        let printed = if declaration {
+            printer
+                .print_declaration_bundle(
+                    &mut result,
+                    &bundle,
+                    DeclarationPrintHandlers::new(&names),
+                    recording,
+                )
+                .unwrap()
+        } else {
+            printer
+                .print(&mut result, PrintRequest::Bundle(bundle.clone()), recording)
+                .unwrap()
+        };
+        if !declaration {
+            parsed_metadata = Some(result.arena().snapshot_parsed_emit_metadata(host).unwrap());
+            if let Some(phases) = expected["phases"].as_array() {
+                // These six producer controls use ASCII source, so their
+                // source byte positions are the observed UTF-16 positions.
+                assert!(case["files"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|file| file["text"].as_str().unwrap().is_ascii()));
+                let last = phases
+                    .iter()
+                    .rev()
+                    .find(|phase| phase["phase"] == "after-js")
+                    .unwrap();
+                let project = |value: &Value| {
+                    json!({ "file": value["parsed_identity"]["file"],
+                    "kind": value["kind"], "pos": value["pos"], "end": value["end"], "flags": value["flags"],
+                    "type_kind": value["type_node"]["kind"] })
+                };
+                let mut expected_metadata = last["parsed_metadata"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(project)
+                    .map(|value| value.to_string())
+                    .collect::<Vec<_>>();
+                let mut actual_metadata = Vec::new();
+                for (&program, &source) in &ids {
+                    let parsed = host.source_file(program).unwrap().syntax().unwrap();
+                    for (offset, record) in parsed.arena.nodes().iter().enumerate() {
+                        let node = TransformNode::new(
+                            source,
+                            tsc_syntax::NodeId(parsed.arena.node_base() + offset as u32),
+                        );
+                        let Some(metadata) = result.arena().metadata(node) else {
+                            continue;
+                        };
+                        if metadata.flags().is_empty() && metadata.type_node().is_none() {
+                            continue;
+                        }
+                        actual_metadata.push(json!({ "file": parsed.file_name, "kind": format!("{:?}", record.kind),
+                            "pos": record.pos, "end": record.end, "flags": metadata.flags().bits(),
+                            "type_kind": metadata.type_node().map(|node| format!("{:?}", result.arena().node(node).unwrap().kind)),
+                        }).to_string());
+                    }
+                }
+                actual_metadata.sort();
+                expected_metadata.sort();
+                assert_eq!(
+                    actual_metadata, expected_metadata,
+                    "{} direct parse metadata",
+                    case["case_id"]
+                );
+            }
+        }
+        let map_path = if declaration {
+            unit.paths().declaration_map_path()
+        } else {
+            unit.paths().javascript_map_path()
+        };
+        let source_files = bundle
+            .sources()
+            .iter()
+            .map(|&id| PathBuf::from(&result.arena().source(id).unwrap().syntax().file_name))
+            .collect::<Vec<_>>();
+        compare_recorded_output(
+            case,
+            &printed,
+            path,
+            map_path,
+            options,
+            &lane,
+            &first_source_path,
+            declaration,
+            &source_files,
+            &mut maps,
+        );
+        result.dispose();
+    }
+    assert_eq!(
+        json!(maps),
+        expected["emit_result"]["source_maps"],
+        "{} complete sourceMaps",
+        case["case_id"]
+    );
+    assert_eq!(expected["emit_result"]["diagnostics"], json!([]));
+    assert_eq!(expected["emit_result"]["emit_skipped"], false);
+}
+
+#[test]
+fn ordinary_bundle_source_maps_match_complete_typescript_maps_twice() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../emitter/tests/fixtures/bundle-maps.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 12);
+    let libraries = libraries();
+    let mut failures = Vec::new();
+    for case in fixture["cases"].as_array().unwrap() {
+        for repetition in 0..2 {
+            let outcome = std::panic::catch_unwind(|| {
+                let prepared = prepare(case, &libraries);
+                let (observed, checked) = tsc_compiler::ProgramSession::new(prepared)
+                    .with_checked_emit_resolver_for_harness(|host, resolver, checked| {
+                        assert!(checked.partial_checks.is_empty());
+                        compare_bundle_recording(case, host, resolver, false);
+                        Ok(())
+                    })
+                    .unwrap();
+                assert!(observed.is_some());
+                assert!(checked.partial_checks.is_empty());
+            });
+            if outcome.is_err() {
+                failures.push(format!("{} #{repetition}", case["case_id"]));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../emitter/tests/fixtures/bundle-maps.json"
+    ))
+    .unwrap();
+    let references = fixture["metadata_lifetime_references"].as_array().unwrap();
+    assert_eq!(references.len(), 6);
+    let libraries = libraries();
+    let mut failures = Vec::new();
+    for reference in references {
+        for mode in ["ordinary", "fresh-forced"] {
+            let mut case = reference.clone();
+            case["typescript_observation"] = reference["modes"][mode].clone();
+            for repetition in 0..2 {
+                let outcome = std::panic::catch_unwind(|| {
+                    let prepared = prepare(&case, &libraries);
+                    let (observed, checked) = tsc_compiler::ProgramSession::new(prepared)
+                        .with_checked_emit_resolver_for_harness(|host, resolver, checked| {
+                            assert!(checked.partial_checks.is_empty());
+                            compare_bundle_recording(&case, host, resolver, mode == "fresh-forced");
+                            Ok(())
+                        })
+                        .unwrap();
+                    assert!(observed.is_some());
+                    assert!(checked.partial_checks.is_empty());
+                });
+                if outcome.is_err() {
+                    failures.push(format!("{} {mode} #{repetition}", case["case_id"]));
+                }
+            }
+        }
+    }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

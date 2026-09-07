@@ -10774,7 +10774,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .metadata_mut(local_name)
-            .add_flags(EmitFlags::NO_COMMENTS);
+            .set_flags(EmitFlags::NO_COMMENTS);
         let assignment = self.create_assignment(access, local_name)?;
         let statement = self.create_expression_statement(assignment)?;
         self.context
@@ -12483,6 +12483,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(updated);
         };
         let name = self.node(name);
+        // visitParameter mutates this unchanged name in the original parse
+        // tree. Keep that same-emit side effect even though the JavaScript
+        // representation below isolates its name from parameter-property
+        // projections. A fresh declaration-only emit has no such mutation.
+        if self.context.arena().is_parsed_node(name)? {
+            let metadata = self.context.arena_mut()?.metadata_mut(name);
+            metadata.set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        }
         let cloned_name = self.context.factory()?.clone_node(name)?;
         self.context.factory()?.set_text_range(cloned_name, name)?;
         data.name = Some(cloned_name.node());

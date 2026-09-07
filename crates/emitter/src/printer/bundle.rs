@@ -1,6 +1,6 @@
 //! Shared-writer bundle printing. Runtime outFile routing remains a separate
 //! admission boundary. Internal declaration and AMD/System workers share this
-//! writer; bundle map composition retains its typed control.
+//! writer and recorder; output routing remains owned by the executor.
 use super::*;
 
 struct BundleSource {
@@ -30,7 +30,7 @@ impl Printer {
     }
 
     /// Print the declaration visitor's complete bundle with one writer and
-    /// shared synthetic references. Bundle map composition remains separate.
+    /// shared synthetic references and an optional shared map recorder.
     pub fn print_declaration_bundle(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -58,10 +58,9 @@ impl Printer {
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
         global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<PrintedText, PrinterError> {
-        if recording.is_some()
-            || !transformation.roots().iter().any(|root| {
-                matches!(root, crate::TransformRoot::Bundle(transformed) if transformed == bundle)
-            })
+        if !transformation.roots().iter().any(|root| {
+            matches!(root, crate::TransformRoot::Bundle(transformed) if transformed == bundle)
+        })
         {
             return Err(PrinterError::Unsupported(UnsupportedEmitFeature::BundleRoot));
         }
@@ -108,6 +107,10 @@ impl Printer {
         transformation
             .finalize_bundle_generated_names_for_print(bundle.sources(), global_name_oracle)?;
         let mut writer = create_text_writer(self.options.new_line);
+        if let Some(inputs) = recording {
+            writer
+                .set_source_map_recording(Some(crate::source_map::SourceMapRecording::new(inputs)));
+        }
         // writeBundle / emitShebangIfNeeded (_tsc.js:117058-117070,
         // 119824-119840): the first shebang anywhere in the bundle wins.
         for source in &sources {
@@ -126,6 +129,7 @@ impl Printer {
         let mut prologues = BTreeSet::new();
         for source in &sources {
             self.prepare_emission_plan(transformation, source.root)?;
+            let mut needs_source_switch = true;
             for &raw_statement in &source.statements {
                 let statement = transformation
                     .arena()
@@ -135,6 +139,10 @@ impl Printer {
                     break;
                 };
                 if prologues.insert(value) {
+                    if needs_source_switch {
+                        self.set_source_map_source(transformation, source.source_id, &mut writer)?;
+                        needs_source_switch = false;
+                    }
                     self.write_bundle_prologue(transformation, statement, &mut writer)?;
                 }
             }
@@ -166,6 +174,7 @@ impl Printer {
                 .helpers
                 .retain(|helper| helper.scoped() || emitted_helpers.insert(helper.name().into()));
             self.prepare_emission_plan(transformation, source.root)?;
+            self.set_source_map_source(transformation, source.source_id, &mut writer)?;
             self.write_transformed_source_file(
                 transformation,
                 SourceFilePrintBody {
@@ -179,10 +188,13 @@ impl Printer {
                 &mut writer,
             )?;
         }
+        let source_map = writer
+            .take_source_map_recording()
+            .map(crate::source_map::SourceMapRecording::into_generator);
         Ok(PrintedText {
             text: writer.text().to_owned(),
             end: writer.location(),
-            source_map: None,
+            source_map,
         })
     }
 

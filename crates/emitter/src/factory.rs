@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+mod parsed_metadata;
+pub use parsed_metadata::ParsedEmitMetadata;
+
 use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
 use tsc_syntax::FileReference;
@@ -148,6 +151,9 @@ pub struct TransformSource {
     program_source: Option<SourceFileId>,
     parsed_node_base: u32,
     parsed_node_end: u32,
+    // Retain immutable parse authority separately from the detached syntax
+    // arena, which may append synthetic nodes without extending that lease.
+    parsed_node_identity_lease: Option<tsc_types::IdentityLease>,
     source: SourceFile,
     has_no_default_lib: Option<bool>,
 }
@@ -305,6 +311,7 @@ impl TransformArena {
             program_source,
             parsed_node_base,
             parsed_node_end,
+            parsed_node_identity_lease: source.node_identity_lease().cloned(),
             source: detached,
             has_no_default_lib: None,
         });
