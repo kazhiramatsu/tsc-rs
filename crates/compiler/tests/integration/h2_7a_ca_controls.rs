@@ -163,14 +163,6 @@ fn no_h2_7a_admission_exists_in_production() {
     assert_eq!(actual, BTreeSet::new());
 }
 
-fn assert_unsupported_option(options: CompilerOptions, expected: &'static str) {
-    let host = control_host(options);
-    assert!(matches!(
-        tsc_emitter::validate_bootstrap_emit_request(&host),
-        Err(EmitFailure::UnsupportedCompilerOption { option }) if option == expected
-    ));
-}
-
 #[test]
 fn declaration_family_options_remain_typed_refusals() {
     // The unchanged declarationMap-only input now reports the ordinary
@@ -209,12 +201,13 @@ fn declaration_family_options_remain_typed_refusals() {
         tsc_emitter::validate_bootstrap_emit_request(&strip_internal),
         Ok(()),
     );
-    assert_unsupported_option(
-        CompilerOptions {
-            out_file: Some("/control/bundle.js".to_owned()),
-            ..CompilerOptions::default()
-        },
-        "outFile",
+    let bundle = control_host(CompilerOptions {
+        out_file: Some("/control/bundle.js".to_owned()),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&bundle),
+        Ok(())
     );
 
     let host = control_host(CompilerOptions {
@@ -225,7 +218,7 @@ fn declaration_family_options_remain_typed_refusals() {
 }
 
 #[test]
-fn h2_7c_extends_the_h2_7b_admission_with_six_production_constructors() {
+fn h2_7de_preserves_the_declaration_profile_chain_with_six_production_constructors() {
     let workspace = workspace();
     let activity = fs::read_to_string(workspace.join("crates/emitter/src/activity.rs"))
         .expect("read activity source");
@@ -242,6 +235,20 @@ fn h2_7c_extends_the_h2_7b_admission_with_six_production_constructors() {
     assert!(activity.contains(
         "pub const fn h2_7c_profile() -> Self {\n        let mut profile = Self::h2_7b_profile();"
     ));
+    for (profile, parent, slice) in [
+        ("h2_7d_profile", "h2_7c_profile", "H2_7d"),
+        ("h2_7e_profile", "h2_7d_profile", "H2_7e"),
+    ] {
+        assert_eq!(
+            activity
+                .matches(&format!("H2RuntimeSlice::{slice}.index()"))
+                .count(),
+            1
+        );
+        assert!(activity.contains(&format!(
+            "pub const fn {profile}() -> Self {{\n        let mut profile = Self::{parent}();"
+        )));
+    }
     let expected = BTreeSet::from([
         "crates/compiler/src/declaration_diagnostics.rs:1".to_owned(),
         "crates/compiler/src/lib.rs:1".to_owned(),
@@ -258,12 +265,14 @@ fn h2_7c_extends_the_h2_7b_admission_with_six_production_constructors() {
         let source = fs::read_to_string(workspace.join(relative)).expect("read production source");
         let count = source
             .lines()
-            .filter(|line| line.contains("H2ActivityCanary::h2_7c_profile()"))
+            .filter(|line| line.contains("H2ActivityCanary::h2_7e_profile()"))
             .count();
         actual.insert(format!("{relative}:{count}"));
         assert!(
             !source.contains("H2ActivityCanary::h2_7b_profile()")
-                && !source.contains("H2ActivityCanary::h2_6c_profile()"),
+                && !source.contains("H2ActivityCanary::h2_6c_profile()")
+                && !source.contains("H2ActivityCanary::h2_7c_profile()")
+                && !source.contains("H2ActivityCanary::h2_7d_profile()"),
             "legacy production profile call remains in {relative}"
         );
     }

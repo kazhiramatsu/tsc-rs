@@ -117,8 +117,14 @@ fn every_dormant_axis_is_typed_and_rejected() {
         javascript(),
         EmitMode::Script,
     )]);
+    assert_eq!(bundle.validate_bootstrap_shape(), Ok(()));
+    let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
+        EmitRoot::Bundle(EmitBundle::new(vec![])),
+        javascript(),
+        EmitMode::Script,
+    )]);
     assert_eq!(
-        bundle.validate_bootstrap_shape(),
+        empty_bundle.validate_bootstrap_shape(),
         Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
     );
 
@@ -586,29 +592,33 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
 }
 
 #[test]
-fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
-    for (options, expected) in [
+fn bundle_requests_require_their_profile_before_transforming_or_writing() {
+    for (options, make_profile, denied, admitted_bundle_requests) in [
         (
             CompilerOptions {
                 declaration_map: Some(true),
                 out_file: Some("/project/bundle.js".to_owned()),
                 ..CompilerOptions::default()
             },
-            "outFile",
+            H2ActivityCanary::h2_7d_profile as fn() -> H2ActivityCanary,
+            tsc_emitter::H2RuntimeSlice::H2_7e,
+            1,
         ),
         (
             CompilerOptions {
                 out_file: Some("/project/bundle.js".to_owned()),
                 ..CompilerOptions::default()
             },
-            "outFile",
+            H2ActivityCanary::h2_7c_profile as fn() -> H2ActivityCanary,
+            tsc_emitter::H2RuntimeSlice::H2_7d,
+            0,
         ),
     ] {
         let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
         let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-        let mut activity = H2ActivityCanary::h2_7b_profile();
+        let mut activity = make_profile();
         let mut sink = MemoryOutputSink::new();
-        assert_eq!(
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             emit_files_with_activity(
                 &UnavailableEmitResolver,
                 &host,
@@ -617,11 +627,24 @@ fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
                 &EmitDiagnosticGate::default(),
                 &mut sink,
                 &mut activity,
-            ),
-            Err(EmitFailure::UnsupportedCompilerOption { option: expected })
+            )
+        }));
+        let error = result.expect_err("a request needs its new runtime admission");
+        assert!(error.downcast_ref::<String>().unwrap().contains(&format!(
+            "unadmitted H2 runtime activity: {}",
+            denied.name()
+        )));
+        let counters = activity.counters();
+        assert_eq!(
+            counters.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7d),
+            admitted_bundle_requests
         );
-        assert!(activity.counters().all_zero(), "{expected}: activity");
-        assert!(sink.writes().is_empty(), "{expected}: sink writes");
+        assert_eq!(counters.runtime_slice(denied), 0);
+        assert_eq!(counters.script_transformer_list_constructions(), 0);
+        assert_eq!(counters.transform_context_constructions(), 0);
+        assert_eq!(counters.printer_constructions(), 0);
+        assert_eq!(counters.output_sink_write_attempts(), 0);
+        assert!(sink.writes().is_empty());
     }
 }
 
