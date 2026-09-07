@@ -108,7 +108,46 @@ impl CliEmitSessionOutcome {
     }
 }
 
-struct EmitSessionDiagnostics {
+/// One ordinary whole-Program emit with its command reporting observation.
+/// File writes are delivered to the caller's OutputSink; these status entries
+/// are the same TSFILE strings consumed by the command-line driver.
+pub struct EmitCommandOutcome {
+    emit: EmitOutcome,
+    diagnostics: DiagnosticList,
+    status_writes: Vec<String>,
+    exit_code: i32,
+}
+
+impl EmitCommandOutcome {
+    fn new(outcome: CliEmitSessionOutcome, current_directory: &std::path::Path) -> Self {
+        let (emit, diagnostics, _) = outcome.into_reported(&[]);
+        let (status_writes, exit_code) =
+            cli::emit_command_status(current_directory, &emit, &diagnostics);
+        Self {
+            emit,
+            diagnostics,
+            status_writes,
+            exit_code,
+        }
+    }
+
+    pub fn emit(&self) -> &EmitOutcome {
+        &self.emit
+    }
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+    pub fn status_writes(&self) -> &[String] {
+        &self.status_writes
+    }
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code
+    }
+}
+
+/// Separate Program diagnostic streams in the public getter order.
+/// Config parsing remains independent from compiler option diagnostics.
+pub struct ProgramDiagnostics {
     config: DiagnosticList,
     syntactic: DiagnosticList,
     options: DiagnosticList,
@@ -116,7 +155,25 @@ struct EmitSessionDiagnostics {
     semantic: DiagnosticList,
 }
 
-impl EmitSessionDiagnostics {
+impl ProgramDiagnostics {
+    pub fn config(&self) -> &[Diagnostic] {
+        &self.config
+    }
+    pub fn options(&self) -> &[Diagnostic] {
+        &self.options
+    }
+    pub fn syntactic(&self) -> &[Diagnostic] {
+        &self.syntactic
+    }
+    pub fn global(&self) -> &[Diagnostic] {
+        &self.global
+    }
+    pub fn semantic(&self) -> &[Diagnostic] {
+        &self.semantic
+    }
+}
+
+impl ProgramDiagnostics {
     fn gate(&self) -> EmitDiagnosticGate {
         EmitDiagnosticGate::new(
             self.options.clone(),
@@ -767,7 +824,7 @@ impl ProgramSession {
         })
     }
 
-    /// Lend declaration getters and forced emits over the same initialized Program.
+    /// Lend Program diagnostics, declaration getters and emits over one checker.
     /// Source checking, resolver borrows and the per-file cache remain inside
     /// this call. The explicit getter accepts either prepared mode; run()
     /// retains its separate no-emitter contract.
@@ -817,7 +874,7 @@ impl ProgramSession {
                 };
                 diagnostic_result = Some((|| {
                     let mut diagnostics =
-                        DeclarationSession::new(&prepared, &checked_host, Some(checker))?;
+                        DeclarationSession::new(&prepared, &checked_host, Some(checker), checked)?;
                     pending_operation
                         .take()
                         .expect("checked callback runs once")(
@@ -853,11 +910,10 @@ impl ProgramSession {
             )
         }
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
-        drop(checked);
         if let Some(result) = diagnostic_result {
             return result;
         }
-        let mut diagnostics = DeclarationSession::new(&prepared, &emit_host, None)?;
+        let mut diagnostics = DeclarationSession::new(&prepared, &emit_host, None, &checked)?;
         pending_operation
             .take()
             .expect("empty Program did not run callback")(&mut diagnostics, &[])
@@ -1784,7 +1840,7 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
 fn emit_session_diagnostics(
     prepared: &PreparedProgram,
     checked: &CheckResult,
-) -> EmitSessionDiagnostics {
+) -> ProgramDiagnostics {
     let preparation = prepared.diagnostics();
     let type_reference_diagnostics = prepared
         .resolutions()
@@ -1825,7 +1881,7 @@ fn emit_session_diagnostics(
         checked.global_diagnostics.clone()
     };
 
-    EmitSessionDiagnostics {
+    ProgramDiagnostics {
         config: preparation.config().to_vec(),
         options,
         syntactic,

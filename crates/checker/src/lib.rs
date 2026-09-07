@@ -2003,7 +2003,8 @@ fn check_program_with_prebound_libs_at_observed(
                     authoritative_failure: Some(failure),
                 };
             }
-            let session = CheckerSession::from_checked_state(state);
+            let session = CheckerSession::from_checked_state(state)
+                .with_program_diagnostics(program_diagnostics.clone(), None);
             emit_operation.expect("on-demand initialization requires a scoped consumer")(
                 &snapshot, &session, &checked,
             );
@@ -2148,7 +2149,10 @@ fn check_program_with_prebound_libs_at_observed(
                     &partial_checks,
                     work_counters,
                 );
-                let session = CheckerSession::from_checked_state(state);
+                let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
+                    program_diagnostics.clone(),
+                    checked.program_semantic_diagnostics.clone(),
+                );
                 operation(&snapshot, &session, &checked);
             }
         }

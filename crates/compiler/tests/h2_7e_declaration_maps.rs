@@ -466,6 +466,10 @@ fn h2_7e_ordinary_program_matches_complete_typescript_observations() {
 }
 
 fn assert_program_case(case: &Value) {
+    assert_program_case_with_session(case, false);
+}
+
+fn assert_program_case_with_session(case: &Value, scoped: bool) {
     let expected = &case["typescript_observation"];
     let host = memory_host(case);
     for _ in 0..2 {
@@ -485,9 +489,20 @@ fn assert_program_case(case: &Value) {
             assert_eq!(json!(sources), expected["program_source_order"]);
             assert_eq!(json!(libraries), expected["standard_libraries"]);
         }
-        let (outcome, reported) = ProgramSession::new(program)
-            .emit_with_reported_diagnostics_for_harness(&mut sink)
-            .unwrap();
+        let (outcome, reported) = if scoped {
+            ProgramSession::new(program)
+                .with_declarations(|session| {
+                    let report = session.emit_with_reported_diagnostics(&mut sink)?;
+                    assert_eq!(json!(report.status_writes()), expected["status_writes"]);
+                    assert_eq!(json!(report.exit_code()), expected["exit_code"]);
+                    Ok((report.emit().clone(), report.diagnostics().to_vec()))
+                })
+                .unwrap()
+        } else {
+            ProgramSession::new(program)
+                .emit_with_reported_diagnostics_for_harness(&mut sink)
+                .unwrap()
+        };
         assert_eq!(
             diagnostics_json(&reported),
             expected["reported_diagnostics"]
@@ -1023,4 +1038,18 @@ fn h2_7e_ordinary_maps_without_declaration_preserve_ts5069_and_javascript() {
             assert_cli_case(case);
         },
     );
+}
+
+#[test]
+fn h2_7e_scoped_ordinary_commands_preserve_existing_complete_observations() {
+    for fixture in [
+        include_str!("fixtures/declaration-maps.json"),
+        include_str!("fixtures/declaration-maps-runtime.json"),
+        include_str!("fixtures/declaration-maps-disabled-declaration.json"),
+    ] {
+        let fixture: Value = serde_json::from_str(fixture).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            assert_program_case_with_session(case, true);
+        }
+    }
 }

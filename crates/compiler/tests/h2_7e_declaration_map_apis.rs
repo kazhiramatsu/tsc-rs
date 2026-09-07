@@ -1,5 +1,5 @@
-//! Stateful declaration-map getters and forced emits. Ordinary command calls
-//! and final same-checker Program diagnostics remain separate integration facets.
+//! Same-Program declaration-map getters, forced and ordinary command emits.
+//! The ordinary noEmit call remains an explicitly compared H2.9 refusal.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -264,7 +264,7 @@ fn emit_result(outcome: &EmitOutcome) -> Value {
 }
 
 #[test]
-fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
+fn h2_7e_stateful_program_calls_and_diagnostics_match_typescript() {
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/declaration-map-apis.json")).unwrap();
     assert_eq!(fixture["repetitions"], 2);
@@ -273,14 +273,6 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
     let mut failures = Vec::new();
     for case in fixture["cases"].as_array().unwrap() {
         let id = case["case_id"].as_str().unwrap();
-        if !case["calls"].as_array().unwrap().iter().any(|call| {
-            matches!(
-                call["kind"].as_str(),
-                Some("declaration-diagnostics" | "forced-declarations")
-            )
-        }) {
-            continue;
-        }
         let checked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             for _ in 0..2 {
                 let program = prepared(case);
@@ -316,9 +308,20 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
                     .with_declarations(|session: &mut DeclarationSession<'_, '_>| {
                         for expected in case["typescript_observation"]["calls"].as_array().unwrap() {
                             let kind = expected["kind"].as_str().unwrap();
-                            // A fresh ordinary emit would erase the same-Program
-                            // cache contract. Keep these calls explicitly deferred.
-                            if kind == "ordinary-command" {
+                            if kind == "ordinary-command" && case["options"]["noEmit"] == true {
+                                // Keep the original TS call as a later-owner reference.
+                                // A refusal is not counted as successful command equivalence.
+                                let before = session.activity();
+                                let mut sink = Sink::new(case);
+                                let error = session.emit_with_reported_diagnostics(&mut sink)
+                                    .err().expect("ordinary noEmit retains its H2.9 boundary");
+                                assert!(matches!(error, DriverError::InvalidProgramMode {
+                                    expected: tsc_program::PreparedProgramMode::Emit,
+                                    actual: tsc_program::PreparedProgramMode::NoEmit,
+                                }));
+                                assert!(sink.writes.is_empty());
+                                assert_eq!(session.activity(), before);
+                                *counts.entry("ordinary-noEmit-boundary".to_owned()).or_default() += 1;
                                 continue;
                             }
                             *counts.entry(kind.to_owned()).or_default() += 1;
@@ -328,44 +331,61 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
                             );
                             let before = session.activity();
                             let mut sink = Sink::new(case);
+                            let mut fields = json!({
+                                "diagnostics": null,
+                                "reported_diagnostics": null,
+                                "status_writes": null,
+                                "exit_code": null,
+                                "emit_result": null,
+                            });
+                            if kind == "ordinary-command" {
+                                // The TS observer allocates callback buffers before
+                                // entering the command; unwinding preserves empty
+                                // arrays because reporting runs after Program.emit.
+                                fields["reported_diagnostics"] = json!([]);
+                                fields["status_writes"] = json!([]);
+                            }
                             let call = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-                                || -> Result<(Value, Value), DriverError> {
+                                || -> Result<(), DriverError> {
                                     match kind {
-                                        "declaration-diagnostics" => Ok((
-                                            diagnostics(&session.get_declaration_diagnostics(selection)?),
-                                            Value::Null,
-                                        )),
-                                        "forced-declarations" => Ok((
-                                            Value::Null,
-                                            emit_result(&session.emit_forced_declarations(selection, &mut sink)?),
-                                        )),
+                                        "declaration-diagnostics" => {
+                                            fields["diagnostics"] = diagnostics(
+                                                &session.get_declaration_diagnostics(selection)?,
+                                            );
+                                        }
+                                        "forced-declarations" => {
+                                            fields["emit_result"] = emit_result(
+                                                &session.emit_forced_declarations(selection, &mut sink)?,
+                                            );
+                                        }
+                                        "ordinary-command" => {
+                                            assert_eq!(selection, EmitSelection::WholeProgram);
+                                            let outcome = session.emit_with_reported_diagnostics(&mut sink)?;
+                                            fields["emit_result"] = emit_result(outcome.emit());
+                                            fields["reported_diagnostics"] = diagnostics(outcome.diagnostics());
+                                            fields["status_writes"] = json!(outcome.status_writes());
+                                            fields["exit_code"] = json!(outcome.exit_code());
+                                        }
                                         _ => panic!("ordinary targeted APIs remain H2.8d"),
                                     }
+                                    Ok(())
                                 },
                             ));
-                            let (diagnostics, result, exception) = match call {
-                                Ok(Ok((diagnostics, result))) => (diagnostics, result, Value::Null),
+                            let exception = match call {
+                                Ok(Ok(())) => Value::Null,
                                 Ok(Err(DriverError::Emit(EmitFailure::Contract(
                                     EmitContractViolation::DeclarationMapPathMissing,
-                                )))) => (
-                                    Value::Null,
-                                    Value::Null,
-                                    json!({"name": "Error", "message": "Debug Failure."}),
-                                ),
+                                )))) => json!({"name": "Error", "message": "Debug Failure."}),
                                 Ok(Err(error)) => panic!("{id}: {error:?}"),
                                 Err(error) => {
                                     assert_eq!(
                                         error.downcast_ref::<&str>(),
                                         Some(&"H2.7e controlled callback exception"),
                                     );
-                                    (
-                                        Value::Null,
-                                        Value::Null,
-                                        json!({
-                                            "name": "Error",
-                                            "message": "H2.7e controlled callback exception",
-                                        }),
-                                    )
+                                    json!({
+                                        "name": "Error",
+                                        "message": "H2.7e controlled callback exception",
+                                    })
                                 }
                             };
                             let resolver_count = expected["resolver_requests"].as_array().unwrap().len() as u64;
@@ -386,11 +406,11 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
                                 "target_source": expected["target_source"],
                                 "writes": sink.writes,
                                 "system_write_attempts": sink.system.map(|system| system.attempts).unwrap_or_default(),
-                                "diagnostics": diagnostics,
-                                "reported_diagnostics": null,
-                                "status_writes": null,
-                                "exit_code": null,
-                                "emit_result": result,
+                                "diagnostics": fields["diagnostics"],
+                                "reported_diagnostics": fields["reported_diagnostics"],
+                                "status_writes": fields["status_writes"],
+                                "exit_code": fields["exit_code"],
+                                "emit_result": fields["emit_result"],
                                 "exception": exception,
                                 "materialized_write_indices": materialized,
                             });
@@ -401,6 +421,14 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
                                 "{id}: complete {kind} call excluding separately checked resolver trace count",
                             );
                         }
+                        let program = session.get_program_diagnostics()?;
+                        assert_eq!(json!({
+                            "options": diagnostics(program.options()),
+                            "syntactic": diagnostics(program.syntactic()),
+                            "global": diagnostics(program.global()),
+                            "semantic": diagnostics(program.semantic()),
+                        }), case["typescript_observation"]["program_diagnostics_after_calls"],
+                        "{id}: final same-checker Program diagnostic streams");
                         Ok(())
                     })
                     .unwrap();
@@ -427,4 +455,6 @@ fn h2_7e_stateful_getters_and_forced_maps_match_typescript_calls() {
     );
     assert_eq!(counts.get("declaration-diagnostics"), Some(&(77 * 2)));
     assert_eq!(counts.get("forced-declarations"), Some(&(92 * 2)));
+    assert_eq!(counts.get("ordinary-command"), Some(&(20 * 2)));
+    assert_eq!(counts.get("ordinary-noEmit-boundary"), Some(&2));
 }

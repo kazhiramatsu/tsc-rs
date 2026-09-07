@@ -37,6 +37,7 @@ pub struct EmitDiagnosticGate {
     syntactic: DiagnosticList,
     global: DiagnosticList,
     semantic: DiagnosticList,
+    declaration: Option<DiagnosticList>,
 }
 
 impl EmitDiagnosticGate {
@@ -51,7 +52,16 @@ impl EmitDiagnosticGate {
             syntactic,
             global,
             semantic,
+            declaration: None,
         }
+    }
+
+    /// Supply the Program-owned cached getter result only after the four
+    /// earlier streams are empty. Ordinary callers without a retained Program
+    /// diagnostic cache keep the existing emitter-owned getter branch.
+    pub fn with_declaration_diagnostics(mut self, diagnostics: DiagnosticList) -> Self {
+        self.declaration = Some(diagnostics);
+        self
     }
 
     fn collect_with_preflight(&self, preflight: &[Diagnostic]) -> DiagnosticList {
@@ -691,14 +701,18 @@ pub fn emit_files_with_activity(
             }
             // TypeScript checks declarations across the whole program before
             // any JavaScript emit, even for a targeted emit request.
-            for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
-                diagnostics.extend(get_declaration_diagnostics(
-                    resolver,
-                    host,
-                    &declaration_paths,
-                    source,
-                    activity,
-                )?);
+            if let Some(cached) = &diagnostic_gate.declaration {
+                diagnostics.extend_from_slice(cached);
+            } else {
+                for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
+                    diagnostics.extend(get_declaration_diagnostics(
+                        resolver,
+                        host,
+                        &declaration_paths,
+                        source,
+                        activity,
+                    )?);
+                }
             }
             sort_and_dedupe_diagnostics(&mut diagnostics);
         }
