@@ -461,5 +461,8 @@ fn bundle_shape_is_valid_but_older_profiles_still_reject_emit_requests() {
         .unwrap()
         .contains("unadmitted H2 runtime activity: H2.7d"));
     assert!(sink.writes().is_empty());
-    assert_eq!(activity.counters(), before);
+    // The forced API first admits its C request, then rejects the D boundary.
+    let mut expected = crate::H2ActivityCanary::h2_7c_profile();
+    expected.observe_runtime_slice(crate::H2RuntimeSlice::H2_7c);
+    assert_eq!(activity.counters(), expected.counters());
 }

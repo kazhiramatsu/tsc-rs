@@ -93,6 +93,7 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  "crates/xtask/tests/unit/h2_2c_acceptance/de_registry_contracts.rs",
   "crates/xtask/src/h2_6c_de_promotions.rs",
   "crates/xtask/src/h2_6c_refusal_migrations.rs",
   // Shared original-corpus acceptance and explicit legacy measurement.

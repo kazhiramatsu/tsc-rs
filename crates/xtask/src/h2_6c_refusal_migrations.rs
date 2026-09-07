@@ -191,13 +191,34 @@ pub(super) type Partition = (
 );
 
 pub(super) fn partition(
+    cases: &[Value],
     results: Vec<Result<CaseOutcome, String>>,
 ) -> Result<Partition, Box<dyn Error>> {
+    let expected_ids = cases
+        .iter()
+        .map(|case| string(case, "case_id"))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if expected_ids.len() != cases.len() {
+        return Err(failure(
+            "duplicate original case identity in registry partition",
+        ));
+    }
+    let mut observed_ids = BTreeSet::new();
     let mut compared = Vec::new();
     let mut migrations = Vec::new();
     let mut seen = BTreeSet::new();
     for result in results {
-        match result.map_err(failure)? {
+        let result = result.map_err(failure)?;
+        let case_id = match &result {
+            CaseOutcome::Compared(result) => &result.case_id,
+            CaseOutcome::MigratedRefusal(result) => &result.case_id,
+        };
+        if !expected_ids.contains(case_id.as_str()) || !observed_ids.insert(case_id.clone()) {
+            return Err(failure(format!(
+                "unknown or duplicate observed registry case: {case_id}"
+            )));
+        }
+        match result {
             CaseOutcome::Compared(result) => {
                 if registered(&result.case_id) {
                     return Err(failure(
@@ -214,6 +235,11 @@ pub(super) fn partition(
                 migrations.push(result);
             }
         }
+    }
+    if observed_ids.len() != expected_ids.len() {
+        return Err(failure(
+            "an original case was not executed in the registry partition",
+        ));
     }
     if seen.len() != CURRENT.len() {
         return Err(failure("a registered refusal migration was not executed"));

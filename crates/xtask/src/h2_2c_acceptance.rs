@@ -5565,7 +5565,7 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
         execute_h2_6c_case(workspace, case, &inputs)
             .map_err(|error| format!("H2.6c case index {index}: {error}"))
     })?;
-    let (results, migrations) = h2_6c_refusal_migrations::partition(results)?;
+    let (results, migrations) = h2_6c_refusal_migrations::partition(cases, results)?;
     let ordinary_manifest = h2_6c_refusal_migrations::ordinary_manifest(&listed);
     h2_6c_refusal_migrations::validate_ordinary_results(&results, &ordinary_manifest)?;
     let observed_h2_7b_activity =
@@ -5594,13 +5594,6 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let known_diverging = diverging.len() + migrations.len();
     if write_manifest {
         assert_h2_6c_vector_population(&listed, &retained)?;
-        if retained.is_empty() {
-            println!("H2.6c first sweep proved zero diverging rows: no manifest is created");
-        } else {
-            // Current migrations retain their old rows; no new refusal vector
-            // is inserted into the historical manifest.
-            write_h2_6c_divergence_manifest(workspace, &retained)?;
-        }
     } else if retained.len() != listed.entries.len() {
         return Err(failure(format!(
             "H2.6c divergence-manifest coverage differs: observed {} listed {}",
@@ -5615,6 +5608,16 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
         )));
     }
     report_h2_6c_suite_outcomes(cases, &diverging, &migrations)?;
+    // All identity, vector, total and suite checks finish before persistence.
+    if write_manifest {
+        if retained.is_empty() {
+            println!("H2.6c first sweep proved zero diverging rows: no manifest is created");
+        } else {
+            // Migrated rows keep their historical vectors verbatim.
+            write_h2_6c_divergence_manifest(workspace, &retained)?;
+        }
+    }
+
     println!(
         "H2.6c emit acceptance: candidates=643 exact={exact} known_diverging={known_diverging} deferred={deferred} current_migrated_refusals={} repetitions=2",
         migrations.len()
@@ -6402,3 +6405,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/unit/h2_2c_acceptance/de_legacy_collector.rs"]
 mod h2_6c_de_legacy_collector;
+
+#[cfg(test)]
+#[path = "../tests/unit/h2_2c_acceptance/de_registry_contracts.rs"]
+mod h2_6c_de_registry_contracts;
