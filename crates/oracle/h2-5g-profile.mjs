@@ -93,6 +93,11 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  // Shared original-corpus acceptance and explicit legacy measurement.
+  "crates/xtask/src/h2_7de_acceptance.rs",
+  "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+  "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
+  "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs",
   // Parallel H2.7d/e foundations and ordinary nonbundle map candidate.
   // Formal runtime adoption and the remaining API/bundle boundaries stay separate.
   "crates/compiler/tests/fixtures/declaration-maps.json",

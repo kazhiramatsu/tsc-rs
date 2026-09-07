@@ -97,6 +97,7 @@ const HOSTED_MODULE_PATHS = [
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
   "crates/xtask/src/h2_7c_acceptance.rs",
+  "crates/xtask/src/h2_7de_acceptance.rs",
 ];
 
 const SHARED_MODULE_PATHS = [
@@ -106,6 +107,8 @@ const SHARED_MODULE_PATHS = [
   "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
   "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+  "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+  "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
 ];
 
 const OWNER_MODULE_PATHS = [
@@ -150,7 +153,7 @@ function rustOwnerBoundaryFixture() {
       : `    ${callee}(workspace)?;`,
   ).join("\n");
   const hostedStatements = [
-    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs") && !modulePath.endsWith("/h2_7c_acceptance.rs")).map((modulePath) =>
+    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs") && !modulePath.endsWith("/h2_7c_acceptance.rs") && !modulePath.endsWith("/h2_7de_acceptance.rs")).map((modulePath) =>
       `${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)}::run(&workspace)?;`,
     ),
     "h2_2c_acceptance::run_h2_4a(&workspace)?;",
@@ -167,7 +170,8 @@ function rustOwnerBoundaryFixture() {
     "h2_2c_acceptance::run_h2_6b(&workspace)?;",
     "h2_2c_acceptance::run_h2_6c(&workspace)?;",
     "h2_2c_acceptance::run_h2_7b(&workspace)?;",
-    "h2_7c_acceptance::run(&workspace)",
+    "h2_7c_acceptance::run(&workspace)?;",
+    "h2_7de_acceptance::run_h2_7de(&workspace)",
   ].map((statement) => `    ${statement}`).join("\n");
   const moduleDeclarations = HOSTED_MODULE_PATHS.map((modulePath) =>
     `mod ${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)};`,
@@ -199,7 +203,13 @@ pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
 }
 `
         : "";
-      const targetFunctions = modulePath.endsWith("/h2_2c_acceptance.rs")
+      const targetFunctions = modulePath.endsWith("/h2_7de_acceptance.rs")
+        ? `
+pub fn run_h2_7de(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run(workspace)
+}
+`
+        : modulePath.endsWith("/h2_2c_acceptance.rs")
         ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g", "run_h2_5h", "run_h2_6a", "run_h2_6b", "run_h2_6c", "run_h2_7b"]
           .map((functionName) => `
 pub fn ${functionName}(workspace: &Path) -> Result<(), Box<dyn Error>> {
@@ -319,6 +329,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
       [
         ".github/ci/contracts/h2-7c-qualification.schema.json",
         "ratchets/h2-7c-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-7de-qualification.schema.json",
+        "ratchets/h2-7de-qualification.v1.json",
       ],
     ],
   );
@@ -798,6 +812,32 @@ test("H2.7c shared comparators remain in the hosted owner-control boundary", () 
     () => validateRustOwnerControlBoundaries(changed),
     /hosted Rust source pins.*h2_7c_corpus.rs.*content hash drifted/u,
   );
+});
+
+test("H2.7d/e shared comparators retain hosted source pins and owner boundaries", () => {
+  const entry = "crates/xtask/src/h2_7de_acceptance.rs";
+  for (const band of ["d", "e"]) {
+    const name = `h2_7${band}_original_corpus_shared`;
+    const shared = `crates/compiler/tests/integration/${name}.rs`;
+    const fixture = rustOwnerBoundaryFixture();
+    fixture.moduleSources[entry] = fixture.moduleSources[entry].replace(
+      "    let decoy =", `    ${name}::run(workspace)?;\n    let decoy =`,
+    );
+    fixture.moduleSources[shared] = fixture.moduleSources[shared].replace(
+      "    let decoy =", "    h2_3d_acceptance::run_owner_controls(workspace)?;\n    let decoy =",
+    );
+    repinRustFixture(fixture);
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /hosted call graph.*original_corpus_shared::run.*owner-control symbol/u,
+    );
+    const changed = rustOwnerBoundaryFixture();
+    changed.moduleSources[shared] += "\n// shared comparator changed\n";
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(changed),
+      /hosted Rust source pins.*original_corpus_shared.rs.*content hash drifted/u,
+    );
+  }
 });
 
 test("raw source pins close Rust constructs outside the bounded call-graph grammar", () => {
