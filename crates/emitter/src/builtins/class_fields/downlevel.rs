@@ -1766,14 +1766,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.context.factory()?.update_node(function, data, flags)
     }
 
-    /// Rebuild a class-member list while preserving the two states consumed
-    /// by the printer.
+    /// Preserve an unchanged member list so updating the class also retains
+    /// its identity and current parent. Compiler printing selects canonical
+    /// AST emission independently of whether this transformer cloned a node.
+    /// Changed lists retain their source range through update_node_array.
     ///
-    /// A changed membership retains the parsed list range so comments beside
-    /// an erased member remain owned by that source gap. An unchanged list is
-    /// deliberately synthetic: this transformer still owns canonical
-    /// re-emission of the class, and returning the parsed array would let the
-    /// source-file fast path copy the entire class verbatim.
+    /// tsc-port: transformClassMembers @6.0.3
+    /// tsc-hash: 8f02dc71f423a197caae79451edbed69e643ef5b909248bf13a649c2c2491071
+    /// tsc-span: _tsc.js:97143-97237
     fn rebuild_class_member_array(
         &mut self,
         original: Option<NodeArrayId>,
@@ -1786,21 +1786,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, members);
         };
         let original = self.array(original);
-        let membership_is_unchanged = {
-            let original_nodes = &self.context.arena().node_array(original)?.nodes;
-            original_nodes.len() == members.len()
-                && original_nodes
-                    .iter()
-                    .zip(&members)
-                    .all(|(original, member)| *original == member.node())
-        };
-        if membership_is_unchanged {
-            self.context
-                .factory()?
-                .create_node_array(self.source, members)
-        } else {
-            self.context.factory()?.update_node_array(original, members)
-        }
+        self.context.factory()?.update_node_array(original, members)
     }
 
     /// tsc-port: visitClassDeclarationInNewClassLexicalEnvironment @6.0.3

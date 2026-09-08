@@ -5004,9 +5004,6 @@ impl Es2015Visitor<'_, '_, '_> {
         self.get_name(node, allow_comments, EmitFlags::LOCAL_NAME)
     }
 
-    /// tsc-port: getInternalName @6.0.3
-    /// tsc-hash: cf6484de86856ef03a019d04862c731662b2aa5b215b22cb036feb31593f7778
-    /// tsc-span: _tsc.js:24800-24802
     /// tsc-port: getAssignedName @6.0.3
     /// tsc-hash: 16b3160d83ab91d6d9c08811b7d3ef66bce1a84ccdde30ee5cac09babbc2bab7
     /// tsc-span: _tsc.js:11566-11580
@@ -5017,9 +5014,8 @@ impl Es2015Visitor<'_, '_, '_> {
             | NodeData::ClassExpression(_) => {}
             _ => return Ok(None),
         }
-        // A class-fields alias rewrite made the CURRENT parent a
-        // generated-alias assignment; upstream's harvest then yields the
-        // generated LHS, which the `!isGeneratedIdentifier` guard rejects.
+        // Preserve the class-fields alias exclusion; a generated alias must
+        // not recover an assigned name from the original parsed expression.
         if self
             .context
             .arena()
@@ -5028,22 +5024,20 @@ impl Es2015Visitor<'_, '_, '_> {
         {
             return Ok(None);
         }
-        let Some(original) = self.context.arena().parse_tree_node(node)? else {
+        // Type erasure can detach the current node while retaining original
+        // provenance. getAssignedName only observes the current parent.
+        let Some(parent) = self.context.arena().node(node)?.parent else {
             return Ok(None);
         };
-        let syntax = self.context.arena().source(original.source())?.syntax();
-        let Some(parent) = syntax.arena.node(original.node()).parent else {
-            return Ok(None);
-        };
-        let parent_node = TransformNode::new(original.source(), parent);
+        let parent_node = TransformNode::new(node.source(), parent);
         let assigned = match &self.context.arena().node(parent_node)?.data {
             NodeData::PropertyAssignment(data) => data.name,
             NodeData::BindingElement(data) => data.name,
-            NodeData::BinaryExpression(data) if data.right == Some(original.node()) => {
+            NodeData::BinaryExpression(data) if data.right == Some(node.node()) => {
                 match data.left.map(|left| {
                     self.context
                         .arena()
-                        .node(TransformNode::new(original.source(), left))
+                        .node(TransformNode::new(node.source(), left))
                         .map(|record| (left, record.kind))
                 }) {
                     Some(Ok((left, SyntaxKind::Identifier))) => Some(left),
@@ -5051,7 +5045,7 @@ impl Es2015Visitor<'_, '_, '_> {
                         match &self
                             .context
                             .arena()
-                            .node(TransformNode::new(original.source(), left))?
+                            .node(TransformNode::new(node.source(), left))?
                             .data
                         {
                             NodeData::PropertyAccessExpression(access) => access.name,
@@ -5062,7 +5056,7 @@ impl Es2015Visitor<'_, '_, '_> {
                         match &self
                             .context
                             .arena()
-                            .node(TransformNode::new(original.source(), left))?
+                            .node(TransformNode::new(node.source(), left))?
                             .data
                         {
                             NodeData::ElementAccessExpression(access) => access.argument_expression,
@@ -5078,7 +5072,7 @@ impl Es2015Visitor<'_, '_, '_> {
                     if self
                         .context
                         .arena()
-                        .node(TransformNode::new(original.source(), name))?
+                        .node(TransformNode::new(node.source(), name))?
                         .kind
                         == SyntaxKind::Identifier =>
                 {
@@ -5088,9 +5082,12 @@ impl Es2015Visitor<'_, '_, '_> {
             },
             _ => None,
         };
-        Ok(assigned.map(|id| TransformNode::new(original.source(), id)))
+        Ok(assigned.map(|id| TransformNode::new(node.source(), id)))
     }
 
+    /// tsc-port: getInternalName @6.0.3
+    /// tsc-hash: cf6484de86856ef03a019d04862c731662b2aa5b215b22cb036feb31593f7778
+    /// tsc-span: _tsc.js:24800-24802
     fn get_internal_name(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
         self.get_name(
             node,
@@ -5121,7 +5118,8 @@ impl Es2015Visitor<'_, '_, '_> {
         // anonymous function/arrow/class EXPRESSIONS (_tsc.js:11562-11580):
         // the surrounding property-assignment/binding-element name, a
         // binary-assignment LHS identifier or access-expression name, or a
-        // variable declaration's identifier name is reused UNCONDITIONALLY.
+        // variable declaration's identifier name can be reused when that
+        // parent remains on the current expression.
         let name = match name {
             Some(name) => Some(name),
             None => self.assigned_name(node)?,

@@ -5081,7 +5081,7 @@ fn empty_multiline_block_indents_its_node_array_comment() {
 #[test]
 fn empty_function_body_does_not_reown_the_open_brace_trailing_comment() {
     assert_eq!(
-        transform_and_print_at_target(
+        transform_and_print_canonical_at_target(
             concat!(
                 "function D7() {\n",
                 "    return class T {\n",

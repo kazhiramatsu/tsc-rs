@@ -189,3 +189,6 @@ mod h2_8a_synthetic_namespace_export_modifiers;
 
 #[path = "integration/h2_8a_jsdoc_implements_serialization.rs"]
 mod h2_8a_jsdoc_implements_serialization;
+
+#[path = "integration/h2_8a_transformed_class_assigned_names.rs"]
+mod h2_8a_transformed_class_assigned_names;
