@@ -3189,6 +3189,33 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             self.context,
             usize::from(!base_types.is_empty()) * 8 + usize::from(!implements.is_empty()) * 11,
         );
+        let mut heritage = Vec::new();
+        if !base_types.is_empty() {
+            let mut types = Vec::new();
+            for base in &base_types {
+                types.push(self.serialize_base_type(*base, static_base, local_name)?);
+            }
+            let types = required_array(self.arena, self.target, types)?;
+            heritage.push(create_node(
+                self.arena,
+                self.target,
+                NodeData::HeritageClause(HeritageClauseData {
+                    token: SyntaxKind::ExtendsKeyword,
+                    types: Some(types),
+                }),
+            )?);
+        }
+        if !implements.is_empty() {
+            let types = required_array(self.arena, self.target, implements)?;
+            heritage.push(create_node(
+                self.arena,
+                self.target,
+                NodeData::HeritageClause(HeritageClauseData {
+                    token: SyntaxKind::ImplementsKeyword,
+                    types: Some(types),
+                }),
+            )?);
+        }
         let properties = self
             .checker
             .get_properties_of_type(class_type)
@@ -3293,39 +3320,15 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             )?
         };
         let indexes = self.serialize_index_signatures(class_type, base_types.first().copied())?;
-        let mut heritage = Vec::new();
-        if !base_types.is_empty() {
-            let mut types = Vec::new();
-            for base in &base_types {
-                types.push(self.serialize_base_type(*base, static_base, local_name)?);
-            }
-            let types = required_array(self.arena, self.target, types)?;
-            heritage.push(create_node(
-                self.arena,
-                self.target,
-                NodeData::HeritageClause(HeritageClauseData {
-                    token: SyntaxKind::ExtendsKeyword,
-                    types: Some(types),
-                }),
-            )?);
-        }
-        if !implements.is_empty() {
-            let types = required_array(self.arena, self.target, implements)?;
-            heritage.push(create_node(
-                self.arena,
-                self.target,
-                NodeData::HeritageClause(HeritageClauseData {
-                    token: SyntaxKind::ImplementsKeyword,
-                    types: Some(types),
-                }),
-            )?);
-        }
         let mut members = Vec::new();
         members.extend(indexes);
         members.extend(static_members);
         members.extend(constructors);
         members.extend(public_members);
         members.extend(private_members);
+        // Finish the class tracker requests in their class scope before the
+        // caller can serialize a merged namespace and include its privates.
+        self.include_tracked_private_symbols()?;
         self.context.enclosing_declaration = old_enclosing;
         let name = create_identifier(self.arena, self.target, local_name)?;
         let type_parameters = array(self.arena, self.target, parameter_nodes)?;

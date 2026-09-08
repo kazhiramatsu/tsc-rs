@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8a-local-aliases.md",
-      "sha256": "5626cbf6178a43e0c28aed55ab2871ab160487c45f4c8a0df4aec2e924b3afd3"
+      "sha256": "abe576a4982c40ac0478c620b36ee806895a439756c87fed4e57dd5a1f1d2d91"
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
@@ -398,6 +398,11 @@
       "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
       "input_sha256": "265078df8bb69ed58223f94a983b0e36cee520072f5d13b5a3b7d59fe0cc0578",
       "observation_sha256": "a78c5b465884133ae190bc9d1e0ac1f237cb377625d601f5165ef469146b3594"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+      "input_sha256": "adb3d5c14f6073c39cdc61414498307e754de42e28a87da52303fca23be0b438",
+      "observation_sha256": "255a97c67ead18a8c08eb76e44f8fca64fa42005c2c3fc76c9113c7936f18a03"
     }
   ],
   "additional_witnesses": [

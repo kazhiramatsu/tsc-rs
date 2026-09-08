@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "7ebdee93361c6e0ffe55c161ccb35c2ed88c47d3",
+  "eligible": 4,
+  "exact": [],
+  "failed": [
+    "js/es5/typed-member-plain",
+    "js/es5/typed-member-merged",
+    "js/es2015/typed-member-plain",
+    "js/es2015/typed-member-merged"
+  ],
+  "run_seconds": 2.08,
+  "log_sha256": "6a518051b63c5417798ec67af0fe70242482c9903a42947ce2a3b30166bdb5a0",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/class-declaration-member-order.json",
+      "sha256": "e81dfbc60571e6518cbd573eb3c1d35779bfe8c689543d0f3ffb9984297036cf"
+    },
+    {
+      "path": "scripts/observe-class-declaration-member-order.mjs",
+      "sha256": "c3da0d8968748edca09c35feb44741d40edd7403a0f3505a005f9f870a91ef01"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_dependency_order.rs",
+      "sha256": "54dedda8a1f0c840436a71ad72b97736afc1c0854cb7ee526ca17129874fa6ed"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "dbea620b3c507d412d09f4dd8943fe41d6bc2207da520d061d64f2cafb353d1a"
+    },
+    {
+      "path": "target/h2-8a-class-member-before.log",
+      "sha256": "6a518051b63c5417798ec67af0fe70242482c9903a42947ce2a3b30166bdb5a0"
+    }
+  ]
+}

@@ -163,3 +163,33 @@ covers unique require aliases, name collisions, namespace scopes, class shapes,
 reexports and node provenance. The initial underscore-style filter selected
 zero tests and provides no validation (h2-8a-local-alias-adjacent.log). No
 production changes occurred between the two invocations.
+
+An additional unchanged original is selected for the local compound-expression
+consumer: jsDeclarationsConstsAsNamespacesWithReferences.ts#default. Its
+colors.royalBlue reference is serialized within the synthetic brandColors
+namespace, exercising the newly restored symbolToName/import-equals branch
+that ordinary root export aliases dispatch around. Its complete TypeScript
+observation and both native before failures were already captured by the
+immutable global observation at 43e1107e8. A6-2's intervening changes affect
+require/import-equals declarations, which this input does not contain; the
+local-target body was unchanged through 622850a85. The new projection retains
+the exact original input, complete tuple and original required_slices record.
+The whole-case result will be recorded separately from the two ExportForms
+commands; any remaining difference stays a failure.
+
+That additional complete original comparison passes twice in 15.39 seconds
+(target/h2-8a-local-namespace-alias-after.log). It supplies a direct production
+witness for the compound-expression local import-equals branch. The complete
+769-command selector remains unchanged and still requires a final replay.
+
+The recorded readiness witness set now has three original commands: the initial
+ExportForms pair and the additional compound namespace reference. This is an
+evidence-only extension; no new runtime edit follows from it.
+
+A subsequent replay of all 22 original require-alias commands at 7ebdee933
+finds a regression in ReexportedCjsAlias ES2015: its second destructured alias
+import is absent. The ES5 sibling and eighteen other commands are exact; the
+two pre-existing ClassExtendsVisibility order differences remain. The complete
+current before is ratchets/h2-8a-class-original-before.v1.json. This new
+regression remains an A6-5 follow-up; the narrow 40+3 successes and 17 unit
+controls above are not a whole-alias compatibility claim.

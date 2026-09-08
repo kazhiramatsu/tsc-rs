@@ -130,3 +130,6 @@ mod h2_8a_javascript_imports;
 
 #[path = "integration/h2_8a_local_aliases.rs"]
 mod h2_8a_local_aliases;
+
+#[path = "integration/h2_8a_class_dependency_order.rs"]
+mod h2_8a_class_dependency_order;

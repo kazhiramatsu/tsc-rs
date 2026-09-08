@@ -50,7 +50,8 @@ inputs = {r["case_id"]: r for r in read("ratchets/h2-8a-candidate-inputs.v1.json
 observations = {r["case_id"]: r for r in read("ratchets/h2-8a-observations.v1.json")["cases"]}
 candidates = {r["case_id"]: r for r in read("ratchets/h2-8a-candidates.v1.json")["cases"]}
 global_before = read("ratchets/h2-8a-global-before.v1.json")
-assert len(m["originals"]) == 2
+assert "original_local_namespace_alias_matches_complete_command" in (ROOT / m["tests"][1]).read_text()
+assert len(m["originals"]) == 3
 for row in m["originals"]:
     name = row["case_id"]
     assert candidates[name]["required_slices"] == ["H2.8a"]
@@ -70,4 +71,4 @@ assert len(m["additional_witnesses"]) == len(ambient_cases) == 8
 for row in m["additional_witnesses"]:
     assert row_digest(ambient_cases[row["case_id"]]) == row["row_sha256"] and row["before"] == "exact"
 assert "ambient_alias_target_names_match_complete_typescript_observations" in (ROOT / m["tests"][0]).read_text()
-print("H2.8a-A6-5 ready: 18 owners, 4 steps, 3 architecture rows, 32 fresh witnesses (10 failed / 22 exact before), 8 additional ambient positives, 2 original witnesses; unresolved=0, undispositioned=0")
+print("H2.8a-A6-5 ready: 18 owners, 4 steps, 3 architecture rows, 32 fresh witnesses (10 failed / 22 exact before), 8 additional ambient positives, 3 original witnesses; unresolved=0, undispositioned=0")

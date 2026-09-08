@@ -1,0 +1,469 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-6",
+  "base": "7ebdee93361c6e0ffe55c161ccb35c2ed88c47d3",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-dependency-order.md",
+      "sha256": "42bcc9ca47d290a5e03c735167f49622da2afba31cc5c12972126ed6f7a1acc7"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-declaration-dependency-order.json",
+      "sha256": "5ab33278e98e880ce5b3bb3f582cf1fc72a719da6b88cf898bf170d1e3d555e0"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-declaration-member-order.json",
+      "sha256": "e81dfbc60571e6518cbd573eb3c1d35779bfe8c689543d0f3ffb9984297036cf"
+    },
+    {
+      "path": "scripts/observe-class-declaration-dependency-order.mjs",
+      "sha256": "14d3dd58e3d3de730ee8d87ddd2a42826477e5709b0487153deab83110e92508"
+    },
+    {
+      "path": "scripts/observe-class-declaration-member-order.mjs",
+      "sha256": "c3da0d8968748edca09c35feb44741d40edd7403a0f3505a005f9f870a91ef01"
+    },
+    {
+      "path": "ratchets/h2-8a-class-order-before.v1.json",
+      "sha256": "5500e74afa486ece585d742742fc3d36dd38ab6ae56fcbeb9d7020e3e768551e"
+    },
+    {
+      "path": "ratchets/h2-8a-class-member-before.v1.json",
+      "sha256": "15f25a626859b022095d89fa067b2402156e1c4110b39177bf4383901472586a"
+    },
+    {
+      "path": "ratchets/h2-8a-class-original-before.v1.json",
+      "sha256": "7208e74d34a7429a4c9fedefd6baf3d30b44648aba23ebdfb34ba77ff9d85f8d"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "dbea620b3c507d412d09f4dd8943fe41d6bc2207da520d061d64f2cafb353d1a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/checker/src/node_builder/tracker.rs",
+      "sha256": "a3d3ebd7be63a67fef268170f676072ff3ea5a93ff9d2e38944c6d8b0c596f98"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "serializeSymbolWorker",
+      "start": 53992,
+      "end": 54179,
+      "sha256": "dc9bf6e639d95e72cefd3e99de392150843321b4b1f785340d52751bbe4bbc38"
+    },
+    {
+      "owner": "serializeAsClass",
+      "start": 54600,
+      "end": 54686,
+      "sha256": "ccb4c10cb58d4154e83303d911464ee3af0f91f4b9cc33d3d43e98266e113bff"
+    },
+    {
+      "owner": "symbolTableToDeclarationStatements.trackSymbol",
+      "start": 53748,
+      "end": 53774,
+      "sha256": "ee1e2dc70eccbb279a3a341025a67d433df1dd5e2536ebf4208652289694d5e0"
+    },
+    {
+      "owner": "visitSymbolTable",
+      "start": 53938,
+      "end": 53975,
+      "sha256": "6c24132a883411f0dd4cce6dfc03ad19ff6f3cdfeaede3e283f075c90e325235"
+    },
+    {
+      "owner": "includePrivateSymbol",
+      "start": 54180,
+      "end": 54186,
+      "sha256": "47e3cfac44d1da24d0576ff68a44b9145c0b4d6d090ec814e2fb751ef8a09906"
+    },
+    {
+      "owner": "serializeBaseType",
+      "start": 55339,
+      "end": 55363,
+      "sha256": "124e40de6a7801ccc545cc6c27da54f0c402d203e9a299886d38ec409c72d9d2"
+    }
+  ],
+  "steps": [
+    "A6-6-1",
+    "A6-6-2"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "tests": [
+    "crates/compiler/tests/integration/h2_8a_class_dependency_order.rs",
+    "crates/compiler/tests/h2_8a_original_corpus.rs"
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/es5/base-namespace",
+      "row_sha256": "28b849c230ffd74f76d8f663a8aac090fc95b1d357071dbff6d7decc69a4ad0f",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/reverse-namespace",
+      "row_sha256": "65134065da781a6f8d22563219cd6fc45429c3c2f4b5b72f4cc279f4c96f8991",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/duplicate-base",
+      "row_sha256": "48a6ed50419a205931b3a3dc4af634bec8b7c1507a7558aac955f5983e029bf6",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/member-after-base",
+      "row_sha256": "ba01712f6e54b18d0a09229d7258b0f288fdfc3a7e1070b59071ab13a708d35e",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/member-without-merge",
+      "row_sha256": "58d9e36f5849b44b811058b4e596be10b85f8cf61d9d350a832d000bec7e0d90",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/class-no-base",
+      "row_sha256": "ebe75e4aad07ce09763e2ef5d5c53a09e9dd40630412909ab480f5de586c0b6d",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/private-local-base",
+      "row_sha256": "760a30c8e596201fdc024dfabf4e4ccf8128c516bf76c944695f028d925a2e30",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/two-derived",
+      "row_sha256": "6b154e61c146dcb9227493d622c667929af2b4021d77e0a48e2bdb20b219cb7e",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/private-base",
+      "row_sha256": "649dd18ab77bfc1886f2c2025de3b230b2ad27a7c17ca247359db7ebfa76f966",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/namespace-merge",
+      "row_sha256": "4f7c7f5eca6d7e73d91450eb902a5bce2f2f403037a934aed0dbb7d0e46b9a17",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/member-order",
+      "row_sha256": "c7d81ac6dbcbb64da503f435b011e947387dc332c09e7c35e66666316ec062af",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/nested-scope",
+      "row_sha256": "12745b09fa81064816ed0a913516648cb514add32fbc40a7a4244ab3d92bf665",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/base-namespace",
+      "row_sha256": "6994ff8bad6e3b367ce30b7d57080faaa245fec05d68cb44fb06aae861c3710e",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/reverse-namespace",
+      "row_sha256": "14c773fa317fa841aea39f153dad8e711c6c894ba1a6c6a6cb7a221c34ed34b1",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/duplicate-base",
+      "row_sha256": "81a468b99762a8a93064770292c65631a95514e792792e64b1feb0f35ad69dcf",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/member-after-base",
+      "row_sha256": "82e9134fb78b03b3b0de93fbb2008530ed2921892e223d35bf0a96f6e6efb951",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/member-without-merge",
+      "row_sha256": "c9624a31753d4f9fff894a5a514c68f7b528a88d2846c2d9020fc9c582d1d64c",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/class-no-base",
+      "row_sha256": "142d69630ba0554090cb0919a22a9d2eaf9c8e61fe572f2c2c830b5743e3c489",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/private-local-base",
+      "row_sha256": "46f5fb3b3a6719661cdddeac11cd4c6c3a39a7f297f02a4ec797bfbe871249ca",
+      "fixture": "class-declaration-dependency-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/two-derived",
+      "row_sha256": "fbaba54383e67f5cb4dc935abe4c54fa838783b9d3e1cd91791f9e5fa641a864",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/private-base",
+      "row_sha256": "85ceaa3308e7d461f539a060bdadbd714222167ec78c3538d9c7e76dfbe3844b",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/namespace-merge",
+      "row_sha256": "8869002a9ae144abeb8cbd9ae8350e4ab87c742ce71329afeb79bbc6cfa52274",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/member-order",
+      "row_sha256": "458bcfb01490db18f758623218190225eba053846267d7d87a36a629a0a29a5e",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/nested-scope",
+      "row_sha256": "cf44221f62eebe0955c2b48254df88d4c7e82908e53be5697f6f622325acbc07",
+      "fixture": "class-declaration-dependency-order",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/typed-member-plain",
+      "row_sha256": "2d07532509cbd6801dcffb6a231d72bd6e8ae772b1bbeced9eeb07260003f751",
+      "fixture": "class-declaration-member-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/typed-member-merged",
+      "row_sha256": "6cdd116a55dace1ec5bcd330fe8d7a2cffc7c01e1081c335b6d4d7c6a2aab6dd",
+      "fixture": "class-declaration-member-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/typed-member-plain",
+      "row_sha256": "f39dc5c7a742fd2b44f50f68571279d92e87002c2c31df9613403aebe8aadfed",
+      "fixture": "class-declaration-member-order",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/typed-member-merged",
+      "row_sha256": "129336d6758d051ca7e8b9aafb2046c97f8c2d2c53aa0a486a24696f89b751f5",
+      "fixture": "class-declaration-member-order",
+      "before": "failed"
+    }
+  ],
+  "originals": [
+    {
+      "case_id": "typescript-6.0.3/compiler/requireOfJsonFileWithDeclaration.ts#default",
+      "input_sha256": "efd1bfdf7cfee89c950c2ea939950a7c17d84db2ec4cb62f6475eae325094a2f",
+      "observation_sha256": "1a0fed6d762873496f0ad3c33a1e920580a011255e41967548bca89b7f56cc21",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/leaveOptionalParameterAsWritten.ts#default",
+      "input_sha256": "cf58aad87ab8a459da9182b86b50fbfe066fd0cf3bfaa6716fff12f555abdb9f",
+      "observation_sha256": "290dc0e2a3e183629cde86539b02186ef3590ba8c02fbf735cb1988e7ce231d2",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+      "input_sha256": "168f996462e2500456754e0e9c1cc160355401535b49604f9a2cb8b5db7fb9fd",
+      "observation_sha256": "b2b53891b427ca97112942c5a18ec7b7d5ff50d6d96a2c75247fabb63f5d2cee",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+      "input_sha256": "56000ffdf2383bbbe10e8aa9ade33ef87d2c39a1f7ecb45d22901bde4288dcd1",
+      "observation_sha256": "49ab61306e9eb5570ccc4b784cf4c7432656ec768b4daaed7fc2203ed8911092",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+      "input_sha256": "afe9c14f33ea0ff40558981cf9b63809d3f9ee0f213b070c5de5316fc2f50a17",
+      "observation_sha256": "4c939d34045acafa8d2d76289117b8e0941aab09a50793a56a8be87ce4bd1f32",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+      "input_sha256": "cb0e05b432d397382dfa1db41a3afbcb84e0386347305446610db65f0c69444c",
+      "observation_sha256": "c15e78c42cf28d6fafc9d296d4d541acc3de949c791e53b6d6c0f95045821322",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+      "input_sha256": "34e04686fac92fbdc55d9d7f031a714ef50b07443198b5ef605db396b9b0d055",
+      "observation_sha256": "7df6580ebc9f4cf3b522a04614130cbb27d5816ed8d0802258a1d78152d6fcad",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+      "input_sha256": "265078df8bb69ed58223f94a983b0e36cee520072f5d13b5a3b7d59fe0cc0578",
+      "observation_sha256": "a78c5b465884133ae190bc9d1e0ac1f237cb377625d601f5165ef469146b3594",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+      "input_sha256": "80517e3c323ccc733dc029d8e2c6533e34e54ac7535bc837a4bd536c10b179fb",
+      "observation_sha256": "4553145fd419a6ba430f31bcd48daa27fe0251aa255c27d5eddcf4e5b2d24224",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+      "input_sha256": "60df259449bfa3f4f406987fb62e74296ef4a13ab512038b6191fb542b2918dd",
+      "observation_sha256": "c1426c096c436a044abf8a78dd3800966ab72ac415984e5bfc38472366681e3d",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+      "input_sha256": "0b72f51d6665d40f14588baeb70edbc19484ceda0979128d91bc265f4cf3e5ff",
+      "observation_sha256": "87f17154fa4b9230741a2cda179331d84c8f747e3565f989a03f34d868e3cc7f",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+      "input_sha256": "607bbfd858a9c7a412f569a64b95818c8d4779ab7a51559d6739fde4416c69aa",
+      "observation_sha256": "75d2e905bbf4ad5be853a860b0205f365df2e2a44d69a5a2642a21c252323313",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+      "input_sha256": "a3bb4bcbff1800dda9391cacfd67b43ddcb9fd12fe5d29b58439348f15b255c8",
+      "observation_sha256": "3ba78f19baf73a472b6986110680b8e2de886766db62b9d4f59cf878e9675944",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+      "input_sha256": "c233ee4701d63f507602d165d4fef187a3950b73436006e42e4385390c09c4a9",
+      "observation_sha256": "b68654f906bdefb72718992de387646c3d69e378b4556633d94bcd303e59171d",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des2015",
+      "input_sha256": "c59380324dcd5909b0e5f500738f571bf086fe5670a73f22d2526e3d6fb3e519",
+      "observation_sha256": "02508c8a2685d568a41f567e6a402f5ced50eb6af1bd21ea229e25febc51a5e5",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des5",
+      "input_sha256": "683d76c4bc5b6a46104be403133cfd90667c60442c17270b2017ce97b84e6ec4",
+      "observation_sha256": "a1ab906263a2fc412757565962a1114ef0b76826a0417d250ea8422bc3e48f34",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des2015",
+      "input_sha256": "7aaa464adaf19d042a567a4945ca319356b129dcd25a256f59e1b70a648dd38d",
+      "observation_sha256": "a7c3987a214de43113da80e7194483dc310950cda6ad823a4b4bcd8936129eed",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des5",
+      "input_sha256": "aa014d5d3e80905cd58b9b6e71f8af615b2c31d2418b10cd28226a6ab43b2836",
+      "observation_sha256": "a324ec996e5493881e2bf3ae10d78e968ba8ad88544a8863ff8aa90e84314f61",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/requireOfESWithPropertyAccess.ts#default",
+      "input_sha256": "61cdb869945be19c0e6a7f8fe43e42a5842fb0248c55bff69aaf30af654108fc",
+      "observation_sha256": "95f6ec769a04cec7bdf8663be49a3a7b627bc2080139681f80bfd129fc5f91e6",
+      "before": "exact",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "input_sha256": "ddc31ceb3e7371c075c57169d1e8b16d7972561b3264c56da857f3da0b346609",
+      "observation_sha256": "09f5e48fb682a68100e6b863f1de2fba687e4fba3ab22c91392e7b8ea896397d",
+      "before": "failed",
+      "disposition": "class-owner"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "input_sha256": "17e81c0c9fdf2c7def04551041237725503f80b1cb9afdada7ab6b11dc4ace79",
+      "observation_sha256": "1ac17fe4315c6d8186cfea32a0e9360eaa01f018986bd6e34f665d79db66472b",
+      "before": "failed",
+      "disposition": "class-owner"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+      "input_sha256": "34bd7687c5abb26562feed44d0bbae95a99d2f564bdcd4141f0ccb17ed1fa76c",
+      "observation_sha256": "aa12fd97f081234aea00224858e139d37e1a0ed4feef3a62bfb4003c9299fd66",
+      "before": "failed",
+      "disposition": "adjacent-alias-regression"
+    }
+  ]
+}

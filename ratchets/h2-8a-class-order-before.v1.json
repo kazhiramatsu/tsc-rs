@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "7ebdee93361c6e0ffe55c161ccb35c2ed88c47d3",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/class-declaration-dependency-order.json",
+      "sha256": "5ab33278e98e880ce5b3bb3f582cf1fc72a719da6b88cf898bf170d1e3d555e0"
+    },
+    {
+      "path": "scripts/observe-class-declaration-dependency-order.mjs",
+      "sha256": "14d3dd58e3d3de730ee8d87ddd2a42826477e5709b0487153deab83110e92508"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_dependency_order.rs",
+      "sha256": "9e6c8aa858f7f43b531c07909e86b7bbf119d5a9d13a3da612ff74c4add4ff73"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "fc32b5ae4e08458c7796ac8591252c47bb78e6cbf8ce41ea153820d8d3e80564"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "dbea620b3c507d412d09f4dd8943fe41d6bc2207da520d061d64f2cafb353d1a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/checker/src/node_builder/tracker.rs",
+      "sha256": "a3d3ebd7be63a67fef268170f676072ff3ea5a93ff9d2e38944c6d8b0c596f98"
+    },
+    {
+      "path": "target/h2-8a-class-order-before.log",
+      "sha256": "6eededa27b5dce56f0a3965a54c7d06142b760cb3369815332849292b74dbf9c"
+    }
+  ],
+  "eligible": 24,
+  "exact": [
+    "js/es5/duplicate-base",
+    "js/es5/member-without-merge",
+    "js/es5/class-no-base",
+    "js/es5/two-derived",
+    "ts/es5/private-base",
+    "ts/es5/namespace-merge",
+    "ts/es5/member-order",
+    "ts/es5/nested-scope",
+    "js/es2015/duplicate-base",
+    "js/es2015/member-without-merge",
+    "js/es2015/class-no-base",
+    "js/es2015/two-derived",
+    "ts/es2015/private-base",
+    "ts/es2015/namespace-merge",
+    "ts/es2015/member-order",
+    "ts/es2015/nested-scope"
+  ],
+  "failed": [
+    "js/es5/base-namespace",
+    "js/es5/reverse-namespace",
+    "js/es5/member-after-base",
+    "js/es5/private-local-base",
+    "js/es2015/base-namespace",
+    "js/es2015/reverse-namespace",
+    "js/es2015/member-after-base",
+    "js/es2015/private-local-base"
+  ],
+  "run_seconds": 24.72,
+  "log_sha256": "6eededa27b5dce56f0a3965a54c7d06142b760cb3369815332849292b74dbf9c"
+}

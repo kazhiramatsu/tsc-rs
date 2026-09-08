@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "7ebdee93361c6e0ffe55c161ccb35c2ed88c47d3",
+  "eligible": 22,
+  "exact": [
+    "typescript-6.0.3/compiler/requireOfJsonFileWithDeclaration.ts#default",
+    "typescript-6.0.3/conformance/declarationEmit/leaveOptionalParameterAsWritten.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des5",
+    "typescript-6.0.3/conformance/salsa/requireOfESWithPropertyAccess.ts#default"
+  ],
+  "failed": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015"
+  ],
+  "failures": [
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "repetition": 0,
+      "copy": "85d4e9968f57f4492ca42d5e8967a868612945779db60879c265d41507cc905c-0.json",
+      "sha256": "f854448aa09343ff32aa5829a000d083c55e0848569605b77122250d5fe07881"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "repetition": 1,
+      "copy": "85d4e9968f57f4492ca42d5e8967a868612945779db60879c265d41507cc905c-1.json",
+      "sha256": "1eae6c5835a8443b0af61d340e865f360b497ec5a078a7b2f9fa813e38bf5f08"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+      "repetition": 0,
+      "copy": "92a40852a98e9c2feff731f73f3e700d8658f7a8467a2c34081d6027670fc27c-0.json",
+      "sha256": "d2375c381095cc5476389fd6066fa1674126b967e6c11a5107c237b3f7bb7147"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+      "repetition": 1,
+      "copy": "92a40852a98e9c2feff731f73f3e700d8658f7a8467a2c34081d6027670fc27c-1.json",
+      "sha256": "0920d68d238ccb81ed2621074886dfd69bdc309046cad8dd58334d73ea950da7"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "repetition": 0,
+      "copy": "abd37cdd26fbdd95edb5073c5ff08990387aeda82ca3a1d74cb1adefc685106c-0.json",
+      "sha256": "fdf540136daeb1fd84e411b70ceb509eb2522b370445932dd76666936901756f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "repetition": 1,
+      "copy": "abd37cdd26fbdd95edb5073c5ff08990387aeda82ca3a1d74cb1adefc685106c-1.json",
+      "sha256": "12b242fffbc7d699b3f685ff5eae3cb84a5e513b5b42bf7dbf5577f520b4321b"
+    }
+  ],
+  "run_seconds": 65.01,
+  "log_sha256": "d81de308e969ae2b69af166a3776e745fbb4a0d9b0b7093dde9853dc2250b8dd",
+  "note": "Two class-order failures plus one newly exposed A6-5 ReexportedCjsAlias ES2015 regression; no failures omitted or relabelled."
+}

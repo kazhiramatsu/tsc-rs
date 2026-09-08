@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "df2274131f4472dac566585e003ac0fc5c1b8780f01b339097fd11fabf40b8fb"
+      "sha256": "e2307215d82c22872e57827e4aae7a0af9e35692cdc34dd1a4082131815d6b09"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
