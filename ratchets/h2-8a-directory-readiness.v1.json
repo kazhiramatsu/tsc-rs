@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A1",
+  "base": "10748f6ee19ec083ce5748224930c5dcfbbd86df",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "165add5f5bb56d5a0a387526622f5972bacf29512d94f1c6f4fa054c02f426b6"
+    },
+    {
+      "path": "scripts/observe-output-directories.mjs",
+      "sha256": "f16dc07e37cf8dbd59a21fcf1119657d4c9067b636a0589ec6f6a451eb0761ac"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/output-directories.json",
+      "sha256": "21e8bcf2f7929688902c7e15270a64e18c220212ad35b638e90257253639d8ad"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "scripts/observe-module-export-identifiers.mjs",
+      "sha256": "2c89835a19721da17ae9aeba43efe4074aa8e696136c573d5b0d31d85fb07a3e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-export-identifiers.json",
+      "sha256": "cd4f5df4dd1f011561349ca007d7885f7dbd08f5e01ff5803ecfdb9e2ef6d2b5"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "9d238221bbc5afb3a27b99d25b52e13c4f1f3032201b8dfc48b0bf3bfee2864b"
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256": "70c1dda6e35dff812b19cfa8bedc3f23f76d94faf9113aba26cc23e476c9e12e"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "9c4bc3465ddf21aeeb6913bf47af3a9bb8f76019cdca57c40430b544ad7045e4"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getOwnEmitOutputFilePath",
+      "start": 16567,
+      "end": 16576,
+      "sha256": "4ddd1ea3136e64d8da7394a321fb709fffd279d36c8b456616956cdd82905b14",
+      "step": "A1-1",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getSourceFilePathInNewDirWorker",
+      "start": 16638,
+      "end": 16643,
+      "sha256": "1c92b6269af48b15f457c7c5e64b620cc19f367cb7e0a38b07b74b05b4940203",
+      "step": "A1-2",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getOutputPathsFor",
+      "start": 116373,
+      "end": 116387,
+      "sha256": "f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2",
+      "step": "A1-3",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "verifyEmitFilePath",
+      "start": 125018,
+      "end": 125045,
+      "sha256": "89b85e5f8bf04e3625f8bddd1b2a226caa8cd308eb76180bc55db8ac597fdb50",
+      "step": "A1-4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "emitFiles",
+      "start": 116530,
+      "end": 116858,
+      "sha256": "62e93c3a8e9e2840b759bbaa0fa6de5e548ebd565748dbbddb47a933a1cf442c",
+      "step": "A1-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "isIdentifierText",
+      "start": 8676,
+      "end": 8687,
+      "sha256": "ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d",
+      "step": "A1-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "createExportExpression",
+      "start": 111805,
+      "end": 111851,
+      "sha256": "75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8",
+      "step": "A1-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PLAN-SCRIPT",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-DECL-PATH",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-OUTPUT-SCRIPT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PLAN-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "id": "E-OUTPUT-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "modified-requalify"
+    }
+  ]
+}

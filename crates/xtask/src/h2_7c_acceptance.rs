@@ -74,7 +74,7 @@ pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
         }
     });
     check_result(compared)?;
-    println!("H2.7c focused: 244 cases, 241 exact, 3 later-slice typed refusals, repetitions=2; 37 ordinary API references remain H2.8d");
+    println!("H2.7c focused: 244 cases, 244 exact (3 H2.8a outDir migrations), repetitions=2; 37 ordinary API references remain H2.8d");
     Ok(())
 }
 

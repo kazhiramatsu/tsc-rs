@@ -206,9 +206,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
             return unsupported("useCaseSensitiveFileNames");
         }
     }
-    let mut emit_eligible_sources = 0usize;
-    let mut javascript_sources = 0usize;
-    let mut json_sources = 0usize;
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
@@ -221,7 +218,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
         if !eligible {
             continue;
         }
-        emit_eligible_sources += 1;
         let name = source.path().to_string_lossy().to_ascii_lowercase();
         let is_typescript = name.ends_with(".ts")
             || name.ends_with(".mts")
@@ -244,20 +240,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
             return Err(EmitFailure::UnsupportedSourceExtension {
                 path: source.path().to_path_buf(),
             });
-        }
-        javascript_sources += usize::from(is_javascript);
-        json_sources += usize::from(is_json);
-    }
-    if let Some(out_dir) = options.out_dir.as_deref() {
-        // H2.3a owns JavaScript-only relocation. H2.3d additionally owns the
-        // narrow mixed source set needed to materialize an admitted JSON
-        // artifact. H2.8a retains outDir without either source family and the
-        // general rootDir/common-source-directory matrix.
-        let javascript_only =
-            javascript_sources != 0 && javascript_sources == emit_eligible_sources;
-        let json_relocation = json_sources != 0;
-        if !(javascript_only || json_relocation) || !std::path::Path::new(out_dir).is_absolute() {
-            return unsupported("outDir");
         }
     }
     Ok(())

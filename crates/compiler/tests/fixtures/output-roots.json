@@ -1,0 +1,3731 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "2eb5fddf14652d1bade35223f3a349ec4b47313ff89708fa83d595f1f375da1d",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "root//project/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/src/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/src/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/src/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/src/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/./src/../src/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "./src/../src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/./src/../src/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "./src/../src",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/other/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/other",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "root//project/other/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/other",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 6059,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+              "related_information": null
+            },
+            {
+              "code": 6059,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "root//project/sr/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/sr",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/sr/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/sr",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/sr//false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/sr/",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root//project/sr//true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/sr/",
+        "outDir": "out",
+        "declaration": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/ignored-declaration",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        },
+        {
+          "path": "/project/external/a.d.ts",
+          "text": "export declare const other: number;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "root/no-output-directory",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "other"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/a.ts' is not under 'rootDir' 'other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/nested/b.ts' is not under 'rootDir' 'other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "root/empty-program",
+      "files": [],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "config/undefined/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"noEmitOnError\": false,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5011,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 104,
+            "length": 8,
+            "message": "The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "config/undefined/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"noEmitOnError\": true,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5011,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 104,
+            "length": 8,
+            "message": "The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5011,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 104,
+              "length": 8,
+              "message": "The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "config/src/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \"src\",\n    \"noEmitOnError\": false,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "config/src/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \"src\",\n    \"noEmitOnError\": true,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "config/./false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \".\",\n    \"noEmitOnError\": false,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "config/./true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \".\",\n    \"noEmitOnError\": true,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "config/other/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \"other\",\n    \"noEmitOnError\": false,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/src/nested/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/src/nested/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogc3RyaW5nOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+            "related_information": [
+              {
+                "code": 1410,
+                "category": "Message",
+                "file": "/project/tsconfig.json",
+                "start": 301,
+                "length": 10,
+                "message": "File is matched by 'files' list specified here.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+            "related_information": [
+              {
+                "code": 1410,
+                "category": "Message",
+                "file": "/project/tsconfig.json",
+                "start": 317,
+                "length": 17,
+                "message": "File is matched by 'files' list specified here.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "config/other/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/nested/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"esnext\",\n    \"module\": \"commonjs\",\n    \"declaration\": true,\n    \"outDir\": \"out\",\n    \"rootDir\": \"other\",\n    \"noEmitOnError\": true,\n    \"strict\": true,\n    \"skipDefaultLibCheck\": true,\n    \"noErrorTruncation\": true,\n    \"newLine\": \"crlf\"\n  },\n  \"files\": [\n    \"src/a.ts\",\n    \"src/nested/b.ts\"\n  ]\n}\n",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+            "related_information": [
+              {
+                "code": 1410,
+                "category": "Message",
+                "file": "/project/tsconfig.json",
+                "start": 300,
+                "length": 10,
+                "message": "File is matched by 'files' list specified here.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+            "related_information": [
+              {
+                "code": 1410,
+                "category": "Message",
+                "file": "/project/tsconfig.json",
+                "start": 316,
+                "length": 17,
+                "message": "File is matched by 'files' list specified here.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 6059,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "File '/project/src/a.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+              "related_information": [
+                {
+                  "code": 1410,
+                  "category": "Message",
+                  "file": "/project/tsconfig.json",
+                  "start": 300,
+                  "length": 10,
+                  "message": "File is matched by 'files' list specified here.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 6059,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "File '/project/src/nested/b.ts' is not under 'rootDir' '/project/other'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Part of 'files' list in tsconfig.json",
+              "related_information": [
+                {
+                  "code": 1410,
+                  "category": "Message",
+                  "file": "/project/tsconfig.json",
+                  "start": 316,
+                  "length": 17,
+                  "message": "File is matched by 'files' list specified here.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ],
+  "supplemental_cases": [
+    {
+      "case_id": "reason/import/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "import { b } from '../external/b'; export const a: number = b;\n"
+        },
+        {
+          "path": "/project/external/b.ts",
+          "text": "export const b: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "roots": [
+        "/project/src/a.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/a.ts",
+            "start": 18,
+            "length": 15,
+            "message": "File '/project/external/b.ts' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "reason/import/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "import { b } from '../external/b'; export const a: number = b;\n"
+        },
+        {
+          "path": "/project/external/b.ts",
+          "text": "export const b: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "roots": [
+        "/project/src/a.ts",
+        "/project/external/b.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/a.ts",
+            "start": 18,
+            "length": 15,
+            "message": "File '/project/external/b.ts' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via '../external/b' from file '/project/src/a.ts'\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "reason/reference/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/// <reference path='../external/b.ts' />\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.ts",
+          "text": "export const b: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "roots": [
+        "/project/src/a.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Jy4uL2V4dGVybmFsL2IudHMnIC8+DQpleHBvcnRzLmEgPSAxOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Jy4uL2V4dGVybmFsL2IudHMnIC8+DQpleHBvcnRzLmEgPSAxOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/a.ts",
+            "start": 21,
+            "length": 16,
+            "message": "File '/project/external/b.ts' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "reason/reference/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "/// <reference path='../external/b.ts' />\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.ts",
+          "text": "export const b: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "roots": [
+        "/project/src/a.ts",
+        "/project/external/b.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Jy4uL2V4dGVybmFsL2IudHMnIC8+DQpleHBvcnRzLmEgPSAxOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Jy4uL2V4dGVybmFsL2IudHMnIC8+DQpleHBvcnRzLmEgPSAxOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/a.ts",
+            "start": 21,
+            "length": 16,
+            "message": "File '/project/external/b.ts' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Referenced via '../external/b.ts' from file '/project/src/a.ts'\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "reason/two-imports",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "import { b } from '../external/b'; export const a = b;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { b } from '../external/b'; export const c = b;\n"
+        },
+        {
+          "path": "/project/external/b.ts",
+          "text": "export const b: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/c.ts"
+      ],
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYSA9IGJfMS5iOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "out/c.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYyA9IGJfMS5iOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYyA9IHZvaWQgMDsNCmNvbnN0IGJfMSA9IHJlcXVpcmUoIi4uL2V4dGVybmFsL2IiKTsNCmV4cG9ydHMuYyA9IGJfMS5iOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/a.ts",
+            "start": 18,
+            "length": 15,
+            "message": "File '/project/external/b.ts' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via '../external/b' from file '/project/src/a.ts'\n    Imported via '../external/b' from file '/project/src/c.ts'",
+            "related_information": [
+              {
+                "code": 1399,
+                "category": "Message",
+                "file": "/project/src/c.ts",
+                "start": 18,
+                "length": 15,
+                "message": "File is included via import here.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "eligibility/js/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.js",
+          "text": "exports.b = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "noEmitForJsFiles": false,
+        "allowJs": true,
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/b.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/b.js' is not under 'rootDir' 'src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "eligibility/json/false",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.json",
+          "text": "{\"b\":1}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "noEmitForJsFiles": false,
+        "allowJs": true,
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "eligibility/js/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.js",
+          "text": "exports.b = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "noEmitForJsFiles": true,
+        "allowJs": true,
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "eligibility/json/true",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/external/b.json",
+          "text": "{\"b\":1}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out",
+        "noEmitForJsFiles": true,
+        "allowJs": true,
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "case-fold/undefined",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src2/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/src2/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src2/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "case-fold/src",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src2/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "src",
+        "outDir": "out"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src2/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src2/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "case-fold/SRC",
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src2/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "SRC",
+        "outDir": "out"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src2/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src2/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "case-fold/protected-unicode",
+      "files": [
+        {
+          "path": "/project/İ/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/i̇/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "out"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/İ/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCmV4cG9ydHMuYSA9IDE7DQo=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/İ/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/i̇/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/i̇/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

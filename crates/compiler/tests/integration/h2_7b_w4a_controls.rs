@@ -279,7 +279,7 @@ pub(super) fn assert_observation(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
 ) {
-    assert_observation_with_listing(case_id, prepared, expected, false);
+    assert_observation_with_listing(case_id, prepared, expected, false, false);
 }
 
 /// Preserve the actual emittedFiles presence for new direct-option windows;
@@ -289,7 +289,15 @@ pub(super) fn assert_exact_observation(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
 ) -> tsc_emitter::H2ActivityCounters {
-    assert_observation_with_listing(case_id, prepared, expected, true)
+    assert_observation_with_listing(case_id, prepared, expected, true, false)
+}
+
+pub(super) fn assert_command_observation(
+    case_id: &str,
+    prepared: tsc_program::PreparedProgram,
+    expected: &Value,
+) -> tsc_emitter::H2ActivityCounters {
+    assert_observation_with_listing(case_id, prepared, expected, true, true)
 }
 
 fn assert_observation_with_listing(
@@ -297,11 +305,24 @@ fn assert_observation_with_listing(
     prepared: tsc_program::PreparedProgram,
     expected: &Value,
     exact_listing: bool,
+    command_reporting: bool,
 ) -> tsc_emitter::H2ActivityCounters {
     let mut sink = MemoryOutputSink::new();
-    let (outcome, reported) = ProgramSession::new(prepared)
-        .emit_with_reported_diagnostics_for_harness(&mut sink)
-        .unwrap_or_else(|error| panic!("{case_id}: production emit completes: {error}"));
+    let (outcome, reported, command_status) = if command_reporting {
+        let command = ProgramSession::new(prepared)
+            .emit_command_for_harness(&mut sink)
+            .unwrap_or_else(|error| panic!("{case_id}: production command completes: {error}"));
+        (
+            command.emit().clone(),
+            command.diagnostics().to_vec(),
+            Some((command.status_writes().to_vec(), command.exit_code())),
+        )
+    } else {
+        let (outcome, reported) = ProgramSession::new(prepared)
+            .emit_with_reported_diagnostics_for_harness(&mut sink)
+            .unwrap_or_else(|error| panic!("{case_id}: production emit completes: {error}"));
+        (outcome, reported, None)
+    };
 
     assert_eq!(
         actual_diagnostics(&reported),
@@ -352,10 +373,14 @@ fn assert_observation_with_listing(
     );
     assert_eq!(
         expected["status_writes"],
-        json!([]),
-        "{case_id}: no status writes"
+        command_status
+            .as_ref()
+            .map_or(json!([]), |(status, _)| json!(status)),
+        "{case_id}: status writes"
     );
-    let actual_exit_code = if outcome.emit_skipped() && !reported.is_empty() {
+    let actual_exit_code = if let Some((_, exit)) = command_status {
+        exit
+    } else if outcome.emit_skipped() && !reported.is_empty() {
         1
     } else if !reported.is_empty() {
         2
@@ -364,7 +389,7 @@ fn assert_observation_with_listing(
     };
     assert_eq!(
         actual_exit_code,
-        expected["exit_code"].as_u64().expect("frozen exit code"),
+        expected["exit_code"].as_i64().expect("frozen exit code") as i32,
         "{case_id}: exact exit code"
     );
 
@@ -444,16 +469,22 @@ fn assert_observation_with_listing(
         );
         let (actual_data_diagnostics, actual_source_map_url_pos) = match write.metadata() {
             Some(EmitWriteMetadata::Text(metadata)) => (
-                actual_diagnostics(metadata.diagnostics()),
+                Some(actual_diagnostics(metadata.diagnostics())),
                 metadata
                     .source_map_url_position()
                     .map(|position| u64::from(position.value())),
             ),
-            _ => (Vec::new(), None),
+            _ => (None, None),
         };
+        assert!(
+            expected["data_diagnostics"].is_null() || expected["data_diagnostics"].is_array(),
+            "{case_id}: callback diagnostics must be absent or an array"
+        );
         assert_eq!(
             actual_data_diagnostics,
-            expected_diagnostics(&expected["data_diagnostics"]),
+            expected["data_diagnostics"]
+                .as_array()
+                .map(|_| expected_diagnostics(&expected["data_diagnostics"])),
             "{case_id}: callback diagnostics"
         );
         assert_eq!(

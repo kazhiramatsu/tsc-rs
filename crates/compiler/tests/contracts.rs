@@ -104,6 +104,12 @@ mod h2_7c_isolated_private_types;
 #[path = "integration/h2_7c_declaration_dir.rs"]
 mod h2_7c_declaration_dir;
 
+#[path = "integration/h2_8a_output_directories.rs"]
+mod h2_8a_output_directories;
+
+#[path = "integration/h2_8a_output_roots.rs"]
+mod h2_8a_output_roots;
+
 #[path = "integration/h2_7c_declaration_getters.rs"]
 mod h2_7c_declaration_getters;
 

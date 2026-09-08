@@ -4296,15 +4296,11 @@ fn variable_list_has_initialized_export_binding(
     Ok(false)
 }
 
+/// tsc-port: isIdentifierText @6.0.3
+/// tsc-hash: ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d
+/// tsc-span: _tsc.js:8676-8687
 fn is_identifier_export_name(name: &str) -> bool {
-    let mut characters = name.chars();
-    let Some(first) = characters.next() else {
-        return false;
-    };
-    (first == '_' || first == '$' || first.is_ascii_alphabetic())
-        && characters.all(|character| {
-            character == '_' || character == '$' || character.is_ascii_alphanumeric()
-        })
+    tsc_syntax::is_identifier_text(name)
 }
 
 #[derive(Clone, Copy)]
@@ -9623,7 +9619,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         } else {
             name
         };
-        let access = if is_identifier_export_name(&text) {
+        let access = if self.context.arena().node(name)?.kind != SyntaxKind::StringLiteral {
             self.context.factory()?.create_node(
                 self.source,
                 NodeData::PropertyAccessExpression(

@@ -671,6 +671,7 @@ fn get_own_emit_output_file_path(
         .compiler_options()
         .out_dir
         .as_deref()
+        .filter(|directory| !directory.is_empty())
         .map(|out_dir| source_file_path_in_new_dir(source_file, host, out_dir))
         .unwrap_or_else(|| source_file.to_path_buf());
     relocated.with_extension(extension)

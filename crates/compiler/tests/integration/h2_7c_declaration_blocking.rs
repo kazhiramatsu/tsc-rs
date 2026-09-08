@@ -25,6 +25,10 @@ fn declaration_blocking_matches_complete_typescript_observations() {
 }
 
 pub(super) fn assert_cases(artifact: &Value) {
+    assert_cases_with_reporting(artifact, false);
+}
+
+pub(super) fn assert_cases_with_reporting(artifact: &Value, command_reporting: bool) {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cases = artifact["cases"].as_array().expect("cases");
     let mut failures = Vec::new();
@@ -35,12 +39,22 @@ pub(super) fn assert_cases(artifact: &Value) {
             .unwrap_or("/project/tsconfig.json");
         let config_base = Path::new(config_path).parent().expect("config directory");
         let result = std::panic::catch_unwind(|| {
-            let mut builder = MemoryCompilerHost::builder("/project");
+            let mut builder = MemoryCompilerHost::builder("/project").case_sensitive(
+                case["use_case_sensitive_file_names"]
+                    .as_bool()
+                    .unwrap_or(true),
+            );
             let mut roots = Vec::new();
             for file in case["files"].as_array().expect("files") {
                 let path = PathBuf::from(file["path"].as_str().unwrap());
                 builder = builder.file(path.clone(), file["text"].as_str().unwrap().as_bytes());
                 roots.push(path);
+            }
+            if let Some(explicit_roots) = case["roots"].as_array() {
+                roots = explicit_roots
+                    .iter()
+                    .map(|root| PathBuf::from(root.as_str().unwrap()))
+                    .collect();
             }
             for entry in std::fs::read_dir(workspace.join("vendor/typescript-6.0.3/lib")).unwrap() {
                 let entry = entry.unwrap();
@@ -63,6 +77,12 @@ pub(super) fn assert_cases(artifact: &Value) {
                     "declaration" => options.declaration = value.as_bool(),
                     "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
                     "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+                    "rootDir" => options.root_dir = value.as_str().map(str::to_owned),
+                    "allowJs" => options.allow_js = value.as_bool().unwrap(),
+                    "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
+                    "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
+                    "emitBOM" => options.emit_bom = value.as_bool(),
+                    "removeComments" => options.remove_comments = value.as_bool(),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
                     "strict" => options.strict = value.as_bool(),
                     "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
@@ -101,7 +121,12 @@ pub(super) fn assert_cases(artifact: &Value) {
                     )
                     .expect("direct program")
                 };
-                if let Some(option) = case["rust_expected_unsupported_option"].as_str() {
+                // H2.8a now executes the unchanged complete TS observations for
+                // historical outDir references. Other later-owner guards remain.
+                if let Some(option) = case["rust_expected_unsupported_option"]
+                    .as_str()
+                    .filter(|option| *option != "outDir")
+                {
                     let mut sink = tsc_compiler::MemoryOutputSink::new();
                     let error = tsc_compiler::ProgramSession::new(prepared)
                         .emit(&mut sink)
@@ -120,8 +145,15 @@ pub(super) fn assert_cases(artifact: &Value) {
                 }
                 let blocked = prepared.compiler_options().no_emit_on_error == Some(true)
                     && case["typescript_observation"]["emit_result"]["emit_skipped"] == true;
-                let activity =
-                    assert_exact_observation(case_id, prepared, &case["typescript_observation"]);
+                let activity = if command_reporting {
+                    super::h2_7b_w4a_controls::assert_command_observation(
+                        case_id,
+                        prepared,
+                        &case["typescript_observation"],
+                    )
+                } else {
+                    assert_exact_observation(case_id, prepared, &case["typescript_observation"])
+                };
                 if blocked {
                     assert_eq!(
                         activity.script_transformer_list_constructions(),
