@@ -6641,10 +6641,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(statement)
                 .set_source_map_range(source_map_range);
         }
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
-            .set_starts_on_new_line(true);
+        // transformPropertyOrClassStaticBlock leaves the statement's
+        // startsOnNewLine unset (_tsc.js:97444-97466). The separate inline
+        // expression sequence owns that marker; constructor bodies already
+        // carry their own multiline decision.
         Ok(statement)
     }
 

@@ -15076,11 +15076,21 @@ fn flags_after_update(
         | TransformFlags::CONTAINS_ES_2018
         | TransformFlags::CONTAINS_ES_2016
         | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+    let recomputed = if matches!(
+        probe.data,
+        NodeData::PropertyDeclaration(_)
+            | NodeData::ClassDeclaration(_)
+            | NodeData::ClassExpression(_)
+    ) {
+        recomputed | TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX
+    } else {
+        recomputed
+    };
     let mut flags = old & !recomputed;
     flags |= local_transform_flags(&probe)
         | local_contextual_target_flags(arena, original.source(), &probe)?;
     flags |= factory_child_transform_flags(arena, original.source(), &probe)? & recomputed;
-    Ok(flags)
+    complete_class_transform_flags(arena, original.source(), &probe, flags)
 }
 
 fn initialize_transform_flags(
@@ -15150,9 +15160,30 @@ fn compute_transform_flags(
     let mut flags =
         local_transform_flags(&record) | local_contextual_target_flags(arena, source, &record)?;
     flags |= factory_child_transform_flags(arena, source, &record)?;
+    let flags = complete_class_transform_flags(arena, source, &record, flags)?;
     arena.set_transform_flags(node, flags);
     visiting.remove(&id);
     complete.insert(id);
+    Ok(flags)
+}
+
+/// Complete createClassDeclaration's post-child flag decisions. Class
+/// expressions propagate the class-syntax bit without promoting it to the
+/// TypeScript visitor gate (_tsc.js:22927-22937,23339-23356).
+fn complete_class_transform_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: &Node,
+    mut flags: TransformFlags,
+) -> Result<TransformFlags, TransformError> {
+    if let NodeData::ClassDeclaration(data) = &node.data {
+        if has_modifier(arena, source, data.modifiers, SyntaxKind::DeclareKeyword)? {
+            return Ok(TransformFlags::CONTAINS_TYPE_SCRIPT);
+        }
+        if flags.contains(TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX) {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+    }
     Ok(flags)
 }
 
@@ -15524,9 +15555,7 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         }
         NodeData::ClassDeclaration(data) => {
             flags |= TransformFlags::CONTAINS_ES_2015;
-            if NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT)
-                || data.type_parameters.is_some()
-            {
+            if data.type_parameters.is_some() {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
             }
         }
@@ -15740,6 +15769,29 @@ fn local_contextual_target_flags(
                 return Ok(TransformFlags::CONTAINS_ES_2015);
             }
             Ok(TransformFlags::NONE)
+        }
+        NodeData::PropertyDeclaration(data) => {
+            // createPropertyDeclaration (_tsc.js:21890-21902). This bit
+            // belongs to the member before the containing class aggregates
+            // it and decides whether transformTypeScript must visit it.
+            let computed = if let Some(name) = data.name {
+                let name = arena
+                    .node_ref(source, name)
+                    .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, name)))?;
+                arena.node(name)?.kind == SyntaxKind::ComputedPropertyName
+            } else {
+                false
+            };
+            Ok(
+                if computed
+                    || data.initializer.is_some()
+                        && has_modifier(arena, source, data.modifiers, SyntaxKind::StaticKeyword)?
+                {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX
+                } else {
+                    TransformFlags::NONE
+                },
+            )
         }
         NodeData::Parameter(data) => Ok(
             if parameter_emit_role(arena, source, data)? == ParameterEmitRole::ExplicitThis {

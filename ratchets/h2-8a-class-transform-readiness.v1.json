@@ -1,0 +1,500 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-8",
+  "base": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-transform-flags.md",
+      "sha256": "90eea663e20e6e80dd8bf504f5eda23b70f00f3766228805ec54a1b37fed8e58"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/class-expression-updates.json",
+      "sha256": "adcd3660cc9307093f8b56ba598bd3e3756bf522bd97d373cd35faffff8189d9"
+    },
+    {
+      "path": "scripts/observe-class-transform-flags.mjs",
+      "sha256": "997405e80326433e628d537031142b0b57bfae4e971cd3b0922a2236c8cea723"
+    },
+    {
+      "path": "scripts/observe-class-expression-updates.mjs",
+      "sha256": "4457844ae8b74614ff4365c0f4ee1669f99c8d1651f6346f21daca2948e8c566"
+    },
+    {
+      "path": "ratchets/h2-8a-class-transform-before.v1.json",
+      "sha256": "6a0428ddf2d5fcc439096ebb24fea02c13f55998ad71cf996ff455127795b62b"
+    },
+    {
+      "path": "ratchets/h2-8a-class-flags-unit-before.v1.json",
+      "sha256": "b94343430cd3d7385515a053dca11416f793c8476cf88454ed148c0042358b2e"
+    },
+    {
+      "path": "ratchets/h2-8a-class-expression-unit-before.v1.json",
+      "sha256": "e231ae9d36afc82a6aeab2e3a46be91f3b3961aa1fdcc6c44f72bcd8f38028c8"
+    },
+    {
+      "path": "ratchets/h2-8a-class-transform-original-before.v1.json",
+      "sha256": "46d2f7d1cc64e0c8702099f7df1a506b25f0af3b81d5ea6722ef822df5f46f99"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "246a3d7f70f4f496e37e96c85a427227f6f086fa2c4bef622ab7af462dcaed94"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "createPropertyDeclaration",
+      "start": 21890,
+      "end": 21902,
+      "sha256": "2f7df66cb0e988da54fd316bcba05db7e36dc1c9f8472f465001a4007f1dd4bb"
+    },
+    {
+      "owner": "updatePropertyDeclaration",
+      "start": 21903,
+      "end": 21905,
+      "sha256": "993e39266d70e68575e3d46b2efaf63e3642f3cf00fecf2087d108c103260d68"
+    },
+    {
+      "owner": "createClassDeclaration",
+      "start": 23339,
+      "end": 23356,
+      "sha256": "4116022701afc60714ac17403b6470636b06686462a2951b6a090fab0c87f1c9"
+    },
+    {
+      "owner": "updateClassDeclaration",
+      "start": 23357,
+      "end": 23359,
+      "sha256": "e9a9bbea29832f1ee7b89c669fcbdabf91cf8994cb643fdf51f0953f531859af"
+    },
+    {
+      "owner": "createClassExpression",
+      "start": 22927,
+      "end": 22937,
+      "sha256": "e9fff720f97ab0c52675bfb3eb7245496aca23e0ef31bfc8366d8f0d1fb8c648"
+    },
+    {
+      "owner": "updateClassExpression",
+      "start": 22938,
+      "end": 22940,
+      "sha256": "b0a96dc25891132cbab5d16e0aab9ff6e8d83d92a2d24008e9ccd0bc918b2c3a"
+    },
+    {
+      "owner": "propagateNameFlags/propagateChildFlags/aggregateChildrenFlags",
+      "start": 25101,
+      "end": 25124,
+      "sha256": "1b9a360a71ed509adb3bb36c556cd776667962a04c2925054756d63b9df79999"
+    },
+    {
+      "owner": "getTransformFlagsSubtreeExclusions",
+      "start": 25125,
+      "end": 25194,
+      "sha256": "2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913"
+    },
+    {
+      "owner": "visitorWorker",
+      "start": 94122,
+      "end": 94127,
+      "sha256": "3e070025ada6ea8db623872da91537a2ee373fdb66224c5ece5786511d972198"
+    },
+    {
+      "owner": "getClassFacts",
+      "start": 94410,
+      "end": 94426,
+      "sha256": "96527ff84ba078ef8ea3d635bffc120f5ccf13c9441ff83640e65831989f4261"
+    },
+    {
+      "owner": "hasTypeScriptClassSyntax",
+      "start": 94428,
+      "end": 94430,
+      "sha256": "2cc078fafd2c2ed3cbe7e1a48d8fea5fb75a6f220c96862ab9a99d800da0663b"
+    },
+    {
+      "owner": "isClassLikeDeclarationWithTypeScriptSyntax",
+      "start": 94431,
+      "end": 94433,
+      "sha256": "f99b70774885874532bc1947c7b742b2f3257b1a97de87676502becfef31dab8"
+    },
+    {
+      "owner": "visitClassDeclaration",
+      "start": 94434,
+      "end": 94548,
+      "sha256": "b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59"
+    },
+    {
+      "owner": "visitClassExpression",
+      "start": 94549,
+      "end": 94563,
+      "sha256": "4dae4f7a40f66795c79f1667200c7b9d9d63898d21391eeda09415cd761b4605"
+    }
+  ],
+  "steps": [
+    "A6-8-1",
+    "A6-8-2",
+    "A6-8-3"
+  ],
+  "architecture": [
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ORDER-H",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/es5/static-initialized",
+      "row_sha256": "9cdbabec961b54b56b2779731744789cd885fa2c8c51d22f1c5b60df231650e9",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-uninitialized",
+      "row_sha256": "5e2e183fb5fe8ccb538aaacfb49d9fb9dc35f7a30be3dd6d2c1efb7aa8973a8a",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/instance-initialized",
+      "row_sha256": "424a643557fb805aa1deb687b7b775004e7588c6cba10115592f24a3a7deb3f9",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/computed-instance",
+      "row_sha256": "d2e895faf7c1066e1bf0a0e101e9e0a3afb4c0e022d30029c1276557bd1d5970",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/computed-static",
+      "row_sha256": "492881c93ec6e6f9c965e6ce8e94d19b5f519f362e8e10afc03f8950f021dfca",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/expression-static",
+      "row_sha256": "ed7fa33f38bf60c1b498a283f5a09926ed2abb12e67111f28aaeac6055494cff",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/expression-computed",
+      "row_sha256": "4c03fcb7e4e7bb69b16b241bc855692df81cee1a75f96511ebec7423ac6b566e",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/nested-static",
+      "row_sha256": "b084b00a63744f7c1623adcc84862e7def9247c139c597d370ce97f6224fdf59",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/exported-static",
+      "row_sha256": "a48af6457d4653752e33fa01a94a9a7f3291f80091d13bf16bd7d82388f396f9",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/default-static",
+      "row_sha256": "b651da82208e5e511b1c46ff8973999db8fe055f30d108dbcc27def00fbdee91",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/plain",
+      "row_sha256": "e0a156bc68ddc306dbeb59405c8be23f83e955a871fa13734b53ef6ba4d60ee5",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/static-comment",
+      "row_sha256": "31041af0441e450fd389a79dea15ed4fa7cc78cfbaa8bae158bc829098acbda3",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-initialized",
+      "row_sha256": "98065710dc3eefd8c15586c22599a6643a7c14db0757f79dab9bc2cb86852bd6",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-uninitialized",
+      "row_sha256": "18240bf70be11e7a3b83ad4025da272e2bd1e479660f21a161d2e7323a180918",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/instance-initialized",
+      "row_sha256": "149be4494b71ebb93e013d62394633b02c3468ce2a32ccb4e7e8c82512a495e1",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/computed-instance",
+      "row_sha256": "b4308fb74b677e38b5726c57c884328e53c92e488c901a236b51b706e72ffd2e",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/computed-static",
+      "row_sha256": "50731d3e743b0f4b5b2410b5e4706b74b73dfa3b54afa3088d0cb8d47eacc75c",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/expression-static",
+      "row_sha256": "3888264b72a7adc095f6a0fabcaff699661bcc4370a3b5a745218897199ab8df",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/expression-computed",
+      "row_sha256": "8f7d637bc01643b88cdc70f45ce1cec90ef423a4bf706cbb14f396513194738e",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/nested-static",
+      "row_sha256": "ce8ea66b0796ca91ea0aa1c187ed8ea7a37e0b298b96cc0d47da39f9ec2d821d",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/exported-static",
+      "row_sha256": "d922c35481b625eaaa67026e7d7c9b5403b0ff83c96727b4551524bc8221567f",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/default-static",
+      "row_sha256": "873c011ee01355891cbf44b3bf1d67f8cd23ae415612e7387549e06fe0f3698f",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/plain",
+      "row_sha256": "3fa6c6b19f2c5207e9f932a30bd6477d725de62641e34ca6c4f229eea47328c4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/static-comment",
+      "row_sha256": "91e97907bd8724792ec1efd50082b9a17440d7b14690cbecaa66591dd18d7da6",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/ambient-static",
+      "row_sha256": "8b1105145e1127f470cb6cc89af761e4f7c50e9f6d297f997bf29201bc407482",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/static-initialized",
+      "row_sha256": "1d427d029c77beddaaab31295c08e53e34e05eeb5b1be8692a9747ef1d1d7be1",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/static-uninitialized",
+      "row_sha256": "95cf8279c4c9f9d4c1e9104cc88844d14b28be9a3aea4cde6854d7e6072a18b9",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/instance-initialized",
+      "row_sha256": "4cd0f74c5aad3740b5cffeb0008ed47f5cad607d3f11975b5df2418c654e8b31",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-instance",
+      "row_sha256": "d474ede692149f4d14026193a064fcecf72b119b189b3cbac505996aeaf0a447",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-static",
+      "row_sha256": "10fb9afbc137fb0b74f71ed0cc7548994006455fefe137ef8852481143e3afae",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/expression-static",
+      "row_sha256": "472c9983b66230f86d86bd28249374333788f79ad871dbeaeec019ebbaa72f4c",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/expression-computed",
+      "row_sha256": "d2f645fb39c8ea631e120f3c00f2fde874bb3b0e329d333143270fd4390ee949",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/nested-static",
+      "row_sha256": "6e90b774976c9b8ad84648cbddff9e589780e5c30fd405023ca3b2a6fd1fb6a1",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/exported-static",
+      "row_sha256": "2f588f5965af7b299031b148c98ec832889293d460f454e1edf36c7da47998b5",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/default-static",
+      "row_sha256": "d2e0b3e9367ec3b33344aa9fb48ec848efeae4dcc0137bd1b5812f79d3f32413",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/plain",
+      "row_sha256": "8be604a51e0f575ea4616074fc86f8a87cc8b543cac5b99a3e7515d0861f9f25",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/static-comment",
+      "row_sha256": "bdb36d19ab7e1927840320e94c648a1308fea599bcf068c63ed211de33177d79",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-initialized",
+      "row_sha256": "f3abe1d6ad0156ef9a99dd1b50e9951c37d6a75b2007885709832e57bfbbf607",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-uninitialized",
+      "row_sha256": "aa35d77b8039875e541898a6c4539344c83873da6198efec9f69155e96b3deae",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/instance-initialized",
+      "row_sha256": "0600e01949bb0515099240dfe8cd3dc4e363b82a60863f6c987ba8c2dc9f72a0",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-instance",
+      "row_sha256": "b6f126759a9178b855753331048e053960f236f06ac1ae6b18c20760652bca86",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-static",
+      "row_sha256": "bc958fa97d68b691cba8f5a2c45f713d7ecee302b20842925ccd965c7c80efdf",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/expression-static",
+      "row_sha256": "5f7dcc1d37bd7068cea94a656f1c59c5a24d98146c77993713d1a7877f996fca",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/expression-computed",
+      "row_sha256": "c9f4c99d758f83cfefdf216e42dd45e2e56001d996572d2779951aa02bc04a76",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/nested-static",
+      "row_sha256": "ea7267cd16e75c023d410cfa54b690b8e70ce18824527d35b2c03885c680f49d",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/exported-static",
+      "row_sha256": "e3b1f0b12879df1707267ad828d63a00063471e3c692959452aaae7773d237a4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/default-static",
+      "row_sha256": "cfe62918fbd8bd59e439500d291839fa43650d9d3a66cdb0449da31e0be05248",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/plain",
+      "row_sha256": "bbc43ba712e4a3c277c6b1e755ed53c3e3e2ceca9d11a72cb8242db244ea8b48",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-comment",
+      "row_sha256": "a5dcf414cad0f52b232de0c77e1989c4ff4134521784cb9b1b1f95fb2645cbc4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/ambient-static",
+      "row_sha256": "253b5802d9603a9f86cec1378d75dcfa63954fd269b1e0f445fdbf68c566fb8f",
+      "before": "exact"
+    }
+  ],
+  "parse_rows": 96,
+  "update_controls_sha256": "5109438d9a482b9e2f0b82eff6ac0d1aded9e5edb3c420ee00ec1efc1ca02803",
+  "expression_updates_sha256": "e65c783b02963e38bb35c7eba5bf02dca1d9aeb2a119ec510362e801836c3bdc",
+  "originals": [
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des2015",
+      "input_sha256": "26870814fec4ac35e0da0e5e6cb5fe8a054876df43abe3d9f3a2570024b9e1b9",
+      "observation_sha256": "035b9e1cef52b1979bf7a4c5ae63532212bc7bae702171db11e068ef9f182fe4",
+      "before": "exact",
+      "after_requirement": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+      "input_sha256": "b94dc74319b9e0264e4883b0b5f4542a11afdec38e161dbbec11f386a36f8de9",
+      "observation_sha256": "c3b7b0d037f14c992a13cb7a5af9c48fe852258a25e89a9e2365bdd7a65f4564",
+      "before": "failed",
+      "after_requirement": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des2015",
+      "input_sha256": "5e3d32065c9b5e565aade51e872dc62bbc319f960116a28856633cb7f77eaa07",
+      "observation_sha256": "e1819a836ac2b131cee443d0b3c2bb52e1485cf562a869c09906f966b229cd86",
+      "before": "exact",
+      "after_requirement": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+      "input_sha256": "60e336831c973a9f7ffe518eb6ad7f48eb28c079781fdee55fa78e9c2362f353",
+      "observation_sha256": "fb8c2463f1db94a57eea146340f33248999b06589c2e3cc3eeba9f7394eaecf3",
+      "before": "failed",
+      "after_requirement": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "input_sha256": "d0de030f56644a38d65588d70b3abb559d77291fca3355dbbe398faa00aee298",
+      "observation_sha256": "2b8c8fa44c1edd555fe9e26a12006f03dada2156f32c951c35bb3c9432962a80",
+      "before": "failed",
+      "after_requirement": "independent-declaration-residue"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "input_sha256": "bedd64b4f39eb78b7f06c8f906ef10202dd965d4e9e8129fa9dfe46603feb2d2",
+      "observation_sha256": "cb24d832d5d86fdafac6526b425ee47843e46db7f3000f4422ab708315dbc4e1",
+      "before": "failed",
+      "after_requirement": "independent-declaration-residue"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "input_sha256": "6f19c23163da28ac6036f06eea99fb2d8e62ce2036576769d102e468dc256c7c",
+      "observation_sha256": "f37902ada1f7a2cac87817bba0896df606a054b7200b72658a393d359b00505b",
+      "before": "failed",
+      "after_requirement": "independent-declaration-residue"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "input_sha256": "8170478fb6ede32245a0aaa324e17a25d16983a90e39ce501ba350930986a3c5",
+      "observation_sha256": "847ec51ae506a07241c8068a5fbac9662a526e66fee5fd1e2d7d83b580e6e568",
+      "before": "failed",
+      "after_requirement": "independent-declaration-residue"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des2015",
+      "input_sha256": "83a41d86868496a766779f8cd908b289eaff6d454e639232ce9b6e2e09d86e22",
+      "observation_sha256": "12dba3db22b7aa3eeedec7b7e75565c903cb507b9c3e687dd44e33ac57e22826",
+      "before": "exact",
+      "after_requirement": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+      "input_sha256": "f6f7c4e0586a3c738342062730f154b2b7c4e2251def3b1a1e6c36a7b1ed866e",
+      "observation_sha256": "eeaf93e515ad401ec7e5ddd2ba72dff5da287f05cdee0ee86d14576358fabd0c",
+      "before": "failed",
+      "after_requirement": "exact"
+    }
+  ],
+  "tests": [
+    "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+    "crates/compiler/tests/h2_8a_original_corpus.rs",
+    "crates/emitter/tests/unit/builtins/tests.rs"
+  ]
+}

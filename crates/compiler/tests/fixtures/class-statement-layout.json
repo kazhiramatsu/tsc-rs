@@ -1,0 +1,4938 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "786df9d181a107dd551f919c71fbf6a03577765a40f94ab8b553e6f26652ed4d",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "js/es5/static-first",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 191,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 191,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-middle",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 212,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 212,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-last",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-only",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "callback_utf8_bytes": 174,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "materialized_utf8_bytes": 174,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-multiline",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() {\n  class Box { static value = 1; }\n  return Box;\n}\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 191,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 191,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-arrow",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const make = () => { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-function-expression",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const make = function () { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-method",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Maker { make() { class Box { static value = 1; } return Box; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIE1ha2VyID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIE1ha2VyKCkgew0KICAgIH0NCiAgICBNYWtlci5wcm90b3R5cGUubWFrZSA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgICAgICByZXR1cm4gQm94Ow0KICAgICAgICB9KCkpOw0KICAgICAgICByZXR1cm4gQm94Ow0KICAgIH07DQogICAgcmV0dXJuIE1ha2VyOw0KfSgpKTsNCg==",
+            "callback_utf8_bytes": 346,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIE1ha2VyID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIE1ha2VyKCkgew0KICAgIH0NCiAgICBNYWtlci5wcm90b3R5cGUubWFrZSA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgICAgICByZXR1cm4gQm94Ow0KICAgICAgICB9KCkpOw0KICAgICAgICByZXR1cm4gQm94Ow0KICAgIH07DQogICAgcmV0dXJuIE1ha2VyOw0KfSgpKTsNCg==",
+            "materialized_utf8_bytes": 346,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/instance-explicit-constructor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function touch() {}\nclass Box { value = 1; constructor() { touch(); } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzLnZhbHVlID0gMTsNCiAgICAgICAgdG91Y2goKTsNCiAgICB9DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 173,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzLnZhbHVlID0gMTsNCiAgICAgICAgdG91Y2goKTsNCiAgICB9DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 173,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 77,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 77,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/instance-two-properties",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Box { first = 1; second = 2; constructor() {} }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIHRoaXMuZmlyc3QgPSAxOw0KICAgICAgICB0aGlzLnNlY29uZCA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIHRoaXMuZmlyc3QgPSAxOw0KICAgICAgICB0aGlzLnNlY29uZCA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/static-expression",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const Box = class { static value = 1; }; return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyB2YXIgQm94ID0gKF9hID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBjbGFzc18xKCkgew0KICAgICAgICB9DQogICAgICAgIHJldHVybiBjbGFzc18xOw0KICAgIH0oKSksDQogICAgX19zZXRGdW5jdGlvbk5hbWUoX2EsICJCb3giKSwNCiAgICBfYS52YWx1ZSA9IDEsDQogICAgX2EpOyByZXR1cm4gQm94OyB9DQo=",
+            "callback_utf8_bytes": 560,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyB2YXIgQm94ID0gKF9hID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBjbGFzc18xKCkgew0KICAgICAgICB9DQogICAgICAgIHJldHVybiBjbGFzc18xOw0KICAgIH0oKSksDQogICAgX19zZXRGdW5jdGlvbk5hbWUoX2EsICJCb3giKSwNCiAgICBfYS52YWx1ZSA9IDEsDQogICAgX2EpOyByZXR1cm4gQm94OyB9DQo=",
+            "materialized_utf8_bytes": 560,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/plain-class",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { method() { return 1; } } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgfQ0KICAgIEJveC5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gQm94Ow0KfSgpKTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgfQ0KICAgIEJveC5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gQm94Ow0KfSgpKTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/computed-static-instance",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 233,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 233,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/computed-static-static",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; static [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgIH0NCiAgICB2YXIgX2EsIF9iOw0KICAgIF9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KICAgIEJveFtfYV0gPSAxOw0KICAgIEJveFtfYl0gPSAyOw0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "callback_utf8_bytes": 228,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgIH0NCiAgICB2YXIgX2EsIF9iOw0KICAgIF9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KICAgIEJveFtfYV0gPSAxOw0KICAgIEJveFtfYl0gPSAyOw0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "materialized_utf8_bytes": 228,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIHN0YXRpYyBiOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIHN0YXRpYyBiOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/computed-instance-instance",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCnZhciBmaXJzdCA9ICJhIjsNCnZhciBzZWNvbmQgPSAiYiI7DQp2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "callback_utf8_bytes": 230,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCnZhciBmaXJzdCA9ICJhIjsNCnZhciBzZWNvbmQgPSAiYiI7DQp2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "materialized_utf8_bytes": 230,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBhOiBudW1iZXI7DQogICAgYjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBhOiBudW1iZXI7DQogICAgYjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es5/computed-with-constructor-local",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; constructor(value = second) { const local = value; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KHZhbHVlKSB7DQogICAgICAgIGlmICh2YWx1ZSA9PT0gdm9pZCAwKSB7IHZhbHVlID0gc2Vjb25kOyB9DQogICAgICAgIHRoaXNbX2JdID0gMjsNCiAgICAgICAgdmFyIGxvY2FsID0gdmFsdWU7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 317,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KHZhbHVlKSB7DQogICAgICAgIGlmICh2YWx1ZSA9PT0gdm9pZCAwKSB7IHZhbHVlID0gc2Vjb25kOyB9DQogICAgICAgIHRoaXNbX2JdID0gMjsNCiAgICAgICAgdmFyIGxvY2FsID0gdmFsdWU7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 317,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogc3RyaW5nKTsNCiAgICBiOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogc3RyaW5nKTsNCiAgICBiOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-first",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 191,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 191,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-middle",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 212,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 212,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-last",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgcHJlZml4ID0gMDsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "callback_utf8_bytes": 174,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KfQ0K",
+            "materialized_utf8_bytes": 174,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() {\n  class Box { static value = 1; }\n  return Box;\n}\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 191,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICB2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIH0NCiAgICAgICAgQm94LnZhbHVlID0gMTsNCiAgICAgICAgcmV0dXJuIEJveDsNCiAgICB9KCkpOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 191,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-arrow",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const make = () => { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "callback_utf8_bytes": 70,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "materialized_utf8_bytes": 70,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-function-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const make = function () { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIG1ha2UgPSBmdW5jdGlvbiAoKSB7DQogICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB9DQogICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgIHJldHVybiBCb3g7DQogICAgfSgpKTsNCiAgICByZXR1cm4gQm94Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "callback_utf8_bytes": 70,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "materialized_utf8_bytes": 70,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Maker { make() { class Box { static value = 1; } return Box; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIE1ha2VyID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIE1ha2VyKCkgew0KICAgIH0NCiAgICBNYWtlci5wcm90b3R5cGUubWFrZSA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgICAgICByZXR1cm4gQm94Ow0KICAgICAgICB9KCkpOw0KICAgICAgICByZXR1cm4gQm94Ow0KICAgIH07DQogICAgcmV0dXJuIE1ha2VyOw0KfSgpKTsNCg==",
+            "callback_utf8_bytes": 346,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIE1ha2VyID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIE1ha2VyKCkgew0KICAgIH0NCiAgICBNYWtlci5wcm90b3R5cGUubWFrZSA9IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgICAgIEJveC52YWx1ZSA9IDE7DQogICAgICAgICAgICByZXR1cm4gQm94Ow0KICAgICAgICB9KCkpOw0KICAgICAgICByZXR1cm4gQm94Ow0KICAgIH07DQogICAgcmV0dXJuIE1ha2VyOw0KfSgpKTsNCg==",
+            "materialized_utf8_bytes": 346,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/instance-explicit-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function touch() {}\nclass Box { value = 1; constructor() { touch(); } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzLnZhbHVlID0gMTsNCiAgICAgICAgdG91Y2goKTsNCiAgICB9DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 173,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzLnZhbHVlID0gMTsNCiAgICAgICAgdG91Y2goKTsNCiAgICB9DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 173,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "callback_utf8_bytes": 97,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "materialized_utf8_bytes": 97,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/instance-two-properties",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Box { first = 1; second = 2; constructor() {} }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIHRoaXMuZmlyc3QgPSAxOw0KICAgICAgICB0aGlzLnNlY29uZCA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgICAgIHRoaXMuZmlyc3QgPSAxOw0KICAgICAgICB0aGlzLnNlY29uZCA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/static-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const Box = class { static value = 1; }; return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyB2YXIgQm94ID0gKF9hID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBjbGFzc18xKCkgew0KICAgICAgICB9DQogICAgICAgIHJldHVybiBjbGFzc18xOw0KICAgIH0oKSksDQogICAgX19zZXRGdW5jdGlvbk5hbWUoX2EsICJCb3giKSwNCiAgICBfYS52YWx1ZSA9IDEsDQogICAgX2EpOyByZXR1cm4gQm94OyB9DQo=",
+            "callback_utf8_bytes": 560,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyB2YXIgQm94ID0gKF9hID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgICAgICBmdW5jdGlvbiBjbGFzc18xKCkgew0KICAgICAgICB9DQogICAgICAgIHJldHVybiBjbGFzc18xOw0KICAgIH0oKSksDQogICAgX19zZXRGdW5jdGlvbk5hbWUoX2EsICJCb3giKSwNCiAgICBfYS52YWx1ZSA9IDEsDQogICAgX2EpOyByZXR1cm4gQm94OyB9DQo=",
+            "materialized_utf8_bytes": 560,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/plain-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { method() { return 1; } } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgfQ0KICAgIEJveC5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gQm94Ow0KfSgpKTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIEJveCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBCb3goKSB7DQogICAgfQ0KICAgIEJveC5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gMTsgfTsNCiAgICByZXR1cm4gQm94Ow0KfSgpKTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/computed-static-instance",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 233,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 233,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/computed-static-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; static [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgIH0NCiAgICB2YXIgX2EsIF9iOw0KICAgIF9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KICAgIEJveFtfYV0gPSAxOw0KICAgIEJveFtfYl0gPSAyOw0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "callback_utf8_bytes": 228,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KCkgew0KICAgIH0NCiAgICB2YXIgX2EsIF9iOw0KICAgIF9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KICAgIEJveFtfYV0gPSAxOw0KICAgIEJveFtfYl0gPSAyOw0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0K",
+            "materialized_utf8_bytes": 228,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgc3RhdGljIFtzZWNvbmRdOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgc3RhdGljIFtzZWNvbmRdOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/computed-instance-instance",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCnZhciBmaXJzdCA9ICJhIjsNCnZhciBzZWNvbmQgPSAiYiI7DQp2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "callback_utf8_bytes": 230,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCnZhciBmaXJzdCA9ICJhIjsNCnZhciBzZWNvbmQgPSAiYiI7DQp2YXIgQm94ID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEJveCgpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KICAgIHJldHVybiBCb3g7DQp9KCkpOw0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "materialized_utf8_bytes": 230,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIFtmaXJzdF06IG51bWJlcjsNCiAgICBbc2Vjb25kXTogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 126,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIFtmaXJzdF06IG51bWJlcjsNCiAgICBbc2Vjb25kXTogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 126,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es5/computed-with-constructor-local",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; constructor(value = second) { const local = value; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KHZhbHVlKSB7DQogICAgICAgIGlmICh2YWx1ZSA9PT0gdm9pZCAwKSB7IHZhbHVlID0gc2Vjb25kOyB9DQogICAgICAgIHRoaXNbX2JdID0gMjsNCiAgICAgICAgdmFyIGxvY2FsID0gdmFsdWU7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "callback_utf8_bytes": 317,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGZpcnN0ID0gImEiOw0KdmFyIHNlY29uZCA9ICJiIjsNCnZhciBCb3ggPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7DQogICAgZnVuY3Rpb24gQm94KHZhbHVlKSB7DQogICAgICAgIGlmICh2YWx1ZSA9PT0gdm9pZCAwKSB7IHZhbHVlID0gc2Vjb25kOyB9DQogICAgICAgIHRoaXNbX2JdID0gMjsNCiAgICAgICAgdmFyIGxvY2FsID0gdmFsdWU7DQogICAgfQ0KICAgIHZhciBfYSwgX2I7DQogICAgX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQogICAgQm94W19hXSA9IDE7DQogICAgcmV0dXJuIEJveDsNCn0oKSk7DQo=",
+            "materialized_utf8_bytes": 317,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IHN0cmluZyk7DQp9DQo=",
+            "callback_utf8_bytes": 167,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IHN0cmluZyk7DQp9DQo=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/static-first",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 78,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 78,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-middle",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 96,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 96,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-last",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "callback_utf8_bytes": 84,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "materialized_utf8_bytes": 84,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-only",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-multiline",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() {\n  class Box { static value = 1; }\n  return Box;\n}\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICBjbGFzcyBCb3ggew0KICAgIH0NCiAgICBCb3gudmFsdWUgPSAxOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 98,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICBjbGFzcyBCb3ggew0KICAgIH0NCiAgICBCb3gudmFsdWUgPSAxOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 98,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-arrow",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const make = () => { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9ICgpID0+IHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9ICgpID0+IHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-function-expression",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const make = function () { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9IGZ1bmN0aW9uICgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "callback_utf8_bytes": 88,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9IGZ1bmN0aW9uICgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "materialized_utf8_bytes": 88,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-method",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Maker { make() { class Box { static value = 1; } return Box; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgTWFrZXIgew0KICAgIG1ha2UoKSB7IGNsYXNzIEJveCB7DQogICAgfSBCb3gudmFsdWUgPSAxOyByZXR1cm4gQm94OyB9DQp9DQo=",
+            "callback_utf8_bytes": 95,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgTWFrZXIgew0KICAgIG1ha2UoKSB7IGNsYXNzIEJveCB7DQogICAgfSBCb3gudmFsdWUgPSAxOyByZXR1cm4gQm94OyB9DQp9DQo=",
+            "materialized_utf8_bytes": 95,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/instance-explicit-constructor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function touch() {}\nclass Box { value = 1; constructor() { touch(); } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCmNsYXNzIEJveCB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSAxOw0KICAgICAgICB0b3VjaCgpOw0KICAgIH0NCn0NCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCmNsYXNzIEJveCB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSAxOw0KICAgICAgICB0b3VjaCgpOw0KICAgIH0NCn0NCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 77,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 77,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/instance-two-properties",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Box { first = 1; second = 2; constructor() {} }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5maXJzdCA9IDE7DQogICAgICAgIHRoaXMuc2Vjb25kID0gMjsNCiAgICB9DQp9DQo=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5maXJzdCA9IDE7DQogICAgICAgIHRoaXMuc2Vjb25kID0gMjsNCiAgICB9DQp9DQo=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/static-expression",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { const Box = class { static value = 1; }; return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyBjb25zdCBCb3ggPSAoX2EgPSBjbGFzcyB7DQogICAgfSwNCiAgICBfX3NldEZ1bmN0aW9uTmFtZShfYSwgIkJveCIpLA0KICAgIF9hLnZhbHVlID0gMSwNCiAgICBfYSk7IHJldHVybiBCb3g7IH0NCg==",
+            "callback_utf8_bytes": 472,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyBjb25zdCBCb3ggPSAoX2EgPSBjbGFzcyB7DQogICAgfSwNCiAgICBfX3NldEZ1bmN0aW9uTmFtZShfYSwgIkJveCIpLA0KICAgIF9hLnZhbHVlID0gMSwNCiAgICBfYSk7IHJldHVybiBCb3g7IH0NCg==",
+            "materialized_utf8_bytes": 472,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/plain-class",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function make() { class Box { method() { return 1; } } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCiAgICBtZXRob2QoKSB7IHJldHVybiAxOyB9DQp9IHJldHVybiBCb3g7IH0NCg==",
+            "callback_utf8_bytes": 91,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCiAgICBtZXRob2QoKSB7IHJldHVybiAxOyB9DQp9IHJldHVybiBCb3g7IH0NCg==",
+            "materialized_utf8_bytes": 91,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/computed-static-instance",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYl0gPSAyOw0KICAgIH0NCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYl0gPSAyOw0KICAgIH0NCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/computed-static-static",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; static [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQpCb3hbX2JdID0gMjsNCg==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQpCb3hbX2JdID0gMjsNCg==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIHN0YXRpYyBiOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIHN0YXRpYyBiOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/computed-instance-instance",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "callback_utf8_bytes": 185,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "materialized_utf8_bytes": 185,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBhOiBudW1iZXI7DQogICAgYjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBhOiBudW1iZXI7DQogICAgYjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/es2015/computed-with-constructor-local",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; constructor(value = second) { const local = value; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IHNlY29uZCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgICAgIGNvbnN0IGxvY2FsID0gdmFsdWU7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQpCb3hbX2FdID0gMTsNCg==",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IHNlY29uZCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgICAgIGNvbnN0IGxvY2FsID0gdmFsdWU7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQpCb3hbX2FdID0gMTsNCg==",
+            "materialized_utf8_bytes": 220,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogc3RyaW5nKTsNCiAgICBiOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdDogImEiOw0KZGVjbGFyZSBjb25zdCBzZWNvbmQ6ICJiIjsNCmRlY2xhcmUgY2xhc3MgQm94IHsNCiAgICBzdGF0aWMgYTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogc3RyaW5nKTsNCiAgICBiOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-first",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 78,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 78,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-middle",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "callback_utf8_bytes": 96,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfQ0K",
+            "materialized_utf8_bytes": 96,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-last",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const prefix = 0; class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "callback_utf8_bytes": 84,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY29uc3QgcHJlZml4ID0gMDsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "materialized_utf8_bytes": 84,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { static value = 1; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgfQ0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() {\n  class Box { static value = 1; }\n  return Box;\n}\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICBjbGFzcyBCb3ggew0KICAgIH0NCiAgICBCb3gudmFsdWUgPSAxOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "callback_utf8_bytes": 98,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsNCiAgICBjbGFzcyBCb3ggew0KICAgIH0NCiAgICBCb3gudmFsdWUgPSAxOw0KICAgIHJldHVybiBCb3g7DQp9DQo=",
+            "materialized_utf8_bytes": 98,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-arrow",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const make = () => { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9ICgpID0+IHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9ICgpID0+IHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "callback_utf8_bytes": 70,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "materialized_utf8_bytes": 70,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-function-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const make = function () { class Box { static value = 1; } return Box; };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9IGZ1bmN0aW9uICgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "callback_utf8_bytes": 88,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbWFrZSA9IGZ1bmN0aW9uICgpIHsgY2xhc3MgQm94IHsNCn0gQm94LnZhbHVlID0gMTsgcmV0dXJuIEJveDsgfTsNCg==",
+            "materialized_utf8_bytes": 88,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "callback_utf8_bytes": 70,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBtYWtlOiAoKSA9PiB7DQogICAgbmV3ICgpOiB7fTsNCiAgICB2YWx1ZTogbnVtYmVyOw0KfTsNCg==",
+            "materialized_utf8_bytes": 70,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-method",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Maker { make() { class Box { static value = 1; } return Box; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgTWFrZXIgew0KICAgIG1ha2UoKSB7IGNsYXNzIEJveCB7DQogICAgfSBCb3gudmFsdWUgPSAxOyByZXR1cm4gQm94OyB9DQp9DQo=",
+            "callback_utf8_bytes": 95,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgTWFrZXIgew0KICAgIG1ha2UoKSB7IGNsYXNzIEJveCB7DQogICAgfSBCb3gudmFsdWUgPSAxOyByZXR1cm4gQm94OyB9DQp9DQo=",
+            "materialized_utf8_bytes": 95,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBNYWtlciB7DQogICAgbWFrZSgpOiB7DQogICAgICAgIG5ldyAoKToge307DQogICAgICAgIHZhbHVlOiBudW1iZXI7DQogICAgfTsNCn0NCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/instance-explicit-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function touch() {}\nclass Box { value = 1; constructor() { touch(); } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCmNsYXNzIEJveCB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSAxOw0KICAgICAgICB0b3VjaCgpOw0KICAgIH0NCn0NCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gdG91Y2goKSB7IH0NCmNsYXNzIEJveCB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSAxOw0KICAgICAgICB0b3VjaCgpOw0KICAgIH0NCn0NCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "callback_utf8_bytes": 97,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0b3VjaCgpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHZhbHVlOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "materialized_utf8_bytes": 97,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/instance-two-properties",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Box { first = 1; second = 2; constructor() {} }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5maXJzdCA9IDE7DQogICAgICAgIHRoaXMuc2Vjb25kID0gMjsNCiAgICB9DQp9DQo=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5maXJzdCA9IDE7DQogICAgICAgIHRoaXMuc2Vjb25kID0gMjsNCiAgICB9DQp9DQo=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIGZpcnN0OiBudW1iZXI7DQogICAgc2Vjb25kOiBudW1iZXI7DQogICAgY29uc3RydWN0b3IoKTsNCn0NCg==",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/static-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { const Box = class { static value = 1; }; return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyBjb25zdCBCb3ggPSAoX2EgPSBjbGFzcyB7DQogICAgfSwNCiAgICBfX3NldEZ1bmN0aW9uTmFtZShfYSwgIkJveCIpLA0KICAgIF9hLnZhbHVlID0gMSwNCiAgICBfYSk7IHJldHVybiBCb3g7IH0NCg==",
+            "callback_utf8_bytes": 472,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fc2V0RnVuY3Rpb25OYW1lID0gKHRoaXMgJiYgdGhpcy5fX3NldEZ1bmN0aW9uTmFtZSkgfHwgZnVuY3Rpb24gKGYsIG5hbWUsIHByZWZpeCkgew0KICAgIGlmICh0eXBlb2YgbmFtZSA9PT0gInN5bWJvbCIpIG5hbWUgPSBuYW1lLmRlc2NyaXB0aW9uID8gIlsiLmNvbmNhdChuYW1lLmRlc2NyaXB0aW9uLCAiXSIpIDogIiI7DQogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7DQp9Ow0KZnVuY3Rpb24gbWFrZSgpIHsgdmFyIF9hOyBjb25zdCBCb3ggPSAoX2EgPSBjbGFzcyB7DQogICAgfSwNCiAgICBfX3NldEZ1bmN0aW9uTmFtZShfYSwgIkJveCIpLA0KICAgIF9hLnZhbHVlID0gMSwNCiAgICBfYSk7IHJldHVybiBCb3g7IH0NCg==",
+            "materialized_utf8_bytes": 472,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "callback_utf8_bytes": 69,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHt9Ow0KICAgIHZhbHVlOiBudW1iZXI7DQp9Ow0K",
+            "materialized_utf8_bytes": 69,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/plain-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function make() { class Box { method() { return 1; } } return Box; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCiAgICBtZXRob2QoKSB7IHJldHVybiAxOyB9DQp9IHJldHVybiBCb3g7IH0NCg==",
+            "callback_utf8_bytes": 91,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gbWFrZSgpIHsgY2xhc3MgQm94IHsNCiAgICBtZXRob2QoKSB7IHJldHVybiAxOyB9DQp9IHJldHVybiBCb3g7IH0NCg==",
+            "materialized_utf8_bytes": 91,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYWtlKCk6IHsNCiAgICBuZXcgKCk6IHsNCiAgICAgICAgbWV0aG9kKCk6IG51bWJlcjsNCiAgICB9Ow0KfTsNCg==",
+            "materialized_utf8_bytes": 82,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/computed-static-instance",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYl0gPSAyOw0KICAgIH0NCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQo=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYl0gPSAyOw0KICAgIH0NCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQo=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/computed-static-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; static [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQpCb3hbX2JdID0gMjsNCg==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCn0NCl9hID0gZmlyc3QsIF9iID0gc2Vjb25kOw0KQm94W19hXSA9IDE7DQpCb3hbX2JdID0gMjsNCg==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgc3RhdGljIFtzZWNvbmRdOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgc3RhdGljIFtzZWNvbmRdOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/computed-instance-instance",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { [first] = 1; [second] = 2; }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "callback_utf8_bytes": 185,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpc1tfYV0gPSAxOw0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQo=",
+            "materialized_utf8_bytes": 185,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIFtmaXJzdF06IG51bWJlcjsNCiAgICBbc2Vjb25kXTogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 126,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIFtmaXJzdF06IG51bWJlcjsNCiAgICBbc2Vjb25kXTogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 126,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/computed-with-constructor-local",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = \"a\"; const second = \"b\"; class Box { static [first] = 1; [second] = 2; constructor(value = second) { const local = value; } }\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IHNlY29uZCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgICAgIGNvbnN0IGxvY2FsID0gdmFsdWU7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQpCb3hbX2FdID0gMTsNCg==",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hLCBfYjsNCmNvbnN0IGZpcnN0ID0gImEiOw0KY29uc3Qgc2Vjb25kID0gImIiOw0KY2xhc3MgQm94IHsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IHNlY29uZCkgew0KICAgICAgICB0aGlzW19iXSA9IDI7DQogICAgICAgIGNvbnN0IGxvY2FsID0gdmFsdWU7DQogICAgfQ0KfQ0KX2EgPSBmaXJzdCwgX2IgPSBzZWNvbmQ7DQpCb3hbX2FdID0gMTsNCg==",
+            "materialized_utf8_bytes": 220,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IHN0cmluZyk7DQp9DQo=",
+            "callback_utf8_bytes": 167,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9ICJhIjsNCmRlY2xhcmUgY29uc3Qgc2Vjb25kID0gImIiOw0KZGVjbGFyZSBjbGFzcyBCb3ggew0KICAgIHN0YXRpYyBbZmlyc3RdOiBudW1iZXI7DQogICAgW3NlY29uZF06IG51bWJlcjsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IHN0cmluZyk7DQp9DQo=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

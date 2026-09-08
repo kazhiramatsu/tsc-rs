@@ -5385,3 +5385,239 @@ fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
         ],
     );
 }
+
+fn class_transform_flag_fixture() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!(
+        "../../../../compiler/tests/fixtures/class-transform-flags.json"
+    ))
+    .unwrap()
+}
+
+fn record_class_flag_difference(
+    failures: &mut Vec<serde_json::Value>,
+    case_id: &str,
+    flags: TransformFlags,
+    expected: &serde_json::Value,
+    exact_word: bool,
+) {
+    let mask = if exact_word { -1 } else { 1 | 8192 };
+    let wanted = expected["transform_flags"].as_i64().unwrap() as i32 & mask;
+    let actual = flags.bits() & mask;
+    if actual != wanted {
+        failures.push(serde_json::json!({"case_id":case_id,"actual":actual,"expected":wanted}));
+    }
+}
+
+#[test]
+fn parsed_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 50);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file = &case["files"][0];
+        let name = file["path"].as_str().unwrap();
+        let parsed = parse_source_file(
+            name,
+            file["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: if case["options"]["target"] == 1 {
+                    ScriptTarget::ES5
+                } else {
+                    ScriptTarget::ES2015
+                },
+                javascript_file: name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut stack = vec![parsed.root];
+        let mut nodes = Vec::new();
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if matches!(
+                node.kind,
+                tsc_syntax::SyntaxKind::ClassDeclaration
+                    | tsc_syntax::SyntaxKind::ClassExpression
+                    | tsc_syntax::SyntaxKind::PropertyDeclaration
+            ) {
+                nodes.push(id);
+            }
+            let mut children = Vec::new();
+            for_each_child(&parsed.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            stack.extend(children.into_iter().rev());
+        }
+        let expected = case["typescript_parse_flags"].as_array().unwrap();
+        assert_eq!(nodes.len(), expected.len());
+        for (id, expected) in nodes.into_iter().zip(expected) {
+            let node = parsed.arena.node(id);
+            assert_eq!(
+                format!("{:?}", node.kind),
+                expected["kind"].as_str().unwrap()
+            );
+            assert_eq!(node.pos, expected["pos"].as_u64().unwrap() as u32);
+            assert_eq!(node.end, expected["end"].as_u64().unwrap() as u32);
+            let flags = arena.transform_flags(arena.node_ref(source, id).unwrap());
+            let case_id = case["case_id"].as_str().unwrap();
+            record_class_flag_difference(
+                &mut failures,
+                case_id,
+                flags,
+                expected,
+                case_id.ends_with("ambient-static")
+                    && node.kind == tsc_syntax::SyntaxKind::ClassDeclaration,
+            );
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "parsed class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let controls = &fixture["update_controls"];
+    let parsed = parse_source_file(
+        controls["file_name"].as_str().unwrap(),
+        controls["text"].as_str().unwrap(),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    initialize_transform_flags(&mut arena, source).unwrap();
+    let mut classes = BTreeMap::new();
+    for_each_child(&parsed.arena, parsed.arena.node(parsed.root), |id| {
+        if let NodeData::ClassDeclaration(data) = &parsed.arena.node(id).data {
+            let Some(name) = data.name else { return false };
+            let NodeData::Identifier(name) = &parsed.arena.node(name).data else {
+                return false;
+            };
+            classes.insert(name.escaped_text.clone(), (id, data.clone()));
+        }
+        false
+    });
+    let static_class = &classes["Static"].1;
+    let static_property = parsed.arena.node_array(static_class.members.unwrap()).nodes[0];
+    let NodeData::PropertyDeclaration(static_data) = &parsed.arena.node(static_property).data
+    else {
+        panic!()
+    };
+    let computed_property = parsed
+        .arena
+        .node_array(classes["Computed"].1.members.unwrap())
+        .nodes[0];
+    let NodeData::PropertyDeclaration(computed_data) = &parsed.arena.node(computed_property).data
+    else {
+        panic!()
+    };
+    let mut failures = Vec::new();
+    let updates = controls["updates"].as_array().unwrap();
+    assert_eq!(updates.len(), 9);
+    for update in updates {
+        let (original, data) = if update["kind"] == "class" {
+            let (id, original) = &classes[update["original_name"].as_str().unwrap()];
+            let mut data = original.clone();
+            data.members = classes[update["members_from"].as_str().unwrap()].1.members;
+            data.modifiers = classes[update["modifiers_from"].as_str().unwrap()]
+                .1
+                .modifiers;
+            (*id, NodeData::ClassDeclaration(data))
+        } else {
+            let mut data = static_data.clone();
+            if update["computed_name"] == true {
+                data.name = computed_data.name;
+            }
+            if update["static_modifier"] == false {
+                data.modifiers = None;
+            }
+            if update["initializer_present"] == false {
+                data.initializer = None;
+            }
+            (static_property, NodeData::PropertyDeclaration(data))
+        };
+        let flags =
+            super::flags_after_update(&arena, arena.node_ref(source, original).unwrap(), &data)
+                .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            update["case_id"].as_str().unwrap(),
+            flags,
+            &update["expected"],
+            update["case_id"] == "class-become-ambient",
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/class-expression-updates.json"
+    ))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 6);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file_name = case["file_name"].as_str().unwrap();
+        let parsed = parse_source_file(
+            file_name,
+            case["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: ScriptTarget::ES2015,
+                javascript_file: file_name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut classes = BTreeMap::new();
+        let mut stack = vec![parsed.root];
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if let NodeData::ClassExpression(data) = &node.data {
+                let NodeData::Identifier(name) = &parsed.arena.node(data.name.unwrap()).data else {
+                    panic!()
+                };
+                classes.insert(name.escaped_text.clone(), (id, data.clone()));
+            }
+            for_each_child(&parsed.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let (original, mut data) = classes[case["original_name"].as_str().unwrap()].clone();
+        data.members = classes[case["members_from"].as_str().unwrap()].1.members;
+        let flags = super::flags_after_update(
+            &arena,
+            arena.node_ref(source, original).unwrap(),
+            &NodeData::ClassExpression(data),
+        )
+        .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            case["case_id"].as_str().unwrap(),
+            flags,
+            &case["expected"],
+            false,
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class expression flag differences: {failures:?}"
+    );
+}

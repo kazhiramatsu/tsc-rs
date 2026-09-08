@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "status": "complete-bounded-after",
+  "checkpoint_base": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "source_record_sha256": "3981e389d899605b984cbeea8bf5942044834e79120da3491f03f22dcfaa97de",
+  "fresh_eligible": 114,
+  "fresh_exact_twice": 114,
+  "fresh_seconds": 124.43,
+  "unit_tests_passed": 483,
+  "unit_seconds": 0.65,
+  "contract_tests_passed": 451,
+  "contract_seconds": 1.4,
+  "original_eligible": 10,
+  "original_exact_twice": 6,
+  "original_failed": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5"
+  ],
+  "original_seconds": 35.53,
+  "original_disposition": "All ten JavaScript outputs exact; four unchanged declaration-text residues remain failed whole commands.",
+  "logs": [
+    {
+      "path": "target/h2-8a-class-layout-unit-after.log",
+      "sha256": "9bf1d9a0a33ca438aad0632a1ec73ea8c393f6aaef85a20767ea7183c345455e"
+    },
+    {
+      "path": "target/h2-8a-class-layout-after.log",
+      "sha256": "f560a15d9ffeba97c5947f639a9577d068bf64a87909d81e911973a2981a4afa"
+    },
+    {
+      "path": "target/h2-8a-class-layout-original-after.log",
+      "sha256": "50500a826740edfc4203cf139754cf44e792b235d3d3480a3c3d500d0814c8a1"
+    },
+    {
+      "path": "target/h2-8a-class-layout-contracts-after.log",
+      "sha256": "f5fbc2b4af14fafded33084ce0be0d1cab2adda0494b4c3e13ddc51648bd24cc"
+    }
+  ]
+}

@@ -136,3 +136,9 @@ mod h2_8a_class_dependency_order;
 
 #[path = "integration/h2_8a_repeated_target_aliases.rs"]
 mod h2_8a_repeated_target_aliases;
+
+#[path = "integration/h2_8a_class_transform_flags.rs"]
+mod h2_8a_class_transform_flags;
+
+#[path = "integration/h2_8a_class_statement_layout.rs"]
+mod h2_8a_class_statement_layout;

@@ -6944,9 +6944,35 @@ impl Printer {
                     .is_none()
                     .then_some(detached_body_prefix)
                     .flatten();
+                // PreserveLines checks the leading, separating and closing
+                // boundaries before selecting a compact function body. A
+                // synthesized statement with startsOnNewLine makes at least
+                // one boundary nonzero, including a first or sole statement
+                // (_tsc.js:118999-119020,120268-120407).
+                let mut synthesized_statement_break = false;
+                if function_body && !force_single_line {
+                    for statement in &statements {
+                        let statement = transformation
+                            .arena()
+                            .node_ref(node.source(), *statement)
+                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        let record = transformation.arena().node(statement)?;
+                        if (record.pos == u32::MAX || record.end == u32::MAX)
+                            && transformation
+                                .arena()
+                                .metadata(statement)
+                                .and_then(crate::EmitMetadata::starts_on_new_line)
+                                == Some(true)
+                        {
+                            synthesized_statement_break = true;
+                            break;
+                        }
+                    }
+                }
                 let multi_line = !force_single_line
                     && (multi_line
                         || function_body_has_prologue
+                        || synthesized_statement_break
                         || function_body
                             && !self.source_node_range_is_on_single_line(transformation, node)?);
                 // tsc-port: emitBlock/emitBlockStatements @6.0.3

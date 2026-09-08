@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "eligible": 50,
+  "exact": [
+    "js/es5/static-uninitialized",
+    "js/es5/instance-initialized",
+    "js/es5/computed-instance",
+    "js/es5/expression-static",
+    "js/es5/expression-computed",
+    "js/es5/plain",
+    "ts/es5/static-uninitialized",
+    "ts/es5/instance-initialized",
+    "ts/es5/computed-instance",
+    "ts/es5/expression-static",
+    "ts/es5/expression-computed",
+    "ts/es5/plain",
+    "ts/es5/ambient-static",
+    "js/es2015/static-initialized",
+    "js/es2015/static-uninitialized",
+    "js/es2015/instance-initialized",
+    "js/es2015/computed-instance",
+    "js/es2015/computed-static",
+    "js/es2015/expression-static",
+    "js/es2015/expression-computed",
+    "js/es2015/exported-static",
+    "js/es2015/default-static",
+    "js/es2015/plain",
+    "js/es2015/static-comment",
+    "ts/es2015/static-initialized",
+    "ts/es2015/static-uninitialized",
+    "ts/es2015/instance-initialized",
+    "ts/es2015/computed-instance",
+    "ts/es2015/computed-static",
+    "ts/es2015/expression-static",
+    "ts/es2015/expression-computed",
+    "ts/es2015/exported-static",
+    "ts/es2015/default-static",
+    "ts/es2015/plain",
+    "ts/es2015/static-comment",
+    "ts/es2015/ambient-static"
+  ],
+  "failed": [
+    "js/es5/static-initialized",
+    "js/es5/computed-static",
+    "js/es5/nested-static",
+    "js/es5/exported-static",
+    "js/es5/default-static",
+    "js/es5/static-comment",
+    "ts/es5/static-initialized",
+    "ts/es5/computed-static",
+    "ts/es5/nested-static",
+    "ts/es5/exported-static",
+    "ts/es5/default-static",
+    "ts/es5/static-comment",
+    "js/es2015/nested-static",
+    "ts/es2015/nested-static"
+  ],
+  "run_seconds": 67.72,
+  "log_sha256": "a4e54f07e675e1cfafc4f16a48334df1578694e8944b356a59b9d484ea3dd151",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "scripts/observe-class-transform-flags.mjs",
+      "sha256": "997405e80326433e628d537031142b0b57bfae4e971cd3b0922a2236c8cea723"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+      "sha256": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "246a3d7f70f4f496e37e96c85a427227f6f086fa2c4bef622ab7af462dcaed94"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "a4a20522c80870e6146ea89c28ed570df32222b309214a75a9366b47164e0641"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "5eea0abecf65114ae6900dfb81da78691a2b7ca34c8ffedf9277ddd067712b7d"
+    },
+    {
+      "path": "target/h2-8a-class-transform-before.log",
+      "sha256": "a4e54f07e675e1cfafc4f16a48334df1578694e8944b356a59b9d484ea3dd151"
+    }
+  ]
+}

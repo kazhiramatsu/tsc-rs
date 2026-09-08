@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "parse_inputs": 50,
+  "update_inputs": 9,
+  "failed_rows": {
+    "parsed class flag": 74,
+    "updated class flag": 6
+  },
+  "run_seconds": 0.03,
+  "tests_passed": 0,
+  "tests_failed": 2,
+  "working_source_files": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "246a3d7f70f4f496e37e96c85a427227f6f086fa2c4bef622ab7af462dcaed94"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "a4a20522c80870e6146ea89c28ed570df32222b309214a75a9366b47164e0641"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "scripts/observe-class-transform-flags.mjs",
+      "sha256": "997405e80326433e628d537031142b0b57bfae4e971cd3b0922a2236c8cea723"
+    },
+    {
+      "path": "target/h2-8a-class-flags-unit-before.log",
+      "sha256": "69e867458d18084e362fbc215af6cfaafb775a2223840ac2c87bd5ec3bb939a6"
+    }
+  ]
+}

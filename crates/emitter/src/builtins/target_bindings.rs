@@ -992,6 +992,14 @@ fn collect_binding_name_events(
         }
         events.push(BindingNameEvent::EnterNamingMoment);
         for child in scoped {
+            if Some(child) == body {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, child),
+                    events,
+                )?;
+            }
             collect_binding_name_events(
                 arena,
                 source,
@@ -1048,6 +1056,14 @@ fn collect_binding_name_events(
             GeneratedBindingOwner::FunctionBody,
         ));
         for child in scoped {
+            if Some(child) == body {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, child),
+                    events,
+                )?;
+            }
             collect_binding_name_events(
                 arena,
                 source,
@@ -1204,6 +1220,138 @@ fn collect_binding_name_events(
             false,
             events,
         )?;
+    }
+    Ok(())
+}
+
+/// `emitBlockFunctionBody` calls `generateNames(body)` before emitting any
+/// nested function. Prepare declaration identities in that enclosing scope,
+/// so an earlier reference inside a constructor cannot allocate its hoisted
+/// computed-key name in the constructor's scope (_tsc.js:119021-119032,
+/// 120515-120599,120615-120632).
+fn collect_function_body_declaration_name_events(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: TransformNode,
+    events: &mut Vec<BindingNameEvent>,
+) -> Result<(), TransformError> {
+    let record = arena.node(node)?;
+    let mut children = Vec::new();
+    let mut arrays = Vec::new();
+    match &record.data {
+        NodeData::Identifier(_) => {
+            if arena
+                .metadata(node)
+                .is_some_and(|metadata| metadata.generated_binding_id().is_some())
+            {
+                collect_binding_name_events(arena, source, node, false, events)?;
+            }
+        }
+        NodeData::Block(data) => arrays.extend(data.statements),
+        NodeData::LabeledStatement(data) => children.extend(data.statement),
+        NodeData::WithStatement(data) => children.extend(data.statement),
+        NodeData::DoStatement(data) => children.extend(data.statement),
+        NodeData::WhileStatement(data) => children.extend(data.statement),
+        NodeData::IfStatement(data) => {
+            children.extend(data.then_statement);
+            children.extend(data.else_statement);
+        }
+        NodeData::ForStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::ForInStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::ForOfStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::SwitchStatement(data) => children.extend(data.case_block),
+        NodeData::CaseBlock(data) => arrays.extend(data.clauses),
+        NodeData::CaseClause(data) => arrays.extend(data.statements),
+        NodeData::DefaultClause(data) => arrays.extend(data.statements),
+        NodeData::TryStatement(data) => {
+            children.extend(data.try_block);
+            children.extend(data.catch_clause);
+            children.extend(data.finally_block);
+        }
+        NodeData::CatchClause(data) => {
+            children.extend(data.variable_declaration);
+            children.extend(data.block);
+        }
+        NodeData::VariableStatement(data) => children.extend(data.declaration_list),
+        NodeData::VariableDeclarationList(data) => arrays.extend(data.declarations),
+        NodeData::VariableDeclaration(data) => children.extend(data.name),
+        NodeData::Parameter(data) => children.extend(data.name),
+        NodeData::BindingElement(data) => children.extend(data.name),
+        NodeData::ClassDeclaration(data) => children.extend(data.name),
+        NodeData::FunctionDeclaration(data) => {
+            // Only a reuse-flagged declaration's parameters/body participate
+            // in the enclosing generateNames walk.
+            if let Some(name) = data.name {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, name),
+                    events,
+                )?;
+            }
+            if arena.metadata(node).is_some_and(|metadata| {
+                metadata
+                    .flags()
+                    .contains(EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
+            }) {
+                if let Some(parameters) = data.parameters {
+                    for parameter in &arena
+                        .node_array(crate::TransformNodeArray::new(source, parameters))?
+                        .nodes
+                    {
+                        collect_function_body_declaration_name_events(
+                            arena,
+                            source,
+                            TransformNode::new(source, *parameter),
+                            events,
+                        )?;
+                    }
+                }
+                children.extend(data.body);
+            }
+        }
+        NodeData::ObjectBindingPattern(data) => arrays.extend(data.elements),
+        NodeData::ArrayBindingPattern(data) => arrays.extend(data.elements),
+        NodeData::ImportDeclaration(data) => children.extend(data.import_clause),
+        NodeData::ImportClause(data) => {
+            children.extend(data.name);
+            children.extend(data.named_bindings);
+        }
+        NodeData::NamespaceImport(data) => children.extend(data.name),
+        NodeData::NamespaceExport(data) => children.extend(data.name),
+        NodeData::NamedImports(data) => arrays.extend(data.elements),
+        NodeData::ImportSpecifier(data) => children.extend(data.property_name.or(data.name)),
+        _ => {}
+    }
+    for child in children {
+        collect_function_body_declaration_name_events(
+            arena,
+            source,
+            TransformNode::new(source, child),
+            events,
+        )?;
+    }
+    for array in arrays {
+        for child in &arena
+            .node_array(crate::TransformNodeArray::new(source, array))?
+            .nodes
+        {
+            collect_function_body_declaration_name_events(
+                arena,
+                source,
+                TransformNode::new(source, *child),
+                events,
+            )?;
+        }
     }
     Ok(())
 }
