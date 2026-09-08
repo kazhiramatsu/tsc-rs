@@ -3572,7 +3572,10 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             tsc_binder::unescape_leading_underscores(&target_data.escaped_name).to_owned()
         });
         if verbatim_target_name == tsc_types::InternalSymbolName::EXPORT_EQUALS
-            && self.checker.options.allow_synthetic_default_imports == Some(true)
+            && self
+                .checker
+                .options
+                .allow_synthetic_default_imports_effective()
         {
             verbatim_target_name = tsc_types::InternalSymbolName::DEFAULT.to_owned();
         }

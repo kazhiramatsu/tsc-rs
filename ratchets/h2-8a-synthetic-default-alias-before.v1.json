@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "6689382a56f3397573bf17120252dd71ddc5a87a",
+  "eligible": 84,
+  "exact_twice": [
+    "es5/js/cjs-direct-default/synthetic-unset/interop-unset",
+    "es5/js/cjs-named/synthetic-unset/interop-unset",
+    "es5/js/esm-named-default/synthetic-unset/interop-unset",
+    "es5/js/cjs-direct-default/synthetic-unset/interop-true",
+    "es5/js/cjs-named/synthetic-unset/interop-true",
+    "es5/js/esm-named-default/synthetic-unset/interop-true",
+    "es5/js/cjs-direct-default/synthetic-unset/interop-false",
+    "es5/js/cjs-named/synthetic-unset/interop-false",
+    "es5/js/esm-named-default/synthetic-unset/interop-false",
+    "es5/ts/cjs-named-default/synthetic-unset/interop-true",
+    "es5/ts/cjs-direct-default/synthetic-unset/interop-true",
+    "es5/js/cjs-named-default/synthetic-true/interop-unset",
+    "es5/js/cjs-direct-default/synthetic-true/interop-unset",
+    "es5/js/cjs-named/synthetic-true/interop-unset",
+    "es5/js/esm-named-default/synthetic-true/interop-unset",
+    "es5/js/cjs-named-default/synthetic-true/interop-true",
+    "es5/js/cjs-direct-default/synthetic-true/interop-true",
+    "es5/js/cjs-named/synthetic-true/interop-true",
+    "es5/js/esm-named-default/synthetic-true/interop-true",
+    "es5/js/cjs-named-default/synthetic-true/interop-false",
+    "es5/js/cjs-direct-default/synthetic-true/interop-false",
+    "es5/js/cjs-named/synthetic-true/interop-false",
+    "es5/js/esm-named-default/synthetic-true/interop-false",
+    "es5/ts/cjs-named-default/synthetic-true/interop-true",
+    "es5/ts/cjs-direct-default/synthetic-true/interop-true",
+    "es5/js/cjs-named-default/synthetic-false/interop-unset",
+    "es5/js/cjs-direct-default/synthetic-false/interop-unset",
+    "es5/js/cjs-named/synthetic-false/interop-unset",
+    "es5/js/esm-named-default/synthetic-false/interop-unset",
+    "es5/js/cjs-named-default/synthetic-false/interop-true",
+    "es5/js/cjs-direct-default/synthetic-false/interop-true",
+    "es5/js/cjs-named/synthetic-false/interop-true",
+    "es5/js/esm-named-default/synthetic-false/interop-true",
+    "es5/js/cjs-named-default/synthetic-false/interop-false",
+    "es5/js/cjs-direct-default/synthetic-false/interop-false",
+    "es5/js/cjs-named/synthetic-false/interop-false",
+    "es5/js/esm-named-default/synthetic-false/interop-false",
+    "es5/ts/cjs-named-default/synthetic-false/interop-true",
+    "es5/ts/cjs-direct-default/synthetic-false/interop-true",
+    "es2015/js/cjs-direct-default/synthetic-unset/interop-unset",
+    "es2015/js/cjs-named/synthetic-unset/interop-unset",
+    "es2015/js/esm-named-default/synthetic-unset/interop-unset",
+    "es2015/js/cjs-direct-default/synthetic-unset/interop-true",
+    "es2015/js/cjs-named/synthetic-unset/interop-true",
+    "es2015/js/esm-named-default/synthetic-unset/interop-true",
+    "es2015/js/cjs-direct-default/synthetic-unset/interop-false",
+    "es2015/js/cjs-named/synthetic-unset/interop-false",
+    "es2015/js/esm-named-default/synthetic-unset/interop-false",
+    "es2015/ts/cjs-named-default/synthetic-unset/interop-true",
+    "es2015/ts/cjs-direct-default/synthetic-unset/interop-true",
+    "es2015/js/cjs-named-default/synthetic-true/interop-unset",
+    "es2015/js/cjs-direct-default/synthetic-true/interop-unset",
+    "es2015/js/cjs-named/synthetic-true/interop-unset",
+    "es2015/js/esm-named-default/synthetic-true/interop-unset",
+    "es2015/js/cjs-named-default/synthetic-true/interop-true",
+    "es2015/js/cjs-direct-default/synthetic-true/interop-true",
+    "es2015/js/cjs-named/synthetic-true/interop-true",
+    "es2015/js/esm-named-default/synthetic-true/interop-true",
+    "es2015/js/cjs-named-default/synthetic-true/interop-false",
+    "es2015/js/cjs-direct-default/synthetic-true/interop-false",
+    "es2015/js/cjs-named/synthetic-true/interop-false",
+    "es2015/js/esm-named-default/synthetic-true/interop-false",
+    "es2015/ts/cjs-named-default/synthetic-true/interop-true",
+    "es2015/ts/cjs-direct-default/synthetic-true/interop-true",
+    "es2015/js/cjs-named-default/synthetic-false/interop-unset",
+    "es2015/js/cjs-direct-default/synthetic-false/interop-unset",
+    "es2015/js/cjs-named/synthetic-false/interop-unset",
+    "es2015/js/esm-named-default/synthetic-false/interop-unset",
+    "es2015/js/cjs-named-default/synthetic-false/interop-true",
+    "es2015/js/cjs-direct-default/synthetic-false/interop-true",
+    "es2015/js/cjs-named/synthetic-false/interop-true",
+    "es2015/js/esm-named-default/synthetic-false/interop-true",
+    "es2015/js/cjs-named-default/synthetic-false/interop-false",
+    "es2015/js/cjs-direct-default/synthetic-false/interop-false",
+    "es2015/js/cjs-named/synthetic-false/interop-false",
+    "es2015/js/esm-named-default/synthetic-false/interop-false",
+    "es2015/ts/cjs-named-default/synthetic-false/interop-true",
+    "es2015/ts/cjs-direct-default/synthetic-false/interop-true"
+  ],
+  "failed_twice": [
+    "es5/js/cjs-named-default/synthetic-unset/interop-unset",
+    "es5/js/cjs-named-default/synthetic-unset/interop-true",
+    "es5/js/cjs-named-default/synthetic-unset/interop-false",
+    "es2015/js/cjs-named-default/synthetic-unset/interop-unset",
+    "es2015/js/cjs-named-default/synthetic-unset/interop-true",
+    "es2015/js/cjs-named-default/synthetic-unset/interop-false"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    87.19,
+    87.3
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-unset",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-true",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-false",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-unset",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-true",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-false",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "d5c1f51fb752eaa19ab93b14b22f13699800be4403af4d08e51570e7234f08e1",
+      "expected_sha256": "a12c1baf1270eb8be6d46ec2faa3fb5fa3dd5ddfa8b872b9264d28e5b2730c7c"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "c141b1cb5bb991921d86b4f1615506f9961d23490701fc8b8cbcaa53af2ef0d3"
+    },
+    {
+      "path": "crates/types/src/options.rs",
+      "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "scripts/observe-synthetic-default-alias.mjs",
+      "sha256": "6ca7dd734ba1865715c787215c6474ed3764cb11c7262ac5b4926ab16d5074b3"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "1121cdbbfb3d51d101b29cc83095f59062d20013af95d9e99688154f7828af09"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "146959fd6cb96a6fd26fd4eb29043cbaa79a502c53e491069ffdfab20fbe72d0"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-before.log",
+      "sha256": "485dee79da64dd765a2a4cb166494dfd9e4147c78fbb6c1d11ff82299428ab45"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-before-repeat.log",
+      "sha256": "d6a607cf65d00279eafd5e5d02751e3dfbd0b4c6c37ba0ec24cd16326f348dec"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-mint.log",
+      "sha256": "a99f096abd02b7e7155f9b313ef97e01ef30f7d7569c0a064d104ed383bce1f0"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-observer-check.log",
+      "sha256": "a99f096abd02b7e7155f9b313ef97e01ef30f7d7569c0a064d104ed383bce1f0"
+    }
+  ]
+}

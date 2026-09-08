@@ -1,0 +1,707 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-15",
+  "base": "6689382a56f3397573bf17120252dd71ddc5a87a",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "steps": [
+    "A6-15-1"
+  ],
+  "owners": [
+    {
+      "owner": "serializeAsAlias",
+      "start": 54707,
+      "end": 54946,
+      "sha256": "60776812c24ded3bcf5a0336651b8c0726ab37d473a3a104a5495b4937227277"
+    },
+    {
+      "owner": "_computedOptions.allowSyntheticDefaultImports",
+      "start": 18087,
+      "end": 18095,
+      "sha256": "36cb4ff3681d4b7afa94e5cbf0c03061693ee24e457ac026ba2b6e5dba2efecf"
+    },
+    {
+      "owner": "getAllowSyntheticDefaultImports binding",
+      "start": 18251,
+      "end": 18251,
+      "sha256": "e1cf1cdb386e7d66c983019311a16423ca59742684fafd8f954675666e9a6a9b"
+    },
+    {
+      "owner": "checker allowSyntheticDefaultImports capture",
+      "start": 46467,
+      "end": 46467,
+      "sha256": "76ae1e78ff9c9870a24546c290c8379bcf53a901fd6c92841c80547753c027ad"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-STRINGS",
+      "disposition": "modified-requalify"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-synthetic-default-alias.md",
+      "sha256": "86d5c0d1cb193aee2ef3f5011ad40227c07672c19a97f1038a77efe2840c075d"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-default-alias-before.v1.json",
+      "sha256": "b58585a37981e51b6c977a4decf90344b1b34d99780b550f99f63e9eb6bd34ad"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "scripts/observe-synthetic-default-alias.mjs",
+      "sha256": "6ca7dd734ba1865715c787215c6474ed3764cb11c7262ac5b4926ab16d5074b3"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "c141b1cb5bb991921d86b4f1615506f9961d23490701fc8b8cbcaa53af2ef0d3"
+    },
+    {
+      "path": "crates/types/src/options.rs",
+      "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-unset",
+      "row_sha256": "babced0c825b89a403ecc89786e07c4e39ffcf9d642344086d33459592bca0e2",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-unset/interop-unset",
+      "row_sha256": "508976a0819999f5456ccc76ccffd7c764b74cd27bb9a8c2654f3b05937dcbf1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-unset/interop-unset",
+      "row_sha256": "eeb88c278718ffb8a2ec721b7f688a49b0758c0fe72524861c985aac113f6ced",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-unset/interop-unset",
+      "row_sha256": "186a9febb1f86451cffc635b204089dc9975c2003495db4204d9eef4a1e36398",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-true",
+      "row_sha256": "7fd884f0f2a927f66142fe717f8a0f5b0e509623c0372a89b25278a14bb0a185",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-unset/interop-true",
+      "row_sha256": "86d3bc29aa4d88337ede6b7ff825122376aed86ade6726250490a3595ec624aa",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-unset/interop-true",
+      "row_sha256": "54bda7380a4d3043f7ad728957713658bfaa5283d6aa17085967b462ccae83ba",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-unset/interop-true",
+      "row_sha256": "6e89eb3a650191cdb334ff410e46de2a5aa8853dbe7989007dc662e574cedb05",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-unset/interop-false",
+      "row_sha256": "00f8cfa6af1a3dd3ce3ffb11f43e3f2233f6ffff57bb51f54be2ca4e1a96ee9d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-unset/interop-false",
+      "row_sha256": "9858de12bd74a87e936f4b4e646cdfe3369d1c2a8931cd22401de034f15ec787",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-unset/interop-false",
+      "row_sha256": "bc251934fa39ccff2d2c346593a6260256595d55706ea402cbec9a8667a0a275",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-unset/interop-false",
+      "row_sha256": "bde8e9359892fd00ea8809ab9701bf3819c84be37ecaad4da6a2763e7664aead",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-named-default/synthetic-unset/interop-true",
+      "row_sha256": "6bddd53f4ed95cc917096202fa742fef2739b371853edc00ba6b9589df479cea",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-direct-default/synthetic-unset/interop-true",
+      "row_sha256": "02cf8a060b9bfed3b0393e875e64c9df909950855832e17c6c67c8d020b22bb4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-true/interop-unset",
+      "row_sha256": "06ae28560677b8cbb6f5786a93e775c4bda08d04062fb6dd3e1e4d52cdd4fd5f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-true/interop-unset",
+      "row_sha256": "f8af1e96e4cbacc46e1bc2f84cbb9c4c74a06f02b22d5381f2ab63b6c4f2d0d8",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-true/interop-unset",
+      "row_sha256": "24200d420945de65a6fa5d79b4d89454e70d3c9a6e36225a87059a8c9aabc61c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-true/interop-unset",
+      "row_sha256": "1bdd2a103ddd293366376c6ea08ee1a998d9a91d63066fa09e11ca060ecf63ef",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-true/interop-true",
+      "row_sha256": "6768b751a9b343908125fe9256bd2082fea1dfa2ff92a4dd3951c2c1947003f4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-true/interop-true",
+      "row_sha256": "6d5fba9d28be845b2581762c7a680e7d3bd5d5858006be062b2375cc94048e14",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-true/interop-true",
+      "row_sha256": "af56e9c925271ba66ddad07a56767a73a25f670452c7fbe3ab721a6fcbe22266",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-true/interop-true",
+      "row_sha256": "537523bbf9389b0db3404907c6c727eeb1987f61951de8c4f985d82f18688af7",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-true/interop-false",
+      "row_sha256": "652e7c574a6920e982b8ea16fb3f4efe04cc2953333e5ef2aa5699bf9bc5acdc",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-true/interop-false",
+      "row_sha256": "eb677e3a8f38c39b735c298973a4f1be70e477246323e981e07cdb801b8063cd",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-true/interop-false",
+      "row_sha256": "45816892d1031a3965c2be25e7ad88bfebb18ab3531b12f9a52b5659976a6894",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-true/interop-false",
+      "row_sha256": "fa7305ab8413fb81a6bcdc77d010180b030dcf458c96628da623eff1ec8f710d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-named-default/synthetic-true/interop-true",
+      "row_sha256": "a0cd35f71c4073ff340e2d665ae19f9c6e865a2a474f616c569a9e5c181a0e99",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-direct-default/synthetic-true/interop-true",
+      "row_sha256": "3520112c4870b9bbd0973d48a9ab05b049ec57f58117a7696681b7e65901f6a1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-false/interop-unset",
+      "row_sha256": "b47f4efd16b91e56aef2ae124fc4eb4c834f7391c465c359fc64024d1bcaac4b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-false/interop-unset",
+      "row_sha256": "fe8f22abb1a3a2249202914b9ccaa2e5aa5e2862b3e3a2d9ab1b51bb958fa406",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-false/interop-unset",
+      "row_sha256": "996279f25229b10e69b1fd2c1ff15d601fc9090020684c17acde94f7852ccce5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-false/interop-unset",
+      "row_sha256": "1e42f30ae7b92d474140144e8c95bc753b5131a9d5a6bffe7ffca1aa40971589",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-false/interop-true",
+      "row_sha256": "7ca939b6b9aa245c36a34ea5fc9756e12ba5fd2323acf7f716800da421374576",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-false/interop-true",
+      "row_sha256": "36c45fc9ed891c3d9b7cce71877800c0d798de78b8ce2b8ff82a93f4f515b588",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-false/interop-true",
+      "row_sha256": "01909e467b4d7044b89678d2f33d5c6df9ae5b789902b411daaacb31cb34100d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-false/interop-true",
+      "row_sha256": "c19c7a31294359ba8277a76c04a1cedabd4825d38dd32d6350b20fd4caafcf93",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named-default/synthetic-false/interop-false",
+      "row_sha256": "608617da530fcc65299717da76f91551e42cc46afc66f7539b05e32a5370d69b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-direct-default/synthetic-false/interop-false",
+      "row_sha256": "aba9ae182b5a80e46b254a302aeceb0d0a619e6791c6d4cde370053921cd3367",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/cjs-named/synthetic-false/interop-false",
+      "row_sha256": "9f6b413b353129e9dcbb94211d352529578a0772856687f7af4428c9a28cfd1b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/esm-named-default/synthetic-false/interop-false",
+      "row_sha256": "832cc7dcb1abf1387923b6feb6f908f32784ba0f7fb4b6dbd83728bb7bacf1dc",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-named-default/synthetic-false/interop-true",
+      "row_sha256": "cc4453c390b2e2d5bdb86501315f4d735616ef602689ae64ab68ea9f6c522ea1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/cjs-direct-default/synthetic-false/interop-true",
+      "row_sha256": "6ae6e230b850469b8dd10b0de4b4a4a1164c26615c1b0fea110f66e5d5a55a21",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-unset",
+      "row_sha256": "dbcd5a8a9a68388731f69d69af63505e09bf8973d559f1b1aff2730e8ebac81a",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-unset/interop-unset",
+      "row_sha256": "820974203e8edb566e7a1cd9b00392272e0ec529c2e7f9053fa9fd756e3a9355",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-unset/interop-unset",
+      "row_sha256": "9a5670c99f097d97868ee9c3a0b1f3412a1e118b093a9fd0129958beb8b890fa",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-unset/interop-unset",
+      "row_sha256": "6b98adf01c6b0be6366ddbef9b6de933273ebe5c2303139a305238a4c170eceb",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-true",
+      "row_sha256": "b3b816b0139128ef36e79f1dd92c6f1cfdaa455d126355b90b607e5fa5a732f8",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-unset/interop-true",
+      "row_sha256": "dc3eb12836bf979c5a041cdc3f127625a8ce7a2d71021103faa93b1a97d549a2",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-unset/interop-true",
+      "row_sha256": "254de88f079291a0adaa4e8543e50465862b0dcaf832ee9ba11c37bc92e8fe0c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-unset/interop-true",
+      "row_sha256": "fa80637e050edbbde26f341e08d6834316978c67a25c56d83af8b033cbfc2703",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-unset/interop-false",
+      "row_sha256": "c9855c5bdd539fbd505013044a53adbd5cc0a360705d61fdf5920a8839f6452c",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-computed-option-name",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-unset/interop-false",
+      "row_sha256": "f9e9891ba6d31abcb469f9e501a8551141f644878cd4068c7999204d2216e779",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-unset/interop-false",
+      "row_sha256": "90b0d13c4daa71b38a306dd23ac32c3db86f82d6317c020b64192def5519da87",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-unset/interop-false",
+      "row_sha256": "2847e616a94ba245adb1c05a7761ad78a82b187931f1e3f82a9e8b76eed54adf",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-named-default/synthetic-unset/interop-true",
+      "row_sha256": "02d38c77cce8c24601bcd5d5b31c72f8321ad2706768a01d643c17baa32f5fc1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-direct-default/synthetic-unset/interop-true",
+      "row_sha256": "f000995e90198e111adf24ef40cfad551fd7a34256df594c8b9bfa1aeb5a3350",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-true/interop-unset",
+      "row_sha256": "bc41622f9c807ce4bf48528cc8671d58bf4e160d95dca4e8eac0ac375ed55d35",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-true/interop-unset",
+      "row_sha256": "f95ec8cb06a2bacbc8a1afeb39608dc27ba96e3543ce0a4292507377468932e2",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-true/interop-unset",
+      "row_sha256": "ce800ee1d5ce1e25b23be7b21d84c2297cfe4cbceceac6806880ac7bd631ef65",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-true/interop-unset",
+      "row_sha256": "da22389dd347fbbabe520f5588968347b6d7d5bb46e992e0c28e4d9e2bd40764",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-true/interop-true",
+      "row_sha256": "fd50e898bb38756fec380de5bcc63877b885f7ddd01ee7579f0b29b9c79ed6a9",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-true/interop-true",
+      "row_sha256": "edb3c7468c1def77e1a1b926976084aabc8391f96ecdc614109c2d540ebe869a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-true/interop-true",
+      "row_sha256": "e313413a414bac311b81d5b981968707fe6f30cb0870de7618a1652aaae8c649",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-true/interop-true",
+      "row_sha256": "5b6f160b463f9b44e5d7b29dd8496b220e39e56c26770a6adfd7837c4ab50391",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-true/interop-false",
+      "row_sha256": "8a239e8180ff74c0e21743f74e78dad567738c88bc36a14ea2ce39194f105187",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-true/interop-false",
+      "row_sha256": "f7e696bf49314c9d8dc63436fc9c816cbc9c7c667f923fb8574736eaac1b5276",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-true/interop-false",
+      "row_sha256": "ba04dbff54cadb981f7b154a64519b9123243282468da827c0d6041cd5b6a93c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-true/interop-false",
+      "row_sha256": "ebd69442af33e7f338c2becb8dfcef897f7281e4d1afb34cbc2c51f6ca8270c6",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-named-default/synthetic-true/interop-true",
+      "row_sha256": "e9341e30b34b829edf248454513bcd9bf81a979d0c756f351c74a3af4eeb4960",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-direct-default/synthetic-true/interop-true",
+      "row_sha256": "3285f5bf3113164d4791d316678d2a8e9560935f49299fd7586dcbfe74c00508",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-false/interop-unset",
+      "row_sha256": "f28352f503d080240a470846296d61b488719a5e631d2c9557f5ebf8f96b885d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-false/interop-unset",
+      "row_sha256": "f00c2c24cab18f9f728eeb9b78e6aedeca9bb3346b73534dd8906ee74925ef47",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-false/interop-unset",
+      "row_sha256": "aa74f6d5cc35ef1b4cd743b1b1aa3010fc1a07133919a167191fe929f16e51ea",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-false/interop-unset",
+      "row_sha256": "7e22146c7cb072dbdf1e45019cc635f9fa87f284be23c87b177ad712fbea46b4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-false/interop-true",
+      "row_sha256": "bc8823efa4c4101587dac3b5c2039077df56b8d6145eee7b6cf631806cacec46",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-false/interop-true",
+      "row_sha256": "a6cd169cc48b6b04bb1265a81a2ed7bb1eb8e14a7684c1cab96a4ed963e5998e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-false/interop-true",
+      "row_sha256": "d7942a7a0ab7c06ba4426e13721d8c90f84366efecea0af99047c7d53e4f7281",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-false/interop-true",
+      "row_sha256": "9a1a3df15f0479d73320991496f04cbfc4a7eb1c1e8cce3e5cb18151ff5bd797",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named-default/synthetic-false/interop-false",
+      "row_sha256": "b1def2a68d19eebe98ea450f461f9b3e50ab548ad2a8b0bf79fe7ba303543bff",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-direct-default/synthetic-false/interop-false",
+      "row_sha256": "ce1d282e8109f6c2d9d504c752bea2dbbc09179412bab21a24543fc7de714791",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/cjs-named/synthetic-false/interop-false",
+      "row_sha256": "441c0a7912fb3723b78df7a8049cf332b3c7a0af249086e42aec7578f1cd4ae4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/esm-named-default/synthetic-false/interop-false",
+      "row_sha256": "d53f8eb29cb998935409351f9be195daa1f6eb814745d92ab6a943d56fb3a231",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-named-default/synthetic-false/interop-true",
+      "row_sha256": "a2349eecd4f32aafa89b163b38530fa7b02ee2e32b4616944bbb1a56a99290a7",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/ts/cjs-direct-default/synthetic-false/interop-true",
+      "row_sha256": "e1acc8784ffc90473591a19c790f8761e6d365526d2f763ee977959d8813a035",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    }
+  ]
+}

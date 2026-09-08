@@ -169,3 +169,6 @@ mod h2_8a_array_comment_publication;
 
 #[path = "integration/h2_8a_import_publication_reference.rs"]
 mod h2_8a_import_publication_reference;
+
+#[path = "integration/h2_8a_synthetic_default_alias.rs"]
+mod h2_8a_synthetic_default_alias;

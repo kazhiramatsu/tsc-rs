@@ -1,0 +1,398 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-no-remaining-failures",
+  "base": "6689382a56f3397573bf17120252dd71ddc5a87a",
+  "production_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "complete_fresh_and_adjacent_commands": 256,
+  "original_regressions_fixed_twice": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5"
+  ],
+  "groups": [
+    {
+      "fixture": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69",
+      "exact_twice": [
+        "es5/js/cjs-named-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-named/synthetic-unset/interop-unset",
+        "es5/js/esm-named-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-named-default/synthetic-unset/interop-true",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named/synthetic-unset/interop-true",
+        "es5/js/esm-named-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named-default/synthetic-unset/interop-false",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-false",
+        "es5/js/cjs-named/synthetic-unset/interop-false",
+        "es5/js/esm-named-default/synthetic-unset/interop-false",
+        "es5/ts/cjs-named-default/synthetic-unset/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named-default/synthetic-true/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-true/interop-unset",
+        "es5/js/cjs-named/synthetic-true/interop-unset",
+        "es5/js/esm-named-default/synthetic-true/interop-unset",
+        "es5/js/cjs-named-default/synthetic-true/interop-true",
+        "es5/js/cjs-direct-default/synthetic-true/interop-true",
+        "es5/js/cjs-named/synthetic-true/interop-true",
+        "es5/js/esm-named-default/synthetic-true/interop-true",
+        "es5/js/cjs-named-default/synthetic-true/interop-false",
+        "es5/js/cjs-direct-default/synthetic-true/interop-false",
+        "es5/js/cjs-named/synthetic-true/interop-false",
+        "es5/js/esm-named-default/synthetic-true/interop-false",
+        "es5/ts/cjs-named-default/synthetic-true/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-true/interop-true",
+        "es5/js/cjs-named-default/synthetic-false/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-false/interop-unset",
+        "es5/js/cjs-named/synthetic-false/interop-unset",
+        "es5/js/esm-named-default/synthetic-false/interop-unset",
+        "es5/js/cjs-named-default/synthetic-false/interop-true",
+        "es5/js/cjs-direct-default/synthetic-false/interop-true",
+        "es5/js/cjs-named/synthetic-false/interop-true",
+        "es5/js/esm-named-default/synthetic-false/interop-true",
+        "es5/js/cjs-named-default/synthetic-false/interop-false",
+        "es5/js/cjs-direct-default/synthetic-false/interop-false",
+        "es5/js/cjs-named/synthetic-false/interop-false",
+        "es5/js/esm-named-default/synthetic-false/interop-false",
+        "es5/ts/cjs-named-default/synthetic-false/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-named/synthetic-unset/interop-unset",
+        "es2015/js/esm-named-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named/synthetic-unset/interop-true",
+        "es2015/js/esm-named-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-false",
+        "es2015/js/cjs-named/synthetic-unset/interop-false",
+        "es2015/js/esm-named-default/synthetic-unset/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-unset/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-named/synthetic-true/interop-unset",
+        "es2015/js/esm-named-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-true/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named/synthetic-true/interop-true",
+        "es2015/js/esm-named-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named-default/synthetic-true/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-false",
+        "es2015/js/cjs-named/synthetic-true/interop-false",
+        "es2015/js/esm-named-default/synthetic-true/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-true/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-named/synthetic-false/interop-unset",
+        "es2015/js/esm-named-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-false/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named/synthetic-false/interop-true",
+        "es2015/js/esm-named-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named-default/synthetic-false/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-false",
+        "es2015/js/cjs-named/synthetic-false/interop-false",
+        "es2015/js/esm-named-default/synthetic-false/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-false/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-false/interop-true"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/local-alias-declarations.json",
+      "sha256": "04ec81185ee0c6927d7c284de8bdaf81298a77d77f39a4e8d3dadb6842e1404e",
+      "exact_twice": [
+        "js/es5/require-renamed",
+        "js/es5/require-same",
+        "js/es5/local-renamed",
+        "js/es5/class-named",
+        "js/es5/class-anonymous",
+        "js/es5/compound-local",
+        "js/es5/compound-require",
+        "js/es5/module-exports-member",
+        "js/es5/object-shorthand",
+        "js/es5/object-renamed",
+        "js/es5/default",
+        "js/es5/export-equals",
+        "ts/es5/namespace-import",
+        "ts/es5/local-renamed",
+        "ts/es5/default",
+        "ts/es5/export-equals",
+        "js/es2015/require-renamed",
+        "js/es2015/require-same",
+        "js/es2015/local-renamed",
+        "js/es2015/class-named",
+        "js/es2015/class-anonymous",
+        "js/es2015/compound-local",
+        "js/es2015/compound-require",
+        "js/es2015/module-exports-member",
+        "js/es2015/object-shorthand",
+        "js/es2015/object-renamed",
+        "js/es2015/default",
+        "js/es2015/export-equals",
+        "ts/es2015/namespace-import",
+        "ts/es2015/local-renamed",
+        "ts/es2015/default",
+        "ts/es2015/export-equals"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/ambient-alias-target-names.json",
+      "sha256": "36c5f242fbe53f070a9ceb4b17394a8dfa021dbe075f8396ede798a5d22f9fdb",
+      "exact_twice": [
+        "ambient/es5/default",
+        "ambient/es5/named",
+        "ambient/es5/namespace",
+        "ambient/es5/equals",
+        "ambient/es2015/default",
+        "ambient/es2015/named",
+        "ambient/es2015/namespace",
+        "ambient/es2015/equals"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-declaration-dependency-order.json",
+      "sha256": "5ab33278e98e880ce5b3bb3f582cf1fc72a719da6b88cf898bf170d1e3d555e0",
+      "exact_twice": [
+        "js/es5/base-namespace",
+        "js/es5/reverse-namespace",
+        "js/es5/duplicate-base",
+        "js/es5/member-after-base",
+        "js/es5/member-without-merge",
+        "js/es5/class-no-base",
+        "js/es5/private-local-base",
+        "js/es5/two-derived",
+        "ts/es5/private-base",
+        "ts/es5/namespace-merge",
+        "ts/es5/member-order",
+        "ts/es5/nested-scope",
+        "js/es2015/base-namespace",
+        "js/es2015/reverse-namespace",
+        "js/es2015/duplicate-base",
+        "js/es2015/member-after-base",
+        "js/es2015/member-without-merge",
+        "js/es2015/class-no-base",
+        "js/es2015/private-local-base",
+        "js/es2015/two-derived",
+        "ts/es2015/private-base",
+        "ts/es2015/namespace-merge",
+        "ts/es2015/member-order",
+        "ts/es2015/nested-scope"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-declaration-member-order.json",
+      "sha256": "e81dfbc60571e6518cbd573eb3c1d35779bfe8c689543d0f3ffb9984297036cf",
+      "exact_twice": [
+        "js/es5/typed-member-plain",
+        "js/es5/typed-member-merged",
+        "js/es2015/typed-member-plain",
+        "js/es2015/typed-member-merged"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/repeated-target-declaration-aliases.json",
+      "sha256": "7c8127c402a3fbeb50c9c144a1fc59d6db3009ffb0bab41ef921cdc250dace28",
+      "exact_twice": [
+        "js/es5/class-same-renamed",
+        "js/es5/class-reverse-bindings",
+        "js/es5/class-two-renames",
+        "js/es5/function-same-renamed",
+        "ts/es5/class-same-renamed",
+        "ts/es5/class-reverse-bindings",
+        "ts/es5/class-two-renames",
+        "ts/es5/function-same-renamed",
+        "js/es2015/class-same-renamed",
+        "js/es2015/class-reverse-bindings",
+        "js/es2015/class-two-renames",
+        "js/es2015/function-same-renamed",
+        "ts/es2015/class-same-renamed",
+        "ts/es2015/class-reverse-bindings",
+        "ts/es2015/class-two-renames",
+        "ts/es2015/function-same-renamed",
+        "default/js/es5/class-same-renamed",
+        "esmodule/js/es5/class-same-renamed",
+        "default/js/es5/class-reverse-bindings",
+        "esmodule/js/es5/class-reverse-bindings",
+        "default/js/es5/class-two-renames",
+        "esmodule/js/es5/class-two-renames",
+        "default/js/es5/function-same-renamed",
+        "esmodule/js/es5/function-same-renamed",
+        "default/ts/es5/class-same-renamed",
+        "esmodule/ts/es5/class-same-renamed",
+        "default/ts/es5/class-reverse-bindings",
+        "esmodule/ts/es5/class-reverse-bindings",
+        "default/ts/es5/class-two-renames",
+        "esmodule/ts/es5/class-two-renames",
+        "default/ts/es5/function-same-renamed",
+        "esmodule/ts/es5/function-same-renamed",
+        "default/js/es2015/class-same-renamed",
+        "esmodule/js/es2015/class-same-renamed",
+        "default/js/es2015/class-reverse-bindings",
+        "esmodule/js/es2015/class-reverse-bindings",
+        "default/js/es2015/class-two-renames",
+        "esmodule/js/es2015/class-two-renames",
+        "default/js/es2015/function-same-renamed",
+        "esmodule/js/es2015/function-same-renamed",
+        "default/ts/es2015/class-same-renamed",
+        "esmodule/ts/es2015/class-same-renamed",
+        "default/ts/es2015/class-reverse-bindings",
+        "esmodule/ts/es2015/class-reverse-bindings",
+        "default/ts/es2015/class-two-renames",
+        "esmodule/ts/es2015/class-two-renames",
+        "default/ts/es2015/function-same-renamed",
+        "esmodule/ts/es2015/function-same-renamed"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/export-specifier-names.json",
+      "sha256": "a687b2fb2f0245742fee08626e55ba04d4a3b723db729ee0489fac2ee17f61e3",
+      "exact_twice": [
+        "js/es5/local-default",
+        "js/es5/local-renamed",
+        "js/es5/local-keywords",
+        "js/es5/local-string-default",
+        "js/es5/local-underscores",
+        "js/es5/local-merged-default",
+        "js/es5/external-to-default",
+        "js/es5/external-from-default",
+        "js/es5/external-default",
+        "js/es5/external-string-default",
+        "js/es5/external-keywords",
+        "js/es5/external-siblings",
+        "ts/es5/local-default",
+        "ts/es5/local-renamed",
+        "ts/es5/local-keywords",
+        "ts/es5/local-string-default",
+        "ts/es5/local-underscores",
+        "ts/es5/local-merged-default",
+        "ts/es5/external-to-default",
+        "ts/es5/external-from-default",
+        "ts/es5/external-default",
+        "ts/es5/external-string-default",
+        "ts/es5/external-keywords",
+        "ts/es5/external-siblings",
+        "js/es2015/local-default",
+        "js/es2015/local-renamed",
+        "js/es2015/local-keywords",
+        "js/es2015/local-string-default",
+        "js/es2015/local-underscores",
+        "js/es2015/local-merged-default",
+        "js/es2015/external-to-default",
+        "js/es2015/external-from-default",
+        "js/es2015/external-default",
+        "js/es2015/external-string-default",
+        "js/es2015/external-keywords",
+        "js/es2015/external-siblings",
+        "ts/es2015/local-default",
+        "ts/es2015/local-renamed",
+        "ts/es2015/local-keywords",
+        "ts/es2015/local-string-default",
+        "ts/es2015/local-underscores",
+        "ts/es2015/local-merged-default",
+        "ts/es2015/external-to-default",
+        "ts/es2015/external-from-default",
+        "ts/es2015/external-default",
+        "ts/es2015/external-string-default",
+        "ts/es2015/external-keywords",
+        "ts/es2015/external-siblings"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/cjs-default-reexport-names.json",
+      "sha256": "eaecc39edf3508ce820e43c1a0a76549798067a4343260763bbb35af394e198d",
+      "exact_twice": [
+        "js/es5/class",
+        "js/es5/function",
+        "ts/es5/class",
+        "ts/es5/function",
+        "js/es2015/class",
+        "js/es2015/function",
+        "ts/es2015/class",
+        "ts/es2015/function"
+      ]
+    }
+  ],
+  "checker_unit_tests": 25,
+  "seconds": [
+    213.09,
+    12.27,
+    0.02
+  ],
+  "exit_codes": [
+    0,
+    0,
+    0
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3f5cf46151a93fd5f943ca200624c5431c39e8295b8a60d9d29a77ed7b56ea1b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "1121cdbbfb3d51d101b29cc83095f59062d20013af95d9e99688154f7828af09"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "146959fd6cb96a6fd26fd4eb29043cbaa79a502c53e491069ffdfab20fbe72d0"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "0b756914c569040add32bff40f568b3069d44aca5857b1ed5f4e2d7db0e03cd8"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-synthetic-default-alias.md",
+      "sha256": "86d5c0d1cb193aee2ef3f5011ad40227c07672c19a97f1038a77efe2840c075d"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "3d66a54a9faab68cf3c1162cdb6cf5a82f47c251b76479d9ddfabc0261386892"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-default-alias-before.v1.json",
+      "sha256": "b58585a37981e51b6c977a4decf90344b1b34d99780b550f99f63e9eb6bd34ad"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-default-alias-readiness.v1.json",
+      "sha256": "fa81487d1eac83d1f539abcf362ce99359130ab0433a4c74b03db492e0f1a7b6"
+    },
+    {
+      "path": "scripts/check-synthetic-default-alias-readiness.py",
+      "sha256": "aa164baf9d399e96242c8a2c46c9696cddc0175a4adfa697593d42d1445e1de9"
+    },
+    {
+      "path": "scripts/observe-synthetic-default-alias.mjs",
+      "sha256": "6ca7dd734ba1865715c787215c6474ed3764cb11c7262ac5b4926ab16d5074b3"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-after.log",
+      "sha256": "49b90d61bd619c5a7b8313968d651cd1743f24ad5956a2a1d2f4488cc4bb02d0"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-checker-after.log",
+      "sha256": "e5e540bcb6395d8c697abfcee7872e006a13808d835d7235b8f3c53909623546"
+    },
+    {
+      "path": "target/h2-8a-synthetic-default-alias-original-after.log",
+      "sha256": "5692be18ad79b04e770d2e82ee558d95d1e0d5e94370875e5b53b4b33023cd56"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-synthetic-default-alias-after-vj9pzxxe",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}
