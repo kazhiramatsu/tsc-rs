@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "e6bebf7b76501984a7ebba9bc57e81e23e7b2429",
+  "eligible": 84,
+  "exact_twice": [
+    "synthetic-namespace/es5/script/function-empty",
+    "synthetic-namespace/es5/script/function-normal",
+    "synthetic-namespace/es5/script/function-reserved",
+    "synthetic-namespace/es5/script/object-normal",
+    "synthetic-namespace/es5/script/object-constructor",
+    "synthetic-namespace/es5/script/overloaded-constructor",
+    "synthetic-namespace/es5/commonjs/function-empty",
+    "synthetic-namespace/es5/commonjs/function-normal",
+    "synthetic-namespace/es5/commonjs/function-reserved",
+    "synthetic-namespace/es5/commonjs/function-mixed",
+    "synthetic-namespace/es5/commonjs/function-methods",
+    "synthetic-namespace/es5/commonjs/object-normal",
+    "synthetic-namespace/es5/commonjs/object-mixed",
+    "synthetic-namespace/es5/commonjs/object-constructor",
+    "synthetic-namespace/es5/commonjs/nested-function",
+    "synthetic-namespace/es5/commonjs/typedef",
+    "synthetic-namespace/es5/commonjs/overloaded-constructor",
+    "synthetic-namespace/es5/commonjs/namespace-class-fallback",
+    "synthetic-namespace/es5/esm/function-empty",
+    "synthetic-namespace/es5/esm/function-normal",
+    "synthetic-namespace/es5/esm/function-reserved",
+    "synthetic-namespace/es5/esm/function-mixed",
+    "synthetic-namespace/es5/esm/function-methods",
+    "synthetic-namespace/es5/esm/object-normal",
+    "synthetic-namespace/es5/esm/object-mixed",
+    "synthetic-namespace/es5/esm/object-constructor",
+    "synthetic-namespace/es5/esm/nested-function",
+    "synthetic-namespace/es5/esm/typedef",
+    "synthetic-namespace/es5/esm/overloaded-constructor",
+    "synthetic-namespace/es5/esm/namespace-class-fallback",
+    "synthetic-namespace/es2015/script/function-empty",
+    "synthetic-namespace/es2015/script/function-normal",
+    "synthetic-namespace/es2015/script/function-reserved",
+    "synthetic-namespace/es2015/script/object-normal",
+    "synthetic-namespace/es2015/script/object-constructor",
+    "synthetic-namespace/es2015/script/overloaded-constructor",
+    "synthetic-namespace/es2015/commonjs/function-empty",
+    "synthetic-namespace/es2015/commonjs/function-normal",
+    "synthetic-namespace/es2015/commonjs/function-reserved",
+    "synthetic-namespace/es2015/commonjs/function-mixed",
+    "synthetic-namespace/es2015/commonjs/function-methods",
+    "synthetic-namespace/es2015/commonjs/object-normal",
+    "synthetic-namespace/es2015/commonjs/object-mixed",
+    "synthetic-namespace/es2015/commonjs/object-constructor",
+    "synthetic-namespace/es2015/commonjs/nested-function",
+    "synthetic-namespace/es2015/commonjs/typedef",
+    "synthetic-namespace/es2015/commonjs/overloaded-constructor",
+    "synthetic-namespace/es2015/commonjs/namespace-class-fallback",
+    "synthetic-namespace/es2015/esm/function-empty",
+    "synthetic-namespace/es2015/esm/function-normal",
+    "synthetic-namespace/es2015/esm/function-reserved",
+    "synthetic-namespace/es2015/esm/function-mixed",
+    "synthetic-namespace/es2015/esm/function-methods",
+    "synthetic-namespace/es2015/esm/object-normal",
+    "synthetic-namespace/es2015/esm/object-mixed",
+    "synthetic-namespace/es2015/esm/object-constructor",
+    "synthetic-namespace/es2015/esm/nested-function",
+    "synthetic-namespace/es2015/esm/typedef",
+    "synthetic-namespace/es2015/esm/overloaded-constructor",
+    "synthetic-namespace/es2015/esm/namespace-class-fallback",
+    "synthetic-namespace/es5/script/parsed-namespace",
+    "synthetic-namespace/es5/script/parsed-nested-namespace",
+    "synthetic-namespace/es5/script/parsed-ambient-namespace",
+    "synthetic-namespace/es5/esm/parsed-namespace",
+    "synthetic-namespace/es5/esm/parsed-nested-namespace",
+    "synthetic-namespace/es5/esm/parsed-ambient-namespace",
+    "synthetic-namespace/es2015/script/parsed-namespace",
+    "synthetic-namespace/es2015/script/parsed-nested-namespace",
+    "synthetic-namespace/es2015/script/parsed-ambient-namespace",
+    "synthetic-namespace/es2015/esm/parsed-namespace",
+    "synthetic-namespace/es2015/esm/parsed-nested-namespace",
+    "synthetic-namespace/es2015/esm/parsed-ambient-namespace"
+  ],
+  "failed_twice": [
+    "synthetic-namespace/es5/script/function-mixed",
+    "synthetic-namespace/es5/script/function-methods",
+    "synthetic-namespace/es5/script/object-mixed",
+    "synthetic-namespace/es5/script/nested-function",
+    "synthetic-namespace/es5/script/typedef",
+    "synthetic-namespace/es5/script/namespace-class-fallback",
+    "synthetic-namespace/es2015/script/function-mixed",
+    "synthetic-namespace/es2015/script/function-methods",
+    "synthetic-namespace/es2015/script/object-mixed",
+    "synthetic-namespace/es2015/script/nested-function",
+    "synthetic-namespace/es2015/script/typedef",
+    "synthetic-namespace/es2015/script/namespace-class-fallback"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    73.6,
+    77.3
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "synthetic-namespace/es5/script/function-mixed",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "44161a8ec1e9858f66ed5bc976e41e56ab52afbdbee2fee82fa8847ffebcca1b",
+      "expected_sha256": "9fb8c2180a02e3938451b88d53d8dcb737396e1563857753c909fa2968c7e922",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/function-methods",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e3aefaf47e905598be182d519ca1fbc9e502d94f2216d5e6450f7fad32c7bbdc",
+      "expected_sha256": "2d1cde3c4f737e74c5d09ffd1d8b80d73f1c893fda36c71be6e0567d38094d6f",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/object-mixed",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "12480cc63acee275d8a789b918f6ddd48753affa75bcff03c118c9db92cb92c8",
+      "expected_sha256": "01e0697e5bfc1d25dd09d3ed594ac11837a56e18f8401c6b7547c5dc12981ef8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/nested-function",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "cae92b81a08e294c43d76ca93ddbf55be0562844b2e93b64ecd9fae824b108af",
+      "expected_sha256": "54e7983b18d7e0b072d8fb6b3fd189fd312d4b3697d2e6670f3bce7654f1e0f3",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "9d085a9e1afd1c7c19798d79b12555288bae9422b9af7958f90a1a3ae8eb6a0b",
+      "expected_sha256": "6c06adb99d9f7ebd8b0241b9b677de837d7a3cfc886507299ffe42bb588ace03",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/namespace-class-fallback",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8b81021f5183c9f1e7c9e4c2227e154a94b22ccecfde073bdb25c9f05bce9cc3",
+      "expected_sha256": "3d6ce4cea1d8a12e27541363baf3389231dec4b29efcf41e0873c5fb529e2955",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-mixed",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "44161a8ec1e9858f66ed5bc976e41e56ab52afbdbee2fee82fa8847ffebcca1b",
+      "expected_sha256": "9fb8c2180a02e3938451b88d53d8dcb737396e1563857753c909fa2968c7e922",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-methods",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e3aefaf47e905598be182d519ca1fbc9e502d94f2216d5e6450f7fad32c7bbdc",
+      "expected_sha256": "2d1cde3c4f737e74c5d09ffd1d8b80d73f1c893fda36c71be6e0567d38094d6f",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/object-mixed",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "12480cc63acee275d8a789b918f6ddd48753affa75bcff03c118c9db92cb92c8",
+      "expected_sha256": "01e0697e5bfc1d25dd09d3ed594ac11837a56e18f8401c6b7547c5dc12981ef8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/nested-function",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "cae92b81a08e294c43d76ca93ddbf55be0562844b2e93b64ecd9fae824b108af",
+      "expected_sha256": "54e7983b18d7e0b072d8fb6b3fd189fd312d4b3697d2e6670f3bce7654f1e0f3",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "9d085a9e1afd1c7c19798d79b12555288bae9422b9af7958f90a1a3ae8eb6a0b",
+      "expected_sha256": "6c06adb99d9f7ebd8b0241b9b677de837d7a3cfc886507299ffe42bb588ace03",
+      "native_executions": 2
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/namespace-class-fallback",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8b81021f5183c9f1e7c9e4c2227e154a94b22ccecfde073bdb25c9f05bce9cc3",
+      "expected_sha256": "3d6ce4cea1d8a12e27541363baf3389231dec4b29efcf41e0873c5fb529e2955",
+      "native_executions": 2
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3689fe549b0b64dc85473471dccd4f5a19b5e1ab5484f5d23093e502abb2d514"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "bbfa5288af09de98c26a106e71726ea3d7cc82b510a8b3ecc090fc2de28650fe"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-namespace-export-modifiers.json",
+      "sha256": "e561aa3f0a649ffb4c9bc399d3f32e7a3a53385d0c19702eb31d7d8562df54b1"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_namespace_export_modifiers.rs",
+      "sha256": "d3cdebd4919c19f56faba78cd36bbc89e1f087dd75b2bf48ec70506f44cf5078"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "scripts/observe-synthetic-namespace-export-modifiers.mjs",
+      "sha256": "acb7c580709cf850215b046dceeda78f31e9c79923de92dfef53cfd199c61ddc"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-before-prelaunch.json",
+      "sha256": "02462f87592f46502456c2d63c035652ae3a0c51066d79a461c9d36e335156dd"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-before-repeat.log",
+      "sha256": "8fb3b5ae8121ab34c03576118cf0de6f9d6755f4e5cd7d660424a8e4057e5e61"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-before.log",
+      "sha256": "7362766e4629076bc0ab70db65bf960126a23c419e37b56aaad94b38cac9705d"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-ts-before.log",
+      "sha256": "f5aa33da3cf332ab2bcf10025910fdfd11f46432f4f64b0b754b187486d09d45"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-ts-check.log",
+      "sha256": "f5aa33da3cf332ab2bcf10025910fdfd11f46432f4f64b0b754b187486d09d45"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-synthetic-namespace-before-81upte7p"
+}

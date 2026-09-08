@@ -214,3 +214,18 @@ fn original_jsdoc_parentheses_guards_match_complete_commands() {
     );
     assert_eq!(exact.len(), 3);
 }
+
+#[test]
+fn original_synthetic_namespace_exports_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+        "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 4);
+}

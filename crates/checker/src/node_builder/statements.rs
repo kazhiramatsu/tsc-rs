@@ -2009,11 +2009,14 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     enclosing
                 }
             });
+            // The synthetic namespace's kind lives in the context overlay;
+            // enclosing retains its parsed parent for checker identity.
             if additional_modifier_flags.intersects(ModifierFlags::EXPORT)
-                && enclosing.is_some_and(|enclosing| {
-                    self.is_exporting_scope(enclosing)
-                        || self.checker.kind_of(enclosing) == SyntaxKind::ModuleDeclaration
-                })
+                && (self.context.synthetic_scope_kind == Some(SyntaxKind::ModuleDeclaration)
+                    || enclosing.is_some_and(|enclosing| {
+                        self.is_exporting_scope(enclosing)
+                            || self.checker.kind_of(enclosing) == SyntaxKind::ModuleDeclaration
+                    }))
                 && self.can_have_export_modifier(node)?
             {
                 new |= ModifierFlags::EXPORT;
