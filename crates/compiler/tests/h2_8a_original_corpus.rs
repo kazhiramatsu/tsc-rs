@@ -200,3 +200,17 @@ fn original_synthetic_default_aliases_match_complete_commands() {
     );
     assert_eq!(exact.len(), 2);
 }
+
+#[test]
+fn original_jsdoc_parentheses_guards_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+        "typescript-6.0.3/compiler/jsdocTypecastNoTypeNoCrash.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag15.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 3);
+}

@@ -682,7 +682,7 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if self.is_in_js_file(node) {
+        if self.is_in_js_file(node) && self.has_jsdoc_nodes(node) {
             if let Some(target) = self.jsdoc_satisfies_type_node(node) {
                 return self.check_jsdoc_satisfies_expression_worker(expression, target);
             }

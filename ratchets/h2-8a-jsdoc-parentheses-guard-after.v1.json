@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-no-remaining-failures",
+  "base": "9c0cc016092eaade9be34aaf83faa78db2e1a735",
+  "production_paths": [
+    "crates/checker/src/expr.rs"
+  ],
+  "complete_commands_exact_twice": 43,
+  "fresh_exact_twice": [
+    "es5/js/declaration-one",
+    "es5/js/declaration-three",
+    "es5/js/declaration-no-parens",
+    "es5/js/no-tag-one",
+    "es5/js/inline-type-one",
+    "es5/js/inline-type-three",
+    "es5/js/inline-satisfies",
+    "es5/js/declaration-inline-satisfies",
+    "es5/js/declaration-comment-one",
+    "es5/js/declaration-literal",
+    "es5/ts/declaration-one",
+    "es5/ts/declaration-three",
+    "es5/ts/declaration-no-parens",
+    "es5/ts/no-tag-one",
+    "es5/ts/inline-type-one",
+    "es5/ts/inline-type-three",
+    "es5/ts/inline-satisfies",
+    "es5/ts/declaration-inline-satisfies",
+    "es5/ts/declaration-comment-one",
+    "es5/ts/declaration-literal",
+    "es2015/js/declaration-one",
+    "es2015/js/declaration-three",
+    "es2015/js/declaration-no-parens",
+    "es2015/js/no-tag-one",
+    "es2015/js/inline-type-one",
+    "es2015/js/inline-type-three",
+    "es2015/js/inline-satisfies",
+    "es2015/js/declaration-inline-satisfies",
+    "es2015/js/declaration-comment-one",
+    "es2015/js/declaration-literal",
+    "es2015/ts/declaration-one",
+    "es2015/ts/declaration-three",
+    "es2015/ts/declaration-no-parens",
+    "es2015/ts/no-tag-one",
+    "es2015/ts/inline-type-one",
+    "es2015/ts/inline-type-three",
+    "es2015/ts/inline-satisfies",
+    "es2015/ts/declaration-inline-satisfies",
+    "es2015/ts/declaration-comment-one",
+    "es2015/ts/declaration-literal"
+  ],
+  "original_exact_twice": [
+    "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+    "typescript-6.0.3/compiler/jsdocTypecastNoTypeNoCrash.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag15.ts#default"
+  ],
+  "fixture": "crates/compiler/tests/fixtures/jsdoc-parentheses-guard.json",
+  "fixture_sha256": "4ee4710a95359b5e1bb73cb85edd5ef548cce0696e0458222fec1390f1ae285f",
+  "checker_unit_tests": 6,
+  "seconds": [
+    43.78,
+    19.56,
+    0.02
+  ],
+  "exit_codes": [
+    0,
+    0
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "3c4501f03c97c22f02de58b7f7802ed18cd64ba0cd06f2a6a975890ef49f744c"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "41c284c51186e1f71c67fc01298285b4cbf7cc231143147db5ea317eda57c947"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-parentheses-guard.json",
+      "sha256": "4ee4710a95359b5e1bb73cb85edd5ef548cce0696e0458222fec1390f1ae285f"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "88bcd9824bef3e9edced0ec014bcb41ed4446ce521b862e16d38b53a625f0bce"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_parentheses_guard.rs",
+      "sha256": "7d1f4ca7f7b1c1559757e6086518486d28e27820bfdde3e9ba598a544a7b29e3"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "ddd164561c876ec2bc76dcdb30305d76759ce8866297991cc5099c4bbf127ee0"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-parentheses-guard.md",
+      "sha256": "cc556335a9333292a9a364690b5011255dc90f4089a8b18ef611e6cc46a988c0"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "7f46d397c7289cdcc91b1dddc3f389f7548f33bc2a5b4d73f625dd42e4a932a3"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-parentheses-guard-before.v1.json",
+      "sha256": "cbf9fc72aa6ea3ef0a704374ec95524d1fce989b099139651b4125e4a97aa867"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-parentheses-guard-readiness.v1.json",
+      "sha256": "e666cbae66a48878194f1158fe3728c5cba35653cdc00112df945007c9318ae0"
+    },
+    {
+      "path": "scripts/check-jsdoc-parentheses-guard-readiness.py",
+      "sha256": "22e9cdf10a013592bf569d49d8ec74f42d8f7f0110f1f47d273a878633ea38a3"
+    },
+    {
+      "path": "scripts/observe-jsdoc-parentheses-guard.mjs",
+      "sha256": "1dfc9816633b6fe0151577e286005c7d6232d8f94eb7d01a37e9ff52c84bbf92"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-after.log",
+      "sha256": "744bc62b30637914500a06caf5fdf56d14656b37b2dbeadc7b85f64c9a55bb2a"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-checker-after.log",
+      "sha256": "2d53fe516324abf83f1ccfc37040c32124334b261bb457f9b2eced579fb0262a"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-parentheses-guard-after-eoqhk7dq",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

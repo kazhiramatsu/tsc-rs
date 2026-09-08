@@ -172,3 +172,6 @@ mod h2_8a_import_publication_reference;
 
 #[path = "integration/h2_8a_synthetic_default_alias.rs"]
 mod h2_8a_synthetic_default_alias;
+
+#[path = "integration/h2_8a_jsdoc_parentheses_guard.rs"]
+mod h2_8a_jsdoc_parentheses_guard;
