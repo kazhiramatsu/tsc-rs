@@ -1,0 +1,772 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-14",
+  "base": "d0ba24c65bc4aec438d1ce90121188f577f1f342",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/printer.rs"
+  ],
+  "steps": [
+    "A6-14-1",
+    "A6-14-2",
+    "A6-14-3"
+  ],
+  "owners": [
+    {
+      "owner": "getName",
+      "start": 24788,
+      "end": 24799,
+      "sha256": "9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33"
+    },
+    {
+      "owner": "getDeclarationName",
+      "start": 24809,
+      "end": 24811,
+      "sha256": "2774ac8674f5e2cbedb331ad2c3c64fa2474c0df15cd30c16f824775fdb87714"
+    },
+    {
+      "owner": "appendExportsOfImportDeclaration",
+      "start": 111651,
+      "end": 111683,
+      "sha256": "65a02d44f2100e9793cad4f3fef13ea84611f16ce6c0a660e91eabc665ff8de0"
+    },
+    {
+      "owner": "appendExportsOfDeclaration",
+      "start": 111743,
+      "end": 111762,
+      "sha256": "b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2"
+    },
+    {
+      "owner": "createExportStatement",
+      "start": 111791,
+      "end": 111804,
+      "sha256": "d533ed2215809bab955e6b206a545e71c1a8490754d2bb396fec41aca15000cc"
+    },
+    {
+      "owner": "createExportExpression",
+      "start": 111805,
+      "end": 111851,
+      "sha256": "75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8"
+    },
+    {
+      "owner": "substituteExpressionIdentifier",
+      "start": 111946,
+      "end": 111989,
+      "sha256": "972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96"
+    },
+    {
+      "owner": "getReferencedImportDeclaration",
+      "start": 87900,
+      "end": 87918,
+      "sha256": "340da277e95c697ff52f213006bacc361d4c71bf18eff9f1c28dc29531b79624"
+    },
+    {
+      "owner": "getGeneratedNameForNode",
+      "start": 21652,
+      "end": 21666,
+      "sha256": "7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0"
+    },
+    {
+      "owner": "getReferencedExportContainer",
+      "start": 87870,
+      "end": 87899,
+      "sha256": "64fe010400264ccd927bf7b73511da7c480cf87f60b40ed5c8f43c8090aea8eb"
+    },
+    {
+      "owner": "createStringLiteralFromNode",
+      "start": 21535,
+      "end": 21543,
+      "sha256": "a2fa6c4e9dd96af89655a0a7d44368bcdd05ad599a3ef7e898a2a64e3e5fe9ee"
+    },
+    {
+      "owner": "getTextOfNode2",
+      "start": 120442,
+      "end": 120465,
+      "sha256": "bfe06a8f5079928e8ff23d6e34aad8110eb12b343b26a300861290242c5403e4"
+    },
+    {
+      "owner": "getLiteralTextOfNode",
+      "start": 120467,
+      "end": 120479,
+      "sha256": "43989b908107b6f48eae6547835a82a24937f43ba2ddd8673c48b83018d8201e"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-STRINGS",
+      "disposition": "modified-requalify"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-import-publication-reference.md",
+      "sha256": "c4e2fd4a3f74fdcb923cee51f956dbc073975fb1a743af83cc4cddde68b25d88"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-before.v1.json",
+      "sha256": "b010895b8de1331e33af0eaf1ce7c94eb662b407d22cf8374a80b084988789f3"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424"
+    },
+    {
+      "path": "crates/checker/tests/fixtures/import-publication-resolver.json",
+      "sha256": "0f3d4c6f110b74cc798da5e5326cee9fff069749896175a14f332a997aff6ce4"
+    },
+    {
+      "path": "scripts/observe-import-publication-reference.mjs",
+      "sha256": "444ef9111ead4d5e55816db4ae19792a544fabe4dfd6356957606b9e11397b2f"
+    },
+    {
+      "path": "scripts/observe-import-publication-resolver.mjs",
+      "sha256": "a6cb0c556c42580eecab157b1dc050001e3703844560a78d1a959f827fe25856"
+    },
+    {
+      "path": "ratchets/h2-8a-alias-conflict-display-after.v1.json",
+      "sha256": "a87139297c066287a1f5d9b684287c76e03441f0454123382ebbfc79ecc0ce17"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-first-after.v1.json",
+      "sha256": "d903992c45e1116b4ae376d47bd5d88e6ca15318757f7a09c0b81fb4ab0035df"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-emitter-producer-after.v1.json",
+      "sha256": "ae2ccb9d21b33e35287a5c4d8c6f5d413db379e1481f0924ec53264eee274332"
+    },
+    {
+      "path": "ratchets/h2-8a-string-literal-identifier-source-before.v1.json",
+      "sha256": "6f7da94048444b2f90534ad31a2999e51d66dbe6eb292f794ebc3f241833c69d"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/string-literal-identifier-source.json",
+      "sha256": "fb0419b437e540e6551343b9953b8df9c36feb65d27fe382e9c3d39e3c8ab73b"
+    },
+    {
+      "path": "scripts/observe-string-literal-identifier-source.mjs",
+      "sha256": "d6c990e2d9e9ab17719915afc62090011f2297fdf95f6d2e627b5786e46726c0"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "e22ede64ca1e8de31830da985d4dff819b14515302bb07d52bcab66a7dd3900a"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "52d1835dc36c14f939a38d78580f8002163f1fb65b58981094be70f24a181e3d"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "cjs/js/named",
+      "row_sha256": "b08ddfdcedc7ef78dedbbe13f09e0f8689682f5084e22eda17dca4558255c650",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/quoted",
+      "row_sha256": "b0b631bf67ef98e51373139b43da551bc481f63357cbf2273acb92d7ab4aafdb",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/default",
+      "row_sha256": "cff6321933853fc2669c89f8462949026532fc3447510128d0eb7c6d95d13636",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/namespace",
+      "row_sha256": "5a2fb5f714c58fdada4626ce88fd322856370af1b8a3146dc5fbbaf068114a7c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/js/named-conflict",
+      "row_sha256": "847af8da210de16ad9fa69b0b976083441cf5ff08cd4c4895041da82fca9e625",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/quoted-conflict",
+      "row_sha256": "60b7eb658f76eca0a56627d154f4c2e40ee892099f79df802e001c4d336ff958",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/default-conflict",
+      "row_sha256": "39b9abd4b27388fec7f9742bc5c7390b2385c62e4e22f57ea36d08f6ace205c6",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/namespace-conflict",
+      "row_sha256": "b966c0a9eeefc7a85f40a8db7ab5f7ca7b349d760e54f73c1440dacdfcff7a4f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/js/default-namespace",
+      "row_sha256": "2290717295e082f3cd0fefa6ffe534061c121bdceea5096cc96163d884cb67f0",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/external-reexport",
+      "row_sha256": "1e778ec5ce8c50ee0d3f6d97cc092915c123af31136a5fa88f7f3674424772f5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/js/unicode-alias",
+      "row_sha256": "a28bb5f96242a2fa71d4284324b85991d7056e357311c87f06fed6051caf14fe",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/escaped-alias",
+      "row_sha256": "915a4a094fc08abf0a84ecf816aa55f8543156a6264327a25f5c7557ddb0f476",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/js/multiple-exports-comments",
+      "row_sha256": "9d38200571f1c5de9b80d0281233d14dabfb859a31b14be915af5fcb75a27ca2",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/named",
+      "row_sha256": "37cc2abbe2e24d328019459d3c53254fd3f481da3f6a41be7338e65d1b3eae25",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/quoted",
+      "row_sha256": "4c21a80e2c536c9be15ddecb9990f2f901730e5dc302a5fa858e7990b18ddd7c",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/default",
+      "row_sha256": "7b02c4d68372f97635459f502936685125dbddc302703b9513739a8a5d1fdfc6",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/namespace",
+      "row_sha256": "89aadf76774cf614adfc254c6caacce8e87ca7cd10968f27f6a9ebe792fe7139",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/named-conflict",
+      "row_sha256": "e493637e4c21a7f0d79a7253dac0c27b695ddaf47bee380a01ee997de91a5bea",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/quoted-conflict",
+      "row_sha256": "afe1bd60134397ef8a50c38ba32b620f4cd32c69be539a774e8e0085dc1fa4d5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/default-conflict",
+      "row_sha256": "d88d268b10946e6832e86c1f82f0bccc346d5877a68fc6d0de7b9327cbcbeb39",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/namespace-conflict",
+      "row_sha256": "0bdc7981a8d3a76cc8fd8f6b2a7cad0a71fddee7598c50202128f6bc255694c3",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/import-equals",
+      "row_sha256": "42ac200ef4c01d0cf72cb03a602f4166356dd847a0314c749170d36c18ca638e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/exported-import-equals",
+      "row_sha256": "7ea2d18dfef96194e094159b20ff40bbfcb591c3b9a5b4b9963b4deecab1017a",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/export-equals-suppression",
+      "row_sha256": "c310411772346b553440d6aa2645b8306bdf537be995fadd26d4ed167456a7a3",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/default-namespace",
+      "row_sha256": "408245a38b08c9e1c2fcf1aab91bf64802d5c6225b8b5c9245ac86c36f2df692",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/external-reexport",
+      "row_sha256": "aa11acbf118ebe5bd70c0ca00a91c94d4c90cf7cd262ba4edfae9c5915c427d9",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "cjs/ts/unicode-alias",
+      "row_sha256": "4e4aaeafe5b13d126a21d274e2631f021225f14f364027e0e586b68bc381daba",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/escaped-alias",
+      "row_sha256": "c52c92f8d309dc44260e6afaa9889e670f774019a4db388f4f0422f80fab386c",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "cjs/ts/multiple-exports-comments",
+      "row_sha256": "ef9905c55c9c0e8fba8dc2c2ecab0a8cf3971eb3e57bdc9e597da1b49da6a5f7",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/named",
+      "row_sha256": "69d6ab554ec232180e71868f1cc6044c8f5a1a6743578793681c95713e818f17",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/quoted",
+      "row_sha256": "a5ba77a87c6a13358e8a14093bb911da49e1c8fb03dcad09a7885399d249d726",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/default",
+      "row_sha256": "cb20aac5764a525b150fe36eb277bef42d20b233a086aba13816ddba4fe35d37",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/namespace",
+      "row_sha256": "3365a79a61fbc8ef9457ed3555316f271d254ec263ebac10470db081262b0ba6",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/js/named-conflict",
+      "row_sha256": "e00033bff9e89a01db5cc073a29cf9f6d7e32914aa4358f1c86447319353d7d2",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/quoted-conflict",
+      "row_sha256": "9b452d43a60d8250a0d8d1ede5924581d80f7710bbcfc3b485b5e5eee13185a4",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/default-conflict",
+      "row_sha256": "d8ea0d449837e4711affdc1c3fc15ab6caeb6eec9bae3e3c472836d2ea995def",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/namespace-conflict",
+      "row_sha256": "eb3f6ad20b8ec3bcaa2b4485e53b7ac6d069db6cc6da5d5a87cc36a22b6f25fc",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/js/default-namespace",
+      "row_sha256": "b4e337a825d872917e4382ccce70cba3c7e72dca8735af3a4b8835f2815fb283",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/external-reexport",
+      "row_sha256": "07e015170f70e98bc4785c514eb967c95a3b249ed595ce59f22944ae59bf853f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/js/unicode-alias",
+      "row_sha256": "476bdfcf3997813be738455f67dddfb2699e144b4db83dca42ed7500f0842e55",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/escaped-alias",
+      "row_sha256": "b0b7b1453100a4cdaa570c06446844d3b2fda888d02eae22f09a4c89d61933f9",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/js/multiple-exports-comments",
+      "row_sha256": "1e68c03b71aca3da09b8ed9c205a842e1a4495ce755fb3c7ceb3c98d14164b82",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/named",
+      "row_sha256": "3b72b9b3e2be95ebc4152af048406ff11db9db4b620d211d6e6b9496a1d4784f",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/quoted",
+      "row_sha256": "e4a92bac74e38fb587727b049a05139b37e82e4e6277ccaeec5a6f543cfbcb57",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/default",
+      "row_sha256": "a3a39d1de770fad3747af242462900eaf9115e478dc0f4db676e509c0a990a5d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/namespace",
+      "row_sha256": "d3ace9b7ffecc2ffe6035c28509f4d4e0cbb8b67128baa2700d531c3cb93416d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/named-conflict",
+      "row_sha256": "8834f411630b9fc13f0d4e87790fc4c31729ae742b90552be991ed0ee7448481",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/quoted-conflict",
+      "row_sha256": "dcb9a1d1457a3ffcdae214ea6df279a792cc1cd005a910208107b5ec1d444af3",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/default-conflict",
+      "row_sha256": "4b549a440f124334eb67b25e2d82103819c9ad20ed19bd57745d60aa542bc523",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/namespace-conflict",
+      "row_sha256": "5e7212ab91bb798a6306d7da5c0d798c55f8cf5a3039ee13a893c464aedf4c1a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/import-equals",
+      "row_sha256": "4b3586134b2d23872ce550857c857e493a1cd5c850a2a0d4e70f781cd6f6b125",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/exported-import-equals",
+      "row_sha256": "d9ec60eb5db23b6e576779ae3b1844b424f09249250c2ad181a229be2d617aab",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/export-equals-suppression",
+      "row_sha256": "7e01d0065b4da6190153fb14776628877c41d25399f6b2cbea9d341d9a5bc234",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/default-namespace",
+      "row_sha256": "50bb467db23959cc69d324f7b729c737538efc20f468df411ade46681cf1110d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/external-reexport",
+      "row_sha256": "c9db1a4e98fcb75bb871646bbee447eb4fac3157fd73130e39c37f16287aadf5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "amd/ts/unicode-alias",
+      "row_sha256": "04b97828df19e54033bbc658446af0d8bfff49d87f44aa35293fbabe84c012fc",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/escaped-alias",
+      "row_sha256": "61b5c15a8ad6aee0e784618341f2da973d00ce546b4ca477310d2ddabcd95227",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "amd/ts/multiple-exports-comments",
+      "row_sha256": "1a482dd03a62fd6894438d543843e24c92da64eef6d4cbcc4eae64cc1b2fbf3b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/named",
+      "row_sha256": "7dcef2e6febb3f4cb6555c2006988a11f3fb5c14760cba3b77883708d498b73e",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/quoted",
+      "row_sha256": "69f627b4b5200a0eed11c730a14724e29aab4fbaefca5c33d80b19bd7d422f3e",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/default",
+      "row_sha256": "45cdf792d8c282d03f1037472a97a95e0bf06849e65fe2cac709ff1829d17b2a",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/namespace",
+      "row_sha256": "78b8b218a9600ae907cf1af9b26bfcb8e81a4b30078dd7e896dc06a777d29e3b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/js/named-conflict",
+      "row_sha256": "6fce33a47738077fe8e700df80553774ae4aa3921626fc2c83aeee7c82d4da61",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/quoted-conflict",
+      "row_sha256": "009ea44c8f6feda0324bb217b1779300dbd142baefc01ae11a7ec1084a8cbd6d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/default-conflict",
+      "row_sha256": "ce22f72349b89cdf299d888add572bbec7d1b9077fe244d48beecba2194dfa3e",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/namespace-conflict",
+      "row_sha256": "8b7ab7a666797b38829cb1edbf9b557737b5e44a421066598a009d3463a25030",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/js/default-namespace",
+      "row_sha256": "678d198467f27697d87bcd095d39a6235eb6d1070683632a3502399fa7ffee7d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/external-reexport",
+      "row_sha256": "897d1820f07a3251db5b3c9404ac903fe84375d646733dfa03d1e8c1a5e22c15",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/js/unicode-alias",
+      "row_sha256": "b1ffe7bf0f1899e3dcec8fec235ff8de2858b7c03ed28fd40e5a0730b4c4346d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/escaped-alias",
+      "row_sha256": "bf153e3a03e575d469c32055db97bf07ce1a4e45795a823a106dc201cbc4b13f",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/js/multiple-exports-comments",
+      "row_sha256": "b3d0077fee214cc0cfd0c4df02acd84c89ea6b219e0d54cb1ed3acd46601cd78",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/named",
+      "row_sha256": "6f1a77f22be8f5327da70c5ac5759d27e8f1ecc8b992f9c4be2296df2439fe5e",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/quoted",
+      "row_sha256": "bddd7999f3da1272bf64f2825d2c76488221a76181048ce6bba3d77d766c6402",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/default",
+      "row_sha256": "40c6adecb1c383fc44d770cb8221f8439ceda8703ffa4ad42c1e5e1a3a0889b5",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/namespace",
+      "row_sha256": "32eedc6e10935305de13acd1f3edf5582a0663e867115b1f3afa808797c8d4fe",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/named-conflict",
+      "row_sha256": "60b562ee1e1d1cbf65146f409af3182acbd1028b6932e865db7cd572838a8244",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/quoted-conflict",
+      "row_sha256": "d5420c8fc459fd10921240b590ee60e5e7e2b0e522d834d49f396c6915731c6d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/default-conflict",
+      "row_sha256": "151bc9bc220e0c88d513f456516678b91ad06dac21ef1eb802e43d702727eab5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/namespace-conflict",
+      "row_sha256": "a1e31828ef0b31abdfb4a56d04254d5276259249b452a3806f11c5787d5b3701",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/import-equals",
+      "row_sha256": "2e28ad28dc525971fb8ee6ac286a17388202c9eee6c6831a85cc73ed76f670b9",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/exported-import-equals",
+      "row_sha256": "58a71ecbc950e994fe077593a3a2f7872d9456d3c32b06465e08a517ea24b074",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/export-equals-suppression",
+      "row_sha256": "dbdbc1a59717a5f99b0780a1074d1e00e712e36c36481816e2154299e2901e5a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/default-namespace",
+      "row_sha256": "d7dc3b2395432d2950b5c8860dad4dad5185878e02446666857c089cd7c80e6d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/external-reexport",
+      "row_sha256": "c49eea70c7facf31916ccfc7d731b4071f51d94c4541b8dea684a00792b4cf41",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "umd/ts/unicode-alias",
+      "row_sha256": "eecc2f5fd3e773f39c517134ad24454d6a3c6a5ebe6095e5711e28b00bcf416a",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/escaped-alias",
+      "row_sha256": "67a3f9aa4c8649f7eabafe5e8f80ecb7d9ba3261dda8c4acc09e3b71205968be",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    },
+    {
+      "case_id": "umd/ts/multiple-exports-comments",
+      "row_sha256": "e3d566cc93ca8a338317e9dca6931e55a65215ead4643c284ed10cb6a4a30f02",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-declaration-reference-map"
+    }
+  ],
+  "resolver_queries": {
+    "case_count": 18,
+    "exact_twice": [
+      "js/named",
+      "js/named-conflict",
+      "js/quoted-conflict",
+      "js/default",
+      "js/default-conflict",
+      "js/namespace",
+      "js/namespace-conflict",
+      "js/equals",
+      "js/exported-equals",
+      "ts/named",
+      "ts/named-conflict",
+      "ts/quoted-conflict",
+      "ts/default",
+      "ts/default-conflict",
+      "ts/namespace",
+      "ts/namespace-conflict",
+      "ts/equals",
+      "ts/exported-equals"
+    ],
+    "native_jobs": 1,
+    "projections_compared": [
+      "getReferencedExportContainer:Reference",
+      "getReferencedImportDeclaration"
+    ],
+    "context_only_ts_fields": [
+      "symbol_flags",
+      "declaration_emit_flags"
+    ],
+    "seconds": 0.01,
+    "exit_code": 0
+  },
+  "printer_dependency": {
+    "case_count": 72,
+    "exact_twice_before": 64,
+    "failed_twice_before": 8,
+    "positive_executions_per_case": 2,
+    "failed_executions_per_case": 2,
+    "before_record": "ratchets/h2-8a-string-literal-identifier-source-before.v1.json"
+  }
+}

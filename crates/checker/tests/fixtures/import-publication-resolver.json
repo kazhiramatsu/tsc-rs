@@ -1,0 +1,622 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "a6cb0c556c42580eecab157b1dc050001e3703844560a78d1a959f827fe25856",
+  "cases": [
+    {
+      "case_id": "js/named",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value as local } from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportSpecifier",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/named-conflict",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/quoted-conflict",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { \"value\" as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import local from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportClause",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportClause",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/default-conflict",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import local from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportClause",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as local from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "NamespaceImport",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "NamespaceImport",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/namespace-conflict",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as local from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "NamespaceImport",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import local = require(\"./lib\");\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportEqualsDeclaration",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportEqualsDeclaration",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "js/exported-equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export import local = require(\"./lib\");\nexport { local as alias };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportEqualsDeclaration",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": "SourceFile",
+          "import_declaration": "ImportEqualsDeclaration",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/named",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value as local } from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportSpecifier",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/named-conflict",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/quoted-conflict",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { \"value\" as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportSpecifier",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/default",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import local from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportClause",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportClause",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/default-conflict",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import local from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportClause",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/namespace",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as local from \"./lib\";\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "NamespaceImport",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "NamespaceImport",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/namespace-conflict",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as local from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "NamespaceImport",
+          "name": "local",
+          "symbol_flags": 2097154,
+          "export_container": null,
+          "import_declaration": null,
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import local = require(\"./lib\");\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportEqualsDeclaration",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": null,
+          "import_declaration": "ImportEqualsDeclaration",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    },
+    {
+      "case_id": "ts/exported-equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export import local = require(\"./lib\");\nexport { local as alias };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1; export default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "allowJs": true,
+        "checkJs": true,
+        "strict": true,
+        "noLib": true
+      },
+      "observations": [
+        {
+          "kind": "ImportEqualsDeclaration",
+          "name": "local",
+          "symbol_flags": 2097152,
+          "export_container": "SourceFile",
+          "import_declaration": "ImportEqualsDeclaration",
+          "declaration_emit_flags": 3168
+        }
+      ]
+    }
+  ]
+}

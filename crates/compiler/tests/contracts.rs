@@ -166,3 +166,6 @@ mod h2_8a_alias_conflict_display;
 
 #[path = "integration/h2_8a_array_comment_publication.rs"]
 mod h2_8a_array_comment_publication;
+
+#[path = "integration/h2_8a_import_publication_reference.rs"]
+mod h2_8a_import_publication_reference;

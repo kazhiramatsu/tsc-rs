@@ -1376,6 +1376,90 @@ x.use();
     );
 }
 
+// These module-only fixtures query the local name of an import declaration
+// when publishing it. Supply those projections without changing the legacy
+// resolver's deliberately absent answers for ordinary expression references.
+struct ModulePublicationResolver<'a> {
+    source: &'a tsc_syntax::SourceFile,
+}
+
+impl EmitResolver for ModulePublicationResolver<'_> {
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_constant_value(node)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.has_node_check_flag(node, flag)
+    }
+
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.is_external_or_common_js_module(node)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let name = match &self.source.arena.node(parent).data {
+            NodeData::ImportClause(data) => data.name,
+            NodeData::ImportSpecifier(data) => data.name,
+            NodeData::NamespaceImport(data) => data.name,
+            NodeData::ImportEqualsDeclaration(data) => data.name,
+            _ => None,
+        };
+        Ok((name == Some(node.node())).then_some(EmitResolverNode::new(node.source(), parent)))
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        if mode != EmitExportContainerMode::Reference {
+            return Ok(None);
+        }
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let NodeData::ImportEqualsDeclaration(data) = &self.source.arena.node(parent).data else {
+            return Ok(None);
+        };
+        let exported = data.name == Some(node.node())
+            && data.modifiers.is_some_and(|modifiers| {
+                self.source
+                    .arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .any(|&modifier| {
+                        self.source.arena.node(modifier).kind
+                            == tsc_syntax::SyntaxKind::ExportKeyword
+                    })
+            });
+        Ok(exported.then_some(EmitResolverNode::new(node.source(), self.source.root)))
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_referenced_value_declaration(node)
+    }
+}
+
 fn transform_and_print_module_with_remove_comments(
     source_text: &str,
     module: ModuleKind,
@@ -1391,7 +1475,7 @@ fn transform_and_print_module_with_remove_comments(
         always_strict: Some(false),
         ..CompilerOptions::default()
     };
-    let resolver = LegacyScriptJsxResolver;
+    let resolver = ModulePublicationResolver { source: &parsed };
     let mut result = transform_nodes(
         arena,
         vec![TransformRoot::SourceFile(source)],

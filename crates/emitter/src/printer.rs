@@ -2599,9 +2599,58 @@ impl Printer {
                     )
                 } else {
                     let metadata = transformation.arena().metadata(node);
+                    let no_ascii_escaping = metadata.is_some_and(|metadata| {
+                        metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING)
+                    });
                     if let Some(text_source) =
                         metadata.and_then(crate::EmitMetadata::string_literal_text_source)
                     {
+                        let source_record = transformation.arena().node(text_source)?;
+                        if let NodeData::Identifier(identifier) = &source_record.data {
+                            // tsc-port: getLiteralTextOfNode @6.0.3
+                            // tsc-hash: 43989b908107b6f48eae6547835a82a24937f43ba2ddd8673c48b83018d8201e
+                            // tsc-span: _tsc.js:120467-120479
+                            // getLiteralTextOfNode delegates Identifier text sources
+                            // to getTextOfNode: only a positioned, parented name in
+                            // the current source file can retain its token spelling.
+                            // Clones and foreign names use their identifier text.
+                            let generated = transformation
+                                .arena()
+                                .metadata(text_source)
+                                .is_some_and(|metadata| metadata.generated_binding_id().is_some());
+                            let mut text = identifier.text.as_str();
+                            if !generated
+                                && text_source.source() == node.source()
+                                && source_record.parent.is_some()
+                            {
+                                let source = transformation
+                                    .arena()
+                                    .source(text_source.source())?
+                                    .syntax();
+                                if let SourceRange::Original(range) = SourceRange::from_raw(
+                                    source_record.pos,
+                                    source_record.end,
+                                    source.positions(),
+                                )? {
+                                    let range = range.without_leading_trivia(
+                                        source.text(),
+                                        source.positions(),
+                                    )?;
+                                    let start = range.start().value();
+                                    let end = range.end().value();
+                                    text = source
+                                        .text()
+                                        .get(start as usize..end as usize)
+                                        .ok_or(PrinterError::InvalidTextSlice { start, end })?;
+                                }
+                            }
+                            writer.write_string_literal(&quote_string_literal(
+                                text,
+                                false,
+                                no_ascii_escaping,
+                            ));
+                            return Ok(());
+                        }
                         if transformation.arena().node(text_source)?.kind
                             == SyntaxKind::StringLiteral
                             && self.node_has_source_text_range(transformation, text_source)?
@@ -2616,9 +2665,6 @@ impl Printer {
                     let single_quote = metadata
                         .and_then(crate::EmitMetadata::string_literal_single_quote)
                         .unwrap_or(false);
-                    let no_ascii_escaping = metadata.is_some_and(|metadata| {
-                        metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING)
-                    });
                     let quoted = metadata
                         .and_then(crate::EmitMetadata::javascript_string_value)
                         .map(|value| {

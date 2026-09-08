@@ -1,0 +1,513 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "d6c990e2d9e9ab17719915afc62090011f2297fdf95f6d2e627b5786e46726c0",
+  "cases": [
+    {
+      "case_id": "plain/parsed/ascii",
+      "source": "value;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/parsed/unicode",
+      "source": "value;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/clone/ascii",
+      "source": "value;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/clone/unicode",
+      "source": "value;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/synthetic/ascii",
+      "source": "value;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/synthetic/unicode",
+      "source": "value;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/foreign/ascii",
+      "source": "value;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "plain/foreign/unicode",
+      "source": "value;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"value\";\n"
+    },
+    {
+      "case_id": "underscores/parsed/ascii",
+      "source": "__name;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/parsed/unicode",
+      "source": "__name;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/clone/ascii",
+      "source": "__name;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/clone/unicode",
+      "source": "__name;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/synthetic/ascii",
+      "source": "__name;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/synthetic/unicode",
+      "source": "__name;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/foreign/ascii",
+      "source": "__name;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "underscores/foreign/unicode",
+      "source": "__name;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"__name\";\n"
+    },
+    {
+      "case_id": "unicode/parsed/ascii",
+      "source": "名前;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\u540D\\u524D\";\n"
+    },
+    {
+      "case_id": "unicode/parsed/unicode",
+      "source": "名前;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "unicode/clone/ascii",
+      "source": "名前;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"\\u540D\\u524D\";\n"
+    },
+    {
+      "case_id": "unicode/clone/unicode",
+      "source": "名前;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "unicode/synthetic/ascii",
+      "source": "名前;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"\\u540D\\u524D\";\n"
+    },
+    {
+      "case_id": "unicode/synthetic/unicode",
+      "source": "名前;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "unicode/foreign/ascii",
+      "source": "名前;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"\\u540D\\u524D\";\n"
+    },
+    {
+      "case_id": "unicode/foreign/unicode",
+      "source": "名前;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "escaped/parsed/ascii",
+      "source": "\\u0061;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\\\u0061\";\n"
+    },
+    {
+      "case_id": "escaped/parsed/unicode",
+      "source": "\\u0061;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"\\\\u0061\";\n"
+    },
+    {
+      "case_id": "escaped/clone/ascii",
+      "source": "\\u0061;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "escaped/clone/unicode",
+      "source": "\\u0061;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "escaped/synthetic/ascii",
+      "source": "\\u0061;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "escaped/synthetic/unicode",
+      "source": "\\u0061;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "escaped/foreign/ascii",
+      "source": "\\u0061;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "escaped/foreign/unicode",
+      "source": "\\u0061;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/parsed/ascii",
+      "source": "\\u{61};\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\\\u{61}\";\n"
+    },
+    {
+      "case_id": "extended-escape/parsed/unicode",
+      "source": "\\u{61};\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"\\\\u{61}\";\n"
+    },
+    {
+      "case_id": "extended-escape/clone/ascii",
+      "source": "\\u{61};\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/clone/unicode",
+      "source": "\\u{61};\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/synthetic/ascii",
+      "source": "\\u{61};\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/synthetic/unicode",
+      "source": "\\u{61};\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/foreign/ascii",
+      "source": "\\u{61};\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "extended-escape/foreign/unicode",
+      "source": "\\u{61};\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"a\";\n"
+    },
+    {
+      "case_id": "astral/parsed/ascii",
+      "source": "𐀀;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral/parsed/unicode",
+      "source": "𐀀;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral/clone/ascii",
+      "source": "𐀀;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral/clone/unicode",
+      "source": "𐀀;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral/synthetic/ascii",
+      "source": "𐀀;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral/synthetic/unicode",
+      "source": "𐀀;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral/foreign/ascii",
+      "source": "𐀀;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral/foreign/unicode",
+      "source": "𐀀;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral-escape/parsed/ascii",
+      "source": "\\u{10000};\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\\\u{10000}\";\n"
+    },
+    {
+      "case_id": "astral-escape/parsed/unicode",
+      "source": "\\u{10000};\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"\\\\u{10000}\";\n"
+    },
+    {
+      "case_id": "astral-escape/clone/ascii",
+      "source": "\\u{10000};\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral-escape/clone/unicode",
+      "source": "\\u{10000};\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral-escape/synthetic/ascii",
+      "source": "\\u{10000};\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral-escape/synthetic/unicode",
+      "source": "\\u{10000};\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "astral-escape/foreign/ascii",
+      "source": "\\u{10000};\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\\uDC00\";\n"
+    },
+    {
+      "case_id": "astral-escape/foreign/unicode",
+      "source": "\\u{10000};\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"𐀀\";\n"
+    },
+    {
+      "case_id": "mixed/parsed/ascii",
+      "source": "n\\u0061me;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"n\\\\u0061me\";\n"
+    },
+    {
+      "case_id": "mixed/parsed/unicode",
+      "source": "n\\u0061me;\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"n\\\\u0061me\";\n"
+    },
+    {
+      "case_id": "mixed/clone/ascii",
+      "source": "n\\u0061me;\n",
+      "origin": "clone",
+      "no_ascii_escaping": false,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "mixed/clone/unicode",
+      "source": "n\\u0061me;\n",
+      "origin": "clone",
+      "no_ascii_escaping": true,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "mixed/synthetic/ascii",
+      "source": "n\\u0061me;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": false,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "mixed/synthetic/unicode",
+      "source": "n\\u0061me;\n",
+      "origin": "synthetic",
+      "no_ascii_escaping": true,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "mixed/foreign/ascii",
+      "source": "n\\u0061me;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": false,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "mixed/foreign/unicode",
+      "source": "n\\u0061me;\n",
+      "origin": "foreign",
+      "no_ascii_escaping": true,
+      "output": "\"name\";\n"
+    },
+    {
+      "case_id": "single-quote/parsed/ascii",
+      "source": "'a\\\"b';\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "'a\\\"b';\n"
+    },
+    {
+      "case_id": "single-quote/parsed/unicode",
+      "source": "'a\\\"b';\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "'a\\\"b';\n"
+    },
+    {
+      "case_id": "line-continuation/parsed/ascii",
+      "source": "'a\\\nb';\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "'a\\\nb';\n"
+    },
+    {
+      "case_id": "line-continuation/parsed/unicode",
+      "source": "'a\\\nb';\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "'a\\\nb';\n"
+    },
+    {
+      "case_id": "string-unicode/parsed/ascii",
+      "source": "\"名前\";\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "string-unicode/parsed/unicode",
+      "source": "\"名前\";\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"名前\";\n"
+    },
+    {
+      "case_id": "lone-surrogate/parsed/ascii",
+      "source": "\"\\uD800\";\n",
+      "origin": "parsed",
+      "no_ascii_escaping": false,
+      "output": "\"\\uD800\";\n"
+    },
+    {
+      "case_id": "lone-surrogate/parsed/unicode",
+      "source": "\"\\uD800\";\n",
+      "origin": "parsed",
+      "no_ascii_escaping": true,
+      "output": "\"\\uD800\";\n"
+    }
+  ]
+}

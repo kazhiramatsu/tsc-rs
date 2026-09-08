@@ -1992,3 +1992,117 @@ fn base64_decode(encoded: &str) -> Vec<u8> {
     }
     out
 }
+
+#[test]
+fn import_publication_declaration_references_match_typescript_resolver() {
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/import-publication-resolver.json"
+    )))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 18);
+    for case in cases {
+        let label = case["case_id"].as_str().unwrap();
+        for _ in 0..2 {
+            let domain = IdentityDomain::reclaiming();
+            let options = CompilerOptions {
+                target: Some(ScriptTarget::ES2015.bits()),
+                module: Some(ModuleKind::COMMON_JS.bits()),
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            };
+            let root = case["roots"][0].as_str().unwrap();
+            let files = case["files"].as_array().unwrap();
+            let sources = files
+                .iter()
+                .filter(|row| row["path"] != root)
+                .chain(files.iter().filter(|row| row["path"] == root))
+                .map(|row| {
+                    Arc::new(
+                        tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                            row["path"].as_str().unwrap().to_owned(),
+                            TextSnapshot::new(
+                                row["text"].as_str().unwrap().to_owned(),
+                                DocumentVersion::new("1"),
+                            ),
+                            ParseOptions::default(),
+                            None,
+                            &domain,
+                        )
+                        .expect("resolver source identity"),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let documents = sources
+                .iter()
+                .map(|source| {
+                    let worker = BinderWorker::bind_in_identity_domain(source, &options, &domain)
+                        .expect("resolver binding identity");
+                    Arc::new(BoundDocument::new(
+                        Arc::new(ParsedDocument::new(Arc::clone(source))),
+                        worker.into_bind_data(),
+                    ))
+                })
+                .collect();
+            let snapshot = ProgramSnapshot::new(documents, 0).expect("resolver snapshot");
+            let index = sources.len() - 1;
+            let source = &sources[index];
+            let declarations = source
+                .arena
+                .node_ids()
+                .filter(|id| {
+                    matches!(
+                        source.arena.node(*id).kind,
+                        SyntaxKind::ImportClause
+                            | SyntaxKind::ImportSpecifier
+                            | SyntaxKind::NamespaceImport
+                            | SyntaxKind::ImportEqualsDeclaration
+                    )
+                })
+                .filter_map(|id| {
+                    node_util::get_name_of_declaration(source, id).map(|name| (id, name))
+                })
+                .collect::<Vec<_>>();
+            let expected = case["observations"].as_array().unwrap();
+            assert_eq!(declarations.len(), expected.len(), "{label}");
+            let mut state = CheckerState::from_snapshot(&snapshot, &options);
+            for index in 0..sources.len() {
+                state.check_source_file(index);
+            }
+            let session = CheckerSession::from_checked_state(state);
+            let source_id = u32::try_from(index).unwrap();
+            session.with_emit_resolver(|resolver| {
+                for ((declaration, name), expected) in declarations.iter().zip(expected) {
+                    let reference = EmitResolverNode::from_raw_source(source_id, *name);
+                    let expected_import = (!expected["import_declaration"].is_null())
+                        .then(|| EmitResolverNode::from_raw_source(source_id, *declaration));
+                    let expected_export = (!expected["export_container"].is_null())
+                        .then(|| EmitResolverNode::from_raw_source(source_id, source.root));
+                    assert_eq!(
+                        resolver
+                            .get_referenced_export_container(
+                                reference,
+                                tsc_emitter::EmitExportContainerMode::Reference,
+                            )
+                            .expect("declaration export projection"),
+                        expected_export,
+                        "{label}: export container",
+                    );
+                    assert_eq!(
+                        resolver
+                            .get_referenced_import_declaration(reference)
+                            .expect("declaration import projection"),
+                        expected_import,
+                        "{label}: import declaration",
+                    );
+                }
+            });
+        }
+        eprintln!("Import publication resolver EXACT x2 {label}");
+    }
+}

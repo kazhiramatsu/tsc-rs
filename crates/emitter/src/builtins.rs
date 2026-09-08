@@ -2809,7 +2809,8 @@ fn create_module_export_name_literal(
 #[derive(Clone, Debug)]
 struct ImportReExportPlan {
     exported_name: ModuleExportName,
-    binding: ImportBinding,
+    declaration: TransformNode,
+    local_name: TransformNode,
     live_binding: bool,
     location: TransformNode,
 }
@@ -5463,9 +5464,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Result<Vec<ImportReExportPlan>, TransformError> {
         let local = identifier_or_literal_text(self.context.arena(), local_name)?;
         let key = self.context.arena().get_original_node(declaration).node();
-        let Some(binding) = self.info.import_bindings.get(&key).cloned() else {
+        if !self.info.import_bindings.contains_key(&key) {
             return Ok(Vec::new());
-        };
+        }
         let exports = self
             .info
             .export_specifiers_by_local
@@ -5483,7 +5484,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .unwrap_or(local_name);
                 Ok(ImportReExportPlan {
                     exported_name,
-                    binding: binding.clone(),
+                    declaration,
+                    local_name,
                     live_binding,
                     location,
                 })
@@ -5495,8 +5497,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         plan: ImportReExportPlan,
     ) -> Result<TransformNode, TransformError> {
-        let target = self.create_identifier(&plan.binding.generated_name)?;
-        let value = create_import_binding_access(self.context, self.source, target, &plan.binding)?;
+        let value = self.create_import_publication_reference(plan.declaration, plan.local_name)?;
         let statement = if plan.live_binding {
             self.create_live_export_statement(&plan.exported_name, value)?
         } else {
@@ -5511,6 +5512,81 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .metadata_mut(statement)
             .add_flags(EmitFlags::NO_COMMENTS);
         Ok(statement)
+    }
+
+    /// tsc-port: getName @6.0.3
+    /// tsc-span: _tsc.js:24788-24799
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-port: appendExportsOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111743-111762
+    /// tsc-hash: b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2
+    /// tsc-port: substituteExpressionIdentifier @6.0.3
+    /// tsc-span: _tsc.js:111946-111989
+    /// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
+    fn create_import_publication_reference(
+        &mut self,
+        declaration: TransformNode,
+        local_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let ordinary_identifier = self.context.arena().node(local_name)?.kind
+            == SyntaxKind::Identifier
+            && self
+                .context
+                .arena()
+                .metadata(local_name)
+                .and_then(crate::EmitMetadata::generated_binding_id)
+                .is_none();
+        let name = if ordinary_identifier {
+            let name = self.context.factory()?.clone_node(local_name)?;
+            self.context.factory()?.set_text_range(name, local_name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(name)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            name
+        } else {
+            self.context.factory()?.get_generated_name_for_node(
+                declaration,
+                crate::GeneratedIdentifierFlags::NONE,
+                None,
+                None,
+            )?
+        };
+        if self.context.arena().metadata(name).is_some_and(|metadata| {
+            metadata.generated_binding_id().is_some()
+                || metadata
+                    .flags()
+                    .intersects(EmitFlags::LOCAL_NAME | EmitFlags::NO_SUBSTITUTION)
+        }) {
+            return Ok(name);
+        }
+        let resolver_node = self.resolver_node(name)?;
+        let exported_from_source = self
+            .resolver
+            .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
+            .and_then(|container| self.context.arena().node_ref(self.source, container.node()))
+            .and_then(|container| self.context.arena().node(container).ok())
+            .is_some_and(|container| container.kind == SyntaxKind::SourceFile);
+        let value = if exported_from_source {
+            let export = ModuleExportName::from_node(self.context.arena(), name)?;
+            self.create_export_access_from_module_name(&export)?
+        } else {
+            let Some(binding) = self.import_binding_for_reference(name)? else {
+                return Ok(name);
+            };
+            // Namespace and ordinary import-equals names remain local names;
+            // module.ts substitutes only import clauses and named specifiers.
+            if binding.property.is_none() {
+                return Ok(name);
+            }
+            let target = self.create_identifier(&binding.generated_name)?;
+            create_import_binding_access(self.context, self.source, target, &binding)?
+        };
+        // The replacement owns the declaration's range, while NoSourceMap and
+        // NoComments belong to the declaration-name clone. setOriginalNode
+        // would merge those flags onto the replacement access.
+        self.context.factory()?.set_text_range(value, name)?;
+        Ok(value)
     }
 
     fn create_live_export_statement(
@@ -5662,16 +5738,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "name",
             })?;
-        let mut re_exports = self.import_binding_re_exports(original, name, false)?;
-        if let ImportEqualsPublication::ExportObject { exported_name } = publication {
-            for re_export in &mut re_exports {
-                re_export.binding = ImportBinding {
-                    generated_name: "exports".into(),
-                    property: Some(exported_name.clone()),
-                    property_node: None,
-                };
-            }
-        }
+        let re_exports = self.import_binding_re_exports(original, name, false)?;
         for re_export in re_exports {
             statements.push(self.create_import_re_export_statement(re_export)?);
         }
