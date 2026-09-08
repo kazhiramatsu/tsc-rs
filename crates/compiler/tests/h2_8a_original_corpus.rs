@@ -37,3 +37,71 @@ fn original_export_assignment_annotations_match_complete_commands() {
     );
     assert_eq!(exact.len(), 8);
 }
+
+#[test]
+fn original_require_alias_declarations_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/compiler/requireOfJsonFileWithDeclaration.ts#default",
+        "typescript-6.0.3/conformance/declarationEmit/leaveOptionalParameterAsWritten.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des5",
+        "typescript-6.0.3/conformance/salsa/requireOfESWithPropertyAccess.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 22);
+}
+
+#[test]
+fn original_root_diagnostic_streams_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+        "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 6);
+}
+
+#[test]
+fn original_javascript_imports_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 7);
+}

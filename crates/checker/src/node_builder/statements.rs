@@ -3457,6 +3457,81 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
     }
 
+    /// tsc-port: serializeAsAlias @6.0.3 (variable/import-equals shared arm)
+    /// tsc-hash: 60776812c24ded3bcf5a0336651b8c0726ab37d473a3a104a5495b4937227277
+    /// tsc-span: _tsc.js:54707-54946
+    fn serialize_import_equals_alias(
+        &mut self,
+        symbol: SymbolId,
+        declaration: NodeId,
+        target: SymbolId,
+        local_name: &str,
+        modifier_flags: ModifierFlags,
+    ) -> BuildResult<()> {
+        let target_data = self.checker.binder.symbol(target).clone();
+        if target_data.escaped_name == tsc_types::InternalSymbolName::EXPORT_EQUALS
+            && target_data.declarations.iter().any(|&declaration| {
+                self.checker.kind_of(declaration) == SyntaxKind::SourceFile
+                    && self
+                        .checker
+                        .binder
+                        .flags_of(declaration)
+                        .intersects(NodeFlags::JSON_FILE)
+            })
+        {
+            let _ = self.serialize_maybe_alias_assignment(symbol)?;
+            return Ok(());
+        }
+        let is_local_import = !target_data.flags.intersects(SymbolFlags::VALUE_MODULE)
+            && self.checker.kind_of(declaration) != SyntaxKind::VariableDeclaration;
+        add_approximate_length(
+            self.context,
+            11 + local_name.encode_utf16().count()
+                + tsc_binder::unescape_leading_underscores(&target_data.escaped_name)
+                    .encode_utf16()
+                    .count(),
+        );
+        let name = create_identifier(self.arena, self.target, local_name)?;
+        let module_reference = if is_local_import {
+            chains_symbol_to_entity_name_node(
+                self.checker,
+                self.arena,
+                self.target,
+                self.context,
+                target,
+            )?
+        } else {
+            let specifier = specifier_for_module_symbol(self.checker, self.context, target, None)?;
+            let specifier = create_string_literal(self.arena, self.target, specifier)?;
+            create_node(
+                self.arena,
+                self.target,
+                NodeData::ExternalModuleReference(ExternalModuleReferenceData {
+                    expression: Some(specifier.node()),
+                }),
+            )?
+        };
+        let import = create_node(
+            self.arena,
+            self.target,
+            NodeData::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                name: Some(name.node()),
+                modifiers: None,
+                is_type_only: false,
+                module_reference: Some(module_reference.node()),
+            }),
+        )?;
+        self.add_result(
+            import,
+            if is_local_import {
+                modifier_flags
+            } else {
+                ModifierFlags::NONE
+            },
+        )?;
+        Ok(())
+    }
+
     /// tsc-port: serializeAsAlias @6.0.3
     /// tsc-hash: 60776812c24ded3bcf5a0336651b8c0726ab37d473a3a104a5495b4937227277
     /// tsc-span: _tsc.js:54707-54946
@@ -3558,12 +3633,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 let NodeData::PropertyAccessExpression(initializer) =
                     self.checker.data_of(initializer_id)
                 else {
-                    return Err(factory_error(
-                        tsc_emitter::TransformError::FactoryKindMismatch {
-                            expected: SyntaxKind::PropertyAccessExpression,
-                            actual: self.checker.kind_of(initializer_id),
-                        },
-                    ));
+                    return self.serialize_import_equals_alias(
+                        symbol,
+                        declaration,
+                        target,
+                        local_name,
+                        modifier_flags,
+                    );
                 };
                 let initializer_name_id = initializer.name.ok_or_else(|| {
                     factory_error(tsc_emitter::TransformError::RequiredChildRemoved {
@@ -3585,10 +3661,15 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .factory()
                     .create_unique_name(self.target, local_name, GeneratedIdentifierFlags::NONE)
                     .map_err(factory_error)?;
-                let specifier =
-                    specifier_for_module_symbol(self.checker, self.context, target, None)?;
+                let specifier = specifier_for_module_symbol(
+                    self.checker,
+                    self.context,
+                    target_data.parent.unwrap_or(target),
+                    None,
+                )?;
                 let first_length =
                     22 + specifier.encode_utf16().count() + local_name.encode_utf16().count();
+                add_approximate_length(self.context, first_length);
                 let module = create_string_literal(self.arena, self.target, specifier)?;
                 let module_reference = self
                     .arena
@@ -3606,9 +3687,14 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         module_reference,
                     )
                     .map_err(factory_error)?;
-                add_approximate_length(self.context, first_length);
                 self.add_result(first, ModifierFlags::NONE)?;
 
+                add_approximate_length(
+                    self.context,
+                    12 + local_name.encode_utf16().count()
+                        + local_name.encode_utf16().count()
+                        + initializer_name.encode_utf16().count(),
+                );
                 let name = create_identifier(self.arena, self.target, local_name)?;
                 let member = create_identifier(self.arena, self.target, &initializer_name)?;
                 let qualified = self
@@ -3621,65 +3707,15 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .factory()
                     .create_import_equals_declaration(self.target, None, false, name, qualified)
                     .map_err(factory_error)?;
-                add_approximate_length(
-                    self.context,
-                    12 + local_name.encode_utf16().count()
-                        + local_name.encode_utf16().count()
-                        + initializer_name.encode_utf16().count(),
-                );
                 self.add_result(second, modifier_flags)?;
             }
             SyntaxKind::ImportEqualsDeclaration => {
-                let is_local_import = !target_data.flags.intersects(SymbolFlags::VALUE_MODULE);
-                let module_reference = if is_local_import {
-                    chains_symbol_to_entity_name_node(
-                        self.checker,
-                        self.arena,
-                        self.target,
-                        self.context,
-                        target,
-                    )?
-                } else {
-                    let specifier =
-                        specifier_for_module_symbol(self.checker, self.context, target, None)?;
-                    let specifier = create_string_literal(self.arena, self.target, specifier)?;
-                    create_node(
-                        self.arena,
-                        self.target,
-                        NodeData::ExternalModuleReference(ExternalModuleReferenceData {
-                            expression: Some(specifier.node()),
-                        }),
-                    )?
-                };
-                let is_type_only = match self.checker.data_of(declaration) {
-                    NodeData::ImportEqualsDeclaration(data) => data.is_type_only,
-                    _ => false,
-                };
-                let name = create_identifier(self.arena, self.target, local_name)?;
-                let import = create_node(
-                    self.arena,
-                    self.target,
-                    NodeData::ImportEqualsDeclaration(ImportEqualsDeclarationData {
-                        name: Some(name.node()),
-                        modifiers: None,
-                        is_type_only,
-                        module_reference: Some(module_reference.node()),
-                    }),
-                )?;
-                add_approximate_length(
-                    self.context,
-                    11 + local_name.encode_utf16().count()
-                        + tsc_binder::unescape_leading_underscores(&target_data.escaped_name)
-                            .encode_utf16()
-                            .count(),
-                );
-                self.add_result(
-                    import,
-                    if is_local_import {
-                        modifier_flags
-                    } else {
-                        ModifierFlags::NONE
-                    },
+                self.serialize_import_equals_alias(
+                    symbol,
+                    declaration,
+                    target,
+                    local_name,
+                    modifier_flags,
                 )?;
             }
             SyntaxKind::ImportClause => {

@@ -1801,7 +1801,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.program_diagnostics
             .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
-        let option_diagnostics = self.output_directory_diagnostics();
+        let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = self
             .postorder
             .iter()
@@ -1836,7 +1837,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     /// tsc-port: verifyCompilerOptions @6.0.3 (output directories)
     /// tsc-hash: 37d75cd1533127623cddc13e96bd9dec83595c91e1c2cc7166c7e2b27bfeaeeb
     /// tsc-span: _tsc.js:124907-124943
-    fn output_directory_diagnostics(&self) -> Vec<Diagnostic> {
+    /// tsc-port: checkSourceFilesBelongToPath @6.0.3
+    /// tsc-hash: ce80660462a7406eafca61b870f95cc1d860753bbf6a7f7b4c97a857a0fec137
+    /// tsc-span: _tsc.js:124639-124657
+    /// Root diagnostics join the Program collection; its consumers select
+    /// fileless option diagnostics and source-owned semantic diagnostics.
+    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<Diagnostic>) {
         use crate::output_directories::{
             canonical_emit_path, common_source_directory, directory_relative_to_config,
             inferred_common_source_directory, source_file_may_be_emitted_for_options,
@@ -1862,7 +1868,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 || active(&options.out_file)
                 || declarations && active(&options.declaration_dir));
         if !verify && !migration {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         }
 
         let context = self.resolver.path_context();
@@ -1895,6 +1901,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             case_sensitive,
         );
         let mut diagnostics = Vec::new();
+        let mut root_diagnostics = Vec::new();
         let root = options
             .root_dir
             .as_deref()
@@ -1919,7 +1926,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     .to_string_lossy()
                     .starts_with(canonical_root.to_string_lossy().as_ref())
                 {
-                    diagnostics.push(root_directory_diagnostic(
+                    root_diagnostics.push(root_directory_diagnostic(
                         source,
                         &root,
                         self.program_options.config_file(),
@@ -1978,7 +1985,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 );
             }
         }
-        diagnostics
+        (diagnostics, root_diagnostics)
     }
 
     fn visit_source(

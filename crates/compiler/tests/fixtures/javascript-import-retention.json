@@ -1,0 +1,3330 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "5deaff2b0643f205e39280060b16b4c45229d7ba60333a2c5e020a5d788a24a3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "ts/commonjs/default",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/commonjs/namespace",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/commonjs/named",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/commonjs/type-only",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/commonjs/import-equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/esnext/default",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/esnext/namespace",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/esnext/named",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/esnext/type-only",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/esnext/import-equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1202,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 0,
+            "length": 40,
+            "message": "Import assignment cannot be used when targeting ECMAScript modules. Consider using 'import * as ns from \"mod\"', 'import {a} from \"mod\"', 'import d from \"mod\"', or another module format instead.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/node-esm/default",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-esm/namespace",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-esm/named",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-esm/type-only",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-esm/import-equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-cjs/default",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-cjs/namespace",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-cjs/named",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-cjs/type-only",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/node-cjs/import-equals",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.ts"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/commonjs/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 320,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 320,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/commonjs/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 1565,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 1565,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/commonjs/named",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcF9qc18xID0gcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 161,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcF9qc18xID0gcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 161,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/commonjs/type-only",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8006,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 38,
+            "message": "'import type' declarations can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/commonjs/import-equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcGVuZGVuY3kgPSByZXF1aXJlKCIuL2RlcC5qcyIpOw0KZXhwb3J0cy5rZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 163,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcGVuZGVuY3kgPSByZXF1aXJlKCIuL2RlcC5qcyIpOw0KZXhwb3J0cy5rZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 163,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8002,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 40,
+            "message": "'import ... =' can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/esnext/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHZhbHVlIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHZhbHVlIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/esnext/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0ICogYXMgdmFsdWVzIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICogYXMgdmFsdWVzIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/esnext/named",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuL2RlcC5qcyc7DQpleHBvcnQgY29uc3Qga2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 59,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuL2RlcC5qcyc7DQpleHBvcnQgY29uc3Qga2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 59,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/esnext/type-only",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8006,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 38,
+            "message": "'import type' declarations can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/esnext/import-equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8002,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 40,
+            "message": "'import ... =' can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/node-esm/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHZhbHVlIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHZhbHVlIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-esm/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0ICogYXMgdmFsdWVzIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0ICogYXMgdmFsdWVzIGZyb20gJy4vZGVwLmpzJzsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-esm/named",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuL2RlcC5qcyc7DQpleHBvcnQgY29uc3Qga2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 59,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuL2RlcC5qcyc7DQpleHBvcnQgY29uc3Qga2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 59,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-esm/type-only",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGtlZXAgPSAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8006,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 38,
+            "message": "'import type' declarations can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/node-esm/import-equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KY29uc3QgZGVwZW5kZW5jeSA9IF9fcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 178,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KY29uc3QgZGVwZW5kZW5jeSA9IF9fcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydCBjb25zdCBrZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 178,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8002,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 40,
+            "message": "'import ... =' can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/node-cjs/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 320,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 320,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-cjs/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 1565,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 1565,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-cjs/named",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcF9qc18xID0gcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 161,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcF9qc18xID0gcmVxdWlyZSgiLi9kZXAuanMiKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 161,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/node-cjs/type-only",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import type { Shape } from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8006,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 38,
+            "message": "'import type' declarations can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/node-cjs/import-equals",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import dependency = require('./dep.js');\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 199
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcGVuZGVuY3kgPSByZXF1aXJlKCIuL2RlcC5qcyIpOw0KZXhwb3J0cy5rZWVwID0gMTsNCg==",
+            "callback_utf8_bytes": 163,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IGRlcGVuZGVuY3kgPSByZXF1aXJlKCIuL2RlcC5qcyIpOw0KZXhwb3J0cy5rZWVwID0gMTsNCg==",
+            "materialized_utf8_bytes": 163,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 8002,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 0,
+            "length": 40,
+            "message": "'import ... =' can only be used in TypeScript files.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/checkJs-false/default",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import value from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 320,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9faW1wb3J0RGVmYXVsdCA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnREZWZhdWx0KSB8fCBmdW5jdGlvbiAobW9kKSB7DQogICAgcmV0dXJuIChtb2QgJiYgbW9kLl9fZXNNb2R1bGUpID8gbW9kIDogeyAiZGVmYXVsdCI6IG1vZCB9Ow0KfTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLmtlZXAgPSB2b2lkIDA7DQpjb25zdCBkZXBfanNfMSA9IF9faW1wb3J0RGVmYXVsdChyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 320,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "js/checkJs-false/namespace",
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import * as values from './dep.js';\nexport const keep = 1;\n"
+        },
+        {
+          "path": "/project/dep.ts",
+          "text": "export interface Shape { value: number }\nexport const value = 2;\nexport default value;\n"
+        }
+      ],
+      "roots": [
+        "/project/main.js"
+      ],
+      "options": {
+        "target": 9,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/dep.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMuZGVmYXVsdCA9IGV4cG9ydHMudmFsdWU7DQo=",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/dep.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "callback_utf8_bytes": 1565,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMua2VlcCA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlcyA9IF9faW1wb3J0U3RhcihyZXF1aXJlKCIuL2RlcC5qcyIpKTsNCmV4cG9ydHMua2VlcCA9IDE7DQo=",
+            "materialized_utf8_bytes": 1565,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

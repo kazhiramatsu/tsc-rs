@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-3",
+  "base": "43e1107e823727df2a62caa88463326f41337e34",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-root-diagnostic-streams.md",
+      "sha256": "ad258797362111d2b792d65216b407cd61dfa94f7d6f588060c759c130e162fd"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-global-before.v1.json",
+      "sha256": "d8beabca4abf261656a3d7897a6c042b1b448fdf17b84cf54a384376a0b9a11e"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/program/src/loader.rs",
+      "sha256": "4d4142bc9ebf29064b75d578d04fd2cdb91b5a5aaabc8f88ac7a648b664d027c"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "dbb4f77c549791f38b225c3d93305cc311a9bdb75b8560ead8529149e1b40d37"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "sha256": "c5bc6315e91481c58273bdc926be0459fd877593d34e9467789280b610ed1286"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getOptionsDiagnostics",
+      "start": 124024,
+      "end": 124029,
+      "sha256": "7dd9bd43ca95058209d0fcc5948010fb8c5a94598db3426e65ef5fede7f1467a"
+    },
+    {
+      "owner": "checkSourceFilesBelongToPath",
+      "start": 124639,
+      "end": 124657,
+      "sha256": "ce80660462a7406eafca61b870f95cc1d860753bbf6a7f7b4c97a857a0fec137"
+    },
+    {
+      "owner": "emitFilesAndReportErrors",
+      "start": 129412,
+      "end": 129467,
+      "sha256": "9dc0128691c9a1bee5aeae85524cc8e2679b3905a4416a41095452e509951a8d"
+    },
+    {
+      "owner": "getProgramDiagnostics",
+      "start": 123663,
+      "end": 123673,
+      "sha256": "9753e07619a4ecdb74e77cfdfcd4158359d009fb5e97da637d248bb88b054e47"
+    },
+    {
+      "owner": "getSemanticDiagnosticsForFile",
+      "start": 123696,
+      "end": 123701,
+      "sha256": "4ce16a23f0eaec264998b7e21cb6635abf976ef4d6507b9b0d73d20fd2d36ecd"
+    },
+    {
+      "owner": "createDiagnosticExplainingFile",
+      "start": 125851,
+      "end": 125932,
+      "sha256": "a52da4c2aafdb0c939e2bf00de5064eb03340c4858ad40378af65b5b6c9de41d"
+    }
+  ],
+  "steps": [
+    "A6-3-1",
+    "A6-3-2"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-PLAN-SCRIPT",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "test": "crates/compiler/tests/h2_8a_original_corpus.rs",
+  "witnesses": [
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
+      "input_sha256": "8998012fbbf3e1dc44d86cc609eba6357d6c9a21b3a971b6d563a9cd1c89d4b0",
+      "observation_sha256": "578300f4bac692d1eb2189c9a18b8b67be363f34ee979bc5db94c16fa5f90661",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts#default",
+      "input_sha256": "35206bd4347103232e5497b3de0138de42889cbfc49c531b93f84a510c070f46",
+      "observation_sha256": "8662c87e541ec5c426942c2c6d425c9c47e0d676f371d41634c52beef91d7ffa",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+      "input_sha256": "f5125797c31dc4d3f78aa9905a42d480fc53622cff09df27cb9a5d9739e84728",
+      "observation_sha256": "894e76d785f727ab800be2b160ed324f08b505f508b12dc1e6817934a9838d1c",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts#default",
+      "input_sha256": "a3107dbc7cd46a063b4a354c50b25106ab9a5c025b0c86905fb7c2d8152fb189",
+      "observation_sha256": "407edc85a7ba413aa956f02bff0a1eed210a3a241426f19184e0e06073871c48",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+      "input_sha256": "f70b91303b625359f8f7e76d294648c6a1770c990315a5f8ed97ca62a261b132",
+      "observation_sha256": "cb3422aa784fc1ef7a1d2035d05e472f69c995ce4c3add96fbf8251accec8a77",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts#default",
+      "input_sha256": "9e1dca76941ed3714a2a6fd74571edb165f2805b235710ee37286ac026cbf66b",
+      "observation_sha256": "1148e80d459932faecbf6628b59a41dcd4db006ef037b708fb7908fc274bd19c",
+      "before": "exact"
+    }
+  ]
+}

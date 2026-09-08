@@ -124,3 +124,6 @@ mod h2_7c_corpus;
 
 #[path = "integration/h2_8a_package_output_inputs.rs"]
 mod h2_8a_package_output_inputs;
+
+#[path = "integration/h2_8a_javascript_imports.rs"]
+mod h2_8a_javascript_imports;

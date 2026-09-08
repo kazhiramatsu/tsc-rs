@@ -414,6 +414,7 @@ pub fn transform_type_script<'resolver>(
         preserve_const_enums: options.should_preserve_const_enums(),
         isolated_modules: options.isolated_modules == Some(true)
             || options.verbatim_module_syntax == Some(true),
+        verbatim_module_syntax: options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
         allow_legacy_decorators: true,
@@ -488,6 +489,7 @@ struct TypeScriptTransformer<'resolver> {
     module_kind: i32,
     preserve_const_enums: bool,
     isolated_modules: bool,
+    verbatim_module_syntax: bool,
     remove_comments: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
@@ -561,6 +563,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.project_parameter_properties_for_class_fields,
             self.downlevel_iteration,
             self.promote_class_iife,
+            self.verbatim_module_syntax,
         );
         let transformed = visitor.visit_typescript(root_node.node())?.ok_or(
             TransformError::RequiredChildRemoved {
@@ -1528,6 +1531,9 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             parent: SyntaxKind::ExternalModuleReference,
             field: "expression",
         })?;
+        // getExternalModuleNameLiteral's ordinary fallback preserves the
+        // literal's original-node link through a synthesized clone.
+        let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
         let require = if self.module_kind == MODULE_PRESERVE {
             self.create_identifier("require")?
         } else {
@@ -10009,6 +10015,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     project_parameter_properties_for_class_fields: bool,
     downlevel_iteration: bool,
     promote_class_iife: bool,
+    verbatim_module_syntax: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
@@ -10123,6 +10130,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         project_parameter_properties_for_class_fields: bool,
         downlevel_iteration: bool,
         promote_class_iife: bool,
+        verbatim_module_syntax: bool,
     ) -> Self {
         let source_identifier_names = system::collect_identifier_texts(context.arena(), source);
         Self {
@@ -10134,6 +10142,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             project_parameter_properties_for_class_fields,
             downlevel_iteration,
             promote_class_iife,
+            verbatim_module_syntax,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             class_member_arrays: BTreeMap::new(),
@@ -13524,6 +13533,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
     }
 
+    /// tsc-port: shouldEmitAliasDeclaration @6.0.3
+    /// tsc-hash: 768f0d459b8a033e5fbad0737593ac3b03d7f123c30ea33737cb92ce2d6604d1
+    /// tsc-span: _tsc.js:95846-95848
+    fn should_emit_alias_declaration(&self, node: TransformNode) -> Result<bool, TransformError> {
+        Ok(self.verbatim_module_syntax
+            || NodeFlags::from_bits(self.context.arena().node(node)?.flags)
+                .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+            || self
+                .resolver
+                .is_referenced_alias_declaration(self.resolver_node(node)?)?)
+    }
+
     fn visit_import_declaration(
         &mut self,
         original: TransformNode,
@@ -13559,8 +13580,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     /// tsc-port: visitImportEqualsDeclaration @6.0.3
-    /// tsc-hash: 5ef8a385c17d4f71d34bdb72046973d6ddc5012c9e4c705883c5263d5629c703
-    /// tsc-span: _tsc.js:95600-95644
+    /// tsc-hash: b05420512b8b9e2333d1b23ed7ec1b6a327903fcc381ed44f3fa5f46ff66c7ef
+    /// tsc-span: _tsc.js:95605-95653
     fn visit_import_equals_declaration(
         &mut self,
         original: TransformNode,
@@ -13576,9 +13597,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "module_reference",
             })?;
-        let referenced = self
-            .resolver
-            .is_referenced_alias_declaration(self.resolver_node(original)?)?;
+        let referenced = self.should_emit_alias_declaration(original)?;
         if self.context.arena().node(module_reference)?.kind == SyntaxKind::ExternalModuleReference
         {
             if !referenced {
@@ -13731,11 +13750,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::ImportClauseData,
     ) -> Result<Option<TransformNode>, TransformError> {
-        if data.name.is_some()
-            && !self
-                .resolver
-                .is_referenced_alias_declaration(self.resolver_node(original)?)?
-        {
+        if data.name.is_some() && !self.should_emit_alias_declaration(original)? {
             data.name = None;
         }
         if let Some(bindings) = data.named_bindings {
@@ -13752,10 +13767,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let node = self.node(id);
         match self.context.arena().node(node)?.data.clone() {
             NodeData::NamespaceImport(_data) => {
-                if self
-                    .resolver
-                    .is_referenced_alias_declaration(self.resolver_node(node)?)?
-                {
+                if self.should_emit_alias_declaration(node)? {
                     Ok(Some(id))
                 } else {
                     Ok(None)
@@ -13779,11 +13791,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         NodeData::ImportSpecifier(data) => data.is_type_only,
                         _ => false,
                     };
-                    if !is_type_only
-                        && self
-                            .resolver
-                            .is_referenced_alias_declaration(self.resolver_node(specifier_node)?)?
-                    {
+                    if !is_type_only && self.should_emit_alias_declaration(specifier_node)? {
                         retained.push(specifier_node);
                     }
                 }
