@@ -248,3 +248,20 @@ fn original_jsdoc_implements_match_complete_commands() {
     );
     assert_eq!(exact.len(), 8);
 }
+
+#[test]
+fn original_commonjs_esmodule_markers_match_complete_commands() {
+    let mut ids = ["node16", "node18", "node20", "nodenext"]
+        .into_iter()
+        .map(|module| format!("typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3D{module}"))
+        .collect::<Vec<_>>();
+    ids.extend(["node18", "node20", "nodenext"].into_iter().map(|module| {
+        format!("typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3D{module}")
+    }));
+    let names = ids.iter().map(String::as_str).collect::<Vec<_>>();
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 7);
+}

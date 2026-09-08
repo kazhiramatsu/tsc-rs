@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "status": "test-harness-borrow-error-before-execution",
+  "base": "6acce5e014d8c572769e59281ef11fdc987a3f5c",
+  "exit_code": 101,
+  "tests_executed": 0,
+  "native_command_executions": 0,
+  "error": "E0505: ParsedDocument moves source while BinderWorker still borrows it",
+  "repair": "clone the source Arc into ParsedDocument in the new checker test; production unchanged",
+  "working_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "102b2735d56e0e4bbf6c30e4d1743e2498a5bb97b6b43529816b6e56f5373a9f"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "3be53e2b5b6deadcd518a4279148ff8711a0792f78d59151d2f1eae68f904700"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "106c71ac556d64410af23304f3fae3540b6dccbc4eb44092478db8dd08bc482f"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-esmodule-marker.md",
+      "sha256": "bc5cff827091e14a153fe01898a0c0842de7432c025e31f34d3698b81c630dd2"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-before.v1.json",
+      "sha256": "a1d4ceb026808353643f5a785dd3b0e5a0871400ace2f260a68f47a01a7cbc09"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-readiness.v1.json",
+      "sha256": "0442fd4ee96c7720e1f8de4e990611ef69099ea196c52dd617802707c2b12495"
+    },
+    {
+      "path": "scripts/check-commonjs-esmodule-marker-readiness.py",
+      "sha256": "c9e93236544a5401eb215294524f4bb1daff6e054cd4f0a95211a670fc47add0"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-after-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-prelaunch.json",
+      "sha256": "cc003e1424bcfa44094ec23425a082038aac3736bf96e8dfed1b482beeb4bbe1"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct.log",
+      "sha256": "0ba6390305be8c00d3e86d1cc5176c4856790452e551f658c4839614caea8f02"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-commonjs-marker-direct-build-bz9gl3ru"
+}

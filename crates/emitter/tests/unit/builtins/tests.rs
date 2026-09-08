@@ -5707,3 +5707,214 @@ fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
         "updated class expression flag differences: {failures:?}"
     );
 }
+
+// The complete compiler fixture owns output bytes; these controls own the
+// borrowing resolver boundary, parser sentinel identity and error cleanup.
+struct CommonJsMarkerResolver {
+    answer: Result<bool, EmitResolverError>,
+    calls: std::cell::RefCell<Vec<EmitResolverNode>>,
+}
+
+impl EmitResolver for CommonJsMarkerResolver {
+    fn is_common_js_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.calls.borrow_mut().push(node);
+        self.answer.clone()
+    }
+
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+struct CommonJsMarkerCleanupProbe<'a> {
+    inner: Box<dyn crate::Transformer + 'a>,
+    observed: &'a std::cell::Cell<bool>,
+}
+
+impl crate::Transformer for CommonJsMarkerCleanupProbe<'_> {
+    fn name(&self) -> &'static str {
+        "CommonJS marker lexical environment probe"
+    }
+    fn initialize(
+        &mut self,
+        context: &mut crate::TransformationContext,
+    ) -> Result<(), crate::TransformError> {
+        self.inner.initialize(context)
+    }
+    fn transform_root(
+        &mut self,
+        context: &mut crate::TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, crate::TransformError> {
+        context.start_lexical_environment()?;
+        context
+            .set_lexical_environment_flags(crate::LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
+        let result = self.inner.transform_root(context, root);
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::IN_PARAMETERS
+        );
+        context.end_lexical_environment()?;
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::NONE
+        );
+        self.observed.set(true);
+        result
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
+    use crate::EmitResolverMethod;
+    // A real ESM node, TS filename, absent indicator, or export-equals decides
+    // the marker independently of the new fallible binder query.
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (file, text, forced, queried, marker) in [
+            ("module.js", "exports.value = 1;", true, true, false),
+            ("module.jsx", "exports.value = 1;", true, true, false),
+            ("module.mjs", "exports.value = 1;", true, true, false),
+            ("module.cjs", "exports.value = 1;", true, true, false),
+            (
+                "module.js",
+                "exports.value = 1; export {};",
+                true,
+                false,
+                true,
+            ),
+            ("module.ts", ";", true, false, true),
+            ("module.JS", ";", true, false, true),
+            (".js", ";", true, false, true),
+            ("module.js", "exports.value = 1;", false, false, false),
+            ("module.cts", "export = 1;", true, false, false),
+        ] {
+            let parsed = parse_source_file(
+                file,
+                text,
+                ParseOptions {
+                    javascript_file: !file.ends_with(".ts") && !file.ends_with(".cts"),
+                    force_external_module: forced,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            let program_source = SourceFileId::from_raw(17);
+            let query = EmitResolverNode::new(program_source, parsed.root);
+            let options = CompilerOptions {
+                module: Some(module.bits()),
+                target: Some(ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            };
+            for answer in [
+                Ok(true),
+                Ok(false),
+                Err(EmitResolverError::Unavailable {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                }),
+                Err(EmitResolverError::CheckerAborted {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                    reason: "marker query fault",
+                }),
+            ] {
+                let resolver = CommonJsMarkerResolver {
+                    answer: answer.clone(),
+                    calls: Default::default(),
+                };
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(program_source));
+                let cleanup = std::cell::Cell::new(false);
+                let transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    vec![Box::new(CommonJsMarkerCleanupProbe {
+                        inner: transform_module(&options, &resolver),
+                        observed: &cleanup,
+                    })],
+                    false,
+                );
+                assert!(cleanup.get(), "{file} {module:?} {answer:?}");
+                assert_eq!(
+                    *resolver.calls.borrow(),
+                    if queried { vec![query] } else { vec![] },
+                    "{file} {module:?}"
+                );
+                if let Err(error) = &answer {
+                    if queried {
+                        assert!(
+                            matches!(&transformed, Err(crate::TransformError::Resolver(actual)) if actual == error)
+                        );
+                        continue;
+                    }
+                }
+                let mut transformed = transformed.expect("marker transform");
+                if queried {
+                    // Adding the strict prologue has replaced syntax.root, but
+                    // the query must still carry the original program root.
+                    assert_ne!(
+                        transformed.arena().root(source).unwrap().node(),
+                        parsed.root
+                    );
+                }
+                let output = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+                    .print(&mut transformed, PrintRequest::SourceFile(source), None)
+                    .unwrap();
+                let want_marker = if queried { !answer.unwrap() } else { marker };
+                assert_eq!(
+                    output
+                        .text()
+                        .contains("Object.defineProperty(exports, \"__esModule\""),
+                    want_marker,
+                    "{file} {module:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_resolver_default_is_typed_unavailable() {
+    let parsed = parse_source_file("module.js", ";", ParseOptions::default(), None);
+    let node = EmitResolverNode::new(SourceFileId::from_raw(5), parsed.root);
+    assert_eq!(
+        LegacyScriptJsxResolver.is_common_js_module(node),
+        Err(EmitResolverError::Unavailable {
+            method: crate::EmitResolverMethod::IsCommonJsModule,
+            node
+        })
+    );
+    assert_eq!(
+        crate::EmitResolverMethod::IsCommonJsModule.name(),
+        "isCommonJsModule"
+    );
+}

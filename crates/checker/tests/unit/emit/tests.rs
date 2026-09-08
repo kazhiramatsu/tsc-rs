@@ -2106,3 +2106,88 @@ fn import_publication_declaration_references_match_typescript_resolver() {
         eprintln!("Import publication resolver EXACT x2 {label}");
     }
 }
+
+#[test]
+fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
+    let options = CompilerOptions {
+        allow_js: true,
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        ..CompilerOptions::default()
+    };
+    let domain = IdentityDomain::reclaiming();
+    let mut documents = Vec::new();
+    let mut expected = Vec::new();
+    for (file, text, forced, common_js, external) in [
+        ("auto.js", "exports.value = 1;", false, true, false),
+        ("forced.js", "exports.value = 1;", true, true, true),
+        ("empty.js", ";", true, false, true),
+        (
+            "real.js",
+            "exports.value = 1; export {};",
+            true,
+            false,
+            true,
+        ),
+        ("assigned.cjs", "module.exports = 1;", false, true, false),
+        ("required.js", "require('./dep');", true, true, true),
+    ] {
+        let source = Arc::new(
+            tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                file.to_owned(),
+                TextSnapshot::new(text.to_owned(), DocumentVersion::new("1")),
+                ParseOptions {
+                    javascript_file: true,
+                    force_external_module: forced,
+                    ..ParseOptions::default()
+                },
+                None,
+                &domain,
+            )
+            .unwrap(),
+        );
+        assert!(source.parse_diagnostics.is_empty());
+        let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain).unwrap();
+        expected.push((source.root, common_js, external));
+        documents.push(Arc::new(BoundDocument::new(
+            Arc::new(ParsedDocument::new(Arc::clone(&source))),
+            worker.into_bind_data(),
+        )));
+    }
+    let snapshot = ProgramSnapshot::new(documents, 0).unwrap();
+    let session = CheckerSession::from_snapshot(&snapshot, &options);
+    session.with_emit_resolver(|resolver| {
+        for (index, &(root, common_js, external)) in expected.iter().enumerate() {
+            let node = EmitResolverNode::from_raw_source(index as u32, root);
+            assert_eq!(
+                resolver.is_common_js_module(node),
+                Ok(common_js),
+                "source {index}"
+            );
+            assert_eq!(
+                resolver.is_external_or_common_js_module(node),
+                Ok(common_js || external),
+                "source {index}"
+            );
+        }
+        let method = EmitResolverMethod::IsCommonJsModule;
+        let node = EmitResolverNode::from_raw_source(99, expected[0].0);
+        assert_eq!(
+            resolver.is_common_js_module(node),
+            Err(EmitResolverError::UnknownSource { method, node })
+        );
+        let node = EmitResolverNode::from_raw_source(0, expected[1].0);
+        assert_eq!(
+            resolver.is_common_js_module(node),
+            Err(EmitResolverError::SourceNodeMismatch {
+                method,
+                node,
+                actual_program_index: 1
+            })
+        );
+        let node = EmitResolverNode::from_raw_source(0, NodeId(u32::MAX));
+        assert_eq!(
+            resolver.is_common_js_module(node),
+            Err(EmitResolverError::UnknownNode { method, node })
+        );
+    });
+}

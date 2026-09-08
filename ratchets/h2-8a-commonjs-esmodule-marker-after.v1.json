@@ -1,0 +1,819 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-two-unchanged-module-selection-residues",
+  "base": "6acce5e014d8c572769e59281ef11fdc987a3f5c",
+  "production_paths": [
+    "crates/checker/src/emit.rs",
+    "crates/checker/src/program.rs",
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/resolver.rs"
+  ],
+  "complete_commands_eligible": 397,
+  "complete_commands_exact_twice": 395,
+  "analysis": {
+    "eligible": 397,
+    "exact_twice": 395,
+    "failed_once": 2,
+    "exit_code": 101,
+    "native_command_executions": 792,
+    "fresh_exact_twice": 89,
+    "fresh_owned_fixed": 28,
+    "original_exact_twice": 7,
+    "adjacent_exact_twice": 299,
+    "exact_case_ids_by_label": {
+      "CommonJS esModule marker": [
+        "commonjs-marker/commonjs/js-exports-auto",
+        "commonjs-marker/commonjs/js-exports-force",
+        "commonjs-marker/commonjs/js-exports-legacy",
+        "commonjs-marker/commonjs/js-module-exports-auto",
+        "commonjs-marker/commonjs/js-require-only-force",
+        "commonjs-marker/commonjs/js-no-commonjs-force",
+        "commonjs-marker/commonjs/js-real-esm-mixed",
+        "commonjs-marker/commonjs/js-real-esm",
+        "commonjs-marker/commonjs/jsx-exports-force",
+        "commonjs-marker/commonjs/cjs-exports-auto",
+        "commonjs-marker/commonjs/mjs-exports-auto",
+        "commonjs-marker/commonjs/cts-export-equals",
+        "commonjs-marker/commonjs/ts-real-esm",
+        "commonjs-marker/amd/js-exports-auto",
+        "commonjs-marker/amd/js-exports-force",
+        "commonjs-marker/amd/js-exports-legacy",
+        "commonjs-marker/amd/js-module-exports-auto",
+        "commonjs-marker/amd/js-require-only-force",
+        "commonjs-marker/amd/js-no-commonjs-force",
+        "commonjs-marker/amd/js-real-esm-mixed",
+        "commonjs-marker/amd/js-real-esm",
+        "commonjs-marker/amd/jsx-exports-force",
+        "commonjs-marker/amd/cjs-exports-auto",
+        "commonjs-marker/amd/cts-export-equals",
+        "commonjs-marker/amd/ts-real-esm",
+        "commonjs-marker/umd/js-exports-auto",
+        "commonjs-marker/umd/js-exports-force",
+        "commonjs-marker/umd/js-exports-legacy",
+        "commonjs-marker/umd/js-module-exports-auto",
+        "commonjs-marker/umd/js-require-only-force",
+        "commonjs-marker/umd/js-no-commonjs-force",
+        "commonjs-marker/umd/js-real-esm-mixed",
+        "commonjs-marker/umd/js-real-esm",
+        "commonjs-marker/umd/jsx-exports-force",
+        "commonjs-marker/umd/cjs-exports-auto",
+        "commonjs-marker/umd/cts-export-equals",
+        "commonjs-marker/umd/ts-real-esm",
+        "commonjs-marker/node16/js-exports-auto",
+        "commonjs-marker/node16/js-exports-force",
+        "commonjs-marker/node16/js-exports-legacy",
+        "commonjs-marker/node16/js-module-exports-auto",
+        "commonjs-marker/node16/js-require-only-force",
+        "commonjs-marker/node16/js-no-commonjs-force",
+        "commonjs-marker/node16/js-real-esm-mixed",
+        "commonjs-marker/node16/js-real-esm",
+        "commonjs-marker/node16/jsx-exports-force",
+        "commonjs-marker/node16/cjs-exports-auto",
+        "commonjs-marker/node16/mjs-exports-auto",
+        "commonjs-marker/node16/cts-export-equals",
+        "commonjs-marker/node16/ts-real-esm",
+        "commonjs-marker/node18/js-exports-auto",
+        "commonjs-marker/node18/js-exports-force",
+        "commonjs-marker/node18/js-exports-legacy",
+        "commonjs-marker/node18/js-module-exports-auto",
+        "commonjs-marker/node18/js-require-only-force",
+        "commonjs-marker/node18/js-no-commonjs-force",
+        "commonjs-marker/node18/js-real-esm-mixed",
+        "commonjs-marker/node18/js-real-esm",
+        "commonjs-marker/node18/jsx-exports-force",
+        "commonjs-marker/node18/cjs-exports-auto",
+        "commonjs-marker/node18/mjs-exports-auto",
+        "commonjs-marker/node18/cts-export-equals",
+        "commonjs-marker/node18/ts-real-esm",
+        "commonjs-marker/node20/js-exports-auto",
+        "commonjs-marker/node20/js-exports-force",
+        "commonjs-marker/node20/js-exports-legacy",
+        "commonjs-marker/node20/js-module-exports-auto",
+        "commonjs-marker/node20/js-require-only-force",
+        "commonjs-marker/node20/js-no-commonjs-force",
+        "commonjs-marker/node20/js-real-esm-mixed",
+        "commonjs-marker/node20/js-real-esm",
+        "commonjs-marker/node20/jsx-exports-force",
+        "commonjs-marker/node20/cjs-exports-auto",
+        "commonjs-marker/node20/mjs-exports-auto",
+        "commonjs-marker/node20/cts-export-equals",
+        "commonjs-marker/node20/ts-real-esm",
+        "commonjs-marker/nodenext/js-exports-auto",
+        "commonjs-marker/nodenext/js-exports-force",
+        "commonjs-marker/nodenext/js-exports-legacy",
+        "commonjs-marker/nodenext/js-module-exports-auto",
+        "commonjs-marker/nodenext/js-require-only-force",
+        "commonjs-marker/nodenext/js-no-commonjs-force",
+        "commonjs-marker/nodenext/js-real-esm-mixed",
+        "commonjs-marker/nodenext/js-real-esm",
+        "commonjs-marker/nodenext/jsx-exports-force",
+        "commonjs-marker/nodenext/cjs-exports-auto",
+        "commonjs-marker/nodenext/mjs-exports-auto",
+        "commonjs-marker/nodenext/cts-export-equals",
+        "commonjs-marker/nodenext/ts-real-esm"
+      ],
+      "Import publication reference": [
+        "cjs/js/named",
+        "cjs/js/quoted",
+        "cjs/js/default",
+        "cjs/js/namespace",
+        "cjs/js/named-conflict",
+        "cjs/js/quoted-conflict",
+        "cjs/js/default-conflict",
+        "cjs/js/namespace-conflict",
+        "cjs/js/default-namespace",
+        "cjs/js/external-reexport",
+        "cjs/js/unicode-alias",
+        "cjs/js/escaped-alias",
+        "cjs/js/multiple-exports-comments",
+        "cjs/ts/named",
+        "cjs/ts/quoted",
+        "cjs/ts/default",
+        "cjs/ts/namespace",
+        "cjs/ts/named-conflict",
+        "cjs/ts/quoted-conflict",
+        "cjs/ts/default-conflict",
+        "cjs/ts/namespace-conflict",
+        "cjs/ts/import-equals",
+        "cjs/ts/exported-import-equals",
+        "cjs/ts/export-equals-suppression",
+        "cjs/ts/default-namespace",
+        "cjs/ts/external-reexport",
+        "cjs/ts/unicode-alias",
+        "cjs/ts/escaped-alias",
+        "cjs/ts/multiple-exports-comments",
+        "amd/js/named",
+        "amd/js/quoted",
+        "amd/js/default",
+        "amd/js/namespace",
+        "amd/js/named-conflict",
+        "amd/js/quoted-conflict",
+        "amd/js/default-conflict",
+        "amd/js/namespace-conflict",
+        "amd/js/default-namespace",
+        "amd/js/external-reexport",
+        "amd/js/unicode-alias",
+        "amd/js/escaped-alias",
+        "amd/js/multiple-exports-comments",
+        "amd/ts/named",
+        "amd/ts/quoted",
+        "amd/ts/default",
+        "amd/ts/namespace",
+        "amd/ts/named-conflict",
+        "amd/ts/quoted-conflict",
+        "amd/ts/default-conflict",
+        "amd/ts/namespace-conflict",
+        "amd/ts/import-equals",
+        "amd/ts/exported-import-equals",
+        "amd/ts/export-equals-suppression",
+        "amd/ts/default-namespace",
+        "amd/ts/external-reexport",
+        "amd/ts/unicode-alias",
+        "amd/ts/escaped-alias",
+        "amd/ts/multiple-exports-comments",
+        "umd/js/named",
+        "umd/js/quoted",
+        "umd/js/default",
+        "umd/js/namespace",
+        "umd/js/named-conflict",
+        "umd/js/quoted-conflict",
+        "umd/js/default-conflict",
+        "umd/js/namespace-conflict",
+        "umd/js/default-namespace",
+        "umd/js/external-reexport",
+        "umd/js/unicode-alias",
+        "umd/js/escaped-alias",
+        "umd/js/multiple-exports-comments",
+        "umd/ts/named",
+        "umd/ts/quoted",
+        "umd/ts/default",
+        "umd/ts/namespace",
+        "umd/ts/named-conflict",
+        "umd/ts/quoted-conflict",
+        "umd/ts/default-conflict",
+        "umd/ts/namespace-conflict",
+        "umd/ts/import-equals",
+        "umd/ts/exported-import-equals",
+        "umd/ts/export-equals-suppression",
+        "umd/ts/default-namespace",
+        "umd/ts/external-reexport",
+        "umd/ts/unicode-alias",
+        "umd/ts/escaped-alias",
+        "umd/ts/multiple-exports-comments"
+      ],
+      "Synthetic default alias": [
+        "es5/js/cjs-named-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-named/synthetic-unset/interop-unset",
+        "es5/js/esm-named-default/synthetic-unset/interop-unset",
+        "es5/js/cjs-named-default/synthetic-unset/interop-true",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named/synthetic-unset/interop-true",
+        "es5/js/esm-named-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named-default/synthetic-unset/interop-false",
+        "es5/js/cjs-direct-default/synthetic-unset/interop-false",
+        "es5/js/cjs-named/synthetic-unset/interop-false",
+        "es5/js/esm-named-default/synthetic-unset/interop-false",
+        "es5/ts/cjs-named-default/synthetic-unset/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-unset/interop-true",
+        "es5/js/cjs-named-default/synthetic-true/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-true/interop-unset",
+        "es5/js/cjs-named/synthetic-true/interop-unset",
+        "es5/js/esm-named-default/synthetic-true/interop-unset",
+        "es5/js/cjs-named-default/synthetic-true/interop-true",
+        "es5/js/cjs-direct-default/synthetic-true/interop-true",
+        "es5/js/cjs-named/synthetic-true/interop-true",
+        "es5/js/esm-named-default/synthetic-true/interop-true",
+        "es5/js/cjs-named-default/synthetic-true/interop-false",
+        "es5/js/cjs-direct-default/synthetic-true/interop-false",
+        "es5/js/cjs-named/synthetic-true/interop-false",
+        "es5/js/esm-named-default/synthetic-true/interop-false",
+        "es5/ts/cjs-named-default/synthetic-true/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-true/interop-true",
+        "es5/js/cjs-named-default/synthetic-false/interop-unset",
+        "es5/js/cjs-direct-default/synthetic-false/interop-unset",
+        "es5/js/cjs-named/synthetic-false/interop-unset",
+        "es5/js/esm-named-default/synthetic-false/interop-unset",
+        "es5/js/cjs-named-default/synthetic-false/interop-true",
+        "es5/js/cjs-direct-default/synthetic-false/interop-true",
+        "es5/js/cjs-named/synthetic-false/interop-true",
+        "es5/js/esm-named-default/synthetic-false/interop-true",
+        "es5/js/cjs-named-default/synthetic-false/interop-false",
+        "es5/js/cjs-direct-default/synthetic-false/interop-false",
+        "es5/js/cjs-named/synthetic-false/interop-false",
+        "es5/js/esm-named-default/synthetic-false/interop-false",
+        "es5/ts/cjs-named-default/synthetic-false/interop-true",
+        "es5/ts/cjs-direct-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-named/synthetic-unset/interop-unset",
+        "es2015/js/esm-named-default/synthetic-unset/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named/synthetic-unset/interop-true",
+        "es2015/js/esm-named-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named-default/synthetic-unset/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-unset/interop-false",
+        "es2015/js/cjs-named/synthetic-unset/interop-false",
+        "es2015/js/esm-named-default/synthetic-unset/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-unset/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-unset/interop-true",
+        "es2015/js/cjs-named-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-named/synthetic-true/interop-unset",
+        "es2015/js/esm-named-default/synthetic-true/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-true/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named/synthetic-true/interop-true",
+        "es2015/js/esm-named-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named-default/synthetic-true/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-true/interop-false",
+        "es2015/js/cjs-named/synthetic-true/interop-false",
+        "es2015/js/esm-named-default/synthetic-true/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-true/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-true/interop-true",
+        "es2015/js/cjs-named-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-named/synthetic-false/interop-unset",
+        "es2015/js/esm-named-default/synthetic-false/interop-unset",
+        "es2015/js/cjs-named-default/synthetic-false/interop-true",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named/synthetic-false/interop-true",
+        "es2015/js/esm-named-default/synthetic-false/interop-true",
+        "es2015/js/cjs-named-default/synthetic-false/interop-false",
+        "es2015/js/cjs-direct-default/synthetic-false/interop-false",
+        "es2015/js/cjs-named/synthetic-false/interop-false",
+        "es2015/js/esm-named-default/synthetic-false/interop-false",
+        "es2015/ts/cjs-named-default/synthetic-false/interop-true",
+        "es2015/ts/cjs-direct-default/synthetic-false/interop-true"
+      ],
+      "CommonJS class instance": [
+        "es5/js/instance",
+        "es5/js/added-member",
+        "es5/js/same-member",
+        "es5/js/constructor",
+        "es5/js/object",
+        "es5/js/local-instance",
+        "es5/js/factory-instance",
+        "es5/js/generic-instance",
+        "es5/js/derived-instance",
+        "es5/js/anonymous-instance",
+        "es5/js/private-instance",
+        "es5/js/accessor-instance",
+        "es5/ts/instance",
+        "es5/ts/constructor",
+        "es5/ts/object",
+        "es5/ts/generic-instance",
+        "es2015/js/instance",
+        "es2015/js/added-member",
+        "es2015/js/same-member",
+        "es2015/js/constructor",
+        "es2015/js/object",
+        "es2015/js/local-instance",
+        "es2015/js/factory-instance",
+        "es2015/js/generic-instance",
+        "es2015/js/derived-instance",
+        "es2015/js/anonymous-instance",
+        "es2015/js/private-instance",
+        "es2015/js/accessor-instance",
+        "es2015/ts/instance",
+        "es2015/ts/constructor",
+        "es2015/ts/object",
+        "es2015/ts/generic-instance"
+      ],
+      "System variable publication": [
+        "js/es5/plain/direct-alias",
+        "js/es5/plain/direct-plain",
+        "js/es5/plain/local-alias",
+        "js/es5/plain/direct-pattern-alias",
+        "js/es5/plain/default-reference",
+        "js/es5/plain/default-comments",
+        "js/es5/plain/direct-uninitialized",
+        "js/es5/plain/direct-multiple-alias",
+        "js/es5/plain/local-export-equals",
+        "js/es5/maps/direct-alias",
+        "js/es5/maps/direct-plain",
+        "js/es5/maps/local-alias",
+        "js/es5/maps/direct-pattern-alias",
+        "js/es5/maps/default-reference",
+        "js/es5/maps/default-comments",
+        "js/es5/maps/direct-uninitialized",
+        "js/es5/maps/direct-multiple-alias",
+        "js/es5/maps/local-export-equals",
+        "ts/es5/plain/direct-alias",
+        "ts/es5/plain/direct-plain",
+        "ts/es5/plain/local-alias",
+        "ts/es5/plain/direct-pattern-alias",
+        "ts/es5/plain/default-reference",
+        "ts/es5/plain/default-comments",
+        "ts/es5/plain/direct-uninitialized",
+        "ts/es5/plain/direct-multiple-alias",
+        "ts/es5/plain/local-export-equals",
+        "ts/es5/maps/direct-alias",
+        "ts/es5/maps/direct-plain",
+        "ts/es5/maps/local-alias",
+        "ts/es5/maps/direct-pattern-alias",
+        "ts/es5/maps/default-reference",
+        "ts/es5/maps/default-comments",
+        "ts/es5/maps/direct-uninitialized",
+        "ts/es5/maps/direct-multiple-alias",
+        "ts/es5/maps/local-export-equals",
+        "js/es2015/plain/direct-alias",
+        "js/es2015/plain/direct-plain",
+        "js/es2015/plain/local-alias",
+        "js/es2015/plain/direct-pattern-alias",
+        "js/es2015/plain/default-reference",
+        "js/es2015/plain/default-comments",
+        "js/es2015/plain/direct-uninitialized",
+        "js/es2015/plain/direct-multiple-alias",
+        "js/es2015/plain/local-export-equals",
+        "js/es2015/maps/direct-alias",
+        "js/es2015/maps/direct-plain",
+        "js/es2015/maps/local-alias",
+        "js/es2015/maps/direct-pattern-alias",
+        "js/es2015/maps/default-reference",
+        "js/es2015/maps/default-comments",
+        "js/es2015/maps/direct-uninitialized",
+        "js/es2015/maps/direct-multiple-alias",
+        "js/es2015/maps/local-export-equals",
+        "ts/es2015/plain/direct-alias",
+        "ts/es2015/plain/direct-plain",
+        "ts/es2015/plain/local-alias",
+        "ts/es2015/plain/direct-pattern-alias",
+        "ts/es2015/plain/default-reference",
+        "ts/es2015/plain/default-comments",
+        "ts/es2015/plain/direct-uninitialized",
+        "ts/es2015/plain/direct-multiple-alias",
+        "ts/es2015/plain/local-export-equals",
+        "ts/es2015/maps/direct-alias",
+        "ts/es2015/maps/direct-plain",
+        "ts/es2015/maps/local-alias",
+        "ts/es2015/maps/direct-pattern-alias",
+        "ts/es2015/maps/default-reference",
+        "ts/es2015/maps/default-comments",
+        "ts/es2015/maps/direct-uninitialized",
+        "ts/es2015/maps/direct-multiple-alias",
+        "ts/es2015/maps/local-export-equals"
+      ],
+      "H2.8a output matrix": [
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+        "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext"
+      ]
+    },
+    "system_dynamic_imports_exact_twice": 24,
+    "retained_failure_comparisons": [
+      {
+        "case_id": "commonjs-marker/amd/mjs-exports-auto",
+        "boundary": "exact source-map result",
+        "actual_sha256": "415b00d185c4fc4651a582eb5b5487e76c9951cc1e7be2d2965a30fa4ca08f44",
+        "expected_sha256": "efde512a860ce5ab98d5ca5d48cc9563ec589708afeb763aab07e0e94ffcb6ee"
+      },
+      {
+        "case_id": "commonjs-marker/umd/mjs-exports-auto",
+        "boundary": "exact source-map result",
+        "actual_sha256": "415b00d185c4fc4651a582eb5b5487e76c9951cc1e7be2d2965a30fa4ca08f44",
+        "expected_sha256": "da968a4472ca15c6fab0390959f109cae069761a176b7f4f68089cc04b44de82"
+      }
+    ],
+    "seconds": [
+      549.36,
+      31.12
+    ]
+  },
+  "native_jobs": 1,
+  "native_command_executions": 792,
+  "positive_executions_per_case": 2,
+  "retained_fresh_executions": 1,
+  "supplemental_executions": 0,
+  "emitter_unit_tests": {
+    "lib": 485,
+    "contracts": 451
+  },
+  "checker_emit_unit_tests": 17,
+  "precompiled_unit_suite_receipt": {
+    "status": "independent-read-only-unit-suite-prelaunch",
+    "source_prelaunch": "target/h2-8a-commonjs-esmodule-marker-direct-final-prelaunch.json",
+    "built_and_executed_by": "target/h2-8a-commonjs-esmodule-marker-direct-final.log",
+    "reason": "reuse the unchanged binaries from passing direct controls; no competing Cargo build",
+    "binaries": [
+      {
+        "path": "target/debug/deps/tsc_emitter-221a698c259a056a",
+        "sha256": "1dea2d9eaa3502ae92a4e8149dc98973bf57dd0bf38d642127fa0f1183e28da5"
+      },
+      {
+        "path": "target/debug/deps/tsc_checker-241d20bdc600ca0c",
+        "sha256": "ee1c91cfb02063308fed737252aab282d6bf8e91448d25e700aed77dfac4db0f"
+      }
+    ]
+  },
+  "checker_selection_correction": "ratchets/h2-8a-commonjs-esmodule-marker-checker-selection-correction.v1.json",
+  "first_direct_build_record": "ratchets/h2-8a-commonjs-esmodule-marker-direct-first-build.v1.json",
+  "first_direct_build_tests_executed": 0,
+  "direct_controls": 3,
+  "direct_transform_scenarios_per_test_execution": 120,
+  "seconds": {
+    "direct-final": [
+      0.05,
+      0.05
+    ],
+    "after": [
+      549.36,
+      31.12
+    ],
+    "emitter-library": [
+      0.69
+    ],
+    "emitter-contracts": [
+      2.18
+    ],
+    "checker-after": [
+      0.09
+    ]
+  },
+  "validation_log_exit_codes": {
+    "target/h2-8a-commonjs-esmodule-marker-direct-final.log": 0,
+    "target/h2-8a-commonjs-esmodule-marker-after.log": 101,
+    "target/h2-8a-commonjs-esmodule-marker-emitter-library.log": 0,
+    "target/h2-8a-commonjs-esmodule-marker-emitter-contracts.log": 0,
+    "target/h2-8a-commonjs-esmodule-marker-checker-after.log": 0
+  },
+  "working_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "a0abf3ff0b748905f95ca80c0c1c827a226f218325f7d82adc3c856a3916ad0b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "2ffcb5a816052ff7638e961d2f96ce3682dbe1e4ba00e88b007d6a9061f7ec2b"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-esmodule-marker.json",
+      "sha256": "4bcd12c87d170ee27fbcd682f5c712f8f5e6e23af2dd4f9369a912778ee4034e"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "7c97cfbd2a7059fb9965152745a3528e5ad46a100bed572d9d9bd08678822900"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_esmodule_marker.rs",
+      "sha256": "43e09105baf4e7534c6fbefe6084baa6c918002af1d57cee5090e54f0ff1fbbc"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "3be53e2b5b6deadcd518a4279148ff8711a0792f78d59151d2f1eae68f904700"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "106c71ac556d64410af23304f3fae3540b6dccbc4eb44092478db8dd08bc482f"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "5ee9f652face46988f001ba162e4855571d071f77f9badba3e9b7c235e4257eb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-esmodule-marker.md",
+      "sha256": "dd14406de19e188b173024b9a55869c3641001ebe0a0d71d989513f64d9ab534"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-before.v1.json",
+      "sha256": "a1d4ceb026808353643f5a785dd3b0e5a0871400ace2f260a68f47a01a7cbc09"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-checker-selection-correction.v1.json",
+      "sha256": "0b286bb1ab0ac9653cdea2a53e292f536a6492c3896def38bc13163f1394147d"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-direct-first-build.v1.json",
+      "sha256": "6f10d0f5b876179363964207c617e18908c1f2fd80aec6135f18292ccc88f09e"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-readiness.v1.json",
+      "sha256": "c2e34b66ea21b87767daee96f1cb586a8f238cf1ca8497ead47e4c8a3e74691b"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "86df0f6f2ace3e2abffa96dd198cd734e93f9d2d829289f04044b80c169f5f82"
+    },
+    {
+      "path": "scripts/check-commonjs-esmodule-marker-readiness.py",
+      "sha256": "6921276489e4ad219e27d434e07e82f56796bd25ef22404b1eadf45894576d9a"
+    },
+    {
+      "path": "scripts/observe-commonjs-esmodule-marker.mjs",
+      "sha256": "6ac80631333878a5521d674a235e383c65ab1cf37a0cda83dff11497553e606d"
+    },
+    {
+      "path": "target/analyze-commonjs-esmodule-marker-after.py",
+      "sha256": "6a7b913e7e097445491776cf898b4e3273b4f4169bbe3ac8a3a90a0d5e04c66c"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-after-analysis.json",
+      "sha256": "496d6a9f36263a84d2ed5d2f11846ab5c97e1ca30c38fd89b5b54849cc25bdcb"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-after-prelaunch.json",
+      "sha256": "f4dc9d5c545ee38ffcef98149b452aa9e1e2dc18a9b808282d61394203b24a0a"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-after.log",
+      "sha256": "562d3c3e33a76d5d490f4c07d64589987a8f0889d261e05c5d533db0fe0d71fe"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-checker-after.log",
+      "sha256": "f571910f21afad01e4c1b463c29cbdbd6700abe356ada7ef83fffb8d47b5011a"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final-prelaunch.json",
+      "sha256": "19b12f586617e395a28ef89d3d0a1f5975ae9010d45d702359d351cd55dac3f3"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final.log",
+      "sha256": "281929532638033c63feb3aa60a30c5c2389db0e1ba4bcde9fc6e2b3b492ada6"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-prelaunch.json",
+      "sha256": "cc003e1424bcfa44094ec23425a082038aac3736bf96e8dfed1b482beeb4bbe1"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct.log",
+      "sha256": "0ba6390305be8c00d3e86d1cc5176c4856790452e551f658c4839614caea8f02"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-emitter-contracts-prelaunch.json",
+      "sha256": "bbebd5b7375ebc0fab1f82a5eb28eecda2661073e06584a08191378c9f05f42d"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-emitter-contracts.log",
+      "sha256": "a18b28262f6e723cf7e3f225838712dabb3e4e11930bd507c4e5e6e555f53c36"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-emitter-library.log",
+      "sha256": "5a6055305a2c0b5e33401c6c4b05ae79f3eeeeed215e0b8335e3975d7ee34ebb"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-precompiled-unit-prelaunch.json",
+      "sha256": "f0bf5dbda6f091561557d0de427de002b7c21f55acc76beec0f57f54ebfc333b"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-checker-after.log",
+      "sha256": "ba9f44f59359b646063edac72b4a4dae50f79c9346f1e2ceb60110edf28a9200"
+    }
+  ],
+  "contracts_prelaunch_snapshot_files": [
+    {
+      "path": "crates/emitter/tests/contracts.rs",
+      "sha256": "4c7fca5794ab7f097de394ca9291cf74fa2ecd997dbabb2d53954c929cb777e3"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "e46ac2304dfd889c473a4f71f5c6b9ca586c93f842d22350f48e9e5dc3892365"
+    },
+    {
+      "path": "crates/emitter/tests/integration/artifact_sink_contract.rs",
+      "sha256": "a6f52dc0c44463152b957358382355f65b3a155d4ae9c93f26b8ebda6cc01970"
+    },
+    {
+      "path": "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+      "sha256": "21ff731253ff39ff0e521a4ca9efea850cd5a4c14bca84fe35dad55125bc6e9c"
+    },
+    {
+      "path": "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs",
+      "sha256": "9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b"
+    },
+    {
+      "path": "crates/emitter/tests/integration/dependency_direction_contract.rs",
+      "sha256": "8ab37dfb3938b8be7efcb2203efaba0e0411e1e1950f9332589e3bd8253517e7"
+    },
+    {
+      "path": "crates/emitter/tests/integration/factory_transform_contract.rs",
+      "sha256": "250671479a6fa24fdbeb6a49afcefa0a7e2624fbe415d933d74fc5ebd3820e33"
+    },
+    {
+      "path": "crates/emitter/tests/integration/output_plan_contract.rs",
+      "sha256": "66a501004ef6898d13940fca82c31dd516412c76835e486429b0e306131960d9"
+    },
+    {
+      "path": "crates/emitter/tests/integration/printer_foundation_contract.rs",
+      "sha256": "6706f2dd7759d7fb88f5090082442c7de2d956531523465bdf028479cefd49a8"
+    },
+    {
+      "path": "crates/emitter/tests/integration/printer_oracle_contract.rs",
+      "sha256": "e17bcbdc03d3be5b0d787fec4d721820aafbce0528aa8f4b9a9da01c45e6bc5e"
+    },
+    {
+      "path": "crates/emitter/tests/integration/token_cursor_contract.rs",
+      "sha256": "2ebf7c0f8f87aad6c67dd5ab75987e7a2ea8bd04d014e502695766e226fa90b2"
+    },
+    {
+      "path": "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs",
+      "sha256": "bf6bdedc07360f7042903b1fdc0a27d0efd037cf7c97896b854ac270f9489202"
+    },
+    {
+      "path": "crates/emitter/tests/integration/writer_position_contract.rs",
+      "sha256": "cabbf95b98915988589754ad79a0f4ea32db590d019b7eda85670bb422750b7b"
+    }
+  ],
+  "contracts_prelaunch_snapshot_subdirectory": "contracts-prelaunch",
+  "prelaunch_snapshot_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "a0abf3ff0b748905f95ca80c0c1c827a226f218325f7d82adc3c856a3916ad0b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "2ffcb5a816052ff7638e961d2f96ce3682dbe1e4ba00e88b007d6a9061f7ec2b"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-esmodule-marker.json",
+      "sha256": "4bcd12c87d170ee27fbcd682f5c712f8f5e6e23af2dd4f9369a912778ee4034e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-dynamic-imports.json",
+      "sha256": "9e6164473c8ea1f2e532bb6adda9ef39e44e54238e6c85d497e651397d7a80e6"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-variable-publication.json",
+      "sha256": "99fb90b738886bf6f3867eb827f1156c3d70a5ec2d7119fc2e1ef1077777c425"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "7c97cfbd2a7059fb9965152745a3528e5ad46a100bed572d9d9bd08678822900"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_esmodule_marker.rs",
+      "sha256": "43e09105baf4e7534c6fbefe6084baa6c918002af1d57cee5090e54f0ff1fbbc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs",
+      "sha256": "bf1dd5a3c159338e6d1f903fcede3957cf006a2e371c83a33082ca3f77a9689a"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_output_directories.rs",
+      "sha256": "958993a92bc2a1f4b224a8232b2c5a876f8cd1e941f33ce49fb12a602afd8f81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_system_variable_publication.rs",
+      "sha256": "643840deed77e4e836e289292a16fd240fdc83d398e4fe98fb6bcbcc6e1f2056"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "3be53e2b5b6deadcd518a4279148ff8711a0792f78d59151d2f1eae68f904700"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "106c71ac556d64410af23304f3fae3540b6dccbc4eb44092478db8dd08bc482f"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-esmodule-marker.md",
+      "sha256": "feabb2725e42e50faf3aff18d491bbbe8f425d2068c830d2986edd139358fc16"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-before.v1.json",
+      "sha256": "a1d4ceb026808353643f5a785dd3b0e5a0871400ace2f260a68f47a01a7cbc09"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-direct-first-build.v1.json",
+      "sha256": "6f10d0f5b876179363964207c617e18908c1f2fd80aec6135f18292ccc88f09e"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-readiness.v1.json",
+      "sha256": "1288cd6c67aa624eabfc6a57dcbf88457055c0863e328369d94519c3ee5ce97b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/check-commonjs-esmodule-marker-readiness.py",
+      "sha256": "c9e93236544a5401eb215294524f4bb1daff6e054cd4f0a95211a670fc47add0"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final-prelaunch.json",
+      "sha256": "19b12f586617e395a28ef89d3d0a1f5975ae9010d45d702359d351cd55dac3f3"
+    },
+    {
+      "path": "target/h2-8a-commonjs-esmodule-marker-direct-final.log",
+      "sha256": "281929532638033c63feb3aa60a30c5c2389db0e1ba4bcde9fc6e2b3b492ada6"
+    }
+  ],
+  "prelaunch_snapshot_subdirectory": "prelaunch",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-commonjs-marker-after-u46_bw3w",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

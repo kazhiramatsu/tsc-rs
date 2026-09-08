@@ -3823,6 +3823,17 @@ impl CommonJsModuleInfo {
     }
 }
 
+/// tsc-port: hasJSFileExtension @6.0.3
+/// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
+/// tsc-span: _tsc.js:18654-18656
+fn has_js_file_extension(name: &str) -> bool {
+    // Fold fileExtensionIs (_tsc.js:5323-5325), including its strict
+    // length guard; a filename consisting solely of ".js" does not match.
+    [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| name.len() > extension.len() && name.ends_with(extension))
+}
+
 fn source_file_statement_nodes(
     arena: &TransformArena,
     source: TransformSourceId,
@@ -4757,7 +4768,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 output.push(self.create_sync_require_declaration()?);
             }
             let temp_insertion = output.len();
-            if self.info.is_external && self.info.export_equals.is_none() {
+            if self.should_emit_es_module_marker(root)? {
                 output.push(self.create_es_module_marker()?);
             }
             let hoisted_function_exports = self.info.hoisted_function_exports.clone();
@@ -4806,6 +4817,32 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    /// tsc-port: shouldEmitUnderscoreUnderscoreESModule @6.0.3
+    /// tsc-hash: 947ac8347f6e2848ce70717b634bf7d184204c966f3b9fe16fc0a59cc96beb98
+    /// tsc-span: _tsc.js:110158-110166
+    fn should_emit_es_module_marker(&self, root: TransformNode) -> Result<bool, TransformError> {
+        // These branches decide the marker without a fallible binder query.
+        if !self.info.is_external || self.info.export_equals.is_some() {
+            return Ok(false);
+        }
+        let source = self.context.arena().source(self.source)?.syntax();
+        if has_js_file_extension(&source.file_name) {
+            if let Some(indicator) = source.external_module_indicator {
+                // The parser represents boolean `true` with its SourceFile
+                // node. Strict-prologue insertion and earlier transforms can
+                // already have replaced syntax.root, but retain this node.
+                if self.context.arena().node(self.node(indicator))?.kind == SyntaxKind::SourceFile
+                    && self
+                        .resolver
+                        .is_common_js_module(self.resolver_node(root)?)?
+                {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
     }
 
     /// The UMD sync-require helper is represented as an ordinary statement in

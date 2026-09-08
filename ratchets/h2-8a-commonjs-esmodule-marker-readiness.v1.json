@@ -1,0 +1,793 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-23",
+  "base": "6acce5e014d8c572769e59281ef11fdc987a3f5c",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/resolver.rs",
+    "crates/checker/src/program.rs",
+    "crates/checker/src/emit.rs"
+  ],
+  "unit_paths": [
+    "crates/emitter/tests/unit/builtins/tests.rs",
+    "crates/checker/tests/unit/emit/tests.rs"
+  ],
+  "steps": [
+    "A6-23-1",
+    "A6-23-2",
+    "A6-23-3"
+  ],
+  "owners": [
+    {
+      "owner": "fileExtensionIs",
+      "declaration_name": "fileExtensionIs",
+      "start": 5323,
+      "end": 5325,
+      "sha256": "a9383f1765a1e059f2173ec87c046e8a2fb25b04c3208ee854ce729ec9333d04"
+    },
+    {
+      "owner": "isExternalOrCommonJsModule",
+      "declaration_name": "isExternalOrCommonJsModule",
+      "start": 14119,
+      "end": 14121,
+      "sha256": "e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d"
+    },
+    {
+      "owner": "isFileModuleFromUsingJSXTag",
+      "declaration_name": "isFileModuleFromUsingJSXTag",
+      "start": 17967,
+      "end": 17969,
+      "sha256": "03cf7895028d987d8656f4dac648629eff3460560667e0f1aee1c638a5da612f"
+    },
+    {
+      "owner": "isFileForcedToBeModuleByFormat",
+      "declaration_name": "isFileForcedToBeModuleByFormat",
+      "start": 17970,
+      "end": 17972,
+      "sha256": "899bdc1b5bf64d169184d5ba41a67bd50a876f22b6bba9d6e0511e392e48bd93"
+    },
+    {
+      "owner": "getSetExternalModuleIndicator",
+      "declaration_name": "getSetExternalModuleIndicator",
+      "start": 17973,
+      "end": 17993,
+      "sha256": "79ad6849558d6a2335dc93ffba43de342602ab327ad1b767895a52516a19b0a5"
+    },
+    {
+      "owner": "hasJSFileExtension",
+      "declaration_name": "hasJSFileExtension",
+      "start": 18654,
+      "end": 18656,
+      "sha256": "26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d"
+    },
+    {
+      "owner": "isExternalModule",
+      "declaration_name": "isExternalModule",
+      "start": 28910,
+      "end": 28912,
+      "sha256": "5effe04fdce706cc75f238b5c4efbb1f317b3f6bd665389fb71a79a119e7ceaa"
+    },
+    {
+      "owner": "setCommonJsModuleIndicator",
+      "declaration_name": "setCommonJsModuleIndicator",
+      "start": 44589,
+      "end": 44600,
+      "sha256": "294f2a8b52accab297f5d966aa37276fb9f4b9bb850ed593d2b15c49a6531118"
+    },
+    {
+      "owner": "collectExternalModuleInfo",
+      "declaration_name": "collectExternalModuleInfo",
+      "start": 92779,
+      "end": 92919,
+      "sha256": "2694413ce6ea08091a03db3a313b50ee3ff526b065f199270311ac583350220e"
+    },
+    {
+      "owner": "getTransformModuleDelegate",
+      "declaration_name": "getTransformModuleDelegate",
+      "start": 110091,
+      "end": 110100,
+      "sha256": "247c10434f894b5cba93194f5408bc7917c3e8b2b0ec89eb4ca4c8aaf6ffcb41"
+    },
+    {
+      "owner": "module.transformSourceFile",
+      "declaration_name": "transformSourceFile",
+      "start": 110130,
+      "end": 110157,
+      "sha256": "b1a1419c70b033ad4e884d96dfc78c8ee746580e502895fc68d55091b68e1752"
+    },
+    {
+      "owner": "shouldEmitUnderscoreUnderscoreESModule",
+      "declaration_name": "shouldEmitUnderscoreUnderscoreESModule",
+      "start": 110158,
+      "end": 110166,
+      "sha256": "947ac8347f6e2848ce70717b634bf7d184204c966f3b9fe16fc0a59cc96beb98"
+    },
+    {
+      "owner": "transformCommonJSModule",
+      "declaration_name": "transformCommonJSModule",
+      "start": 110167,
+      "end": 110204,
+      "sha256": "a48c215e8304107fec1f4e113f74a13f720cb5901cff5287bda673a98e082749"
+    },
+    {
+      "owner": "transformAsynchronousModuleBody",
+      "declaration_name": "transformAsynchronousModuleBody",
+      "start": 110492,
+      "end": 110534,
+      "sha256": "8d0713be5aaf1b99c2e7e304e5e5f341884d2c0a865aefc1336c96f9cb98d9c9"
+    },
+    {
+      "owner": "createUnderscoreUnderscoreESModule",
+      "declaration_name": "createUnderscoreUnderscoreESModule",
+      "start": 111773,
+      "end": 111790,
+      "sha256": "fce473b099c9bd36bb2f57fe48889e51b049c8489f48dbf33e9c44e912129b0d"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ORDER-H",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-esmodule-marker.md",
+      "sha256": "dd14406de19e188b173024b9a55869c3641001ebe0a0d71d989513f64d9ab534"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-esmodule-marker-before.v1.json",
+      "sha256": "a1d4ceb026808353643f5a785dd3b0e5a0871400ace2f260a68f47a01a7cbc09"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-esmodule-marker.json",
+      "sha256": "4bcd12c87d170ee27fbcd682f5c712f8f5e6e23af2dd4f9369a912778ee4034e"
+    },
+    {
+      "path": "scripts/observe-commonjs-esmodule-marker.mjs",
+      "sha256": "6ac80631333878a5521d674a235e383c65ab1cf37a0cda83dff11497553e606d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "3ed600e47bbfdf0fb57d117071537cf7ba455205223c2366990bb87944cd9065"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "commonjs-marker/commonjs/js-exports-auto",
+      "row_sha256": "f54e7f787b96588aa1657baee060540abe9fa361704c7cd6ce865149b4fd9bd5",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-exports-force",
+      "row_sha256": "34ab989519d93a1063927108aa2d68db3fa1e7857618fc10e46a2db50e3a2523",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-exports-legacy",
+      "row_sha256": "9be9c3cc7491446341306b06ee6ac40b01e3195ce73649ed9502c8b6b40bed86",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-module-exports-auto",
+      "row_sha256": "49138c2ebe2f337e38bc50f6a8dd176527e08419eacd414c3d41f7068272c121",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-require-only-force",
+      "row_sha256": "a0beb99cb135bdbec242ce744d09197577c1bd7c468fd3050c92f681fc4ff851",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-no-commonjs-force",
+      "row_sha256": "dd3e5aa6ca1e281950398fa35d878d4f1ebe9d5ce09150aa11a562a6bfe01939",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-real-esm-mixed",
+      "row_sha256": "e524c84f3f9d80d747544ede1ac434867dc877704a8ee47b370d02e21a66b0a1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/js-real-esm",
+      "row_sha256": "2b016433c0de1d4745072097bdd270b1e05015be5f280838b2c27e0a72708c38",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/jsx-exports-force",
+      "row_sha256": "f2087a9bcebc5e30d8e469af1668bbfc03e86cd6d62d8f37a9c7f81dd2ed127b",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/cjs-exports-auto",
+      "row_sha256": "ffcc1d9f5c0e31fc514a5633bdaa15ade1fd278abda7ca05ca249fe166f14a3c",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/mjs-exports-auto",
+      "row_sha256": "8a2cc194feb5b6ac427425a07460d3e232394518266cc6456de661ed3a1c4c0a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/cts-export-equals",
+      "row_sha256": "5a9900e2fef10a429ee26be7523b9b09772b6d2b00ad7bed41e82a7d76daded6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/commonjs/ts-real-esm",
+      "row_sha256": "6fb425c00066127cb6d73baaf07d1a0874154d4608c3c81a4510bba7fea6fb67",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-exports-auto",
+      "row_sha256": "fae55731f584990ea7d9075b301aa659d08d122dc6333d416ad68210ccc7cf30",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-exports-force",
+      "row_sha256": "bd490d6ae2ede22503a6846ec8535d2ce52316a928938f3b9ed53b1598551410",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-exports-legacy",
+      "row_sha256": "87150fe197dedc45948dfbe3a3a1e4aa650ac315fb3eaa21a9814f7c7ece8044",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-module-exports-auto",
+      "row_sha256": "d46c00ad55a033f488be978a7bad107ad076a2be08a660913b9e90a6701bb791",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-require-only-force",
+      "row_sha256": "80bf74cfd6865cfc400af839eee1c84f3b131c8a81c47841d48e7b9855bbc8fe",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-no-commonjs-force",
+      "row_sha256": "81163713a48950eb736ba282c648401abba82ab3f2fc57177112f967fd6cf997",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-real-esm-mixed",
+      "row_sha256": "8bc895d67228f639819b0206e121b74aeec337ebdd96e5f839de5af988b21a92",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/js-real-esm",
+      "row_sha256": "0d0e4e81a9d134eecbb0c7463e7a9dbd2987196b4fa52fd24f273b6b4c326de7",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/jsx-exports-force",
+      "row_sha256": "35ed7901ca2f7f80e26da7fd2376e85689ae2014d1cde12a84db989e4bd1955f",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/amd/cjs-exports-auto",
+      "row_sha256": "d2b83a1e286926ba313d8a5be0823b0ac6d8e5810a219b47ae0f5a78701d504b",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/amd/mjs-exports-auto",
+      "row_sha256": "66f49478eb05527cd7040c2c7b9b788451906e847636deae59f9c65f9cc80956",
+      "status": "outside-other-output",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/amd/cts-export-equals",
+      "row_sha256": "d6d0daf38fa5f7b41e9a04e79a09148628d2f9187b6cbe3cd3bcca3d9fff919e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/amd/ts-real-esm",
+      "row_sha256": "7c29b1364d682e2ecdea76e417ed2b9ec99f138727456360b3a3f5fee8d954af",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-exports-auto",
+      "row_sha256": "aa55a19f9ba9b62453e164860f5ef9dc62684c5ac4321b79289593dfc4d8b2bc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-exports-force",
+      "row_sha256": "79a4a8038bfce359982f61e1ae471a6bed51aa9b4b2e747408738f4e09313e55",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-exports-legacy",
+      "row_sha256": "1ddd521fe32ab38263c43a131da40520735a62e259a0af8a89d9bf455ab23af4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-module-exports-auto",
+      "row_sha256": "4f09e9a50b48277a4327c522b1caa17355d64fd26230c401a950ca8df4da30f8",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-require-only-force",
+      "row_sha256": "82571bc201b3db6874cac5e038630a157ccd6884cbb2d6fecd3f73e776e26f46",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-no-commonjs-force",
+      "row_sha256": "635a7c0e6b350e3adde2826ddb4918c84a8cb6ff6d10532695f77127fb4b0b7f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-real-esm-mixed",
+      "row_sha256": "999f2248087a6ec97caceefec69cb6284a919454dc41133c16164a2c6c520266",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/js-real-esm",
+      "row_sha256": "f2b5039aee4dc64e5c779aee58d5427694371f6e5c467d8ccfedd3ab7b89f61d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/jsx-exports-force",
+      "row_sha256": "496e71914d973929f3ff48fce5afac38f83a34579f2f4ba99b0c9ddec3c8bab1",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/umd/cjs-exports-auto",
+      "row_sha256": "91b997d96f174e929a4515218447eb119e466544a69b1f9cfdb55390ce244305",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/umd/mjs-exports-auto",
+      "row_sha256": "e0cd240f24c9d6022c76d241132783fb7223774bbfcefdca1587a2491e697f11",
+      "status": "outside-other-output",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/umd/cts-export-equals",
+      "row_sha256": "4bac516b4bf4a088149a00377937e7ee8ee7edefed07a783ddef7db5c7931409",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/umd/ts-real-esm",
+      "row_sha256": "5d53dccbbd9af39923eb6eeceba6ed9f81fc97ce7c0efc75d71b4da293585f9d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-exports-auto",
+      "row_sha256": "1c542959ab3776ca8a23758e9e813fc5b31db1a095402065a9854ccb72147a9b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-exports-force",
+      "row_sha256": "a8f1eed88fd0e6c92bc774aa3cfbd5b5ae7415e3e009c235fdd9856878c6c4f5",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-exports-legacy",
+      "row_sha256": "aff3ab0bb185890d6c69d11aee34f1a14873f7a2b9d799fe09225ec1e17c69bc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-module-exports-auto",
+      "row_sha256": "078f055301512343922a7ca122361603468eb1df79f6855b4a372b41455b45b6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-require-only-force",
+      "row_sha256": "8d7e392d04fad43624ad00f847dd6b68a137a12f6c5191fab4a27639f8339300",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-no-commonjs-force",
+      "row_sha256": "a63a6c877bbb0c56f258e10bc3e4f6a7844e6bc2efeaafb98dab006c18af818d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-real-esm-mixed",
+      "row_sha256": "0dc308a56663e05c31d0eb0f5d0a6a8cd98d706f1c8f4a97eb681170dcca3c1c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/js-real-esm",
+      "row_sha256": "32e22934022f4d7f1c11656e21c69cb2cf48fda3074fc681d0dd853d36368007",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/jsx-exports-force",
+      "row_sha256": "14d87dda3b850fe635f31bd1343a92390f2eb51ec90539e103d0585a5ecbab1a",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node16/cjs-exports-auto",
+      "row_sha256": "80181ecfe00fb9ba74a3efe5e8448d99c6e7c91938cb81244d86160ea429fbc1",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node16/mjs-exports-auto",
+      "row_sha256": "07cfa1462daec56e490ff7135dbd4549a3cd57c1f77e5ab4b653e023cd177ca1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/cts-export-equals",
+      "row_sha256": "5d58b5c49eda7cc1409039b2306ba39da505d3b659791fc348e02c8e1b8811ed",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node16/ts-real-esm",
+      "row_sha256": "2f97db77f7682193a92ef763aa27320c92bc41f8aa207b6ada647b791c93d01d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-exports-auto",
+      "row_sha256": "bff843461bf7aa5b7e41704e4a19b289338e8b70aa178fa824d1f03ea967480a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-exports-force",
+      "row_sha256": "f405a5b445aa919db3e3ecf1e32505c343c79e8b9e36403ec2548aff1e4ac2d1",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-exports-legacy",
+      "row_sha256": "58922adc20fc53fb5aa6b1aa8fba94a764de513e1bc0a5a3e51da3dc867b41b4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-module-exports-auto",
+      "row_sha256": "99b8a17bb01f2534aa57030d037398adad523d1d4f5c14c767e42bfe92d85bf0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-require-only-force",
+      "row_sha256": "759dde99beef8750f22078e1653bd440554156f195fcfed9de3da17b78f6cc00",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-no-commonjs-force",
+      "row_sha256": "87ac5faa781b48cf447a9fc0f72735b7a5972d9a7aaff40efca8d53030aebf3b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-real-esm-mixed",
+      "row_sha256": "da2edabb99194d2acca9b8c34b2894238ca21b45bd4862b29a6dd4eb03334caf",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/js-real-esm",
+      "row_sha256": "affc8cfc7f9278db80fafb264eb4964982a8ab5dd19957355a94e1028982d445",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/jsx-exports-force",
+      "row_sha256": "df81280c5aa3cf50798d98f3f17b5ef36ebcd82d532a7914a49b1b528f547524",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node18/cjs-exports-auto",
+      "row_sha256": "1bab15038b0dc5a85924c162e62a087e6c2fbecdacee4ea7868a6f3d77221e0f",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node18/mjs-exports-auto",
+      "row_sha256": "63afe93993d335ad813f7c9eec29cb3bfe416177ee8fdf6681ac066c814fbe18",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/cts-export-equals",
+      "row_sha256": "71d74f90a9c5071d87de6946affe5f36813716ef5412eba94d5a0ee9bffbb697",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node18/ts-real-esm",
+      "row_sha256": "ba921128ad6c69e14fb386f01998948f8548cab9fe17ab0d197aa89251a9ad52",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-exports-auto",
+      "row_sha256": "dbb6217a8603e77b7cbe3c893897dc298afba7886713a9dae3a2574eb123a250",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-exports-force",
+      "row_sha256": "75b54f1714a5f223ca1759edd2b136cd4dc89e55f5e0202e9d86c15e7ae5b306",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-exports-legacy",
+      "row_sha256": "ff80dec3f7b432126ec6efe51453a8fbc65a52713baa4b113779cc1ca94e5fb3",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-module-exports-auto",
+      "row_sha256": "cc852c19fef5914e0324da4c18d10afe4377e076b4d456824748ece74eb37c6c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-require-only-force",
+      "row_sha256": "bfcb4517fb86199e5cba5a0d234e7c840f7531c014961cf69667f58a46dd9911",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-no-commonjs-force",
+      "row_sha256": "a39ab8536c2abfdb35d260f899c93f09455cbb64452f4194a75cf395b6b0b6ea",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-real-esm-mixed",
+      "row_sha256": "f5ad9546b52b43ae1d6568f2d17e2dfb7f2a119adf30392cfeb426528bde05a0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/js-real-esm",
+      "row_sha256": "e0ac4b8313af3848bf2c10799700243a05878cf446ed56f9bc22ad21004ee816",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/jsx-exports-force",
+      "row_sha256": "1b30d3ed4790fded40ca763fed834ff534f4ed003f71d03da22568fc6cd0bca8",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node20/cjs-exports-auto",
+      "row_sha256": "a4ff5b9c1db015480e0f8506118b567760ef530f19d17987287b6f4007d7b8fd",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/node20/mjs-exports-auto",
+      "row_sha256": "0acf9dfae1460f6c8a1b830958f9289bd3f9ad9091113a459968523946d9b45a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/cts-export-equals",
+      "row_sha256": "2689680de724856ca4b37ff8acbbeeadaf89546343ad282678e172c5885675fd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/node20/ts-real-esm",
+      "row_sha256": "61f12ab9af85bd6eb8e0ba736bc530543feb694cf703510134213e3eb1bbf55f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-exports-auto",
+      "row_sha256": "87c05da281baf8c5a981700eeefc117d9e4af644acf240ca1f5bd9bfe5553f58",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-exports-force",
+      "row_sha256": "9fdd0c338b21993c0b0e4ae8a3c3a4c8e4fd65f7445376798b079c4ef58b7a12",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-exports-legacy",
+      "row_sha256": "632e2aab8cd1fc78b17423f52008cf8d9b554159182b296932af6271d533515f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-module-exports-auto",
+      "row_sha256": "b5f7df76a94505e87c0dcd9b08af1b92665b371319a67d05315621d8ff92416f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-require-only-force",
+      "row_sha256": "28ddd7b9c1346263054dd236784af9aa0075caffe700480de96cd5165c5df7f0",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-no-commonjs-force",
+      "row_sha256": "5f6a5d97a711a457ad7ea7cd894a5073b17dfea6c763f90f25a0fb397b771074",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-real-esm-mixed",
+      "row_sha256": "46da8e12f08344168c1e66b3f907f6027ac8587654a32d679d892a1f44927b77",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/js-real-esm",
+      "row_sha256": "5d4927d2469484312c9eb9d267d3f8d7d05f68fafe54d6f812b7aac38f50356b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/jsx-exports-force",
+      "row_sha256": "aac5d0437e5ab6e9ad45835a536d45e074cfbcdd916d704bb39a220f7e8f1214",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/cjs-exports-auto",
+      "row_sha256": "af720ac9c217287672c490f680a8cdd83a8cfbf931147ed6792aee956d31fb8e",
+      "status": "owned-extra-esmodule-marker",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/mjs-exports-auto",
+      "row_sha256": "b4eb81a475c931748674fbe62d5f1538486690187edd37fdcc4d5e7a5c5bb6b4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/cts-export-equals",
+      "row_sha256": "7ef1943351df0427c5482c73132fbde298cd94da7c1973855d492811140c84b4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "commonjs-marker/nodenext/ts-real-esm",
+      "row_sha256": "e25cc18c871ee075444cbe179b6dca8fd132984fcc756522ff51353cd7446251",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    }
+  ],
+  "before_counts": {
+    "eligible": 91,
+    "exact_per_job": 61,
+    "failed_per_job": 30,
+    "primary_jobs": 2,
+    "primary_comparisons": 304,
+    "supplemental_executions": 152,
+    "original_executions": 14,
+    "total_native_executions": 470
+  },
+  "after_required_complete_commands": 397,
+  "after_target_exact_twice": 395,
+  "after_outside_failure_case_ids": [
+    "commonjs-marker/amd/mjs-exports-auto",
+    "commonjs-marker/umd/mjs-exports-auto"
+  ],
+  "emitter_unit_tests_required": {
+    "lib": 485,
+    "contracts": 451
+  },
+  "checker_emit_unit_tests_required": 17,
+  "checker_selection_correction": "ratchets/h2-8a-commonjs-esmodule-marker-checker-selection-correction.v1.json"
+}

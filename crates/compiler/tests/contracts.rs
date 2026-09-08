@@ -192,3 +192,6 @@ mod h2_8a_jsdoc_implements_serialization;
 
 #[path = "integration/h2_8a_transformed_class_assigned_names.rs"]
 mod h2_8a_transformed_class_assigned_names;
+
+#[path = "integration/h2_8a_commonjs_esmodule_marker.rs"]
+mod h2_8a_commonjs_esmodule_marker;
