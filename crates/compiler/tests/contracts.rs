@@ -142,3 +142,9 @@ mod h2_8a_class_transform_flags;
 
 #[path = "integration/h2_8a_class_statement_layout.rs"]
 mod h2_8a_class_statement_layout;
+
+#[path = "integration/h2_8a_export_specifier_names.rs"]
+mod h2_8a_export_specifier_names;
+
+#[path = "integration/h2_8a_cjs_default_reexport_names.rs"]
+mod h2_8a_cjs_default_reexport_names;

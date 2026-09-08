@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "8ed4ee178e9a4837c124b66b4e2d606fa6b4610b",
+  "eligible": 48,
+  "exact": [
+    "js/es5/local-renamed",
+    "js/es5/local-underscores",
+    "js/es5/external-from-default",
+    "ts/es5/local-default",
+    "ts/es5/local-renamed",
+    "ts/es5/local-keywords",
+    "ts/es5/local-underscores",
+    "ts/es5/local-merged-default",
+    "ts/es5/external-to-default",
+    "ts/es5/external-from-default",
+    "ts/es5/external-default",
+    "ts/es5/external-keywords",
+    "ts/es5/external-siblings",
+    "js/es2015/local-renamed",
+    "js/es2015/local-underscores",
+    "js/es2015/external-from-default",
+    "ts/es2015/local-default",
+    "ts/es2015/local-renamed",
+    "ts/es2015/local-keywords",
+    "ts/es2015/local-underscores",
+    "ts/es2015/local-merged-default",
+    "ts/es2015/external-to-default",
+    "ts/es2015/external-from-default",
+    "ts/es2015/external-default",
+    "ts/es2015/external-keywords",
+    "ts/es2015/external-siblings"
+  ],
+  "failed": [
+    "js/es5/local-default",
+    "js/es5/local-keywords",
+    "js/es5/local-string-default",
+    "js/es5/local-merged-default",
+    "js/es5/external-to-default",
+    "js/es5/external-default",
+    "js/es5/external-string-default",
+    "js/es5/external-keywords",
+    "js/es5/external-siblings",
+    "ts/es5/local-string-default",
+    "ts/es5/external-string-default",
+    "js/es2015/local-default",
+    "js/es2015/local-keywords",
+    "js/es2015/local-string-default",
+    "js/es2015/local-merged-default",
+    "js/es2015/external-to-default",
+    "js/es2015/external-default",
+    "js/es2015/external-string-default",
+    "js/es2015/external-keywords",
+    "js/es2015/external-siblings",
+    "ts/es2015/local-string-default",
+    "ts/es2015/external-string-default"
+  ],
+  "run_seconds": 36.61,
+  "working_source_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "48a305d62abb1208657779648c805df89a4090969d815cb796b5dd154a435542"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "049188745987131ee9f95cab5d869eb916fc17b12dd9cabf5a870a0c5a502688"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_export_specifier_names.rs",
+      "sha256": "a4a1b52e814dcc52e72cba7ceef434eede3f06693a043ebfd8b0941d38f820fd"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/export-specifier-names.json",
+      "sha256": "a687b2fb2f0245742fee08626e55ba04d4a3b723db729ee0489fac2ee17f61e3"
+    },
+    {
+      "path": "scripts/observe-export-specifier-names.mjs",
+      "sha256": "32db9231b3d82e611c412c3cd528ec2534e9ce8f422ccd5fa7e5b71f4df7b714"
+    },
+    {
+      "path": "target/h2-8a-export-names-before.log",
+      "sha256": "03c6e882a4afa4804e56f604656417cc9c9ded64e42c70d6ef9ea7c622edd36a"
+    }
+  ]
+}

@@ -133,6 +133,10 @@ pub(super) fn assert_cases_with_inspection(
                     "removeComments" => options.remove_comments = value.as_bool(),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
                     "strict" => options.strict = value.as_bool(),
+                    "allowSyntheticDefaultImports" => {
+                        options.allow_synthetic_default_imports = value.as_bool()
+                    }
+                    "esModuleInterop" => options.es_module_interop = value.as_bool(),
                     "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
                     "noEmitOnError" => options.no_emit_on_error = value.as_bool(),
                     "stripInternal" => options.strip_internal = value.as_bool(),

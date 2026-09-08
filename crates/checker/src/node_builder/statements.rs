@@ -3865,8 +3865,23 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .alias_module_specifier(declaration)
                     .map(|specifier| create_string_literal(self.arena, self.target, specifier))
                     .transpose()?;
+                if specifier.is_some() {
+                    if let NodeData::ExportSpecifier(data) = self.checker.data_of(declaration) {
+                        if data
+                            .property_name
+                            .is_some_and(|name| self.checker.module_export_name_is_default(name))
+                        {
+                            verbatim_target_name =
+                                tsc_types::InternalSymbolName::DEFAULT.to_owned();
+                        }
+                    }
+                }
+                let exported_name = tsc_binder::unescape_leading_underscores(
+                    &self.checker.binder.symbol(symbol).escaped_name,
+                )
+                .to_owned();
                 self.serialize_export_specifier(
-                    local_name,
+                    &exported_name,
                     if specifier.is_some() {
                         &verbatim_target_name
                     } else {
