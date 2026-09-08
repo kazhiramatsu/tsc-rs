@@ -160,3 +160,6 @@ mod h2_8a_system_variable_publication;
 
 #[path = "integration/h2_8a_declaration_token_comments.rs"]
 mod h2_8a_declaration_token_comments;
+
+#[path = "integration/h2_8a_alias_conflict_display.rs"]
+mod h2_8a_alias_conflict_display;

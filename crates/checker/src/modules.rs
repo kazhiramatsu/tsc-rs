@@ -8408,7 +8408,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Import_declaration_conflicts_with_local_declaration_of_0
             };
-            let display = self.symbol_display_name(symbol);
+            let display = self.emit_symbol_to_string_default(symbol)?;
             self.error_at(Some(node), message, &[&display]);
         }
 

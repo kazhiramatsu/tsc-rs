@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-12",
+  "base": "d0f23fdcaac4fa7e7e93c2c87178d991cf528bb2",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/modules.rs"
+  ],
+  "steps": [
+    "A6-12-1"
+  ],
+  "owners": [
+    {
+      "owner": "checkAliasSymbol",
+      "start": 86029,
+      "end": 86137,
+      "sha256": "f38114c6ed2d310327581d9af646d70544ff4e4ae3434764b00d8818bf197779"
+    },
+    {
+      "owner": "symbolToString",
+      "start": 50649,
+      "end": 50682,
+      "sha256": "483aaf1e4cc4280b31d8e18dab23b7c3bb1ed6966d92ff0e59a80ab3bdb157f5"
+    },
+    {
+      "owner": "symbolToNode",
+      "start": 51122,
+      "end": 51135,
+      "sha256": "ba015cf97ede8e4493cf851a6464d86bfd06e225e4fed66cae72ea6a2d91ff41"
+    },
+    {
+      "owner": "symbolToExpression",
+      "start": 53337,
+      "end": 53387,
+      "sha256": "f1c7de91b82f1b2f5a3b4a2e7c1b82bd8504e06172492e073464b298e0938e03"
+    },
+    {
+      "owner": "getNameOfSymbolAsWritten",
+      "start": 55541,
+      "end": 55588,
+      "sha256": "3ab46f78adf8c8b4e40a35ee7661568f015913f937ce2a575104d21c3428f9f0"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-STRINGS",
+      "disposition": "modified-requalify"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-alias-conflict-display.md",
+      "sha256": "311562b44e58462e68faaa02cd8e1784fd0f7357ded0e07fb8a7106db871ecd5"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-alias-conflict-display-before.v1.json",
+      "sha256": "352b0ccf81f2b7cee06921061c98bffc0da6e715a8a541a027070c2b69f0c3c3"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/alias-conflict-display.json",
+      "sha256": "5185895edb21cd3060457d99b518d7f3a5110fd5f4f55aa567e28c9f386cd29c"
+    },
+    {
+      "path": "scripts/observe-alias-conflict-display.mjs",
+      "sha256": "41963c0ba405537e6fda342140ed402aa7f9033c0da4dcd1385ee19eb64fc8d0"
+    },
+    {
+      "path": "ratchets/h2-8a-system-variable-publication-after.v1.json",
+      "sha256": "142510ba50fd9fe24da674fdc2a47ab0eb7bcba42e927cdf55336544e6d76c5b"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "3e4845ca707c2869da9fc3969040350d8b44a4751170af7e09dfbd451b4bcdf1"
+    },
+    {
+      "path": "crates/checker/src/declaration_emit.rs",
+      "sha256": "ab6204992cb296811931a4b6e49180c8f4371aec0eef42ac4e4ba89b805f811b"
+    },
+    {
+      "path": "crates/checker/src/merge.rs",
+      "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+    },
+    {
+      "path": "crates/checker/src/state.rs",
+      "sha256": "d74d5d4bbf6c2dccc9bfb380d61117ba64f8cdb08bb4c84ea0f8c378349fcd26"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "1f3ec654ee5eeb0a4b2912858128a522236ecbbc922ca1830b96af6fd79be27d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "ec9da962d5d21f9298ecf92f05bda98b0bf4b00fa8c315c86a75b80c6769ab18"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/es2015/quoted-double-before",
+      "row_sha256": "2d0b57e483ace1c941d05b101624606120aebfef4e70fba65ee0a87e7ae59359",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "js/es2015/quoted-single-before",
+      "row_sha256": "7e98a72c8013b23a5224600270e4db4376ed9a374cfee7519daa041ff69561b8",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "js/es2015/quoted-unicode-before",
+      "row_sha256": "3b408fc0e723c3d5d255a29ca3e0344a2863c36ab0994f0df55c95c6eae826c1",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "js/es2015/quoted-underscores-before",
+      "row_sha256": "1dacf6e064206b4361223e0005667b00269e936b53fa66df2c665549d234197b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "js/es2015/direct-before-double",
+      "row_sha256": "e0cb5652f7322d67d422f5995d99671dd88032e9538edb76d1c53a99e2b4cbe9",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/es2015/direct-before-single",
+      "row_sha256": "43830df70e1fdabf3462f0e05072357c138140216448d682cbe276ac59a328d0",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/es2015/identifier-before",
+      "row_sha256": "fb88756b171c3713072167baffeb5fc61cf2775d521fb969e0f33bbcfd5f8506",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/es2015/quoted-before-function",
+      "row_sha256": "3572319ae50e9f23833422c5d878a36cf54def84abf3e4d88969498f5f40fd44",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/es2015/quoted-before-class",
+      "row_sha256": "74d3a01727b229a8d378de41aae727a608db610fabe26e9a7a04083aebb754a5",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "js/es2015/import-conflict",
+      "row_sha256": "79d54fd0b579a889d3950780ac65fa4d88ab3e45fcff4a4cb933788c659a1a48",
+      "before": "failed-two-independent-jobs",
+      "disposition": "retained-JS-import-getter"
+    },
+    {
+      "case_id": "js/es2015/quoted-import-conflict",
+      "row_sha256": "9b92c37f9a827cfffa03ab64434cf14caf68dd65351f26c668aa0a4426e7cd5f",
+      "before": "failed-two-independent-jobs",
+      "disposition": "retained-JS-import-getter"
+    },
+    {
+      "case_id": "js/es2015/quoted-without-conflict",
+      "row_sha256": "559db2f604e5addd4e62ac0948e3b1fd73ad28c1c255e864f35d88e16a42b101",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/quoted-double-before",
+      "row_sha256": "123fe655b7cab5dca7f04f7449350b1a3067190477313bbb764ce74945a90ae7",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "ts/es2015/quoted-single-before",
+      "row_sha256": "8fd435f938e2c46753e8b5d59a80083cea3ce750bf7a5da291c81974b7e0d19a",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "ts/es2015/quoted-unicode-before",
+      "row_sha256": "cbb3d2238bb502dfdaf180ef3853cab9e7f5985e19659725b7f42bdcbd35962d",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "ts/es2015/quoted-underscores-before",
+      "row_sha256": "59ee9ecedb79f75f788b0fb8df0efb216101e8a4a29a75d02be383a8323c1f0f",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "ts/es2015/direct-before-double",
+      "row_sha256": "63315d4871dc6073e689195dce6e7fb1f740e0fba72a68df6de655fd3b374ea1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/direct-before-single",
+      "row_sha256": "1f85f03c141e5286e88908e427e5073163f1d1df68ced560129a6207b1012303",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/identifier-before",
+      "row_sha256": "532f822db5c0bf6121355fca4fe2c86bebb8671b3c0ca012e320537cbecbe344",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/quoted-before-function",
+      "row_sha256": "43e63f8d9233812ffdd5f42b1a84f9954e0fcfc2e414c2861897553752bffbe5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/quoted-before-class",
+      "row_sha256": "008f126f59bc5db0a73d5641fe6c2b74a8efa4136ba23c59aec7c3fcb7c726b9",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-diagnostic-display"
+    },
+    {
+      "case_id": "ts/es2015/import-conflict",
+      "row_sha256": "1d5a4fb97e8baad42524ba41db16b47be650519f997c58b4c103e6f4bcdc7b46",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/quoted-import-conflict",
+      "row_sha256": "719eb083435c20328565bbfe332a517dd56a8849fb5d6138a785de00cc3f6c5f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/es2015/quoted-without-conflict",
+      "row_sha256": "f8070cdac0c8a95977d07ea51f7ddaf83fa72bc1c17d8ee02a2fae827e1b9aad",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    }
+  ]
+}
