@@ -148,3 +148,9 @@ mod h2_8a_export_specifier_names;
 
 #[path = "integration/h2_8a_cjs_default_reexport_names.rs"]
 mod h2_8a_cjs_default_reexport_names;
+
+#[path = "integration/h2_8a_export_name_syntax.rs"]
+mod h2_8a_export_name_syntax;
+
+#[path = "integration/h2_8a_export_name_syntax_maps.rs"]
+mod h2_8a_export_name_syntax_maps;

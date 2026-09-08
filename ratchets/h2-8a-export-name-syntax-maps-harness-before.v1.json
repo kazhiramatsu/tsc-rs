@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "status": "complete-before-with-harness-kind-projection-failures",
+  "checkpoint": "a94496bc85e934554c50f777bd08f66e020a9275",
+  "eligible": 40,
+  "exact": [],
+  "failed": [
+    "cjs/js/es5/local-single-quote",
+    "cjs/js/es5/external-single-quote",
+    "cjs/js/es5/update-single-quote",
+    "cjs/js/es5/direct-extended-unicode",
+    "cjs/ts/es5/local-single-quote",
+    "cjs/ts/es5/external-single-quote",
+    "cjs/ts/es5/update-single-quote",
+    "cjs/ts/es5/direct-extended-unicode",
+    "cjs/js/es2015/local-single-quote",
+    "cjs/js/es2015/external-single-quote",
+    "cjs/js/es2015/update-single-quote",
+    "cjs/js/es2015/direct-extended-unicode",
+    "cjs/ts/es2015/local-single-quote",
+    "cjs/ts/es2015/external-single-quote",
+    "cjs/ts/es2015/update-single-quote",
+    "cjs/ts/es2015/direct-extended-unicode",
+    "amd/js/es5/local-single-quote",
+    "amd/js/es5/external-single-quote",
+    "amd/js/es5/update-single-quote",
+    "amd/js/es5/direct-extended-unicode",
+    "amd/ts/es5/local-single-quote",
+    "amd/ts/es5/external-single-quote",
+    "amd/ts/es5/update-single-quote",
+    "amd/ts/es5/direct-extended-unicode",
+    "umd/js/es5/local-single-quote",
+    "umd/js/es5/external-single-quote",
+    "umd/js/es5/update-single-quote",
+    "umd/js/es5/direct-extended-unicode",
+    "umd/ts/es5/local-single-quote",
+    "umd/ts/es5/external-single-quote",
+    "umd/ts/es5/update-single-quote",
+    "umd/ts/es5/direct-extended-unicode",
+    "system/js/es5/local-single-quote",
+    "system/js/es5/external-single-quote",
+    "system/js/es5/update-single-quote",
+    "system/js/es5/direct-extended-unicode",
+    "system/ts/es5/local-single-quote",
+    "system/ts/es5/external-single-quote",
+    "system/ts/es5/update-single-quote",
+    "system/ts/es5/direct-extended-unicode"
+  ],
+  "run_seconds": 25.34,
+  "source_map_result_failures": 30,
+  "h2_9_parse_recovery_refusals": 8,
+  "harness_write_kind_failures": 2,
+  "working_source_files": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "049188745987131ee9f95cab5d869eb916fc17b12dd9cabf5a870a0c5a502688"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "efe9d1a55015240f991d561a34c033aac93a8fe612710214753b0a7f12720c25"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "2d0013253a7760575057e22b6f9c489c34dee63fa92bc3c469852f36647a4639"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_export_name_syntax_maps.rs",
+      "sha256": "5adc879c75b86ceafd2c9aad89a57e60de0e0e620af6bb9b472984dbcaaa5559"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/export-name-syntax-maps.json",
+      "sha256": "e400fac05d1480fd0a0fcdbba5aebc9a510f106296910ce29865c0bda40db05c"
+    },
+    {
+      "path": "scripts/observe-export-name-syntax-maps.mjs",
+      "sha256": "986bde314d4d8d2ec11762d387f007865e84a0ac567f0e34b30b77876011fb05"
+    },
+    {
+      "path": "target/h2-8a-export-name-syntax-maps-before.log",
+      "sha256": "5d85964aacde1977f90c79d0dde6a1b61988fc679e298235044e718a4d7a243c"
+    }
+  ]
+}

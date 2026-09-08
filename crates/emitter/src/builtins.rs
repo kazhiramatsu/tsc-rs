@@ -2706,9 +2706,109 @@ fn namespace_export_identifier_name(
     Ok((text != "default").then(|| text.into_boxed_str()))
 }
 
+/// Text keys and syntax provenance have distinct roles in module publication.
+/// Existing names may be parsed or synthesized by an earlier transformer.
+///
+/// tsc-port: collectExternalModuleInfo @6.0.3
+/// tsc-span: _tsc.js:92779-92919
+/// tsc-hash: 2694413ce6ea08091a03db3a313b50ee3ff526b065f199270311ac583350220e
+#[derive(Clone, Debug)]
+struct ModuleExportName {
+    text: Box<str>,
+    syntax: ModuleExportNameSyntax,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ModuleExportNameSyntax {
+    ExistingNode(TransformNode),
+    SynthesizedIdentifier,
+}
+
+impl ModuleExportName {
+    fn from_node(arena: &TransformArena, node: TransformNode) -> Result<Self, TransformError> {
+        Ok(Self {
+            text: identifier_or_literal_text(arena, node)?.into_boxed_str(),
+            syntax: ModuleExportNameSyntax::ExistingNode(node),
+        })
+    }
+
+    fn identifier(text: &str) -> Self {
+        Self {
+            text: text.into(),
+            syntax: ModuleExportNameSyntax::SynthesizedIdentifier,
+        }
+    }
+
+    fn declaration_name(
+        arena: &TransformArena,
+        source: TransformSourceId,
+        name: Option<NodeId>,
+        fallback: &str,
+    ) -> Result<Self, TransformError> {
+        name.and_then(|name| arena.node_ref(source, name))
+            .map(|name| Self::from_node(arena, name))
+            .transpose()
+            .map(|name| name.unwrap_or_else(|| Self::identifier(fallback)))
+    }
+
+    fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+impl AsRef<str> for ModuleExportName {
+    fn as_ref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl std::ops::Deref for ModuleExportName {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl From<&str> for ModuleExportName {
+    fn from(text: &str) -> Self {
+        Self::identifier(text)
+    }
+}
+
+/// tsc-port: createStringLiteralFromNode @6.0.3
+/// tsc-span: _tsc.js:21535-21543
+/// tsc-hash: a2fa6c4e9dd96af89655a0a7d44368bcdd05ad599a3ef7e898a2a64e3e5fe9ee
+fn create_module_export_name_literal(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    name: &ModuleExportName,
+) -> Result<TransformNode, TransformError> {
+    let literal = context.factory()?.create_node(
+        source,
+        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            text: name.text.to_string(),
+            has_extended_unicode_escape: None,
+        }),
+        TransformFlags::NONE,
+    )?;
+    if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+        let value = context
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::javascript_string_value)
+            .cloned();
+        let metadata = context.arena_mut()?.metadata_mut(literal);
+        metadata.set_string_literal_text_source(node);
+        if let Some(value) = value {
+            metadata.set_javascript_string_value(value);
+        }
+    }
+    Ok(literal)
+}
+
 #[derive(Clone, Debug)]
 struct ImportReExportPlan {
-    exported_name: Box<str>,
+    exported_name: ModuleExportName,
     binding: ImportBinding,
     live_binding: bool,
     location: TransformNode,
@@ -2734,17 +2834,17 @@ enum CommonJsDirectVariableStorage {
 struct CommonJsDirectVariablePlan {
     local_name: Box<str>,
     storage: CommonJsDirectVariableStorage,
-    publication_targets: Vec<Box<str>>,
+    publication_targets: Vec<ModuleExportName>,
 }
 
 impl CommonJsDirectVariablePlan {
     fn new(
         local_name: &str,
         storage: CommonJsDirectVariableStorage,
-        collector_targets: impl IntoIterator<Item = Box<str>>,
+        collector_targets: impl IntoIterator<Item = ModuleExportName>,
     ) -> Self {
         let local_name: Box<str> = local_name.into();
-        let mut publication_targets = vec![local_name.clone()];
+        let mut publication_targets = vec![ModuleExportName::identifier(&local_name)];
         for target in collector_targets {
             if !publication_targets
                 .iter()
@@ -2760,11 +2860,8 @@ impl CommonJsDirectVariablePlan {
         }
     }
 
-    fn alias_targets(&self) -> impl Iterator<Item = &str> {
-        self.publication_targets
-            .iter()
-            .skip(1)
-            .map(|target| target.as_ref())
+    fn alias_targets(&self) -> impl Iterator<Item = &ModuleExportName> {
+        self.publication_targets.iter().skip(1)
     }
 }
 
@@ -2798,7 +2895,7 @@ impl CommonJsFileLevelGeneratedBindingId {
 /// `GeneratedBindingId` is rejected in release builds as well as debug builds.
 #[derive(Debug, Default)]
 struct CommonJsFileLevelGeneratedBindingExports {
-    by_binding: BTreeMap<CommonJsFileLevelGeneratedBindingId, Vec<Box<str>>>,
+    by_binding: BTreeMap<CommonJsFileLevelGeneratedBindingId, Vec<ModuleExportName>>,
 }
 
 impl CommonJsFileLevelGeneratedBindingExports {
@@ -2806,15 +2903,19 @@ impl CommonJsFileLevelGeneratedBindingExports {
         &mut self,
         arena: &TransformArena,
         identifier: TransformNode,
-        export: &str,
+        export: impl Into<ModuleExportName>,
     ) -> bool {
         let Some(binding) = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)
         else {
             return false;
         };
+        let export = export.into();
         let exports = self.by_binding.entry(binding).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export);
         }
         true
     }
@@ -2823,7 +2924,7 @@ impl CommonJsFileLevelGeneratedBindingExports {
         &self,
         arena: &TransformArena,
         identifier: TransformNode,
-    ) -> Option<&[Box<str>]> {
+    ) -> Option<&[ModuleExportName]> {
         let binding = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)?;
         self.by_binding.get(&binding).map(Vec::as_slice)
     }
@@ -2855,13 +2956,13 @@ struct CommonJsModuleInfo {
     /// from exports_by_local, which also includes a declaration's own
     /// `export` modifier; import declarations must publish only the
     /// former after their runtime binding is initialized.
-    export_specifiers_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
-    exports_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
+    export_specifiers_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
+    exports_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
     file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports,
-    exported_bindings: BTreeMap<NodeId, Vec<Box<str>>>,
+    exported_bindings: BTreeMap<NodeId, Vec<ModuleExportName>>,
     export_specifier_locations: BTreeMap<(Box<str>, Box<str>), NodeId>,
-    exported_names: Vec<Box<str>>,
-    hoisted_function_exports: Vec<(Box<str>, Box<str>, TransformNode)>,
+    exported_names: Vec<ModuleExportName>,
+    hoisted_function_exports: Vec<(ModuleExportName, Box<str>, TransformNode)>,
     direct_exported_variable_names: BTreeSet<Box<str>>,
 }
 
@@ -2884,18 +2985,19 @@ impl CommonJsModuleInfo {
         arena: &TransformArena,
         source: TransformSourceId,
         modifiers: Option<NodeArrayId>,
+        name: Option<NodeId>,
         local: &str,
-    ) -> Result<Vec<Box<str>>, TransformError> {
+    ) -> Result<Vec<ModuleExportName>, TransformError> {
         if !self.appends_declaration_exports() {
             return Ok(Vec::new());
         }
-        let mut exports = Vec::<Box<str>>::new();
+        let mut exports = Vec::<ModuleExportName>::new();
         if has_modifier(arena, source, modifiers, SyntaxKind::ExportKeyword)? {
             exports.push(
                 if has_modifier(arena, source, modifiers, SyntaxKind::DefaultKeyword)? {
                     "default".into()
                 } else {
-                    local.into()
+                    ModuleExportName::declaration_name(arena, source, name, local)?
                 },
             );
         }
@@ -3237,9 +3339,11 @@ impl CommonJsModuleInfo {
                                 SyntaxKind::DefaultKeyword,
                             )?;
                             let export = if is_default {
-                                "default"
+                                ModuleExportName::identifier("default")
                             } else {
-                                local.as_ref()
+                                ModuleExportName::declaration_name(
+                                    arena, source, data.name, &local,
+                                )?
                             };
                             let admitted = if is_default {
                                 if has_export_default {
@@ -3249,10 +3353,10 @@ impl CommonJsModuleInfo {
                                     true
                                 }
                             } else {
-                                unique_exports.insert(export.into())
+                                unique_exports.insert(export.text.clone())
                             };
                             if admitted {
-                                info.add_export_mapping(&local, export);
+                                info.add_export_mapping(&local, &export);
                                 // collectModuleInfo's default arm records the
                                 // declaration name in exportedBindings
                                 // (_tsc.js:92906-92908); "default" stays only
@@ -3260,7 +3364,9 @@ impl CommonJsModuleInfo {
                                 // initializer substitutes `exports.<name>`.
                                 info.add_exported_binding(
                                     key,
-                                    if is_default { local.as_ref() } else { export },
+                                    &ModuleExportName::declaration_name(
+                                        arena, source, data.name, &local,
+                                    )?,
                                 );
                             }
                         }
@@ -3293,9 +3399,9 @@ impl CommonJsModuleInfo {
                         .or_else(|| info.generated_declaration_names.get(&key).cloned());
                     if let Some(local) = local {
                         let export = if is_default {
-                            "default"
+                            ModuleExportName::identifier("default")
                         } else {
-                            local.as_ref()
+                            ModuleExportName::declaration_name(arena, source, data.name, &local)?
                         };
                         // collectExternalModuleInfo deliberately omits a
                         // directly exported default class from exportedNames:
@@ -3312,7 +3418,7 @@ impl CommonJsModuleInfo {
                                 true
                             }
                         } else if has_syntactic_name {
-                            unique_exports.insert(export.into())
+                            unique_exports.insert(export.text.clone())
                         } else {
                             // Invalid-but-emittable anonymous named export is
                             // absent from collectExternalModuleInfo but still
@@ -3320,9 +3426,9 @@ impl CommonJsModuleInfo {
                             true
                         };
                         if admitted {
-                            info.add_export_mapping(&local, export);
+                            info.add_export_mapping(&local, &export);
                             if !is_default && has_syntactic_name {
-                                info.add_exported_name(export);
+                                info.add_exported_name(&export);
                             }
                             if is_default || has_syntactic_name {
                                 // The default arm mirrors the function case:
@@ -3330,7 +3436,9 @@ impl CommonJsModuleInfo {
                                 // name (_tsc.js:92859-92861).
                                 info.add_exported_binding(
                                     key,
-                                    if is_default { local.as_ref() } else { export },
+                                    &ModuleExportName::declaration_name(
+                                        arena, source, data.name, &local,
+                                    )?,
                                 );
                             }
                         }
@@ -3351,11 +3459,12 @@ impl CommonJsModuleInfo {
                                 if !unique_exports.insert(local.clone().into_boxed_str()) {
                                     continue;
                                 }
-                                info.add_export_mapping(&local, &local);
-                                info.add_exported_name(&local);
+                                let export = ModuleExportName::from_node(arena, leaf.name)?;
+                                info.add_export_mapping(&local, &export);
+                                info.add_exported_name(&export);
                                 info.add_exported_binding(
                                     arena.get_original_node(leaf.declaration).node(),
-                                    &local,
+                                    &export,
                                 );
                                 if !arena.metadata(leaf.name).is_some_and(|metadata| {
                                     metadata.flags().contains(EmitFlags::LOCAL_NAME)
@@ -3427,12 +3536,10 @@ impl CommonJsModuleInfo {
                                             .name
                                             .and_then(|id| arena.node_ref(source, id))
                                             .and_then(|name| {
-                                                identifier_or_literal_text(arena, name).ok()
+                                                ModuleExportName::from_node(arena, name).ok()
                                             })
                                         {
-                                            if !unique_exports
-                                                .insert(export.clone().into_boxed_str())
-                                            {
+                                            if !unique_exports.insert(export.text.clone()) {
                                                 continue;
                                             }
                                             info.add_exported_name(&export);
@@ -3444,9 +3551,9 @@ impl CommonJsModuleInfo {
                                 if let Some(export) = namespace
                                     .name
                                     .and_then(|id| arena.node_ref(source, id))
-                                    .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                                    .and_then(|name| ModuleExportName::from_node(arena, name).ok())
                                 {
-                                    if !unique_exports.insert(export.clone().into_boxed_str()) {
+                                    if !unique_exports.insert(export.text.clone()) {
                                         continue;
                                     }
                                     info.add_exported_name(&export);
@@ -3481,7 +3588,7 @@ impl CommonJsModuleInfo {
                         let Some(export) = specifier
                             .name
                             .and_then(|id| arena.node_ref(source, id))
-                            .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                            .and_then(|name| ModuleExportName::from_node(arena, name).ok())
                         else {
                             continue;
                         };
@@ -3517,22 +3624,22 @@ impl CommonJsModuleInfo {
                                 if exported_function_set.insert(key) {
                                     exported_functions.push(key);
                                 }
-                                if export == "default" {
+                                if export.as_ref() == "default" {
                                     if !has_export_default {
                                         has_export_default = true;
                                         info.add_exported_binding(key, &export);
                                     }
                                 } else {
-                                    unique_exports.insert(export.clone().into_boxed_str());
+                                    unique_exports.insert(export.text.clone());
                                     info.add_exported_binding(key, &export);
                                 }
                             }
                         } else {
-                            unique_exports.insert(export.clone().into_boxed_str());
+                            unique_exports.insert(export.text.clone());
                             info.add_export_specifier(&local, &export, location);
                             let _ = info
                                 .file_level_generated_binding_exports
-                                .add_for_identifier(arena, local_name, &export);
+                                .add_for_identifier(arena, local_name, export.clone());
                             if let Some(declaration) = declaration {
                                 info.add_exported_binding(declaration.node(), &export);
                             }
@@ -3581,7 +3688,9 @@ impl CommonJsModuleInfo {
                 continue;
             };
             let original_declaration = arena.get_original_node(statement);
-            for export in info.hoisted_declaration_exports(arena, source, data.modifiers, &local)? {
+            for export in
+                info.hoisted_declaration_exports(arena, source, data.modifiers, data.name, &local)?
+            {
                 info.hoisted_function_exports
                     .push((export, local.clone(), original_declaration));
             }
@@ -3589,46 +3698,60 @@ impl CommonJsModuleInfo {
         Ok(info)
     }
 
-    fn add_export_mapping(&mut self, local: &str, export: &str) {
+    fn add_export_mapping(&mut self, local: &str, export: &ModuleExportName) {
         let exports = self.exports_by_local.entry(local.into()).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
     }
 
-    fn add_export_specifier(&mut self, local: &str, export: &str, location: NodeId) {
+    fn add_export_specifier(&mut self, local: &str, export: &ModuleExportName, location: NodeId) {
         self.add_export_specifier_mapping(local, export, location);
         self.add_exported_name(export);
     }
 
-    fn add_export_specifier_mapping(&mut self, local: &str, export: &str, location: NodeId) {
+    fn add_export_specifier_mapping(
+        &mut self,
+        local: &str,
+        export: &ModuleExportName,
+        location: NodeId,
+    ) {
         let exports = self
             .export_specifiers_by_local
             .entry(local.into())
             .or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
         self.export_specifier_locations
-            .entry((local.into(), export.into()))
+            .entry((local.into(), export.text.clone()))
             .or_insert(location);
         self.add_export_mapping(local, export);
     }
 
-    fn add_exported_name(&mut self, export: &str) {
+    fn add_exported_name(&mut self, export: &ModuleExportName) {
         if !self
             .exported_names
             .iter()
-            .any(|existing| existing.as_ref() == export)
+            .any(|existing| existing.as_ref() == export.as_ref())
         {
-            self.exported_names.push(export.into());
+            self.exported_names.push(export.clone());
         }
     }
 
-    fn add_exported_binding(&mut self, declaration: NodeId, export: &str) {
+    fn add_exported_binding(&mut self, declaration: NodeId, export: &ModuleExportName) {
         let exports = self.exported_bindings.entry(declaration).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
     }
 }
@@ -4278,7 +4401,7 @@ fn variable_list_has_initialized_export_binding(
     arena: &TransformArena,
     source: TransformSourceId,
     list: TransformNode,
-    exported_bindings: &BTreeMap<NodeId, Vec<Box<str>>>,
+    exported_bindings: &BTreeMap<NodeId, Vec<ModuleExportName>>,
 ) -> Result<bool, TransformError> {
     let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
         return Ok(false);
@@ -4420,7 +4543,7 @@ impl NamespaceDestructuringPlan {
 #[derive(Clone, Debug)]
 struct ExportAssignmentPlan {
     local_name: String,
-    exports: Vec<Box<str>>,
+    exports: Vec<ModuleExportName>,
     direct_export_storage: bool,
 }
 
@@ -4431,7 +4554,7 @@ struct ExportAssignmentPlan {
 #[derive(Clone, Debug)]
 struct DeclarationExportPlan {
     local: TransformNode,
-    exported_name: Box<str>,
+    exported_name: ModuleExportName,
     location: TransformNode,
     source_map_location: TransformNode,
 }
@@ -4575,14 +4698,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             for chunk in preinitialized.chunks(50) {
                 let mut expression = self.create_void_zero()?;
                 for name in chunk {
-                    let target = self.create_export_access(name)?;
+                    let target = self.create_preinitialized_export_access(name)?;
                     expression = self.create_assignment(target, expression)?;
                 }
                 output.push(self.create_expression_statement(expression)?);
             }
             if self.info.appends_declaration_exports() {
                 for (export, local, declaration) in hoisted_function_exports {
-                    let target = self.create_export_access(&export)?;
+                    let target = self.create_export_access_from_module_name(&export)?;
                     let value = self.create_identifier(&local)?;
                     let assignment = self.create_assignment(target, value)?;
                     let statement = self.create_expression_statement(assignment)?;
@@ -5135,6 +5258,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                             self.context.arena(),
                             self.source,
                             data.modifiers,
+                            data.name,
                             name,
                         )
                     })
@@ -5145,7 +5269,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let mut statements = vec![class];
                 if let Some(name) = name {
                     for export in exported {
-                        let target = self.create_export_access(&export)?;
+                        let target = self.create_export_access_from_module_name(&export)?;
                         let value = self.create_identifier(&name)?;
                         let assignment = self.create_assignment(target, value)?;
                         let publication = self.create_expression_statement(assignment)?;
@@ -5354,7 +5478,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let location = self
                     .info
                     .export_specifier_locations
-                    .get(&(local.clone().into_boxed_str(), exported_name.clone()))
+                    .get(&(local.clone().into_boxed_str(), exported_name.text.clone()))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                     .unwrap_or(local_name);
                 Ok(ImportReExportPlan {
@@ -5376,11 +5500,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let statement = if plan.live_binding {
             self.create_live_export_statement(&plan.exported_name, value)?
         } else {
-            let target = self.create_export_access(&plan.exported_name)?;
+            let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             self.create_expression_statement(assignment)?
         };
         self.set_original_and_range(statement, plan.location)?;
+        self.set_explicit_export_statement_location(statement, &plan.exported_name)?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)
@@ -5390,7 +5515,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     fn create_live_export_statement(
         &mut self,
-        exported_name: &str,
+        exported_name: &ModuleExportName,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let return_statement = self.context.factory()?.create_node(
@@ -5445,7 +5570,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let object = self.create_identifier("Object")?;
         let define_property = self.create_property_access(object, "defineProperty")?;
         let exports = self.create_identifier("exports")?;
-        let name = self.create_string_literal(exported_name)?;
+        let name = create_module_export_name_literal(self.context, self.source, exported_name)?;
         let call = self.create_call(define_property, vec![exports, name, descriptor])?;
         self.create_expression_statement(call)
     }
@@ -5638,27 +5763,38 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     else {
                         continue;
                     };
-                    let property = specifier_data
+                    let property_node = specifier_data
                         .property_name
                         .or(specifier_data.name)
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
                         .ok_or(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::ExportSpecifier,
                             field: "property_name or name",
                         })?;
-                    let exported = specifier_data
+                    let property = identifier_or_literal_text(self.context.arena(), property_node)?;
+                    let exported_node = specifier_data
                         .name
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
                         .ok_or(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::ExportSpecifier,
                             field: "name",
                         })?;
+                    let exported_name = self.context.factory()?.clone_node(exported_node)?;
+                    if self.context.arena().node(exported_node)?.kind != SyntaxKind::StringLiteral {
+                        self.context
+                            .factory()?
+                            .set_text_range(exported_name, exported_node)?;
+                        self.context
+                            .arena_mut()?
+                            .metadata_mut(exported_name)
+                            .add_flags(
+                                EmitFlags::NO_SOURCE_MAP
+                                    | EmitFlags::NO_COMMENTS
+                                    | EmitFlags::EXPORT_NAME,
+                            );
+                    }
+                    let exported =
+                        ModuleExportName::from_node(self.context.arena(), exported_name)?;
                     let mut target = self.create_identifier(&generated_name)?;
                     if apply_import_helpers && property == "default" {
                         self.request_import_default_helper()?;
@@ -5668,11 +5804,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         )?;
                         target = self.create_call(helper, vec![target])?;
                     }
-                    let value = if is_identifier_export_name(&property) {
-                        self.create_property_access(target, &property)?
+                    let value = if self.context.arena().node(property_node)?.kind
+                        == SyntaxKind::StringLiteral
+                    {
+                        self.context.factory()?.create_element_access_expression(
+                            self.source,
+                            target,
+                            property_node,
+                        )?
                     } else {
-                        let property = self.create_string_literal(&property)?;
-                        self.create_element_access(target, property)?
+                        self.context.factory()?.create_property_access_expression(
+                            self.source,
+                            target,
+                            property_node,
+                        )?
                     };
                     let statement = self.create_live_export_statement(&exported, value)?;
                     self.set_original_and_range(statement, specifier)?;
@@ -5684,7 +5829,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let exported = namespace
                     .name
                     .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+                    .and_then(|name| ModuleExportName::from_node(self.context.arena(), name).ok())
                     .ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::NamespaceExport,
                         field: "name",
@@ -5706,7 +5851,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     )?;
                     value = self.create_call(helper, vec![value])?;
                 }
-                let target = self.create_export_access(&exported)?;
+                let target = self.create_export_access_from_module_name(&exported)?;
                 let assignment = self.create_assignment(target, value)?;
                 let statement = self.create_expression_statement(assignment)?;
                 self.set_original_and_range(statement, original)?;
@@ -5853,10 +5998,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .add_flags(EmitFlags::NO_COMMENTS);
                 trailing.push(statement);
                 for export in plan.alias_targets() {
-                    let target = self.create_export_access(export)?;
+                    let target = self.create_export_access_from_module_name(export)?;
                     let value = self.create_identifier(&plan.local_name)?;
                     let assignment = self.create_assignment(target, value)?;
-                    trailing.push(self.create_expression_statement(assignment)?);
+                    let statement = self.create_expression_statement(assignment)?;
+                    self.set_explicit_export_statement_location(statement, export)?;
+                    trailing.push(statement);
                 }
                 continue;
             }
@@ -5874,10 +6021,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.set_direct_export_statement_range(statement, name, original)?;
                     trailing.push(statement);
                     for export in plan.alias_targets() {
-                        let target = self.create_export_access(export)?;
-                        let value = self.create_export_access(&plan.local_name)?;
+                        let target = self.create_export_access_from_module_name(export)?;
+                        let value = self.create_substituted_declaration_export_value(name)?;
                         let assignment = self.create_assignment(target, value)?;
-                        trailing.push(self.create_expression_statement(assignment)?);
+                        let statement = self.create_expression_statement(assignment)?;
+                        self.set_explicit_export_statement_location(statement, export)?;
+                        trailing.push(statement);
                     }
                 }
                 continue;
@@ -5889,7 +6038,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .filter(|plan| plan.storage == CommonJsDirectVariableStorage::LocalBinding)
                 {
                     for export in &plan.publication_targets {
-                        let target = self.create_export_access(export)?;
+                        let target = self.create_export_access_from_module_name(export)?;
                         initializer = self.create_assignment(target, initializer)?;
                     }
                 }
@@ -6406,7 +6555,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let Some(location) = self
                     .info
                     .export_specifier_locations
-                    .get(&(local_name.clone().into_boxed_str(), exported_name.clone()))
+                    .get(&(
+                        local_name.clone().into_boxed_str(),
+                        exported_name.text.clone(),
+                    ))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                 else {
                     // A syntactic `export` modifier is published by the
@@ -6430,27 +6582,54 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         location: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let record = self.context.arena().node(location)?;
-        if record.kind != SyntaxKind::ExportSpecifier
-            || record.pos != u32::MAX
-            || record.end != u32::MAX
-        {
-            return Ok(location);
-        }
-        let NodeData::ExportSpecifier(data) = &record.data else {
+        let NodeData::ExportSpecifier(data) = &self.context.arena().node(location)?.data else {
             return Ok(location);
         };
-        let Some(name) = data
+        Ok(data
             .name
             .and_then(|name| self.context.arena().node_ref(self.source, name))
-        else {
-            return Ok(location);
-        };
-        let name_record = self.context.arena().node(name)?;
-        if name_record.pos == u32::MAX || name_record.end == u32::MAX {
-            return Ok(location);
+            .unwrap_or(location))
+    }
+
+    fn set_explicit_export_statement_location(
+        &mut self,
+        statement: TransformNode,
+        name: &ModuleExportName,
+    ) -> Result<(), TransformError> {
+        if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+            self.context.factory()?.set_text_range(statement, node)?;
         }
-        Ok(name)
+        let metadata = self.context.arena_mut()?.metadata_mut(statement);
+        metadata.add_flags(EmitFlags::NO_COMMENTS);
+        metadata.set_starts_on_new_line(true);
+        Ok(())
+    }
+
+    /// The direct-storage lowering performs the declaration-name substitution
+    /// here, before ordinary reference visitation. The access retains the
+    /// declaration name's range, while its cloned property has no own mapping.
+    ///
+    /// tsc-port: substituteExpressionIdentifier @6.0.3
+    /// tsc-span: _tsc.js:111946-111989
+    /// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
+    fn create_substituted_declaration_export_value(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let declaration_name = self.context.factory()?.clone_node(name)?;
+        self.context
+            .factory()?
+            .set_text_range(declaration_name, name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(declaration_name)
+            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+        let export = ModuleExportName::from_node(self.context.arena(), declaration_name)?;
+        let value = self.create_export_access_from_module_name(&export)?;
+        self.context
+            .factory()?
+            .set_text_range(value, declaration_name)?;
+        Ok(value)
     }
 
     fn create_declaration_export_statements(
@@ -6462,7 +6641,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for plan in plans {
             let value = self.context.factory()?.clone_node(plan.local)?;
             self.context.factory()?.set_text_range(value, plan.local)?;
-            let target = self.create_export_access(&plan.exported_name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(value)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             let statement = self.create_expression_statement(assignment)?;
             self.set_original_and_range(statement, plan.location)?;
@@ -7297,7 +7480,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let exports = self.exports_for_assignment(&data)?;
         let mut expression = self.update_generic(original, NodeData::BinaryExpression(data))?;
         for export in exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
             self.set_original_and_range(expression, original)?;
         }
@@ -7343,7 +7526,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if plan.direct_export_storage && export.as_ref() == plan.local_name.as_str() {
                     continue;
                 }
-                let target = self.create_export_access(&export)?;
+                let target = self.create_export_access_from_module_name(&export)?;
                 expression = self.create_assignment(target, expression)?;
                 self.set_original_and_range(expression, original)?;
             }
@@ -7421,7 +7604,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         expression = self.create_binary(expression, SyntaxKind::CommaToken, current_value)?;
         self.set_original_and_range(expression, original)?;
         for export in exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
             self.set_original_and_range(expression, original)?;
         }
@@ -7438,7 +7621,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn exports_for_assignment(
         &self,
         data: &tsc_syntax::nodes::BinaryExpressionData,
-    ) -> Result<Vec<Box<str>>, TransformError> {
+    ) -> Result<Vec<ModuleExportName>, TransformError> {
         let Some(operator) = data
             .operator_token
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -7509,7 +7692,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for declaration in declarations {
             if let Some(bindings) = self.info.exported_bindings.get(&declaration.node()) {
                 for binding in bindings {
-                    if seen.insert(binding.clone()) {
+                    if seen.insert(binding.text.clone()) {
                         exports.push(binding.clone());
                     }
                 }
@@ -7878,7 +8061,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             self.create_assignment(target, value)?
         };
         for export in plan.exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
         }
         Ok(expression)
@@ -9577,6 +9760,69 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }),
             TransformFlags::NONE,
         )
+    }
+
+    /// tsc-port: transformCommonJSModule @6.0.3
+    /// tsc-span: _tsc.js:110167-110204
+    /// tsc-hash: a48c215e8304107fec1f4e113f74a13f720cb5901cff5287bda673a98e082749
+    fn create_preinitialized_export_access(
+        &mut self,
+        name: &ModuleExportName,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier("exports")?;
+        if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+            if self.context.arena().node(node)?.kind == SyntaxKind::StringLiteral {
+                let value = self
+                    .context
+                    .arena()
+                    .metadata(node)
+                    .and_then(crate::EmitMetadata::javascript_string_value)
+                    .cloned();
+                let literal = self.create_string_literal(&name.text)?;
+                if let Some(value) = value {
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(literal)
+                        .set_javascript_string_value(value);
+                }
+                return self.context.factory()?.create_element_access_expression(
+                    self.source,
+                    exports,
+                    literal,
+                );
+            }
+        }
+        let property = self.create_identifier(&name.text)?;
+        self.context
+            .factory()?
+            .create_property_access_expression(self.source, exports, property)
+    }
+
+    /// tsc-port: createExportExpression @6.0.3
+    /// tsc-span: _tsc.js:111805-111851
+    /// tsc-hash: 75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8
+    fn create_export_access_from_module_name(
+        &mut self,
+        name: &ModuleExportName,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier("exports")?;
+        let property = match name.syntax {
+            ModuleExportNameSyntax::ExistingNode(node) => {
+                self.context.factory()?.clone_node(node)?
+            }
+            ModuleExportNameSyntax::SynthesizedIdentifier => self.create_identifier(&name.text)?,
+        };
+        if self.context.arena().node(property)?.kind == SyntaxKind::StringLiteral {
+            self.context
+                .factory()?
+                .create_element_access_expression(self.source, exports, property)
+        } else {
+            self.context.factory()?.create_property_access_expression(
+                self.source,
+                exports,
+                property,
+            )
+        }
     }
 
     fn create_export_access(&mut self, name: &str) -> Result<TransformNode, TransformError> {

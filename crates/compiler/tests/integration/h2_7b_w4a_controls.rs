@@ -427,9 +427,18 @@ pub(super) fn assert_completed_observation(
             std::ffi::OsStr::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: output path"
         );
+        let expected_kind = expected["kind"].as_str().expect("frozen write kind");
+        // Original command observers call JavaScript map writes `source-map`;
+        // older owner fixtures use `javascript-map` for the same artifact kind.
+        let actual_kind =
+            if expected_kind == "source-map" && write.kind() == EmitArtifactKind::JavaScriptMap {
+                "source-map"
+            } else {
+                artifact_kind(write.kind(), write.path())
+            };
         assert_eq!(
-            artifact_kind(write.kind(), write.path()),
-            expected["kind"].as_str().expect("frozen write kind"),
+            actual_kind,
+            expected_kind,
             "{case_id}: write kind for {}",
             write.path().display()
         );

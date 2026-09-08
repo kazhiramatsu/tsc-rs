@@ -3013,8 +3013,10 @@ fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
     let file_level_identifier = file_level_identifier.expect("default owns a FileLevel ID");
     assert!(exports.add_for_identifier(arena, file_level_identifier, "default"));
     assert_eq!(
-        exports.get_for_identifier(arena, file_level_identifier),
-        Some(&[Box::<str>::from("default")][..]),
+        exports
+            .get_for_identifier(arena, file_level_identifier)
+            .map(|names| names.iter().map(AsRef::as_ref).collect::<Vec<_>>()),
+        Some(vec!["default"]),
     );
 }
 

@@ -901,6 +901,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         self.context.arena(),
                         self.source,
                         data.modifiers,
+                        data.name,
                         local,
                     )
                 })
@@ -915,7 +916,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if let Some(local) = local {
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call(&export, value)?;
+                let call = self.create_export_call_with_name(&export, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         }
@@ -1349,7 +1350,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let target = self.create_identifier(&binding.generated_name)?;
             let value =
                 super::create_import_binding_access(self.context, self.source, target, &binding)?;
-            let call = self.create_export_call(&export, value)?;
+            let call = self.create_export_call_with_name(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
         }
@@ -1619,7 +1620,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     {
                         let mut wrapped = *expression;
                         for export in exports {
-                            wrapped = self.create_export_call(&export, wrapped)?;
+                            wrapped = self.create_export_call_with_name(&export, wrapped)?;
                         }
                         *expression = wrapped;
                     }
@@ -1638,7 +1639,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         .unwrap_or_default()
                     {
                         let value = self.create_identifier(&local)?;
-                        let call = self.create_export_call(&export, value)?;
+                        let call = self.create_export_call_with_name(&export, value)?;
                         trailing_exports.push(self.create_expression_statement(call)?);
                     }
                 }
@@ -1988,6 +1989,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         self.context.arena(),
                         self.source,
                         data.modifiers,
+                        data.name,
                         local,
                     )
                 })
@@ -2021,7 +2023,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             output.push(statement);
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call(&export, value)?;
+                let call = self.create_export_call_with_name(&export, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         } else {
@@ -2194,7 +2196,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut expression =
             self.update_generic_without_visit(original, NodeData::BinaryExpression(data))?;
         for export in exports {
-            expression = self.create_export_call(&export, expression)?;
+            expression = self.create_export_call_with_name(&export, expression)?;
         }
         Ok(expression)
     }
@@ -2223,7 +2225,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut expression =
             self.update_generic_without_visit(original, NodeData::PrefixUnaryExpression(data))?;
         for export in exports {
-            expression = self.create_export_call(&export, expression)?;
+            expression = self.create_export_call_with_name(&export, expression)?;
         }
         Ok(expression)
     }
@@ -2261,11 +2263,21 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .and_then(|operand| identifier_or_literal_text(self.context.arena(), operand).ok())
             .unwrap_or_default();
         if value_is_discarded {
-            let current = self.create_identifier(&operand_text)?;
+            // tsc-port: transformSystemModule.visitPrefixOrPostfixUnaryExpression @6.0.3
+            // tsc-span: _tsc.js:113142-113171
+            // tsc-hash: 7cb86637e144d123b18ed01fd4d3df03058a522141ed8789259204c532b18694
+            let current = self.context.factory()?.clone_node(
+                original_operand.expect("an exported postfix update has an identifier operand"),
+            )?;
             let comma = self.create_binary(update, SyntaxKind::CommaToken, current)?;
+            self.context.factory()?.set_text_range(comma, original)?;
             let mut expression = self.create_parenthesized(comma)?;
+            // tsc-port: parenthesizeExpressionForDisallowedComma @6.0.3
+            // tsc-span: _tsc.js:20483-20488
+            // tsc-hash: 0a7087ac86e0e05adcb2a09a875ee73ad9e77636dc29e663dd7d03ea3e38e786
+            self.context.factory()?.set_text_range(expression, comma)?;
             for export in exports {
-                expression = self.create_export_call(&export, expression)?;
+                expression = self.create_export_call_with_name(&export, expression)?;
             }
             return Ok(expression);
         }
@@ -2276,7 +2288,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let current = self.create_identifier(&operand_text)?;
         let mut publish = current;
         for export in exports {
-            publish = self.create_export_call(&export, publish)?;
+            publish = self.create_export_call_with_name(&export, publish)?;
         }
         let first = self.create_binary(save, SyntaxKind::CommaToken, publish)?;
         let temp_value = self.create_identifier(&temp)?;
@@ -2372,7 +2384,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         }))
     }
 
-    fn exports_for_identifier(&self, node: TransformNode) -> Result<Vec<Box<str>>, TransformError> {
+    fn exports_for_identifier(
+        &self,
+        node: TransformNode,
+    ) -> Result<Vec<super::ModuleExportName>, TransformError> {
         if self.context.arena().node(node)?.kind != SyntaxKind::Identifier {
             return Ok(Vec::new());
         }
@@ -2800,6 +2815,48 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let value = self.create_binary(context, SyntaxKind::AmpersandAmpersandToken, id)?;
         let declaration = self.create_variable_declaration("__moduleName", Some(value))?;
         self.create_variable_statement(vec![declaration], NodeFlags::NONE)
+    }
+
+    /// tsc-port: transformSystemModule.createExportExpression @6.0.3
+    /// tsc-span: _tsc.js:112837-112846
+    /// tsc-hash: 1047eae1c9c391b34504e0e5ec4bacdb1c36d2b2d3ba04b5f672d966769b8394
+    fn create_export_call_with_name(
+        &mut self,
+        name: &super::ModuleExportName,
+        value: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier(&self.exports_name.clone())?;
+        let name = match name.syntax {
+            super::ModuleExportNameSyntax::ExistingNode(node)
+                if self.context.arena().node(node)?.kind == SyntaxKind::StringLiteral =>
+            {
+                node
+            }
+            _ => super::create_module_export_name_literal(self.context, self.source, name)?,
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(value)
+            .add_flags(crate::EmitFlags::NO_COMMENTS);
+        let call = self.create_call(exports, vec![name, value])?;
+        let record = self.context.arena().node(value)?;
+        if record.pos != u32::MAX && record.end != u32::MAX {
+            let range = crate::SourceRange::from_raw(
+                record.pos,
+                record.end,
+                self.context
+                    .arena()
+                    .source(value.source())?
+                    .syntax()
+                    .positions(),
+            )
+            .map_err(|error| TransformError::InvalidSourceRange { node: value, error })?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(call)
+                .set_comment_range(crate::CommentRange::new(value.source(), range));
+        }
+        Ok(call)
     }
 
     fn create_export_call(
