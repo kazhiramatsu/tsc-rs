@@ -178,3 +178,5 @@ mod h2_8a_jsdoc_parentheses_guard;
 
 #[path = "integration/h2_8a_commonjs_class_instance.rs"]
 mod h2_8a_commonjs_class_instance;
+#[path = "integration/h2_8a_static_initializer_map_ranges.rs"]
+mod h2_8a_static_initializer_map_ranges;

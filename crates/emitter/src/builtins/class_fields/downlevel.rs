@@ -299,6 +299,8 @@ struct PrivateEnvironment {
     static_super_policy: StaticSuperPolicy,
     super_alias: Option<ClassBinding>,
     is_legacy_decorated: bool,
+    /// Captured before any later class-expression sequencing fallback temp.
+    has_class_facts: bool,
 }
 
 #[derive(Clone)]
@@ -605,6 +607,7 @@ struct ClassFactsPlan {
     static_facts: StaticLexicalFacts,
     has_static_private_or_auto_accessor: bool,
     has_instance_constructor_reference: bool,
+    will_hoist_initializers_to_constructor: bool,
 }
 
 /// Declaration owner selected once from the original class-expression
@@ -1853,7 +1856,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
-        let private_environment = self.materialize_private_environment(
+        let mut private_environment = self.materialize_private_environment(
             private_plan,
             class_name.as_deref(),
             class_alias,
@@ -1862,6 +1865,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             false,
             class_facts.static_facts,
         )?;
+        private_environment.has_class_facts = private_environment.is_legacy_decorated
+            || reference_plan.needs_identity()
+            || class_facts.will_hoist_initializers_to_constructor;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         if !self.selectively_transforms_private_static_elements() {
             if let Some(alias) = private_environment.class_alias.as_ref() {
@@ -2034,7 +2040,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
-        let private_environment = self.materialize_private_environment(
+        let mut private_environment = self.materialize_private_environment(
             private_plan,
             class_name.as_deref(),
             class_definition_binding.clone(),
@@ -2043,6 +2049,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             decorated_declaration.is_some(),
             class_facts.static_facts,
         )?;
+        private_environment.has_class_facts = private_environment.is_legacy_decorated
+            || reference_plan.needs_identity()
+            || class_facts.will_hoist_initializers_to_constructor;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         let private_expression_binding = private_environment.class_alias.clone();
         self.private_environments.push(private_environment);
@@ -2233,6 +2242,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     // so move the same ownership onto the expression exactly
                     // as tsc's generateInitializedPropertyExpressions does.
                     let expression = self.set_original_and_range(expression, original)?;
+                    // Inline placement replaces transformProperty's name
+                    // range with the complete property range after modifiers.
+                    if let Some(range) = self.property_source_map_range(original)? {
+                        self.context
+                            .arena_mut()?
+                            .metadata_mut(expression)
+                            .set_source_map_range(range);
+                    }
                     // A comma-expression child does not pass through the
                     // statement/list leading-comment phase. This typed source
                     // anchor is the transform/printer equivalent of tsc's
@@ -3349,6 +3366,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut has_static_private_or_auto_accessor =
             self.class_has_named_evaluation_member(members)?;
         let mut has_instance_constructor_reference = false;
+        let mut contains_public_instance_fields = false;
+        let mut contains_initialized_public_instance_fields = false;
+        let mut contains_instance_private_elements = false;
+        let mut contains_instance_auto_accessors = false;
 
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
@@ -3373,22 +3394,45 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     && self.should_transform_private_class_element(member, modifiers)?;
                 continue;
             }
-            if is_auto_accessor
-                || !name_is_private
-                || self.has_modifier(modifiers, SyntaxKind::AbstractKeyword)?
-            {
+            let original = self.context.arena().get_original_node(member);
+            let original_modifiers = match &self.context.arena().node(original)?.data {
+                NodeData::PropertyDeclaration(data) => data.modifiers,
+                NodeData::MethodDeclaration(data) => data.modifiers,
+                NodeData::GetAccessor(data) => data.modifiers,
+                NodeData::SetAccessor(data) => data.modifiers,
+                _ => None,
+            };
+            if self.has_modifier(original_modifiers, SyntaxKind::AbstractKeyword)? {
                 continue;
             }
-            has_instance_constructor_reference |= self.resolver.has_node_check_flag(
-                self.resolver_node(member)?,
-                NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
-            )?;
+            if is_auto_accessor {
+                contains_instance_auto_accessors = true;
+                contains_instance_private_elements |= name_is_private;
+            } else if name_is_private {
+                contains_instance_private_elements = true;
+                has_instance_constructor_reference |= self.resolver.has_node_check_flag(
+                    self.resolver_node(member)?,
+                    NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
+                )?;
+            } else if let NodeData::PropertyDeclaration(data) = &record.data {
+                contains_public_instance_fields = true;
+                contains_initialized_public_instance_fields |= data.initializer.is_some();
+            }
         }
 
         Ok(ClassFactsPlan {
             static_facts,
             has_static_private_or_auto_accessor,
             has_instance_constructor_reference,
+            will_hoist_initializers_to_constructor: (self.mode == PublicFieldMode::DefineProperty
+                && self.target < ScriptTarget::ES2022
+                && contains_public_instance_fields)
+                || (self.mode == PublicFieldMode::Assignment
+                    && contains_initialized_public_instance_fields)
+                || (self.target < ScriptTarget::ES2022 && contains_instance_private_elements)
+                || (self.target < ScriptTarget::ES2022
+                    && contains_instance_auto_accessors
+                    && self.target < ScriptTarget::ES_NEXT),
         })
     }
 
@@ -3573,6 +3617,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             static_super_policy,
             super_alias,
             is_legacy_decorated,
+            has_class_facts: false,
         };
         for declaration in declarations {
             let PrivateDeclaration {
@@ -3749,11 +3794,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(environment)
     }
 
+    /// tsc-port: getClassFacts @6.0.3
+    /// tsc-hash: 18ea59522a3e87f378c8b5682c5eb2172be55cba02380fc3b240acbf0f4dd388
+    /// tsc-span: _tsc.js:96844-96898
     fn static_lexical_facts(
         &self,
         members: Option<NodeArrayId>,
     ) -> Result<StaticLexicalFacts, TransformError> {
         let mut facts = StaticLexicalFacts::default();
+        if self.target >= ScriptTarget::ES2022 {
+            return Ok(facts);
+        }
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
             let is_static_property_or_block = match &record.data {
@@ -3775,7 +3826,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // member traversal allocates computed-name caches.
             let member_flags = self.context.arena().transform_flags(member);
             facts.contains_this |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_THIS);
-            facts.contains_super |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
+            facts.contains_super |= self.target >= ScriptTarget::ES2015
+                && member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
         }
         Ok(facts)
     }
@@ -5414,7 +5466,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             && self
                                 .private_environments
                                 .last()
-                                .is_some_and(|environment| environment.is_legacy_decorated),
+                                .is_some_and(|environment| environment.has_class_facts),
                     };
                     match receiver {
                         FieldReceiver::Instance => {
@@ -6601,6 +6653,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         };
         if operation.range_static_expression_to_name {
+            self.context
+                .arena_mut()?
+                .set_original_node(expression, Some(operation.original))?;
             let name = self.node(operation.name);
             let source_map_range = self
                 .context
@@ -6640,7 +6695,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .arena_mut()?
                 .metadata_mut(statement)
                 .set_source_map_range(source_map_range);
+        } else if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
         }
+        // transformPropertyOrClassStaticBlock gives synthetic comments to
+        // the statement after the expression inherits the property metadata.
+        let expression_metadata = self.context.arena_mut()?.metadata_mut(expression);
+        expression_metadata.leading_comments.clear();
+        expression_metadata.trailing_comments.clear();
         // transformPropertyOrClassStaticBlock leaves the statement's
         // startsOnNewLine unset (_tsc.js:97444-97466). The separate inline
         // expression sequence owns that marker; constructor bodies already
@@ -6802,9 +6867,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let call = self.create_call(set, vec![receiver, initializer])?;
         let statement = self.create_expression_statement(call)?;
         self.set_original_and_range(statement, operation.original)?;
-        if let Some(source_map_range) =
-            self.private_property_source_map_range(operation.original)?
-        {
+        if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -6874,9 +6937,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
-        if let Some(source_map_range) =
-            self.private_property_source_map_range(operation.original)?
-        {
+        if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -6937,9 +6998,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// generated backing field of an auto-accessor.
     ///
     /// tsc-port: generateInitializedPropertyExpressionsOrClassStaticBlock @6.0.3
-    /// tsc-hash: 8e776d62fb988da8525039a9b7246226f4a003e34a285cec156b79e7f02a09a3
-    /// tsc-span: _tsc.js:97460-97487
-    fn private_property_source_map_range(
+    /// tsc-hash: 51a63f66258bcc0bd61a995b8952a78602998b82f909f47f8d12c24fc75761cb
+    /// tsc-span: _tsc.js:97467-97487
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: 9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d
+    /// tsc-span: _tsc.js:17311-17317
+    fn property_source_map_range(
         &self,
         property: TransformNode,
     ) -> Result<Option<SourceMapRange>, TransformError> {
@@ -7143,6 +7207,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.create_call(define_property, vec![receiver, key, descriptor])
     }
 
+    /// tsc-port: transformPropertyWorker @6.0.3
+    /// tsc-hash: fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd
+    /// tsc-span: _tsc.js:97501-97575
     fn property_key_expression(&mut self, name: NodeId) -> Result<TransformNode, TransformError> {
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
@@ -7150,9 +7217,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             NodeData::PrivateIdentifier(data) => {
                 self.create_string_literal(data.text.trim_start_matches('#'))
             }
-            NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => {
-                self.context.factory()?.clone_node(name)
-            }
+            NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => Ok(name),
             NodeData::ComputedPropertyName(data) => data
                 .expression
                 .map(|expression| self.node(expression))

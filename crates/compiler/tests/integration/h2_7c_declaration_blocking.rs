@@ -140,6 +140,9 @@ pub(super) fn assert_cases_with_inspection(
                         options.allow_synthetic_default_imports = value.as_bool()
                     }
                     "esModuleInterop" => options.es_module_interop = value.as_bool(),
+                    "useDefineForClassFields" => {
+                        options.use_define_for_class_fields = value.as_bool()
+                    }
                     "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
                     "noEmitOnError" => options.no_emit_on_error = value.as_bool(),
                     "stripInternal" => options.strip_internal = value.as_bool(),

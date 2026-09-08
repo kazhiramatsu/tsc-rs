@@ -1,0 +1,2070 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "2641adb871dfc7b5250a0c6660c6f1b40374370f0a3a3b93655f1ffd8cb4f3d5",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "literal-key/es5/set/identifier",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static stat = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBOEIsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBekIsUUFBSSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTVDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 214,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBOEIsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBekIsUUFBSSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTVDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 214,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvby5zdGF0ID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 198,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvby5zdGF0ID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 198,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 166,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 71,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 71,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAA8B,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;IAAzB,QAAI,GAAG,EAAE,AAAL,CAAM;IAAc,UAAC;CAAA,AAA5C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/set/quoted-double",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static \"stat\" = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBM0IsV0FBTSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTlDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 214,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBM0IsV0FBTSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTlDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 214,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sic3RhdCJdID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sic3RhdCJdID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 169,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAgC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;IAA3B,WAAM,GAAG,EAAE,AAAL,CAAM;IAAc,UAAC;CAAA,AAA9C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/set/quoted-single",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 'stat' = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBM0IsV0FBTSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTlDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 214,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBM0IsV0FBTSxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTlDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 214,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1snc3RhdCddID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1snc3RhdCddID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 169,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAgC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;IAA3B,WAAM,GAAG,EAAE,AAAL,CAAM;IAAc,UAAC;CAAA,AAA9C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/set/numeric",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 1 = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBMkIsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBdEIsTUFBQyxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQXpDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 214,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBMkIsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBdEIsTUFBQyxHQUFHLEVBQUUsQUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQXpDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 214,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sxXSA9IDEwOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 196,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sxXSA9IDEwOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 196,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 164,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 68,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 68,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAA2B,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;IAAtB,MAAC,GAAG,EAAE,AAAL,CAAM;IAAc,UAAC;CAAA,AAAzC;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/set/computed-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static [\"stat\"] = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBa0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBN0IsSUFBQyxNQUFNLENBQUMsR0FBRyxFQUFFLEFBQUwsQ0FBTTtJQUFjLFVBQUM7Q0FBQSxBQUFoRDtBQUNBLEtBQUssR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 224,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBa0MsV0FBTSxHQUFHLEVBQUUsQ0FBQztJQUFDLENBQUM7SUFBN0IsSUFBQyxNQUFNLENBQUMsR0FBRyxFQUFFLEFBQUwsQ0FBTTtJQUFjLFVBQUM7Q0FBQSxBQUFoRDtBQUNBLEtBQUssR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 224,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sic3RhdCJdID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIHRoaXMubWVtYmVyID0gMTA7DQogICAgfQ0KICAgIEZvb1sic3RhdCJdID0gMTA7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 169,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 75,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 75,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAkC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;IAA7B,IAAC,MAAM,CAAC,GAAG,EAAE,AAAL,CAAM;IAAc,UAAC;CAAA,AAAhD;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/define/identifier",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static stat = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBOEI7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUF6Qjs7OztlQUFPLEVBQUU7TUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTVDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 211,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBOEI7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUF6Qjs7OztlQUFPLEVBQUU7TUFBTCxDQUFNO0lBQWMsVUFBQztDQUFBLEFBQTVDO0FBQ0EsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 211,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 480,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 480,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 448,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 71,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 71,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAA8B;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;IAAzB;;;;eAAO,EAAE;MAAL,CAAM;IAAc,UAAC;CAAA,AAA5C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/define/quoted-double",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static \"stat\" = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUEzQiwyQkFBQSxNQUFNOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBOUM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUEzQiwyQkFBQSxNQUFNOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBOUM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 480,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 480,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 448,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAgC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;IAA3B,2BAAA,MAAM;;;;eAAG,EAAE;MAAL,CAAM;IAAc,UAAC;CAAA,AAA9C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/define/quoted-single",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 'stat' = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUEzQiwyQkFBQSxNQUFNOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBOUM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBZ0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUEzQiwyQkFBQSxNQUFNOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBOUM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAnc3RhdCcsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 480,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAnc3RhdCcsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 480,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 448,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAgC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;IAA3B,2BAAA,MAAM;;;;eAAG,EAAE;MAAL,CAAM;IAAc,UAAC;CAAA,AAA9C;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/define/numeric",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 1 = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBMkI7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUF0QiwyQkFBQSxDQUFDOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBekM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBMkI7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUF0QiwyQkFBQSxDQUFDOzs7O2VBQUcsRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBekM7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAxLCB7DQogICAgICAgIGVudW1lcmFibGU6IHRydWUsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgIHZhbHVlOiAxMA0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 475,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAxLCB7DQogICAgICAgIGVudW1lcmFibGU6IHRydWUsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgIHZhbHVlOiAxMA0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 475,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 443,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 68,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 68,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAA2B;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;IAAtB,2BAAA,CAAC;;;;eAAG,EAAE;MAAL,CAAM;IAAc,UAAC;CAAA,AAAzC;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es5/define/computed-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static [\"stat\"] = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBa0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUE3QiwyQkFBQyxNQUFNOzs7O2VBQUksRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBaEQ7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBO0lBQUE7UUFBa0M7Ozs7bUJBQVMsRUFBRTtXQUFDO0lBQUMsQ0FBQztJQUE3QiwyQkFBQyxNQUFNOzs7O2VBQUksRUFBRTtNQUFMLENBQU07SUFBYyxVQUFDO0NBQUEsQUFBaEQ7QUFDQSxLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 222,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 480,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAibWVtYmVyIiwgew0KICAgICAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwNCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgICAgICAgICAgdmFsdWU6IDEwDQogICAgICAgIH0pOw0KICAgIH0NCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLCAic3RhdCIsIHsNCiAgICAgICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICB3cml0YWJsZTogdHJ1ZSwNCiAgICAgICAgdmFsdWU6IDEwDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 480,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 448,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 75,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 75,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA;IAAA;QAAkC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;IAA7B,2BAAC,MAAM;;;;eAAI,EAAE;MAAL,CAAM;IAAc,UAAC;CAAA,AAAhD;AACA,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/set/identifier",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static stat = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQThCLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUF6QixRQUFJLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDN0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQThCLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUF6QixRQUFJLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDN0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb28uc3RhdCA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb28uc3RhdCA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 113,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 71,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 71,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAA8B,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;;AAAzB,QAAI,GAAG,EAAE,AAAL,CAAM;AAC7B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/set/quoted-double",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static \"stat\" = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUEzQixXQUFNLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDL0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUEzQixXQUFNLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDL0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bInN0YXQiXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bInN0YXQiXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 116,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAgC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;;AAA3B,WAAM,GAAG,EAAE,AAAL,CAAM;AAC/B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/set/quoted-single",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 'stat' = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUEzQixXQUFNLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDL0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUEzQixXQUFNLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDL0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bJ3N0YXQnXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bJ3N0YXQnXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 116,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAgC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;;AAA3B,WAAM,GAAG,EAAE,AAAL,CAAM;AAC/B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/set/numeric",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 1 = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQTJCLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUF0QixNQUFDLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDMUIsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQTJCLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUF0QixNQUFDLEdBQUcsRUFBRSxBQUFMLENBQU07QUFDMUIsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bMV0gPSAxMDsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bMV0gPSAxMDsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 111,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 68,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 68,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAA2B,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;;AAAtB,MAAC,GAAG,EAAE,AAAL,CAAM;AAC1B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/set/computed-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static [\"stat\"] = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWtDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUE3QixJQUFDLE1BQU0sQ0FBQyxHQUFHLEVBQUUsQUFBTCxDQUFNO0FBQ2pDLEtBQUssR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 215,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWtDLFdBQU0sR0FBRyxFQUFFLENBQUM7SUFBQyxDQUFDOztBQUE3QixJQUFDLE1BQU0sQ0FBQyxHQUFHLEVBQUUsQUFBTCxDQUFNO0FBQ2pDLEtBQUssR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 215,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bInN0YXQiXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5tZW1iZXIgPSAxMDsNCiAgICB9DQp9DQpGb29bInN0YXQiXSA9IDEwOw0Kdm9pZCBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 116,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 75,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 75,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAkC,WAAM,GAAG,EAAE,CAAC;IAAC,CAAC;;AAA7B,IAAC,MAAM,CAAC,GAAG,EAAE,AAAL,CAAM;AACjC,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/define/identifier",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static stat = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQThCOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQXpCOzs7O1dBQU8sRUFBRTtFQUFMLENBQU07QUFDN0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 202,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQThCOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQXpCOzs7O1dBQU8sRUFBRTtFQUFMLENBQU07QUFDN0IsS0FBSyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 202,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 407,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 407,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 375,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 71,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBzdGF0OiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 71,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAA8B;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;;AAAzB;;;;WAAO,EAAE;EAAL,CAAM;AAC7B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/define/quoted-double",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static \"stat\" = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTNCLDJCQUFBLE1BQU07Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMvQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTNCLDJCQUFBLE1BQU07Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMvQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 407,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 407,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 375,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAic3RhdCI6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAgC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;;AAA3B,2BAAA,MAAM;;;;WAAG,EAAE;EAAL,CAAM;AAC/B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/define/quoted-single",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 'stat' = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTNCLDJCQUFBLE1BQU07Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMvQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWdDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTNCLDJCQUFBLE1BQU07Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMvQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgJ3N0YXQnLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 407,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgJ3N0YXQnLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 407,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 375,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "callback_utf8_bytes": 73,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAnc3RhdCc6IG51bWJlcjsNCiAgICBtZW1iZXI6IG51bWJlcjsNCn0NCg==",
+            "materialized_utf8_bytes": 73,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAgC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;;AAA3B,2BAAA,MAAM;;;;WAAG,EAAE;EAAL,CAAM;AAC/B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/define/numeric",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static 1 = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQTJCOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQXRCLDJCQUFBLENBQUM7Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMxQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQTJCOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQXRCLDJCQUFBLENBQUM7Ozs7V0FBRyxFQUFFO0VBQUwsQ0FBTTtBQUMxQixLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgMSwgew0KICAgIGVudW1lcmFibGU6IHRydWUsDQogICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgIHZhbHVlOiAxMA0KfSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 402,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgMSwgew0KICAgIGVudW1lcmFibGU6IHRydWUsDQogICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgIHdyaXRhYmxlOiB0cnVlLA0KICAgIHZhbHVlOiAxMA0KfSk7DQp2b2lkIEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 402,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 370,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "callback_utf8_bytes": 68,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyAxOiBudW1iZXI7DQogICAgbWVtYmVyOiBudW1iZXI7DQp9DQo=",
+            "materialized_utf8_bytes": 68,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAA2B;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;;AAAtB,2BAAA,CAAC;;;;WAAG,EAAE;EAAL,CAAM;AAC1B,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "literal-key/es2015/define/computed-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "class Foo { static [\"stat\"] = 10; member = 10; }\nvoid Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "useDefineForClassFields": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWtDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTdCLDJCQUFDLE1BQU07Ozs7V0FBSSxFQUFFO0VBQUwsQ0FBTTtBQUNqQyxLQUFLLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sR0FBRztJQUFUO1FBQWtDOzs7O21CQUFTLEVBQUU7V0FBQztJQUFDLENBQUM7O0FBQTdCLDJCQUFDLE1BQU07Ozs7V0FBSSxFQUFFO0VBQUwsQ0FBTTtBQUNqQyxLQUFLLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 407,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsICJtZW1iZXIiLCB7DQogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlLA0KICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsDQogICAgICAgICAgICB2YWx1ZTogMTANCiAgICAgICAgfSk7DQogICAgfQ0KfQ0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvbywgInN0YXQiLCB7DQogICAgZW51bWVyYWJsZTogdHJ1ZSwNCiAgICBjb25maWd1cmFibGU6IHRydWUsDQogICAgd3JpdGFibGU6IHRydWUsDQogICAgdmFsdWU6IDEwDQp9KTsNCnZvaWQgRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 407,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 375,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "callback_utf8_bytes": 75,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIHN0YXRpYyBbInN0YXQiXTogbnVtYmVyOw0KICAgIG1lbWJlcjogbnVtYmVyOw0KfQ0K",
+            "materialized_utf8_bytes": 75,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IAAT;QAAkC;;;;mBAAS,EAAE;WAAC;IAAC,CAAC;;AAA7B,2BAAC,MAAM;;;;WAAI,EAAE;EAAL,CAAM;AACjC,KAAK,GAAG,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

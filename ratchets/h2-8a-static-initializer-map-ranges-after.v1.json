@@ -1,0 +1,1864 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-with-74-retained-outside-map-failures",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "production_paths": [
+    "crates/emitter/src/builtins/class_fields/downlevel.rs"
+  ],
+  "complete_commands_eligible": 367,
+  "complete_commands_exact_twice": 293,
+  "fresh_exact_twice": [
+    "es5/set/commonjs/static-only",
+    "es5/set/commonjs/instance-only",
+    "es5/set/commonjs/public-initialized",
+    "es5/set/commonjs/public-uninitialized",
+    "es5/set/commonjs/parameter-property",
+    "es5/set/commonjs/private-field",
+    "es5/set/commonjs/auto-accessor",
+    "es5/set/commonjs/static-super",
+    "es5/set/commonjs/multiline-comments",
+    "es5/set/commonjs/computed-name",
+    "es5/set/commonjs/quoted-name",
+    "es5/set/commonjs/static-uninitialized",
+    "es5/set/commonjs/private-static",
+    "es5/define/commonjs/static-only",
+    "es5/define/commonjs/instance-only",
+    "es5/define/commonjs/public-initialized",
+    "es5/define/commonjs/public-uninitialized",
+    "es5/define/commonjs/parameter-property",
+    "es5/define/commonjs/private-field",
+    "es5/define/commonjs/auto-accessor",
+    "es5/define/commonjs/static-super",
+    "es5/define/commonjs/multiline-comments",
+    "es5/define/commonjs/computed-name",
+    "es5/define/commonjs/quoted-name",
+    "es5/define/commonjs/static-uninitialized",
+    "es5/define/commonjs/private-static",
+    "es5/set/esnext/static-only",
+    "es5/set/esnext/public-initialized",
+    "es2015/set/esnext/static-only",
+    "es2015/set/esnext/public-initialized"
+  ],
+  "fresh_failed_once": [
+    "es5/set/commonjs/abstract-property",
+    "es5/set/commonjs/private-method",
+    "es5/set/commonjs/static-this",
+    "es5/set/commonjs/class-expression",
+    "es5/set/commonjs/anonymous-expression",
+    "es5/set/commonjs/nested-reset",
+    "es5/set/commonjs/nested-resume",
+    "es5/define/commonjs/abstract-property",
+    "es5/define/commonjs/private-method",
+    "es5/define/commonjs/static-this",
+    "es5/define/commonjs/class-expression",
+    "es5/define/commonjs/anonymous-expression",
+    "es5/define/commonjs/nested-reset",
+    "es5/define/commonjs/nested-resume",
+    "es5/set/esnext/static-this",
+    "es5/set/esnext/nested-reset",
+    "es2015/set/commonjs/static-only",
+    "es2015/set/commonjs/instance-only",
+    "es2015/set/commonjs/public-initialized",
+    "es2015/set/commonjs/public-uninitialized",
+    "es2015/set/commonjs/abstract-property",
+    "es2015/set/commonjs/parameter-property",
+    "es2015/set/commonjs/private-field",
+    "es2015/set/commonjs/private-method",
+    "es2015/set/commonjs/auto-accessor",
+    "es2015/set/commonjs/static-this",
+    "es2015/set/commonjs/static-super",
+    "es2015/set/commonjs/class-expression",
+    "es2015/set/commonjs/anonymous-expression",
+    "es2015/set/commonjs/nested-reset",
+    "es2015/set/commonjs/nested-resume",
+    "es2015/set/commonjs/multiline-comments",
+    "es2015/set/commonjs/computed-name",
+    "es2015/set/commonjs/quoted-name",
+    "es2015/set/commonjs/static-uninitialized",
+    "es2015/set/commonjs/private-static",
+    "es2015/define/commonjs/static-only",
+    "es2015/define/commonjs/instance-only",
+    "es2015/define/commonjs/public-initialized",
+    "es2015/define/commonjs/public-uninitialized",
+    "es2015/define/commonjs/abstract-property",
+    "es2015/define/commonjs/parameter-property",
+    "es2015/define/commonjs/private-field",
+    "es2015/define/commonjs/private-method",
+    "es2015/define/commonjs/auto-accessor",
+    "es2015/define/commonjs/static-this",
+    "es2015/define/commonjs/static-super",
+    "es2015/define/commonjs/class-expression",
+    "es2015/define/commonjs/anonymous-expression",
+    "es2015/define/commonjs/nested-reset",
+    "es2015/define/commonjs/nested-resume",
+    "es2015/define/commonjs/multiline-comments",
+    "es2015/define/commonjs/computed-name",
+    "es2015/define/commonjs/quoted-name",
+    "es2015/define/commonjs/static-uninitialized",
+    "es2015/define/commonjs/private-static",
+    "es2015/set/esnext/static-this",
+    "es2015/set/esnext/nested-reset",
+    "es2022/set/commonjs/static-only",
+    "es2022/set/commonjs/public-initialized",
+    "es2022/set/commonjs/public-uninitialized",
+    "es2022/set/commonjs/auto-accessor",
+    "es2022/define/commonjs/static-only",
+    "es2022/define/commonjs/public-initialized",
+    "es2022/define/commonjs/public-uninitialized",
+    "es2022/define/commonjs/auto-accessor",
+    "esnext/set/commonjs/static-only",
+    "esnext/set/commonjs/public-initialized",
+    "esnext/set/commonjs/public-uninitialized",
+    "esnext/set/commonjs/auto-accessor",
+    "esnext/define/commonjs/static-only",
+    "esnext/define/commonjs/public-initialized",
+    "esnext/define/commonjs/public-uninitialized",
+    "esnext/define/commonjs/auto-accessor"
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "es5/set/commonjs/abstract-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7ae8935ef40859b2bf79ce81e681195651d3091393d1bacdedede726a426ab61",
+      "expected_sha256": "9073b1d91a57a6ebac8f2d8b96e16ab722943f6696f399da7778b103524d93d4",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/private-method",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1e5f3d5f6f59e5bf2a93a99a9e5af97469b00d0f8735d5d329cf698ebcbb1232",
+      "expected_sha256": "2fe1998ad27f5d0c463b4a33de362b151826a81c0655272b1f3477efc5501b0c",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "fd40836365927e6ce908258f7abc42322af24fb678599e3abc69deaf366578bd",
+      "expected_sha256": "90bfa8b770306aecd82de17b9e3fb05da84d2af96cf45f0aef7a89f2d347480c",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "723e38dc5ebb7fddb01953ddebf4d0883fa45e5cec4649820adfe7da80a3ee67",
+      "expected_sha256": "4e3eb9cfd6979224f32872cd5a23b04c0b604ae39d8dd8572e28cca8ff209097",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/anonymous-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "056ae713cb8090dd447001bb39103ebc33653542b4ff2f72420412602fd03c19",
+      "expected_sha256": "b9da23d8c244d49acd49037ec98ab55444461e778a76df655771ef76dac28c00",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f21e5ee006a788fbd2ae5df392bef83bc22c1d4898745e8e707356a80696dd65",
+      "expected_sha256": "6c79196440252aec363bea746893589c576d3baa6121250c99cef314a2ab23c1",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-resume",
+      "boundary": "exact source-map result",
+      "actual_sha256": "428c8c581e12f9c72edd216c9137ec20a1f7bb21954a1e9ebd245148bc210c5f",
+      "expected_sha256": "01df6b5893035b1ffb7e4c0a482f281c9b38624f16aaf76736fab81f45426e90",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/abstract-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "64a7811c61021931c709282235b1740088c61f1b140c2bb993b9c84266fcda7b",
+      "expected_sha256": "57ff71d01db90e108c956b8c5e6bfed86693deb885e10529f6dce5e96c2a0308",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/private-method",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5b82cac13f8d32da9741754d8f49fbcf31cf2750fdfdd2b31757de047d225b1a",
+      "expected_sha256": "f685aa5e991f2d33ec8961cc942ff7c57322d383bf6e94037699638da431e511",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b9c5392a9f3f264a6e5977eb6a24339853c9ad23182a10726b0f2bb519a8e802",
+      "expected_sha256": "3f4b9bf334b59ee4f3157db111912178c1a59a6c0ef0cb495051a38ff7c69f07",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "013c6b548aad3f1fea4c51b42f313f2b75d12d9f665ec92d609265df1ab75cde",
+      "expected_sha256": "bea5fba74e1a29d70262e0445f69145f105a4f954be249157fca53c6b8ac2de1",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/anonymous-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "acf1bfc4ddcb8d24addf5806ca852817fbdbfcf4bb7bbdfc570501539f9d60c1",
+      "expected_sha256": "2b05c7e61757a7452fa56867cc94a6e180a93c049bd25ab53432e37b94b2555a",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5790b18884e9bd3fa5f468e156957640e6f98e03baafb5e013b6ce90156c4a87",
+      "expected_sha256": "b5eb42b752dcd6ba63413f04161b121a7a557a38541b19382cdd428d8a987473",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-resume",
+      "boundary": "exact source-map result",
+      "actual_sha256": "595bdf856070531dde85ef7632e9b143184b193aab19a4fdd0566d8b2acc09fd",
+      "expected_sha256": "968cf6c8d1c8184b7fd01b45a8b71667170279be22b4795ae5984d43a35ebc72",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/esnext/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "de8c133cd7815e8b54821fd27dff2bd85349bf98d71aafd53ef7851d68726bda",
+      "expected_sha256": "0d1288306b715ee15ba37625ad89b9ce4c49be498bb952c41370fc7dbcc2ef27",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/set/esnext/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d97f405ee7d835ac3423d649631e73a247b2c7ee0d0f4ea7b2f58cc4d34ca48c",
+      "expected_sha256": "2911834dff5ed93099a6560f981cc64e80c026b7e304ff58352b8331c5487ec2",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7b56d2ce746c9cceb81164a6b3ee089b89822faee247a2052dbb562dbeec9a85",
+      "expected_sha256": "c587fc62ac91d1dfe339d27b49b2581124b64a34ed2bb78673ffb37ce74c4cff",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/instance-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6b928708fd72b45d19a150ba6f847110abda8ff732ee663a4ffeb24f80e77d66",
+      "expected_sha256": "78d3c0cad79786a714fb225f889910f7e05098f51e2b1c7ff927ccb900bf4558",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "98c7f7eabbde5d607b363ddb127990066508bb9b9f33345f5503eb50c48edb83",
+      "expected_sha256": "8c1752a75405d71e68bd278f5d3244de2f68b27e52b439351859844f9ff87bf0",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5835388d447259c1a74cb587e87b8617d2a93c141912748c67748e25ad486b0f",
+      "expected_sha256": "c587fc62ac91d1dfe339d27b49b2581124b64a34ed2bb78673ffb37ce74c4cff",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/abstract-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1f06c46eaa01f3447eb68e5f618aae899f4ebb1672614055c66c81d4a554abe9",
+      "expected_sha256": "cbf6649e6726637ebb6e8e2b62722afd31460bbf5a9a579ad0ab2a96fbd79647",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/parameter-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4cad415186dd5382b97c7f64a4b5140eaaf2182f4b4aecda82a3d9826ec8e516",
+      "expected_sha256": "2060880ee68cd5bd17765db606375d4b62259870985b86135520769397148b6a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-field",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4feeb8b096fb18ec9d6c6354edd8c2b3f589ec4cdd2219a2d5c9764bedb4aec6",
+      "expected_sha256": "5f48e12a355a72e55280a9610a0fdd72911d3df2b0595e32cd58a209b702278f",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-method",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ec9108adc2cec5c2544bc714f8d86861adcdb6a472d641f236f5d032d5bb4eaa",
+      "expected_sha256": "0efb5a3abe1a1f25ba738ae5ac2dc35050576c3fec1d9cd75a0215076a4c1f5a",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1afcd572669cfe110f3807796836af1c5348413a6dfb4d39cf76186bf9f2711a",
+      "expected_sha256": "fd6cba99ca234d23f83730fe226d0c22317245b510b5427bcf020e765b14f7c5",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e002096b126b3418dd6c2b8fa6db8a27e27dd13df1a54def5d14aad4202a2f97",
+      "expected_sha256": "69dca37a4af9a6001e154d2147b684c24e22064a21f38731280d733fade7d900",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-super",
+      "boundary": "exact source-map result",
+      "actual_sha256": "733fffb79e522e4c4dba55a2fb46a5273e75334aef4760cfbae6314b4b039847",
+      "expected_sha256": "b32af585a24516d17b2c97e3a8bc07070508949dd53ebe733420a2a2a6e450aa",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7489c0f5da43b2c48623f4867063c35daf0896a3ca49ae6ebd2532ffd7075255",
+      "expected_sha256": "c5b5c744b78d946121b29da612c8a6232dff41c0734e5d1b9abc6efc80fbfdd3",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/anonymous-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "802c0df6031ea5942f9bf1d20d11aee1c86f9667b3874a8868bc89a206b8a7d0",
+      "expected_sha256": "183cd55ce153cba907b888785cfc01e11ae89f44cc6cbc28d77e103375b58161",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "2a22a06fdaa3e0a89db84d4e4a9c13069490110b76663aaab8a588a672a6b966",
+      "expected_sha256": "3d297555812101d72f51fe1c565d19c8ce700fcd5e0082e3e3cb8dcfe8547975",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-resume",
+      "boundary": "exact source-map result",
+      "actual_sha256": "be74dd91f2c9cc049ac1db850f945f8a2ad8a08d9155933e7caec191a9b02663",
+      "expected_sha256": "d6350923ccf0a7832a73624e6f692d4ba0ec218d84ab3393a09619d1f63e2afa",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/multiline-comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "76f50f6f8516aaa599dcbcbc9415ef409d5b059181bd11fd17b72d908466a378",
+      "expected_sha256": "d836e3ca41689899232feb5209987e6a48057fb6129126e50e927e68b298dee7",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/computed-name",
+      "boundary": "exact source-map result",
+      "actual_sha256": "de0f7e6969f857bee58700f54eaa98dfc1b9a4519254a9b3987a5c681aaf28ff",
+      "expected_sha256": "135cd315cdaa130f3dad613057f4066d926051727d60983bdb6132e9437d6f74",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/quoted-name",
+      "boundary": "exact source-map result",
+      "actual_sha256": "237d0e588a41f18502940af0b863bf789bfb01efcf910177425acb5be3140f34",
+      "expected_sha256": "f3325e5b0dd7addeeef1597045e4520d87be830d81ba57dcb32997576ca4ef2f",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "040773f6d83800c6967ff2127851b346a73ae74e1df7fd02d8cc2ef46d358cb7",
+      "expected_sha256": "7b4621e3ff0614b1b5861e454efeaf234b5fe84ba18fe15a10fd7585b50eebb8",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-static",
+      "boundary": "exact source-map result",
+      "actual_sha256": "42f31913015f78f38185f708ed278c63b059401fd02eccd9f2084d3f1241479c",
+      "expected_sha256": "68ea39e7d65127628467afccf06026d33c94e05e4e1463818963ed6a5ba8b595",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "2926218d08c84c9135efc4276be92ea00a1119fcfd02f841360d43b87423f31c",
+      "expected_sha256": "19d2c7a8787cf911b9d62f8881f44234fe249a63014a8a2a90b06ad2bbfbeba9",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/instance-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3663fe5fae5f6122b14a4dd7380e65e73c54b346d31420db340c48bb7addd8be",
+      "expected_sha256": "08c43f77fdc5d77a114df5c20bc5afc5c9b37661258611a4ed7997bde688d3ce",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b04725fd19a3ca425f381a8db9262a50c95244659adc9c0f94d7e96fb2fe94fd",
+      "expected_sha256": "03b587a000614aa37932961814c1879f7226883470901bcb834130eb52a552ca",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7bef5d72defa9a89b3f5b0f2aa4ec53dcdeeb9656d060fa13f02a7f48c9456b5",
+      "expected_sha256": "689a00ef4c918b8aff32ed1c6534228b30d77b73ca5f79efe95c53d67db57f37",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/abstract-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "807c5f2289b3a3a052c8db850b70d0f332bcdb708fa4b12d20869e551edf74ff",
+      "expected_sha256": "4fef41b4b8ecd98855fddb878895839bdfe5888bd8589ba93114eff498601163",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/parameter-property",
+      "boundary": "exact source-map result",
+      "actual_sha256": "abbfd78402d3d56016da0f776084aab32d9abe2708434201e846b89d60bad997",
+      "expected_sha256": "bb83d774f4580cf346d241d1a972945039643a3f186dc2178c533fa0e16aa682",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-field",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5d020597aef9e1923bb09e53743b81b94892c636c32fea4312e5c2e9cbb5c90d",
+      "expected_sha256": "64a9f41a0c8523ddfb08fa6eab2571092f17f17698f9ee8a28f52c1859cf4af3",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-method",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6f29d9205910151c9a8a11dfb9f314e78808b6a8a92f9336972cd9009970a4de",
+      "expected_sha256": "37edc81921c536d08cafe5eb6b7dbe3b8f8916b98d2c56f44323654e0198623c",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e5cfa58e1fc5e5497cb4060fe4b4730eb6e2c05d918aa1872f4c9e6b8f2fae47",
+      "expected_sha256": "97e7fdf0e215af34d4b4c49191db467f824fa714f2c66936cb5ad1790c823b0f",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "fdfc3fc4de5c38a1edefbd3b5138dc762e14dd578f376eda27292868ce3e2f69",
+      "expected_sha256": "eb142c8d40ca0df6b769de93ae16f38e45727a5997619ab13078380dbb5a63df",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-super",
+      "boundary": "exact source-map result",
+      "actual_sha256": "9f04767154c08c548556c308391494afa761553458367ea89e15aa929952bc57",
+      "expected_sha256": "099a10b6c9f0b269ba9bb41b3a591ad9a5e2e5713620053677749a1214634d65",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4cfae64d7999bca677836ec01e04114365e6b5bc2f8f4983946d444b2cd9cac5",
+      "expected_sha256": "e2647c078f7488400d696e9783600e7be7d1111fff7934d25865ad36c1ea3a7d",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/anonymous-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4ff32f75d79c86510054492f88aead657f30fbf36c5b18fc2dd951bd969a745f",
+      "expected_sha256": "94524a0044cf9fe48dbbff16c9e110a5b88400724f929e7d3fb32429b7c8fb35",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d452ce0dbe32a5d624b88b4c776607b304c7219e09a9545676aa86409d9a75a6",
+      "expected_sha256": "4f10bacd41c6d6ea42705068b03cdaed966211ca69334ac1c5c2b4db1481929e",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-resume",
+      "boundary": "exact source-map result",
+      "actual_sha256": "06e31526022ccdbfe8fc8d2fdfffaae54cf51bb0b25c8535c4e9a3e1d71399e6",
+      "expected_sha256": "0d365b0516c756531aad912c89501c761e637fd524b2b8f4a9638ef626aeffd6",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/multiline-comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c17e7a263e07513db1e11cfb16ee9bb6812b0020122e123592b9d96257ca97e2",
+      "expected_sha256": "f6d08d9374fb362e4962562b7187b4e45e4d5b4e4e4941650ffb798a2887c270",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/computed-name",
+      "boundary": "exact source-map result",
+      "actual_sha256": "445fcbdcaf35ed41ae19b2585fb8b09b5a7960192ac2878850f43045a97f6a62",
+      "expected_sha256": "99a568e7d590253bc977c264b111ec923e94e9e33fdf655bd67129eb0de0ab76",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/quoted-name",
+      "boundary": "exact source-map result",
+      "actual_sha256": "64f677ffcfee7af08c642c4785a0084fa9f39fd8d9e57bfcbc17aa0f6b31ef5a",
+      "expected_sha256": "fe2435e7e84ea76b9a6fa7b64e75def909a7b077c8c524fbb61026d06d76110e",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6c0857f57a70915b82da8d0b215673811253d7a125c248e4435177aa2f65b436",
+      "expected_sha256": "b90a7ab5e484b60d8994f3154758b2ab2867b5a55c1481ed3a4c750134c04820",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-static",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b925b68e71ba703b12bdd2309faaa4685670bad3bdf1b81f852023e264d80894",
+      "expected_sha256": "2d3ccffaf21f1de1866534a6fa86ebc7f172baefb01d91ecfabe18566a77e344",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/esnext/static-this",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bb897ddac795fe9a97eb5bbbd3ed39bdf8dac5d6cf2705d3541da9fe70375f85",
+      "expected_sha256": "c59c960cfa2da263614fe8b4bd6333f6c01da0bbe4d147de78b95c056556eb1a",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/set/esnext/nested-reset",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c9ce8654c04143692004642b5939066dbed11798d1e0772cc466f2694c219a59",
+      "expected_sha256": "c599fdef5be2067571c82000105eb689d267bb8931897ec626f5dd4f3364e74a",
+      "before_disposition": "owned-and-outside",
+      "same_first_vector_as_before": false,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/set/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "656e74233960510250b28fa1b08bd5f3a6df0a535699dbe09a6379be6e582f66",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d2b945d0770abb77850b0f3260713303e7f402971da54cf651b507a9227a3ec3",
+      "expected_sha256": "6833040b6c34ec04a20e25ca27a2d6ce5a79cc95472046f8747f4d3f15b12f2c",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6266e49616b86986818bd7581ec0be00c959c4366e63b936420ad223ee4e6ef0",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/set/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e945f47acbd47f8b8ef1e07a8ea9268f2388492639828e3ed7f18bc2918ce093",
+      "expected_sha256": "a3321af83dad9922bf3c3121697a379fd04ea21132094f5a6d2f3aa976a7e3a3",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/define/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "39eaf2cd4e77751887f8c55874903cf65bd09202f22b7b77836b625c23db38f4",
+      "expected_sha256": "03bf8ee33fb9aa816f94d55405b7c0b180437f234b0705cc3f2e41e372824841",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c893a11c51e7d22f46670c88f1ba9830d8f2f9cd09343d58ae021e3ea0e19654",
+      "expected_sha256": "030e0ca422f850e86e1dcf21a6fac4c2e6c8027f0ddbe982a2f6721a24e73d9f",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "57c747a8d9b91fc663f5c23a692ede43f76978d49b16385036bacb2e1fa2fcb6",
+      "expected_sha256": "4115d2d2f421807d005bfe03eadf66029a7a5b9781d62296a6c95c77d6bd2f3a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2022/define/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7424208c4ae188b97a078f814580f1b135cdb5115db9996fdfbd44a017c5c0a0",
+      "expected_sha256": "d386f7ad16dc836efcc1ffc138e9c038c0b8b2b6d96a13d933e302e04a7d9d42",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/set/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "656e74233960510250b28fa1b08bd5f3a6df0a535699dbe09a6379be6e582f66",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d2b945d0770abb77850b0f3260713303e7f402971da54cf651b507a9227a3ec3",
+      "expected_sha256": "6833040b6c34ec04a20e25ca27a2d6ce5a79cc95472046f8747f4d3f15b12f2c",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6266e49616b86986818bd7581ec0be00c959c4366e63b936420ad223ee4e6ef0",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/set/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1025506e3afe6703b88938566c89a37c74415c2c6127b54996de11a0cf37de73",
+      "expected_sha256": "cde05fffdadf04c5ba79b382f39c579e5b3815ec68c6fe05af066ddd1e2067cb",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/define/commonjs/static-only",
+      "boundary": "exact source-map result",
+      "actual_sha256": "39eaf2cd4e77751887f8c55874903cf65bd09202f22b7b77836b625c23db38f4",
+      "expected_sha256": "03bf8ee33fb9aa816f94d55405b7c0b180437f234b0705cc3f2e41e372824841",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-initialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c893a11c51e7d22f46670c88f1ba9830d8f2f9cd09343d58ae021e3ea0e19654",
+      "expected_sha256": "030e0ca422f850e86e1dcf21a6fac4c2e6c8027f0ddbe982a2f6721a24e73d9f",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-uninitialized",
+      "boundary": "exact source-map result",
+      "actual_sha256": "57c747a8d9b91fc663f5c23a692ede43f76978d49b16385036bacb2e1fa2fcb6",
+      "expected_sha256": "4115d2d2f421807d005bfe03eadf66029a7a5b9781d62296a6c95c77d6bd2f3a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "esnext/define/commonjs/auto-accessor",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bb9ff56fc06b9f9c4c83f0b5d42901abfd4ed3f4774103fc4c97a74e502bb9cb",
+      "expected_sha256": "d297495ce468172331a339b8b3fef8f9e827e3acb7113586e2e5e1e6cd56207a",
+      "before_disposition": "outside-only",
+      "same_first_vector_as_before": true,
+      "native_executions": 1,
+      "later_complete_command_fields": "not-qualified"
+    }
+  ],
+  "additional_and_adjacent": [
+    {
+      "fixture": "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+      "fixture_sha256": "ab161b74a368187cf78398127e2ecf951748fa4a398c08b0e9e071c8242ccd8a",
+      "exact_twice": [
+        "literal-key/es5/set/identifier",
+        "literal-key/es5/set/quoted-double",
+        "literal-key/es5/set/quoted-single",
+        "literal-key/es5/set/numeric",
+        "literal-key/es5/set/computed-string",
+        "literal-key/es5/define/identifier",
+        "literal-key/es5/define/quoted-double",
+        "literal-key/es5/define/quoted-single",
+        "literal-key/es5/define/numeric",
+        "literal-key/es5/define/computed-string",
+        "literal-key/es2015/set/identifier",
+        "literal-key/es2015/set/quoted-double",
+        "literal-key/es2015/set/quoted-single",
+        "literal-key/es2015/set/numeric",
+        "literal-key/es2015/set/computed-string",
+        "literal-key/es2015/define/identifier",
+        "literal-key/es2015/define/quoted-double",
+        "literal-key/es2015/define/quoted-single",
+        "literal-key/es2015/define/numeric",
+        "literal-key/es2015/define/computed-string"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "fixture_sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886",
+      "exact_twice": [
+        "es5/js/instance",
+        "es5/js/added-member",
+        "es5/js/same-member",
+        "es5/js/constructor",
+        "es5/js/object",
+        "es5/js/local-instance",
+        "es5/js/factory-instance",
+        "es5/js/generic-instance",
+        "es5/js/derived-instance",
+        "es5/js/anonymous-instance",
+        "es5/js/private-instance",
+        "es5/js/accessor-instance",
+        "es5/ts/instance",
+        "es5/ts/constructor",
+        "es5/ts/object",
+        "es5/ts/generic-instance",
+        "es2015/js/instance",
+        "es2015/js/added-member",
+        "es2015/js/same-member",
+        "es2015/js/constructor",
+        "es2015/js/object",
+        "es2015/js/local-instance",
+        "es2015/js/factory-instance",
+        "es2015/js/generic-instance",
+        "es2015/js/derived-instance",
+        "es2015/js/anonymous-instance",
+        "es2015/js/private-instance",
+        "es2015/js/accessor-instance",
+        "es2015/ts/instance",
+        "es2015/ts/constructor",
+        "es2015/ts/object",
+        "es2015/ts/generic-instance"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "fixture_sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef",
+      "exact_twice": [
+        "js/es5/static-initialized",
+        "js/es5/static-uninitialized",
+        "js/es5/instance-initialized",
+        "js/es5/computed-instance",
+        "js/es5/computed-static",
+        "js/es5/expression-static",
+        "js/es5/expression-computed",
+        "js/es5/nested-static",
+        "js/es5/exported-static",
+        "js/es5/default-static",
+        "js/es5/plain",
+        "js/es5/static-comment",
+        "ts/es5/static-initialized",
+        "ts/es5/static-uninitialized",
+        "ts/es5/instance-initialized",
+        "ts/es5/computed-instance",
+        "ts/es5/computed-static",
+        "ts/es5/expression-static",
+        "ts/es5/expression-computed",
+        "ts/es5/nested-static",
+        "ts/es5/exported-static",
+        "ts/es5/default-static",
+        "ts/es5/plain",
+        "ts/es5/static-comment",
+        "ts/es5/ambient-static",
+        "js/es2015/static-initialized",
+        "js/es2015/static-uninitialized",
+        "js/es2015/instance-initialized",
+        "js/es2015/computed-instance",
+        "js/es2015/computed-static",
+        "js/es2015/expression-static",
+        "js/es2015/expression-computed",
+        "js/es2015/nested-static",
+        "js/es2015/exported-static",
+        "js/es2015/default-static",
+        "js/es2015/plain",
+        "js/es2015/static-comment",
+        "ts/es2015/static-initialized",
+        "ts/es2015/static-uninitialized",
+        "ts/es2015/instance-initialized",
+        "ts/es2015/computed-instance",
+        "ts/es2015/computed-static",
+        "ts/es2015/expression-static",
+        "ts/es2015/expression-computed",
+        "ts/es2015/nested-static",
+        "ts/es2015/exported-static",
+        "ts/es2015/default-static",
+        "ts/es2015/plain",
+        "ts/es2015/static-comment",
+        "ts/es2015/ambient-static"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "fixture_sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7",
+      "exact_twice": [
+        "js/es5/static-first",
+        "js/es5/static-middle",
+        "js/es5/static-last",
+        "js/es5/static-only",
+        "js/es5/static-multiline",
+        "js/es5/static-arrow",
+        "js/es5/static-function-expression",
+        "js/es5/static-method",
+        "js/es5/instance-explicit-constructor",
+        "js/es5/instance-two-properties",
+        "js/es5/static-expression",
+        "js/es5/plain-class",
+        "js/es5/computed-static-instance",
+        "js/es5/computed-static-static",
+        "js/es5/computed-instance-instance",
+        "js/es5/computed-with-constructor-local",
+        "ts/es5/static-first",
+        "ts/es5/static-middle",
+        "ts/es5/static-last",
+        "ts/es5/static-only",
+        "ts/es5/static-multiline",
+        "ts/es5/static-arrow",
+        "ts/es5/static-function-expression",
+        "ts/es5/static-method",
+        "ts/es5/instance-explicit-constructor",
+        "ts/es5/instance-two-properties",
+        "ts/es5/static-expression",
+        "ts/es5/plain-class",
+        "ts/es5/computed-static-instance",
+        "ts/es5/computed-static-static",
+        "ts/es5/computed-instance-instance",
+        "ts/es5/computed-with-constructor-local",
+        "js/es2015/static-first",
+        "js/es2015/static-middle",
+        "js/es2015/static-last",
+        "js/es2015/static-only",
+        "js/es2015/static-multiline",
+        "js/es2015/static-arrow",
+        "js/es2015/static-function-expression",
+        "js/es2015/static-method",
+        "js/es2015/instance-explicit-constructor",
+        "js/es2015/instance-two-properties",
+        "js/es2015/static-expression",
+        "js/es2015/plain-class",
+        "js/es2015/computed-static-instance",
+        "js/es2015/computed-static-static",
+        "js/es2015/computed-instance-instance",
+        "js/es2015/computed-with-constructor-local",
+        "ts/es2015/static-first",
+        "ts/es2015/static-middle",
+        "ts/es2015/static-last",
+        "ts/es2015/static-only",
+        "ts/es2015/static-multiline",
+        "ts/es2015/static-arrow",
+        "ts/es2015/static-function-expression",
+        "ts/es2015/static-method",
+        "ts/es2015/instance-explicit-constructor",
+        "ts/es2015/instance-two-properties",
+        "ts/es2015/static-expression",
+        "ts/es2015/plain-class",
+        "ts/es2015/computed-static-instance",
+        "ts/es2015/computed-static-static",
+        "ts/es2015/computed-instance-instance",
+        "ts/es2015/computed-with-constructor-local"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "fixture_sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424",
+      "exact_twice": [
+        "cjs/js/named",
+        "cjs/js/quoted",
+        "cjs/js/default",
+        "cjs/js/namespace",
+        "cjs/js/named-conflict",
+        "cjs/js/quoted-conflict",
+        "cjs/js/default-conflict",
+        "cjs/js/namespace-conflict",
+        "cjs/js/default-namespace",
+        "cjs/js/external-reexport",
+        "cjs/js/unicode-alias",
+        "cjs/js/escaped-alias",
+        "cjs/js/multiple-exports-comments",
+        "cjs/ts/named",
+        "cjs/ts/quoted",
+        "cjs/ts/default",
+        "cjs/ts/namespace",
+        "cjs/ts/named-conflict",
+        "cjs/ts/quoted-conflict",
+        "cjs/ts/default-conflict",
+        "cjs/ts/namespace-conflict",
+        "cjs/ts/import-equals",
+        "cjs/ts/exported-import-equals",
+        "cjs/ts/export-equals-suppression",
+        "cjs/ts/default-namespace",
+        "cjs/ts/external-reexport",
+        "cjs/ts/unicode-alias",
+        "cjs/ts/escaped-alias",
+        "cjs/ts/multiple-exports-comments",
+        "amd/js/named",
+        "amd/js/quoted",
+        "amd/js/default",
+        "amd/js/namespace",
+        "amd/js/named-conflict",
+        "amd/js/quoted-conflict",
+        "amd/js/default-conflict",
+        "amd/js/namespace-conflict",
+        "amd/js/default-namespace",
+        "amd/js/external-reexport",
+        "amd/js/unicode-alias",
+        "amd/js/escaped-alias",
+        "amd/js/multiple-exports-comments",
+        "amd/ts/named",
+        "amd/ts/quoted",
+        "amd/ts/default",
+        "amd/ts/namespace",
+        "amd/ts/named-conflict",
+        "amd/ts/quoted-conflict",
+        "amd/ts/default-conflict",
+        "amd/ts/namespace-conflict",
+        "amd/ts/import-equals",
+        "amd/ts/exported-import-equals",
+        "amd/ts/export-equals-suppression",
+        "amd/ts/default-namespace",
+        "amd/ts/external-reexport",
+        "amd/ts/unicode-alias",
+        "amd/ts/escaped-alias",
+        "amd/ts/multiple-exports-comments",
+        "umd/js/named",
+        "umd/js/quoted",
+        "umd/js/default",
+        "umd/js/namespace",
+        "umd/js/named-conflict",
+        "umd/js/quoted-conflict",
+        "umd/js/default-conflict",
+        "umd/js/namespace-conflict",
+        "umd/js/default-namespace",
+        "umd/js/external-reexport",
+        "umd/js/unicode-alias",
+        "umd/js/escaped-alias",
+        "umd/js/multiple-exports-comments",
+        "umd/ts/named",
+        "umd/ts/quoted",
+        "umd/ts/default",
+        "umd/ts/namespace",
+        "umd/ts/named-conflict",
+        "umd/ts/quoted-conflict",
+        "umd/ts/default-conflict",
+        "umd/ts/namespace-conflict",
+        "umd/ts/import-equals",
+        "umd/ts/exported-import-equals",
+        "umd/ts/export-equals-suppression",
+        "umd/ts/default-namespace",
+        "umd/ts/external-reexport",
+        "umd/ts/unicode-alias",
+        "umd/ts/escaped-alias",
+        "umd/ts/multiple-exports-comments"
+      ]
+    }
+  ],
+  "original_exact_twice": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5"
+  ],
+  "fixture": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+  "fixture_sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de",
+  "retained_map_difference_subsets": {
+    "status": "read-only-map-residue-comparison-not-whole-command-qualification",
+    "rows": [
+      {
+        "case_id": "es5/set/commonjs/abstract-property",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/private-method",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 4,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/static-this",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/class-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/anonymous-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/nested-reset",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/commonjs/nested-resume",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/abstract-property",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/private-method",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 4,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/static-this",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/class-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/anonymous-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/nested-reset",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/define/commonjs/nested-resume",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/esnext/static-this",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es5/set/esnext/nested-reset",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/static-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/instance-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/public-initialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/abstract-property",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/parameter-property",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/private-field",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/private-method",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 6,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/auto-accessor",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/static-this",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 3,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/static-super",
+        "native_extra_points_remaining": 3,
+        "typescript_missing_points_remaining": 3,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/class-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/anonymous-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/nested-reset",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/nested-resume",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/multiline-comments",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/computed-name",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/quoted-name",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/static-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/commonjs/private-static",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/static-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/instance-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/public-initialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/abstract-property",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/parameter-property",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/private-field",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/private-method",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 6,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/auto-accessor",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/static-this",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 3,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/static-super",
+        "native_extra_points_remaining": 3,
+        "typescript_missing_points_remaining": 3,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/class-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/anonymous-expression",
+        "native_extra_points_remaining": 1,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/nested-reset",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/nested-resume",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/multiline-comments",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/computed-name",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/quoted-name",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/static-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/define/commonjs/private-static",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/esnext/static-this",
+        "native_extra_points_remaining": 0,
+        "typescript_missing_points_remaining": 1,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2015/set/esnext/nested-reset",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 0,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/set/commonjs/static-only",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/set/commonjs/public-initialized",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 6,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/set/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/set/commonjs/auto-accessor",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 4,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/define/commonjs/static-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/define/commonjs/public-initialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/define/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "es2022/define/commonjs/auto-accessor",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 4,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/set/commonjs/static-only",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/set/commonjs/public-initialized",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 6,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/set/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/set/commonjs/auto-accessor",
+        "native_extra_points_remaining": 4,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/define/commonjs/static-only",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/define/commonjs/public-initialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/define/commonjs/public-uninitialized",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      },
+      {
+        "case_id": "esnext/define/commonjs/auto-accessor",
+        "native_extra_points_remaining": 2,
+        "typescript_missing_points_remaining": 2,
+        "remaining_difference_points_are_subsets_of_before": true,
+        "new_native_extra_points": [],
+        "new_typescript_missing_points": []
+      }
+    ]
+  },
+  "emitter_unit_tests": 483,
+  "emitter_contracts": 451,
+  "seconds": [
+    486.16,
+    43.84,
+    0.8,
+    2.2
+  ],
+  "exit_codes": [
+    101,
+    0
+  ],
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+      "sha256": "ab161b74a368187cf78398127e2ecf951748fa4a398c08b0e9e071c8242ccd8a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+      "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+      "sha256": "bee007cbc47b29e2cbbdc3416bcc1703ebcd48e63e892b258cad7ae000a46e72"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "5da35ffbcf03c309c4de86f560de08e8d17355c4f50b30bbee7fd2305577eaca"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "04bdeb5ea528118d053996968e056f79736bb682416030590a1b6c6524ef68a0"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-static-initializer-map-ranges.md",
+      "sha256": "bbc655b42f17aa380790842e9ad93de8a1bb72afcb99059564e3968758854fb7"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "16690097ccf0d37b6341eda56c3d775b964a580a982a2d783c5499e0411d6e94"
+    },
+    {
+      "path": "ratchets/h2-8a-property-literal-key-ranges-before.v1.json",
+      "sha256": "0ed124a80fe7aca8f8db892722af8258cae0ac6dde78f0034eeafd1669dc2b54"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-before.v1.json",
+      "sha256": "5fff6f961d1f463f625c01105bf627fc7e10e4aa60e729d3495e2d0f60b78ea7"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+      "sha256": "6aa095a8ccadfe5655cf717c3b36b322840c132bd9ae54cf14be8e67ebd57b8e"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-readiness.v1.json",
+      "sha256": "af30f8bfd676493b9e66626cf864577b32629bdb2c921e50a4252cbb7a139e50"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-second-after.v1.json",
+      "sha256": "8d5ece621b2de431bf078f683429d08b780943d4761fea4aa97df022b9149707"
+    },
+    {
+      "path": "scripts/check-static-initializer-map-ranges-readiness.py",
+      "sha256": "d60c16dbe77b0d82d02b9cd51df4b7254ef1327580bad1fda212f645ec17346a"
+    },
+    {
+      "path": "scripts/observe-property-literal-key-ranges.mjs",
+      "sha256": "2641adb871dfc7b5250a0c6660c6f1b40374370f0a3a3b93655f1ffd8cb4f3d5"
+    },
+    {
+      "path": "scripts/observe-static-initializer-map-ranges.mjs",
+      "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+    },
+    {
+      "path": "target/analyze-static-initializer-map-ranges-after.py",
+      "sha256": "0d8e801469694e42eabf58ad929e706b3040ae4e892a74344be7dacc322d304d"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after-analysis.json",
+      "sha256": "6874def6b3d44b2a311d0089be3dae58b63963cd20621ca96240239f2954a8e7"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after.log",
+      "sha256": "920d2b46941d903b7f02cdb69093ea661b394b914518537a4c7582871b20a122"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-emitter-after.log",
+      "sha256": "13061d6025fdf763616e937477c20bbad5f15d4767062cd92fd51db13434de09"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-residue-subsets.json",
+      "sha256": "150659a16ce3ca7025028add3ab4d01f7a8feda51de644b47c57681fb03ca202"
+    },
+    {
+      "path": "target/verify-static-map-residue-subsets.py",
+      "sha256": "f5b72f558b98f542d1fcbaab7122074fd5e38a4d677a91114d8d6427e6344cb5"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-static-map-final-after-i9ybbp0q",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "status": "first-complete-after-one-owned-map-residue-plus-outside-failures",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "eligible": 347,
+  "exact_twice": 272,
+  "fresh_exact_twice": 29,
+  "fresh_failed_once": 75,
+  "original_exact_twice": 10,
+  "previous_focused_exact_twice": 233,
+  "seconds": [
+    305.94,
+    32.74
+  ],
+  "exit_code": 101,
+  "owned_residue": "es5/define/commonjs/quoted-name",
+  "required_followup": "transformPropertyWorker literal key reuse; private helper currently clones StringLiteral/NumericLiteral and loses raw range",
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+      "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+      "sha256": "a1f91776aae4f0e0ee251f32060f49aa710a3b1913602c7183e5fed1599ed05b"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "8af93f39acf3b9ef7531826c45a66adee7d6dc81e74c43e50c369e6d1cb26947"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-static-initializer-map-ranges.md",
+      "sha256": "1f425e5094af86fa2637c76a837277548ce94a3cbe59d4ae5ab8d280fbd21f99"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-before.v1.json",
+      "sha256": "5fff6f961d1f463f625c01105bf627fc7e10e4aa60e729d3495e2d0f60b78ea7"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-readiness.v1.json",
+      "sha256": "2fbcdb33bf0a6b2a46277a7bd2eaa8d9d0ada9015356fa94ec0c20ebcd1feed5"
+    },
+    {
+      "path": "scripts/check-static-initializer-map-ranges-readiness.py",
+      "sha256": "767ab505ce7800ae14c2b6dacfe0d3a9a49ba4029ecaeecc99402c20134d1ea7"
+    },
+    {
+      "path": "scripts/observe-static-initializer-map-ranges.mjs",
+      "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after-analysis.json",
+      "sha256": "72c72c7217276926f1ad6e87db42ae993b19189d64309f27183691652dbb46fa"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after.log",
+      "sha256": "c119025984e0bad594d7e339a139562925e68870b7f953bbdf373ecb1a822562"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-static-map-first-after-gxz2q2d0"
+}
