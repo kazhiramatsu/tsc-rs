@@ -169,3 +169,23 @@ native-directory adaptation. This is within the existing A2 allowed owners,
 with the already pinned `getCommonSourceDirectory` and relocation spans.
 No fixture or existing contract expectation changes. Recheck the four original
 contracts, the complete emitter suite and the full A1/A2/A3 comparison.
+
+## A5 dependency amendment
+
+A5 changes the package-resolution owner in `module_resolution.rs`. A2's reused
+lexical path helpers, from `fn combine_paths_spelling` through the file end,
+remain byte-identical to checkpoint `4b0f4d75b5f79edcf93baca34c44b250a0d68710`.
+The readiness manifest retains the original whole-file hash as provenance and
+now verifies the unchanged helper tail against both that checkpoint and the
+current source. This is the bounded dependency amendment described in the
+[A5 packet](h2-8a-package-inputs.md), not a refreshed compatibility observation.
+The original 50 complete root observations remain unchanged and must pass.
+
+A5-6 also adds the package parser's owned `type` truthiness to
+`PackageMetadata`. The new field distinguishes empty strings and absent values
+from truthy unrecognized strings and objects when explaining TS6059. The
+amendment retains the original `prepared.rs` digest, limits the changed region
+to `PackageMetadata`, and byte-compares everything outside that region against
+4b0f4d75. The current region is pinned separately. No existing A2 observation
+changes; the original 50 root cases and the additional 50 format cases must
+requalify this dependency.

@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use serde_json::{Map, Value};
+use tsc_diagnostics::{gen, Diagnostic, DiagnosticList, MessageChain};
 use tsc_host::{to_file_name_lower_case, CompilerHost};
 use tsc_types::{compiler_version_satisfies, js_number_to_string, CompilerOptions};
 
@@ -128,6 +129,7 @@ impl HostResolvedModule {
 pub struct HostModuleResolution {
     outcome: ResolutionOutcome<HostResolvedModule>,
     alternate_result: Option<ProgramPath>,
+    diagnostics: DiagnosticList,
 }
 
 impl HostModuleResolution {
@@ -138,7 +140,16 @@ impl HostModuleResolution {
         Self {
             outcome,
             alternate_result,
+            diagnostics: Vec::new(),
         }
+    }
+
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+
+    pub fn into_parts(self) -> (ResolutionOutcome<HostResolvedModule>, DiagnosticList) {
+        (self.outcome, self.diagnostics)
     }
 
     pub fn outcome(&self) -> &ResolutionOutcome<HostResolvedModule> {
@@ -498,6 +509,14 @@ enum OptionalResolutionLoader {
     Node,
 }
 
+/// One Node request owns its directory guess and diagnostic reporter.
+/// Nested bare imports and diagnostic retries never append to the caller.
+struct InputResolutionRequest {
+    containing_directory: String,
+    report_diagnostics: bool,
+    diagnostics: DiagnosticList,
+}
+
 /// Sequential Node16/NodeNext/Bundler resolver for the H0.2 package-map
 /// slices.
 ///
@@ -518,6 +537,9 @@ pub struct ModuleResolver<'a> {
     package_cache_enabled: bool,
     active_resolutions: Vec<ActiveResolution>,
     active_package_maps: Vec<String>,
+    input_requests: Vec<InputResolutionRequest>,
+    config_file_path: Option<ProgramPath>,
+    has_config_source: bool,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -543,7 +565,7 @@ impl<'a> ModuleResolver<'a> {
         options: &'a CompilerOptions,
         program_options: &ProgramOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(
+        let mut resolver = Self::new_with_owned_paths(
             host,
             options,
             program_options.preserve_symlinks_effective(),
@@ -551,7 +573,9 @@ impl<'a> ModuleResolver<'a> {
             program_options.config_file_path(),
             program_options.root_dirs(),
             program_options.type_roots(),
-        )
+        )?;
+        resolver.has_config_source = program_options.config_file().is_some();
+        Ok(resolver)
     }
 
     fn new_with_owned_paths(
@@ -609,6 +633,9 @@ impl<'a> ModuleResolver<'a> {
             package_cache_enabled: true,
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
+            input_requests: Vec::new(),
+            config_file_path: config_file_path.cloned(),
+            has_config_source: false,
         })
     }
 
@@ -648,6 +675,9 @@ impl<'a> ModuleResolver<'a> {
             package_cache_enabled: true,
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
+            input_requests: Vec::new(),
+            config_file_path: None,
+            has_config_source: false,
         })
     }
 
@@ -869,21 +899,62 @@ impl<'a> ModuleResolver<'a> {
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
         self.validate_supported_module_configuration(mode)?;
-        let current_directory = self.current_directory_text()?;
-        let containing_file = normalize_absolute_path(containing_file, Some(current_directory))?;
+        let containing_file =
+            normalize_absolute_path(containing_file, Some(self.current_directory_text()?))?;
         let containing_directory = directory_name(&containing_file);
+        let (mut result, diagnostics) =
+            self.with_input_request(&containing_directory, true, |resolver| {
+                resolver.resolve_module_request(
+                    &containing_file,
+                    &containing_directory,
+                    specifier,
+                    mode,
+                )
+            })?;
+        result.diagnostics = diagnostics;
+        Ok(result)
+    }
+
+    /// Run one request with owned diagnostic state, restoring its caller on
+    /// success, miss or a fallible host operation.
+    fn with_input_request<T>(
+        &mut self,
+        containing_directory: &str,
+        report_diagnostics: bool,
+        action: impl FnOnce(&mut Self) -> Result<T, ResolutionError>,
+    ) -> Result<(T, DiagnosticList), ResolutionError> {
+        let depth = self.input_requests.len();
+        self.input_requests.push(InputResolutionRequest {
+            containing_directory: containing_directory.to_owned(),
+            report_diagnostics,
+            diagnostics: Vec::new(),
+        });
+        let result = action(self);
+        debug_assert!(result.is_err() || self.input_requests.len() == depth + 1);
+        let diagnostics = std::mem::take(&mut self.input_requests[depth].diagnostics);
+        self.input_requests.truncate(depth);
+        result.map(|result| (result, diagnostics))
+    }
+
+    fn resolve_module_request(
+        &mut self,
+        containing_file: &str,
+        containing_directory: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
         match self.options.emit_module_resolution_kind() {
-            1 => return self.resolve_classic(&containing_file, specifier, mode),
-            2 => return self.resolve_node10(&containing_file, specifier, mode),
+            1 => return self.resolve_classic(containing_file, specifier, mode),
+            2 => return self.resolve_node10(containing_file, specifier, mode),
             _ => {}
         }
         if is_relative_specifier(specifier) {
             return self
-                .resolve_relative(&containing_file, specifier, mode)
+                .resolve_relative(containing_file, specifier, mode)
                 .map(|outcome| HostModuleResolution::new(outcome, None));
         }
 
-        self.resolve_non_relative(&containing_directory, specifier, mode)
+        self.resolve_non_relative(containing_directory, specifier, mode)
             .map(|outcome| HostModuleResolution::new(outcome, None))
     }
 
@@ -1835,7 +1906,28 @@ impl<'a> ModuleResolver<'a> {
         Ok((specific.outcome, specific.root_package_observed))
     }
 
+    #[allow(clippy::too_many_arguments)] // Keeps the upstream retry profile explicit.
     fn resolve_bundler_preferred_non_relative(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        request: &PackageRequest<'_>,
+        probe_pass: ExtensionProbePass,
+        enable_package_maps: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.with_input_request(containing_directory, false, |resolver| {
+            resolver.resolve_bundler_preferred_non_relative_worker(
+                containing_directory,
+                specifier,
+                request,
+                probe_pass,
+                enable_package_maps,
+            )
+        })
+        .map(|(outcome, _)| outcome)
+    }
+
+    fn resolve_bundler_preferred_non_relative_worker(
         &mut self,
         containing_directory: &str,
         specifier: &str,
@@ -2079,11 +2171,13 @@ impl<'a> ModuleResolver<'a> {
             context.pass = ExtensionProbePass::JsonModule;
         }
         let resolution_depth = self.active_resolutions.len();
+        let request_depth = self.input_requests.len();
         let package_map_depth = self.active_package_maps.len();
         let result = self.resolve_bare_import_target_worker(owner_package, specifier, context);
         // Host/probe failures remain observable errors, but a failed iterative
         // walk must not poison a resolver which the caller reuses afterwards.
         self.active_resolutions.truncate(resolution_depth);
+        self.input_requests.truncate(request_depth);
         self.active_package_maps.truncate(package_map_depth);
         result
     }
@@ -2166,6 +2260,11 @@ impl<'a> ModuleResolver<'a> {
                         ImportsTargetState::Result(Search::Continue)
                     } else {
                         self.active_resolutions.push(active);
+                        self.input_requests.push(InputResolutionRequest {
+                            containing_directory: containing_directory.clone(),
+                            report_diagnostics: false,
+                            diagnostics: Vec::new(),
+                        });
                         let relative = is_relative_specifier(&specifier);
                         let preliminary = if relative {
                             self.resolve_relative_with_passes(
@@ -2187,6 +2286,7 @@ impl<'a> ModuleResolver<'a> {
                         };
                         if matches!(preliminary, ResolutionOutcome::Resolved(_)) || relative {
                             self.active_resolutions.pop();
+                            self.input_requests.pop();
                             ImportsTargetState::Result(self.finish_bare_import_target(
                                 &containing_directory,
                                 &specifier,
@@ -2273,6 +2373,7 @@ impl<'a> ModuleResolver<'a> {
                                         features,
                                     )?;
                                 self.active_resolutions.pop();
+                                self.input_requests.pop();
                                 ImportsTargetState::Result(self.finish_bare_import_target(
                                     &containing_directory,
                                     &specifier,
@@ -2320,12 +2421,12 @@ impl<'a> ModuleResolver<'a> {
                             if !path_is_within(&candidate, &package.root) {
                                 ImportsTargetState::Result(Search::Continue)
                             } else {
-                                let resolved = self.probe_export_target(
+                                let resolved = self.probe_package_map_target(
                                     &package,
                                     &candidate,
+                                    &subpath,
                                     context,
-                                    /* attach_package_id */ true,
-                                    /* raw_package_target */ Some(&raw_target),
+                                    &raw_target,
                                 )?;
                                 if matches!(resolved, ResolutionOutcome::Resolved(_)) {
                                     ImportsTargetState::Result(Search::Terminal(resolved))
@@ -2438,6 +2539,7 @@ impl<'a> ModuleResolver<'a> {
                                 )?,
                             };
                             self.active_resolutions.pop();
+                            self.input_requests.pop();
                             ImportsTargetState::Result(self.finish_bare_import_target(
                                 &containing_directory,
                                 &specifier,
@@ -3098,6 +3200,31 @@ impl<'a> ModuleResolver<'a> {
     /// realpathed only after this attempt has completed.
     #[allow(clippy::too_many_arguments)] // Diagnostic re-entry owns an independent resolver profile.
     fn resolve_modern_preferred_without_exports(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        request: &PackageRequest<'_>,
+        mode: ResolutionMode,
+        probe_pass: ExtensionProbePass,
+        force_package_maps: bool,
+        resolution_kind: i32,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        self.with_input_request(containing_directory, false, |resolver| {
+            resolver.resolve_modern_preferred_without_exports_worker(
+                containing_directory,
+                specifier,
+                request,
+                mode,
+                probe_pass,
+                force_package_maps,
+                resolution_kind,
+            )
+        })
+        .map(|(outcome, _)| outcome)
+    }
+
+    #[allow(clippy::too_many_arguments)] // Preserves the complete retry profile.
+    fn resolve_modern_preferred_without_exports_worker(
         &mut self,
         containing_directory: &str,
         specifier: &str,
@@ -4654,13 +4781,12 @@ impl<'a> ModuleResolver<'a> {
             Some(_) => PackageJsonType::Other,
             None => PackageJsonType::Unspecified,
         };
-        let metadata = Rc::new(PackageMetadata::from_trusted_snapshot(
-            package_path,
-            text,
-            name,
-            version,
-            module_type,
-        ));
+        let metadata = Rc::new(
+            PackageMetadata::from_trusted_snapshot(package_path, text, name, version, module_type)
+                .with_type_field_truthiness(
+                    json_object_get(&object, "type").is_some_and(js_json_value_is_truthy),
+                ),
+        );
         let package = Rc::new(CachedPackage {
             root: directory_name(package_json),
             exports: json_object_get(&object, "exports").cloned(),
@@ -4873,13 +4999,8 @@ impl<'a> ModuleResolver<'a> {
                 if !path_is_within(&candidate, &package.root) {
                     return Ok(Search::Continue);
                 }
-                let resolved = self.probe_export_target(
-                    package,
-                    &candidate,
-                    context,
-                    /* attach_package_id */ true,
-                    /* raw_package_target */ Some(raw_target),
-                )?;
+                let resolved = self
+                    .probe_package_map_target(package, &candidate, subpath, context, raw_target)?;
                 Ok(if matches!(resolved, ResolutionOutcome::Resolved(_)) {
                     Search::Terminal(resolved)
                 } else {
@@ -4918,6 +5039,213 @@ impl<'a> ModuleResolver<'a> {
             }
             Value::Bool(_) | Value::Number(_) => Ok(Search::Continue),
         }
+    }
+
+    fn probe_package_map_target(
+        &mut self,
+        package: &CachedPackage,
+        target: &str,
+        entry: &str,
+        context: ExportProbeContext,
+        raw_target: &str,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let input = self.try_load_input_file_for_path(package, target, entry, context)?;
+        if matches!(input, ResolutionOutcome::Resolved(_)) {
+            return Ok(input);
+        }
+        self.probe_export_target(package, target, context, true, Some(raw_target))
+    }
+
+    /// tsc-port: tryLoadInputFileForPath @6.0.3
+    /// tsc-hash: b1193e7451020bd69bd9383f77ec0290ae1041fa53b5f3b99e0b926d5acbc1c8
+    /// tsc-span: _tsc.js:41808-41881
+    fn try_load_input_file_for_path(
+        &mut self,
+        package: &CachedPackage,
+        final_path: &str,
+        entry: &str,
+        context: ExportProbeContext,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let options = self.options;
+        let declaration_dir = options
+            .declaration_dir
+            .as_deref()
+            .filter(|dir| !dir.is_empty());
+        let out_dir = options.out_dir.as_deref().filter(|dir| !dir.is_empty());
+        if matches!(context.pass, ExtensionProbePass::JsonConfig)
+            || (declaration_dir.is_none() && out_dir.is_none())
+            || final_path.contains("/node_modules/")
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        let sensitive = self.path_context.use_case_sensitive_file_names();
+        if self.has_config_source {
+            let config = self
+                .config_file_path
+                .as_ref()
+                .expect("config source retains its path");
+            if !path_is_within(
+                &canonical_text(&config.display().to_string_lossy(), sensitive),
+                &canonical_text(&package.root, sensitive),
+            ) {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+        }
+        let cwd = self.current_directory_text()?.to_owned();
+        let package_path = join_normalized(&package.root, "package.json");
+        let mut guesses = Vec::new();
+        if options
+            .root_dir
+            .as_deref()
+            .is_some_and(|dir| !dir.is_empty())
+            || self.config_file_path.is_some()
+        {
+            let common = crate::output_directories::common_source_directory(
+                options,
+                self.config_file_path.as_ref().map(ProgramPath::display),
+                &[],
+                Path::new(&cwd),
+                sensitive,
+            );
+            guesses.push(normalize_absolute_path(&common, Some(&cwd))?);
+        } else if let Some(request) = self.input_requests.last() {
+            let requesting_file = join_normalized(&request.containing_directory, "index.ts");
+            let common = crate::output_directories::common_source_directory(
+                options,
+                None,
+                &[Path::new(&requesting_file), Path::new(&package_path)],
+                Path::new(&cwd),
+                sensitive,
+            );
+            let common = if common.as_os_str().is_empty() {
+                cwd.clone()
+            } else {
+                normalize_absolute_path(&common, Some(&cwd))?
+            };
+            guesses.push(common.clone());
+            let mut fragment = common;
+            while !fragment.is_empty()
+                && fragment.trim_end_matches('/').encode_utf16().count() + 1 > 1
+            {
+                let (root, tail) =
+                    normalized_root_parts(&fragment).expect("normalized common source directory");
+                let parent = if tail.is_empty() || fragment == root {
+                    String::new()
+                } else {
+                    directory_name(&fragment)
+                };
+                guesses.insert(0, parent.clone());
+                fragment = parent;
+            }
+        }
+        if guesses.len() > 1 {
+            if let Some(request) = self
+                .input_requests
+                .last_mut()
+                .filter(|request| request.report_diagnostics)
+            {
+                let message = if context.kind == PackageMapKind::Imports {
+                    &gen::The_project_root_is_ambiguous_but_is_required_to_resolve_import_map_entry_0_in_file_1_Supply_the_rootDir_compiler_option_to_disambiguate
+                } else {
+                    &gen::The_project_root_is_ambiguous_but_is_required_to_resolve_export_map_entry_0_in_file_1_Supply_the_rootDir_compiler_option_to_disambiguate
+                };
+                request.diagnostics.push(Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(
+                        message,
+                        &[
+                            if entry.is_empty() {
+                                ".".to_owned()
+                            } else {
+                                entry.to_owned()
+                            },
+                            package_path,
+                        ],
+                    ),
+                ));
+            }
+        }
+        let directories = declaration_dir
+            .into_iter()
+            .chain(out_dir.filter(|dir| Some(*dir) != declaration_dir))
+            .collect::<Vec<_>>();
+        let pass = self.effective_module_probe_pass(context.pass);
+        for guess in guesses {
+            let base = if self.has_config_source { &cwd } else { &guess };
+            for dir in &directories {
+                let combined = combine_paths_spelling(base, dir)?;
+                let combined = if combined.ends_with('/') {
+                    combined
+                } else {
+                    format!("{combined}/")
+                };
+                let candidate_dir = normalize_absolute_path(Path::new(&combined), Some(&cwd))?;
+                if !path_is_within(
+                    &canonical_text(final_path, sensitive),
+                    &canonical_text(&candidate_dir, sensitive),
+                ) {
+                    continue;
+                }
+                // JavaScript slices by UTF-16 length even when canonical case
+                // folding changes UTF-8 byte lengths.
+                let path_fragment = String::from_utf16_lossy(
+                    &final_path
+                        .encode_utf16()
+                        .skip(candidate_dir.encode_utf16().count() + 1)
+                        .collect::<Vec<_>>(),
+                );
+                let input_base = combine_paths_spelling(&guess, &path_fragment)?;
+                let Some(output_extension) =
+                    [".mjs", ".cjs", ".js", ".json", ".d.mts", ".d.cts", ".d.ts"]
+                        .into_iter()
+                        .find(|extension| input_base.ends_with(extension))
+                else {
+                    continue;
+                };
+                // getPossibleOriginalInputExtensionForExtension (_tsc.js:16592-16594).
+                let input_extensions: &[(&str, bool)] =
+                    if input_base.ends_with(".d.mts") || input_base.ends_with(".mjs") {
+                        &[(".mts", false), (".mjs", true)]
+                    } else if input_base.ends_with(".d.cts") || input_base.ends_with(".cjs") {
+                        &[(".cts", false), (".cjs", true)]
+                    } else {
+                        &[
+                            (".tsx", false),
+                            (".ts", false),
+                            (".jsx", true),
+                            (".js", true),
+                        ]
+                    };
+                for &(extension, javascript) in input_extensions {
+                    let admitted = if javascript {
+                        matches!(
+                            pass,
+                            ExtensionProbePass::All
+                                | ExtensionProbePass::Fallback
+                                | ExtensionProbePass::Implementation
+                                | ExtensionProbePass::ImplementationFallback
+                        )
+                    } else {
+                        extension_pass_includes_typescript(pass)
+                    };
+                    if !admitted {
+                        continue;
+                    }
+                    let candidate = format!(
+                        "{}{extension}",
+                        &input_base[..input_base.len() - output_extension.len()]
+                    );
+                    if self.host.file_exists(Path::new(&candidate))? {
+                        // A first existing candidate owns this attempt even
+                        // if the package-field/suffix loader then misses.
+                        return self.probe_export_target(package, &candidate, context, true, None);
+                    }
+                }
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
     }
 
     /// tsc-port: getConditions @6.0.3

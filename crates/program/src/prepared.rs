@@ -450,6 +450,7 @@ pub struct PackageMetadata {
     name: Option<String>,
     version: Option<String>,
     module_type: PackageJsonType,
+    type_field_truthiness: Option<bool>,
 }
 
 impl PackageMetadata {
@@ -461,6 +462,7 @@ impl PackageMetadata {
             name: None,
             version: None,
             module_type: PackageJsonType::Unspecified,
+            type_field_truthiness: None,
         }
     }
 
@@ -497,6 +499,7 @@ impl PackageMetadata {
             name,
             version,
             module_type,
+            type_field_truthiness: None,
         }
     }
 
@@ -528,11 +531,24 @@ impl PackageMetadata {
         self.module_type
     }
 
+    /// The package parser owns JavaScript truthiness independently of the
+    /// recognized module-kind strings. Legacy trusted constructors leave
+    /// this additional fact unavailable until its producer supplies it.
+    pub(crate) fn with_type_field_truthiness(mut self, value: bool) -> Self {
+        self.type_field_truthiness = Some(value);
+        self
+    }
+
+    pub(crate) const fn type_field_truthiness(&self) -> Option<bool> {
+        self.type_field_truthiness
+    }
+
     fn compatible_with(&self, other: &Self) -> bool {
         self.text() == other.text()
             && self.name == other.name
             && self.version == other.version
             && self.module_type == other.module_type
+            && self.type_field_truthiness == other.type_field_truthiness
     }
 
     fn remember_display_alias(&mut self, display: &Path) {

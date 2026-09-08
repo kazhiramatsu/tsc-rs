@@ -29,6 +29,14 @@ pub(super) fn assert_cases(artifact: &Value) {
 }
 
 pub(super) fn assert_cases_with_reporting(artifact: &Value, command_reporting: bool) {
+    assert_cases_with_inspection(artifact, command_reporting, |_, _, _| {});
+}
+
+pub(super) fn assert_cases_with_inspection(
+    artifact: &Value,
+    command_reporting: bool,
+    inspect: fn(&str, &tsc_program::PreparedProgram, &Value),
+) {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let cases = artifact["cases"].as_array().expect("cases");
     let mut failures = Vec::new();
@@ -69,16 +77,54 @@ pub(super) fn assert_cases_with_reporting(artifact: &Value, command_reporting: b
             }
             let host = builder.build().expect("memory host");
             let mut options = CompilerOptions::default();
+            let mut program_options = ProgramOptions::default();
+            let program_path = |text: &str| {
+                let canonical = tsc_program::canonical_emit_path(
+                    Path::new(text),
+                    Path::new("/project"),
+                    case["use_case_sensitive_file_names"]
+                        .as_bool()
+                        .unwrap_or(true),
+                );
+                tsc_program::ProgramPath::from_trusted_parts(text, canonical).unwrap()
+            };
+            if let Some(config) = case["config_file_path"].as_str() {
+                program_options = program_options.with_config_file_path(program_path(config));
+            }
             for (key, value) in case["options"].as_object().expect("options") {
                 match key.as_str() {
                     "target" => options.target = Some(value.as_i64().unwrap() as i32),
                     "module" => options.module = Some(value.as_i64().unwrap() as i32),
+                    "moduleDetection" => {
+                        options.module_detection = Some(value.as_i64().unwrap() as i32)
+                    }
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
                     "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
                     "outDir" => options.out_dir = value.as_str().map(str::to_owned),
                     "outFile" => options.out_file = value.as_str().map(str::to_owned),
                     "rootDir" => options.root_dir = value.as_str().map(str::to_owned),
+                    "noDtsResolution" => options.no_dts_resolution = value.as_bool(),
+                    "typeRoots" => {
+                        program_options = program_options.with_type_roots(
+                            value
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .map(|value| program_path(value.as_str().unwrap()))
+                                .collect(),
+                        )
+                    }
+                    "types" => {
+                        program_options = program_options.with_types(
+                            value
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .map(|value| value.as_str().unwrap().to_owned())
+                                .collect(),
+                        )
+                    }
                     "allowJs" => options.allow_js = value.as_bool().unwrap(),
                     "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
                     "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
@@ -116,12 +162,13 @@ pub(super) fn assert_cases_with_reporting(artifact: &Value, command_reporting: b
                         &host,
                         &roots,
                         options.clone(),
-                        ProgramOptions::default(),
+                        program_options.clone(),
                         &catalog,
                         limits,
                     )
                     .expect("direct program")
                 };
+                inspect(case_id, &prepared, &case["typescript_observation"]);
                 // H2.8a now executes the unchanged complete TS observations for
                 // historical outDir references. Other later-owner guards remain.
                 if let Some(option) = case["rust_expected_unsupported_option"]

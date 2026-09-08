@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8a-roots.md",
-      "sha256": "49a8e104c40c873371fdb4f1de49a240833458b5cf1ac9eb159bd2ce9c699cf2"
+      "sha256": "4311f36df7055578565052801db1d8f0c39c238553665cab543ec284cd4773e5"
     },
     {
       "path": "scripts/observe-output-roots.mjs",
@@ -26,16 +26,8 @@
       "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
     },
     {
-      "path": "crates/program/src/module_resolution.rs",
-      "sha256": "48c52eca9efd9e55bd45973763ee3c247362f038c99b0b2006265c21d7c456ac"
-    },
-    {
       "path": "crates/host/src/lib.rs",
       "sha256": "2bd253b0e507a392bfcbbbf73a997608b75ac53c2380e1073c0379e7a2ba5b3c"
-    },
-    {
-      "path": "crates/program/src/prepared.rs",
-      "sha256": "587dbbd4f3d9ef07e24457f1cead7bd3774786bf4cacc0dd2f44a685cf4953de"
     },
     {
       "path": "crates/diagnostics/src/text.rs",
@@ -210,6 +202,27 @@
     {
       "id": "E-OUTPUT-FUTURE",
       "disposition": "future-owned-fail-closed"
+    }
+  ],
+  "amended_dependencies": [
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "baseline": "4b0f4d75b5f79edcf93baca34c44b250a0d68710",
+      "original_file_sha256": "48c52eca9efd9e55bd45973763ee3c247362f038c99b0b2006265c21d7c456ac",
+      "marker": "fn combine_paths_spelling(",
+      "unchanged_tail_sha256": "c87e289e9c38129fe8c214f06ea6704e2a4cbd1200087c2d562e42296d17808b",
+      "amendment": "docs/design/greenfield/slices/h2-8a-package-inputs.md"
+    }
+  ],
+  "amended_metadata_dependencies": [
+    {
+      "path": "crates/program/src/prepared.rs",
+      "baseline": "4b0f4d75b5f79edcf93baca34c44b250a0d68710",
+      "original_file_sha256": "587dbbd4f3d9ef07e24457f1cead7bd3774786bf4cacc0dd2f44a685cf4953de",
+      "start_marker": "pub struct PackageMetadata {",
+      "end_marker": "/// One raw `paths` pattern and its ordered substitutions.",
+      "current_region_sha256": "86e59c7d672d1ad93380b4c905a054790b10c49de855eccd7d6c9250780aba79",
+      "amendment": "docs/design/greenfield/slices/h2-8a-package-inputs.md"
     }
   ]
 }

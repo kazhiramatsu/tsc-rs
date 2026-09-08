@@ -1,0 +1,4390 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "920e73267407be7fb410f2ea72a81a109f90768cc60c76d6528aa9275a5f0377",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "exports/explicit",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "exports/ambiguous-success",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": [
+              {
+                "code": 2209,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2209,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "exports/ambiguous-fallback",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": [
+              {
+                "code": 2209,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2209,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "exports/ambiguous-blocked",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types",
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": [
+              {
+                "code": 2209,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2209,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2209,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "exports/config-default",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"nodenext\",\"declaration\":true,\"emitDeclarationOnly\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"newLine\":\"crlf\",\"declarationDir\":\"/project/types\"},\"files\":[\"/project/test/main.ts\"]}",
+      "config_path": "/project/tsconfig.json",
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "exports/config-path-only",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "config_file_path": "/project/tsconfig.json",
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "exports/missing-input",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/explicit",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/ambiguous-success",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": [
+              {
+                "code": 2210,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2210,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "imports/ambiguous-fallback",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": [
+              {
+                "code": 2210,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2210,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "imports/ambiguous-blocked",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types",
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": [
+              {
+                "code": 2210,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2210,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2210,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "imports/config-default",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"nodenext\",\"declaration\":true,\"emitDeclarationOnly\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"newLine\":\"crlf\",\"declarationDir\":\"/project/types\"},\"files\":[\"/project/test/main.ts\"]}",
+      "config_path": "/project/tsconfig.json",
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/config-path-only",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "config_file_path": "/project/tsconfig.json",
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/missing-input",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#value'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#value",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/tsx",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.tsx",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.tsx",
+            "extension": ".tsx",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6142,
+            "category": "Error",
+            "file": "/project/test/main.ts",
+            "start": 22,
+            "length": 7,
+            "message": "Module 'local' was resolved to '/project/src/value.tsx', but '--jsx' is not set.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/js",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.js",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.js",
+            "extension": ".js",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/jsx",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.jsx",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.jsx",
+            "extension": ".jsx",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6142,
+            "category": "Error",
+            "file": "/project/test/main.ts",
+            "start": 22,
+            "length": 7,
+            "message": "Module 'local' was resolved to '/project/src/value.jsx', but '--jsx' is not set.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.mts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.mts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.mts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.mts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.mts",
+            "extension": ".mts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.mts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/mjs",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.mts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.mts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.mjs",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.mjs",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.mjs",
+            "extension": ".mjs",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.mts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.mjs"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/cts",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.cts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.cts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.cts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.cts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.cts",
+            "extension": ".cts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.cts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/cjs",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.cts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.cts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.cjs",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "allowJs": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.cjs",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.cjs",
+            "extension": ".cjs",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.cts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.cjs"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbiA9IDE7DQo=",
+            "materialized_utf8_bytes": 32,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/tsx-priority",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/value.tsx",
+          "text": "export const value: string = 'tsx';\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.tsx",
+            "extension": ".tsx",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6142,
+            "category": "Error",
+            "file": "/project/test/main.ts",
+            "start": 22,
+            "length": 7,
+            "message": "Module 'local' was resolved to '/project/src/value.tsx', but '--jsx' is not set.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directory/javascript-output",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./out/src/value.js\"}}"
+        },
+        {
+          "path": "/project/out/src/value.js",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/declaration-before-javascript",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/value.ts",
+          "text": "export const value: string = 'outer';\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "outDir": "/project/types/src"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/javascript-after-declaration-miss",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./out/src/value.js\"}}"
+        },
+        {
+          "path": "/project/out/src/value.js",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/relative-without-config",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./src/types/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/src/types/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/src",
+        "declarationDir": "types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "types/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/test/main.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directory/relative-outside-common",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project/src",
+        "declarationDir": "types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/test/main.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directory/same-output-options",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "outDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/no-output-options",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/empty-output-options",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "",
+        "outDir": ""
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/component-boundary",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types-other/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types-other/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types-other/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types-other/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/case-insensitive",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./TYPES/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/TYPES/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "use_case_sensitive_file_names": false,
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directory/trailing-slash",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types/"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "scope/config-outside",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "config": "{\"compilerOptions\":{\"target\":\"esnext\",\"module\":\"nodenext\",\"declaration\":true,\"emitDeclarationOnly\":true,\"skipDefaultLibCheck\":true,\"noErrorTruncation\":true,\"newLine\":\"crlf\",\"rootDir\":\"/project\",\"declarationDir\":\"/project/types\"},\"files\":[\"/project/test/main.ts\"]}",
+      "config_path": "/else/tsconfig.json",
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "scope/node-modules",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/node_modules/local/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/node_modules/local/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/node_modules/local/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 1,
+            "resolved_file": "/project/node_modules/local/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/bare-alias-drops-inner-diagnostic",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#alias'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#alias\":\"#value\",\"#value\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#alias",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/bare-self-name-drops-inner-diagnostic",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#alias'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"},\"imports\":{\"#alias\":\"local\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#alias",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "imports/bare-fallback-restores-request",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from '#alias'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"imports\":{\"#alias\":[\"#missing\",\"./types/src/value.d.ts\"]}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "#alias",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": [
+              {
+                "code": 2210,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2210,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve import map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "exports/ambiguous-miss",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": null,
+            "extension": null,
+            "diagnostics": [
+              {
+                "code": 2209,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              },
+              {
+                "code": 2209,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogYW55Ow0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2209,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "The project root is ambiguous, but is required to resolve export map entry '.' in file '/project/package.json'. Supply the `rootDir` compiler option to disambiguate.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/javascript-not-loaded",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types"
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/types/src/value.d.ts",
+            "extension": ".d.ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/no-dts-resolution",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "noDtsResolution": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "extension/json-target",
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "import { value } from 'local'; export const main = value;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"type\":\"module\",\"exports\":{\".\":\"./out/src/value.json\"}}"
+        },
+        {
+          "path": "/project/out/src/value.json",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/types",
+        "outDir": "/project/out",
+        "resolveJsonModule": true
+      },
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/src/value.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "mode": 99,
+            "resolved_file": "/project/src/value.ts",
+            "extension": ".ts",
+            "diagnostics": []
+          }
+        ],
+        "type_resolutions": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/types/src/value.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "type-reference//project",
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/typeRoots/local/types",
+        "typeRoots": [
+          "/project/typeRoots"
+        ],
+        "types": []
+      },
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "/// <reference types=\"local\" />\nexport const main: number = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        },
+        {
+          "path": "/project/typeRoots/local/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/typeRoots/local/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [],
+        "type_resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "resolved_file": null,
+            "primary": null,
+            "diagnostics": []
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/typeRoots/local/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2688,
+            "category": "Error",
+            "file": "/project/test/main.ts",
+            "start": 22,
+            "length": 5,
+            "message": "Cannot find type definition file for 'local'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "type-reference/ambiguous",
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/typeRoots/local/types",
+        "typeRoots": [
+          "/project/typeRoots"
+        ],
+        "types": []
+      },
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "/// <reference types=\"local\" />\nexport const main: number = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        },
+        {
+          "path": "/project/typeRoots/local/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/typeRoots/local/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/test/main.ts"
+        ],
+        "resolutions": [],
+        "type_resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "resolved_file": null,
+            "primary": null,
+            "diagnostics": []
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/typeRoots/local/types/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2688,
+            "category": "Error",
+            "file": "/project/test/main.ts",
+            "start": 22,
+            "length": 5,
+            "message": "Cannot find type definition file for 'local'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "type-reference//project/node-modules-secondary",
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "rootDir": "/project",
+        "declarationDir": "/project/node_modules/local/types",
+        "typeRoots": [],
+        "types": []
+      },
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "/// <reference types=\"local\" />\nexport const main: number = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        },
+        {
+          "path": "/project/node_modules/local/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/node_modules/local/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/node_modules/local/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [],
+        "type_resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "resolved_file": "/project/node_modules/local/types/src/value.d.ts",
+            "primary": false,
+            "diagnostics": []
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/node_modules/local/types/test/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "type-reference/ambiguous/node-modules-secondary",
+      "options": {
+        "target": 99,
+        "module": 199,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "declarationDir": "/project/node_modules/local/types",
+        "typeRoots": [],
+        "types": []
+      },
+      "roots": [
+        "/project/test/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/test/main.ts",
+          "text": "/// <reference types=\"local\" />\nexport const main: number = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        },
+        {
+          "path": "/project/node_modules/local/package.json",
+          "text": "{\"name\":\"local\",\"version\":\"1.0.0\",\"exports\":{\".\":\"./types/src/value.d.ts\"}}"
+        },
+        {
+          "path": "/project/node_modules/local/types/src/value.d.ts",
+          "text": "export declare const value: number;\n"
+        },
+        {
+          "path": "/project/src/value.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "loaded_files": [
+          "/project/node_modules/local/types/src/value.d.ts",
+          "/project/test/main.ts"
+        ],
+        "resolutions": [],
+        "type_resolutions": [
+          {
+            "source": "/project/test/main.ts",
+            "specifier": "local",
+            "resolved_file": "/project/node_modules/local/types/src/value.d.ts",
+            "primary": false,
+            "diagnostics": []
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/node_modules/local/types/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbWFpbjogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/test/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

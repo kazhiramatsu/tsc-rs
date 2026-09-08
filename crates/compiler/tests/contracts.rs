@@ -121,3 +121,6 @@ mod h2_7c_forced_declarations;
 
 #[path = "integration/h2_7c_corpus.rs"]
 mod h2_7c_corpus;
+
+#[path = "integration/h2_8a_package_output_inputs.rs"]
+mod h2_8a_package_output_inputs;

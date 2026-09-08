@@ -1902,6 +1902,11 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .map(str::to_owned)
             .or_else(|| config_path.map(|config| directory_name(&config.to_string_lossy())));
         if let Some(root) = root {
+            let packages = self
+                .resolver
+                .observed_package_metadata()
+                .map(|package| (package.package_json().canonical(), package))
+                .collect::<BTreeMap<_, _>>();
             let canonical_root =
                 canonical_emit_path(Path::new(&root), current_directory, case_sensitive);
             for source in &emitted {
@@ -1918,6 +1923,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         source,
                         &root,
                         self.program_options.config_file(),
+                        source
+                            .prepared
+                            .package_scope()
+                            .and_then(|key| packages.get(key).copied()),
                     ));
                 }
             }
@@ -3314,8 +3323,9 @@ fn bind_module_resolution(
     no_resolve: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
-    let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
-        let mut resolution = ModuleResolution::not_found();
+    let (outcome, diagnostics) = host.into_parts();
+    let ResolutionOutcome::Resolved(module) = outcome else {
+        let mut resolution = ModuleResolution::not_found().with_diagnostics(diagnostics);
         if let Some(alternate_result) = alternate_result {
             resolution = resolution.with_alternate_result(alternate_result);
         }
@@ -3371,6 +3381,7 @@ fn bind_module_resolution(
         ));
     };
     let mut resolution = ModuleResolution::resolved(module.into_resolved_module(target)?)
+        .with_diagnostics(diagnostics)
         .with_types_package_exists(types_package_exists)
         .with_package_bundles_types(package_bundles_types);
     if let Some(alternate_result) = alternate_result {
@@ -3945,6 +3956,7 @@ fn root_directory_diagnostic(
     source: &StagedSource,
     root: &str,
     config: Option<&ProgramConfigFile>,
+    package: Option<&PackageMetadata>,
 ) -> Diagnostic {
     let reasons = &source.inclusion_reasons;
     let located = reasons.iter().enumerate().find_map(|(index, reason)| {
@@ -3973,6 +3985,10 @@ fn root_directory_diagnostic(
                 .filter_map(source_inclusion_reason_message)
                 .collect(),
         )]);
+    }
+    if let Some(detail) = root_module_format_detail(&source.prepared, package) {
+        message.next_present = true;
+        message.next.push(detail);
     }
     let (file, start, length) =
         located
@@ -4015,6 +4031,61 @@ fn root_directory_diagnostic(
     }
     diagnostic.related_information_present = !diagnostic.related.is_empty();
     diagnostic
+}
+
+/// tsc-port: explainIfFileIsRedirectAndImpliedFormat @6.0.3 (module-format branch)
+/// tsc-hash: 4bd1d72257a11fc0d58f2ff3b8609170d5f225f9a8b5d801b67751dfbf9e001a
+/// tsc-span: _tsc.js:129225-129275
+fn root_module_format_detail(
+    source: &PreparedSourceFile,
+    package: Option<&PackageMetadata>,
+) -> Option<MessageChain> {
+    if source.is_external_module() != Some(true) {
+        return None;
+    }
+    let name = source.path().display().to_string_lossy();
+    // The TS implied-format worker returns a bare format for fixed module
+    // extensions, with no packageJsonScope or packageJsonLocations fields.
+    if [".mts", ".mjs", ".cts", ".cjs"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+    {
+        return None;
+    }
+    match source.implied_node_format_for_emit()? {
+        ResolutionMode::EsNext => package.map(|package| {
+            MessageChain::new(
+                &gen::File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
+                &[package
+                    .package_json()
+                    .display()
+                    .to_string_lossy()
+                    .into_owned()],
+            )
+        }),
+        ResolutionMode::CommonJs => Some(match package {
+            Some(package) => MessageChain::new(
+                if package
+                    .type_field_truthiness()
+                    .expect("loader package parser supplies type truthiness")
+                {
+                    &gen::File_is_CommonJS_module_because_0_has_field_type_whose_value_is_not_module
+                } else {
+                    &gen::File_is_CommonJS_module_because_0_does_not_have_field_type
+                },
+                &[package
+                    .package_json()
+                    .display()
+                    .to_string_lossy()
+                    .into_owned()],
+            ),
+            None => MessageChain::new(
+                &gen::File_is_CommonJS_module_because_package_json_was_not_found,
+                &[],
+            ),
+        }),
+        ResolutionMode::Unspecified => None,
+    }
 }
 
 fn root_inclusion_related_information(

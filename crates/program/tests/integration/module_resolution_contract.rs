@@ -10712,3 +10712,76 @@ fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
         ResolutionOutcome::NotFound
     );
 }
+
+#[test]
+fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrites() {
+    for initial in ["local", "#alias"] {
+        let watched = PathBuf::from("/project/src/value.ts");
+        let failure = HostError::new(
+            HostErrorKind::PermissionDenied,
+            HostOperation::FileExists,
+            Some(watched.clone()),
+            "input probe denied once",
+        );
+        let host = NthFileExistsFailureHost {
+            inner: MemoryCompilerHost::builder("/project")
+                .file("/project/test/main.ts", b"export {};".to_vec())
+                .file("/project/src/value.ts", b"export const value = 1;".to_vec())
+                .file("/project/types/src/value.d.ts", b"export declare const value: number;".to_vec())
+                .file("/project/package.json", br##"{"name":"local","type":"module","exports":{".":"./types/src/value.d.ts"},"imports":{"#alias":"#value","#value":"./types/src/value.d.ts"}}"##.to_vec())
+                .build().unwrap(),
+            watched_path: watched.clone(),
+            fail_on: 1,
+            calls: RefCell::new(Vec::new()),
+            failure: failure.clone(),
+        };
+        let options = CompilerOptions {
+            module: Some(199),
+            declaration_dir: Some("/project/types".to_owned()),
+            ..CompilerOptions::default()
+        };
+        let mut resolver = ModuleResolver::new(&host, &options).unwrap();
+        let origin = Path::new("/project/test/main.ts");
+        assert_eq!(
+            resolver
+                .resolve_with_facts(origin, initial, ResolutionMode::EsNext)
+                .unwrap_err(),
+            ResolutionError::Host(failure)
+        );
+        // A successful caller after the failed nested or ordinary request
+        // receives exactly its own diagnostic, with no stranded child state.
+        let first = resolver
+            .resolve_with_facts(origin, "local", ResolutionMode::EsNext)
+            .unwrap();
+        assert_eq!(
+            first
+                .diagnostics()
+                .iter()
+                .map(|d| d.code())
+                .collect::<Vec<_>>(),
+            [2209]
+        );
+        assert_eq!(
+            resolved(first.outcome().clone()).resolved_file().display(),
+            watched
+        );
+        let alias = resolver
+            .resolve_with_facts(origin, "#alias", ResolutionMode::EsNext)
+            .unwrap();
+        assert!(
+            alias.diagnostics().is_empty(),
+            "bare-import child diagnostics are dropped"
+        );
+        assert_eq!(
+            resolved(alias.into_outcome()).resolved_file().display(),
+            watched
+        );
+        let second = resolver
+            .resolve_with_facts(origin, "local", ResolutionMode::EsNext)
+            .unwrap();
+        assert_eq!(
+            second, first,
+            "request result and diagnostics survive cache reuse"
+        );
+    }
+}

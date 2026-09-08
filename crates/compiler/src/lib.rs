@@ -478,7 +478,20 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 return Err(AuthoritativeModuleLookupFailure::Missing);
             }
         };
-        if !resolution.diagnostics().is_empty() {
+        // A fileless package-root diagnostic does not invalidate the resolved
+        // module. Program getters report these owned facts independently.
+        // Unqualified host diagnostic records retain their typed boundary.
+        if resolution.diagnostics().iter().any(|diagnostic| {
+            !matches!(diagnostic.code(), 2209 | 2210)
+                || diagnostic.file_name.is_some()
+                || diagnostic.start.is_some()
+                || diagnostic.length.is_some()
+                || diagnostic.category() != tsc_diagnostics::DiagnosticCategory::Error
+                || !diagnostic.message.next.is_empty()
+                || diagnostic.related_information_present
+                || !diagnostic.related.is_empty()
+                || diagnostic.canonical_head.is_some()
+        }) {
             return Err(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
             ));
@@ -1378,6 +1391,12 @@ impl ProgramSession {
             .resolutions()
             .type_references()
             .flat_map(|(_, resolution)| resolution.diagnostics())
+            .chain(
+                self.prepared
+                    .resolutions()
+                    .modules()
+                    .flat_map(|(_, resolution)| resolution.diagnostics()),
+            )
             .cloned()
             .collect::<Vec<_>>();
         // The conformance evidence stream is the aggregate of public
@@ -1832,10 +1851,16 @@ fn emit_session_diagnostics(
     checked: &CheckResult,
 ) -> ProgramDiagnostics {
     let preparation = prepared.diagnostics();
-    let type_reference_diagnostics = prepared
+    let resolution_diagnostics = prepared
         .resolutions()
         .type_references()
         .flat_map(|(_, resolution)| resolution.diagnostics())
+        .chain(
+            prepared
+                .resolutions()
+                .modules()
+                .flat_map(|(_, resolution)| resolution.diagnostics()),
+        )
         .cloned()
         .collect::<Vec<_>>();
 
@@ -1849,7 +1874,7 @@ fn emit_session_diagnostics(
     for diagnostic in preparation
         .program()
         .iter()
-        .chain(type_reference_diagnostics.iter())
+        .chain(resolution_diagnostics.iter())
     {
         if diagnostic
             .file_name

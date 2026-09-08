@@ -12,6 +12,26 @@ assert manifest["unresolved"] == manifest["undispositioned"] == 0
 digest = lambda data: hashlib.sha256(data).hexdigest()
 for item in manifest["authorities"]:
     assert digest((ROOT / item["path"]).read_bytes()) == item["sha256"], item["path"]
+for item in manifest.get("amended_dependencies", []):
+    original = subprocess.check_output(["git", "show", f'{item["baseline"]}:{item["path"]}'], cwd=ROOT)
+    current = (ROOT / item["path"]).read_bytes()
+    marker = item["marker"].encode()
+    assert digest(original) == item["original_file_sha256"]
+    assert original.count(marker) == current.count(marker) == 1
+    assert digest(original[original.index(marker):]) == item["unchanged_tail_sha256"]
+    assert current[current.index(marker):] == original[original.index(marker):]
+    assert (ROOT / item["amendment"]).is_file()
+for item in manifest.get("amended_metadata_dependencies", []):
+    original = subprocess.check_output(["git", "show", f'{item["baseline"]}:{item["path"]}'], cwd=ROOT)
+    current = (ROOT / item["path"]).read_bytes()
+    start, end = item["start_marker"].encode(), item["end_marker"].encode()
+    assert digest(original) == item["original_file_sha256"]
+    assert original.count(start) == current.count(start) == 1
+    assert original.count(end) == current.count(end) == 1
+    assert original[:original.index(start)] == current[:current.index(start)]
+    assert original[original.index(end):] == current[current.index(end):]
+    assert digest(current[current.index(start):current.index(end)]) == item["current_region_sha256"]
+    assert (ROOT / item["amendment"]).is_file()
 for item in manifest["baseline_rust"]:
     data = subprocess.check_output(["git", "show", f'{manifest["base"]}:{item["path"]}'], cwd=ROOT)
     assert digest(data) == item["sha256"], item["path"]
