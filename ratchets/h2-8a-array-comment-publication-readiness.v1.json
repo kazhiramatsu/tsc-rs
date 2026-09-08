@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-13",
+  "base": "ba2375f8d69b7887a32be2982d80395da99c4735",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/printer.rs"
+  ],
+  "steps": [
+    "A6-13-1"
+  ],
+  "owners": [
+    {
+      "owner": "emitNodeListItems",
+      "start": 120068,
+      "end": 120155,
+      "sha256": "ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40"
+    },
+    {
+      "owner": "emitLeadingCommentsOfPosition",
+      "start": 121166,
+      "end": 121175,
+      "sha256": "fa23b688b1540c772ccf513c874d47bba4a08a44e019bc430feb79cbea73d2cd"
+    },
+    {
+      "owner": "emitTrailingCommentsOfPosition",
+      "start": 121191,
+      "end": 121198,
+      "sha256": "953cde198b7f8098bd7bc8d865e535cdac106e983efe35a4a067498ff239cbc0"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-COMMENTS-G",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-COMMENT-SCOPE-H",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-array-comment-publication.md",
+      "sha256": "8f98fe00546ae6b8961f6695361f4f3261eb182ff4ecae69d89ffe01358949cc"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-array-comment-publication-before.v1.json",
+      "sha256": "9eecd090bdf3fd51591374a122c37cdf204e8cdf6571d5c13874f637db719582"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/array-comment-publication.json",
+      "sha256": "ab197b1be070275553c981aab05d3a157997ee4595364c101f2b75149e9e6de9"
+    },
+    {
+      "path": "scripts/observe-array-comment-publication.mjs",
+      "sha256": "dcc43dd06e532b1d495f182a854c48a9647ea122af2a19f30a016a2db5813e53"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/list-comment-flags.json",
+      "sha256": "53ae72fa61187561a0f00ff57d151b3e9678915a6c9a019f6c612b80703c27ae"
+    },
+    {
+      "path": "ratchets/h2-8a-system-variable-publication-after.v1.json",
+      "sha256": "142510ba50fd9fe24da674fdc2a47ab0eb7bcba42e927cdf55336544e6d76c5b"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "ec9da962d5d21f9298ecf92f05bda98b0bf4b00fa8c315c86a75b80c6769ab18"
+    },
+    {
+      "path": "crates/emitter/src/comment_cursor.rs",
+      "sha256": "c10db4d1c8df39953f58df6c08e83af4f2a017d8395355470ab7fef768a4c364"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/retained/array-inline",
+      "row_sha256": "ceeaaf3c7e582cb38f986882722ce93a6a2fa30163548712c5f917b99b1726af",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/array-newline",
+      "row_sha256": "5adf2ea7b8c3e95056180f6f0528b6675b81d594cd08c8c160e7328b7f9ee43e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/array-trailing-comma",
+      "row_sha256": "74202ced34b008d4b62a34dca4787be0e41da5625951778d252225ff2562fee8",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/array-final-element",
+      "row_sha256": "5a0c3b6f8886bf7fbe633a5fdf0cfcc82be77785ea28dd635803266f4400dbb5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/array-single-element",
+      "row_sha256": "ed0cbc4ab7f055c02ffe790fe2f7c048ef94328f9213cde481bdd54403557a1e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/object-inline",
+      "row_sha256": "c87fa62b3c65aabbccce23dd7f580e17658c8cfa4ba3cf06d5cc02a1b7e47d86",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/object-newline",
+      "row_sha256": "03b4f009e9777c6aea4420aa86d4f93b3a58c9806394db3d5739508495c3ff4e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/object-trailing-comma",
+      "row_sha256": "5af9190d50be640c116a42aa0dc2935e936e349a8cb88e46eca4052b66b550c7",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/array-binding",
+      "row_sha256": "873a334b507e63be88fe61430cd8cc515ecb38afffde9c30ae0502c074e621e5",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/object-binding",
+      "row_sha256": "1a3f6e6b0641b175ed4274866a7a7d5de9a9f4750caff5aec2e857f2636a976b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/retained/call-control",
+      "row_sha256": "e41736caebcedbe28e1aee4a7181e85aee85ee667e9ac31cecbcde38dec67460",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/empty-array",
+      "row_sha256": "5a9ee89954eda8187f4615cbe326e0aa820bee87fcb4f27f9acc7abf6f927979",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-inline",
+      "row_sha256": "26033886ee391fed87dfecc100022be009d1f39aa3412dc6cd6f615bc078d02f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-newline",
+      "row_sha256": "77b83d2ce027d298ead8d871500acb29fa265af1a5e3013f07d29df876b5de8a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-trailing-comma",
+      "row_sha256": "de1a32a721f16898b9fb682b0510df799241cb9c5fdeaf8aabc2f05a90ce3998",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-final-element",
+      "row_sha256": "1c843bb7af198507a950b457b9ea57e323d3b585249719ae7db3b29ddba2b5a2",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-single-element",
+      "row_sha256": "2c80f1ee14a2fc79eb94ecb35ee348892c8e10888798be7a5623f46fdcdfabf4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/object-inline",
+      "row_sha256": "9c0b8fc1b6d8c3ffbad51e600a2c26a7d751f9b3587542409ae81a029fd60e12",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/object-newline",
+      "row_sha256": "3d157b5a80b59d963f96941278ad44234f2f56f208ab1ba1e4cbcbded68419b7",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/object-trailing-comma",
+      "row_sha256": "3ad3e0450ed73a69747efee3e9c400edb8b14be9fb3cd9f3cfcf61e98914aa96",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/array-binding",
+      "row_sha256": "2f6116a0252872e521b35c0efa05e545645250ada1ebd6f4ce079895fc9b27d5",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/object-binding",
+      "row_sha256": "d4f83b9a6dc4f6b6a8d28017e169a8e51e3d186b46f79d5134051a66d8a55712",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/call-control",
+      "row_sha256": "2014fd8c314ce6ec1c884561c97f81e5b758f5101bc49cd1f079de62ecd41c25",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/removed/empty-array",
+      "row_sha256": "9292feaf3d9a72ed366f926eb0ab95e9ab649edec7fc00787883f615065c102b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/array-inline",
+      "row_sha256": "f8d97dab8de58f6edff6f895de709d21e51f60b108c03cd38cd2daaf41845c18",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/array-newline",
+      "row_sha256": "df31110913f95f70d4cdc665fe37ed978f89b2051df8bd0c52fd9b5625603969",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/array-trailing-comma",
+      "row_sha256": "ffbe60c6a4d9250957700573ca34cf346955a30d12ab5fb04dc1adef9d52b3ae",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/array-final-element",
+      "row_sha256": "a5201ad1978bda77561a536844dc379272e45bd738d28f8ae4a60be3650e42aa",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/array-single-element",
+      "row_sha256": "b5ff6ef062873ce3f15b83694ce55376fc1b7f7c51fd799221e35a5fddacbabd",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/object-inline",
+      "row_sha256": "cc2d9d22ea3f1d57a0c5b929ced8880e3aa2175cb140200242b811ae478d2d6c",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/object-newline",
+      "row_sha256": "7068a9821004126c106b1d73d537666c6c8d46e0efc5169e82dbf17e7f09b01e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/object-trailing-comma",
+      "row_sha256": "b8e7179ddbce435531bed10bc87b4701e5d365ceeadef306a85f6ea94d78e26b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/array-binding",
+      "row_sha256": "de7d2bfa4fa43d74ae0a07127c228952759a323e2b3d09987b068ed57f3b7427",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/object-binding",
+      "row_sha256": "964db3d5ba9f4b9b14d6f07c104e284f4736eaf75c565626545837e393afbbe9",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/retained/call-control",
+      "row_sha256": "64c865b445701e78f843b2709b7069829a6376e2549f2998166757e7324dd310",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/empty-array",
+      "row_sha256": "bc80c599a7be0b9df1b8162df0c49a11e5625e406e42d12120416b0c4b1cc59c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-inline",
+      "row_sha256": "8fa14442ecf8e8652d04966054229266c7f9db8688574d4228837e25fb11f821",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-newline",
+      "row_sha256": "92c45ef970c23c1138a45ab5d1f2aca6a62bfdf17fed0310ce0532e102a94674",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-trailing-comma",
+      "row_sha256": "95f85c323026527e764ece803d11d3a0b641a7b4ae45c4d571e3a1af7cd05c20",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-final-element",
+      "row_sha256": "31f28dfdbb2fbbb0307b7e0a877a1e6926219430fe3688ee0a22886e7e2ac82a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-single-element",
+      "row_sha256": "3db18cbf65e1726a63f7cca4a894c5caf796ad57fe994ae99b52de8e47e2e38e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/object-inline",
+      "row_sha256": "408554bfce863b75f6db0879ce77325f492e27c204b15768c42ece072b481054",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/object-newline",
+      "row_sha256": "2e6de5339817f15af1395305f45ed6f8dbf67a87ed114bea9ba0bb1bbcd53c90",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/object-trailing-comma",
+      "row_sha256": "1a79be79901dacff0d058193d83d7d792f0e2e9020f3642950066ede22b273ec",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/array-binding",
+      "row_sha256": "fe4b6ccaecd89929b469568dfb97985fea10bdb829c7087255e9e3648d92960e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/object-binding",
+      "row_sha256": "4aa63bc0dc0be085bd2d783cd04993a6339c14c6cb27b8ed9b85db52cf40ccaf",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/call-control",
+      "row_sha256": "8940d7ffd2166f997e153d6455cb0aef0abf8e13f4a9376436e9a979b4c9676d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/removed/empty-array",
+      "row_sha256": "813a0c8d2634850676227537bc148534a6b5a7b8aee9e79dab8beef69550100c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "js/retained/import-attributes",
+      "row_sha256": "b82cff86b1361cea8495df0b25329989ecd5862b7a5e403d2c0644cd9dd03d78",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "js/removed/import-attributes",
+      "row_sha256": "d7957c3339a4ae57a007776f8d880c5335fda87a381b9336090987fa805bc667",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    },
+    {
+      "case_id": "ts/retained/import-attributes",
+      "row_sha256": "837d9d6be93387e57d0188adb1634b08f66f14c70ba530aea982530a5278d0d5",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-duplicate-comment-map"
+    },
+    {
+      "case_id": "ts/removed/import-attributes",
+      "row_sha256": "462ad715df3deba9731b3b31615d60df098f9a3e755338c5f8f58d9440ed81fa",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact"
+    }
+  ],
+  "printer_controls": {
+    "before_exact_twice": [
+      "call-inline/None/retained",
+      "call-inline/None/removed",
+      "call-inline/NoLeadingComments/retained",
+      "call-inline/NoLeadingComments/removed",
+      "call-inline/NoTrailingComments/retained",
+      "call-inline/NoTrailingComments/removed",
+      "call-inline/NoComments/retained",
+      "call-inline/NoComments/removed",
+      "call-inline/NoNestedComments/retained",
+      "call-inline/NoNestedComments/removed",
+      "call-inline/ParentNoNestedComments/removed",
+      "call-newline/None/retained",
+      "call-newline/None/removed",
+      "call-newline/NoLeadingComments/retained",
+      "call-newline/NoLeadingComments/removed",
+      "call-newline/NoTrailingComments/retained",
+      "call-newline/NoTrailingComments/removed",
+      "call-newline/NoComments/retained",
+      "call-newline/NoComments/removed",
+      "call-newline/NoNestedComments/retained",
+      "call-newline/NoNestedComments/removed",
+      "call-newline/ParentNoNestedComments/removed",
+      "array-inline/None/removed",
+      "array-inline/NoLeadingComments/removed",
+      "array-inline/NoTrailingComments/retained",
+      "array-inline/NoTrailingComments/removed",
+      "array-inline/NoComments/retained",
+      "array-inline/NoComments/removed",
+      "array-inline/NoNestedComments/removed",
+      "array-inline/ParentNoNestedComments/removed",
+      "array-newline/None/retained",
+      "array-newline/None/removed",
+      "array-newline/NoLeadingComments/retained",
+      "array-newline/NoLeadingComments/removed",
+      "array-newline/NoTrailingComments/retained",
+      "array-newline/NoTrailingComments/removed",
+      "array-newline/NoComments/retained",
+      "array-newline/NoComments/removed",
+      "array-newline/NoNestedComments/retained",
+      "array-newline/NoNestedComments/removed",
+      "array-newline/ParentNoNestedComments/removed"
+    ],
+    "before_failed_twice": [
+      "call-inline/ParentNoNestedComments/retained",
+      "call-newline/ParentNoNestedComments/retained",
+      "array-inline/None/retained",
+      "array-inline/NoLeadingComments/retained",
+      "array-inline/NoNestedComments/retained",
+      "array-inline/ParentNoNestedComments/retained",
+      "array-newline/ParentNoNestedComments/retained"
+    ],
+    "owned_after": [
+      "array-inline/None/retained",
+      "array-inline/NoLeadingComments/retained",
+      "array-inline/NoNestedComments/retained"
+    ],
+    "retained_after": [
+      "call-inline/ParentNoNestedComments/retained",
+      "call-newline/ParentNoNestedComments/retained",
+      "array-inline/ParentNoNestedComments/retained",
+      "array-newline/ParentNoNestedComments/retained"
+    ]
+  }
+}

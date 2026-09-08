@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "ba2375f8d69b7887a32be2982d80395da99c4735",
+  "eligible": 52,
+  "exact_twice": [
+    "js/retained/array-newline",
+    "js/retained/array-final-element",
+    "js/retained/array-single-element",
+    "js/retained/object-newline",
+    "js/retained/call-control",
+    "js/retained/empty-array",
+    "js/removed/array-inline",
+    "js/removed/array-newline",
+    "js/removed/array-trailing-comma",
+    "js/removed/array-final-element",
+    "js/removed/array-single-element",
+    "js/removed/object-inline",
+    "js/removed/object-newline",
+    "js/removed/object-trailing-comma",
+    "js/removed/array-binding",
+    "js/removed/object-binding",
+    "js/removed/call-control",
+    "js/removed/empty-array",
+    "ts/retained/array-newline",
+    "ts/retained/array-final-element",
+    "ts/retained/array-single-element",
+    "ts/retained/object-newline",
+    "ts/retained/call-control",
+    "ts/retained/empty-array",
+    "ts/removed/array-inline",
+    "ts/removed/array-newline",
+    "ts/removed/array-trailing-comma",
+    "ts/removed/array-final-element",
+    "ts/removed/array-single-element",
+    "ts/removed/object-inline",
+    "ts/removed/object-newline",
+    "ts/removed/object-trailing-comma",
+    "ts/removed/array-binding",
+    "ts/removed/object-binding",
+    "ts/removed/call-control",
+    "ts/removed/empty-array",
+    "js/removed/import-attributes",
+    "ts/removed/import-attributes"
+  ],
+  "failed_twice": [
+    "js/retained/array-inline",
+    "js/retained/array-trailing-comma",
+    "js/retained/object-inline",
+    "js/retained/object-trailing-comma",
+    "js/retained/array-binding",
+    "js/retained/object-binding",
+    "ts/retained/array-inline",
+    "ts/retained/array-trailing-comma",
+    "ts/retained/object-inline",
+    "ts/retained/object-trailing-comma",
+    "ts/retained/array-binding",
+    "ts/retained/object-binding",
+    "js/retained/import-attributes",
+    "ts/retained/import-attributes"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    52.9,
+    40.74
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "js/retained/array-inline",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b632da7b133a400cd6fa3e647c56306a6c651a0b9f1af8b95c2f47ec4179c844",
+      "expected_sha256": "345b074045d9da0007755a7c60f67eb24f304f38d5985b90b8c2fc61c21ed79f",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/array-trailing-comma",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "efd89748796e86bf9a50d7ca97fb90bf95c48ea3f6c4bc2811819d0b39bfbdea",
+      "expected_sha256": "a545d0a188b98f97e89966b15bafeb0640d9b19f77601e14c0802d0665aadf7b",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/object-inline",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6a1ef3a78face1434e61b5118611fea7114382662df8ef388c576280c57890bd",
+      "expected_sha256": "006027142483a294ccfa0350e2b4fa6c64e1e176a4c8680f09faa5afe87a006d",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/object-trailing-comma",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "32b421ae12ffe1ab956874e981b9ccd544217be7441d9f4f52ae34f788bf1e37",
+      "expected_sha256": "d21a8fecb0e38d5ca8c50c3c9469d63c2696c204821f9597499784692a041b6c",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/array-binding",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "bdc75d95766aca3328a7cb533996521a4054a2f2b06690c639393e050bd5f775",
+      "expected_sha256": "6805d15c5d7976d5501f4321cb709db6b86d46fd77264b85bc09aa904d4c12cc",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/object-binding",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "f517ca4f37b039503080b04fbf5d79ff857051a2900af7313481550f6bf81b57",
+      "expected_sha256": "98adaa3003d24cea8d44d89c3f3d988d0485d088ad1774d6f13d042d91c3aa3b",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/array-inline",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b766e635f29016d215fb32b228f0fdcec6740c65ed705291d0793a9d2a455414",
+      "expected_sha256": "9634cec254b8b43ba1f4fc4ebad408a009c672ac791410a6f878e8797b318cbb",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/array-trailing-comma",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a5a7e1e7f1c0d0bd4064a95999fba5ef342ed73228446483059647463bc8d6bd",
+      "expected_sha256": "d2bdbc7358604010a9d086e58e2cac2b0e2515d5a87e90100cfa89d082b4e2a3",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/object-inline",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "be8c4b861b93c165588d522ac498ac55bce3eaac8f7592cb874568e5d8d2d0a7",
+      "expected_sha256": "cd953b36305561819c745b4b34380037ff11550fedd1050b8e4cf1b025e198ac",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/object-trailing-comma",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cf524021776040336452814e6dd669f9c063156197c99142fa94899204655970",
+      "expected_sha256": "1f6a2d38f9668d3f866d1aeac20e3bfedee1ebf0f11b2bf3c9693e5ec1f9a105",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/array-binding",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "242b8daa739049a35306590d78b6aee5dd1777b78e0c88fff4ffcd5ed0752778",
+      "expected_sha256": "56ce33fa2f7d046511ebc2cd44fdda25565f162c0abd24d22ec4495df979867a",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/object-binding",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "9026473c4a051088d905dd04d222634138a4c56a28c8689630911d6ced48e72c",
+      "expected_sha256": "097db9c00142bb91335056848ad4a72f26f4d4dfbb57ebdbabedf9066cabdd48",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "js/retained/import-attributes",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "4cff1fb0637792334b8de6bd80a9daf53304bc4bf0b9928668bde4ba2106b4c4",
+      "expected_sha256": "850afcd67ec4611554e9563c7b5d12d128f1aaf86c6ac17955d8920b31b416af",
+      "map_fields_except_mappings": "exact"
+    },
+    {
+      "case_id": "ts/retained/import-attributes",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b4144b475f9dfdeeee2f1308b4fd14ea5ca79c5895d9ae2b29844dfb3e58e328",
+      "expected_sha256": "372ae8398d1afd75e6dd55ae44b8c848b8c3e5e7be783cdc6802de65cf6b18f9",
+      "map_fields_except_mappings": "exact"
+    }
+  ],
+  "preliminary_archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-array-comment-preliminary-ahscruzz",
+  "working_files": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "ec9da962d5d21f9298ecf92f05bda98b0bf4b00fa8c315c86a75b80c6769ab18"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "eaab7e38733f93e331c731dc8fa24d5698b1ce8f428ddce065c9c293256ca267"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_array_comment_publication.rs",
+      "sha256": "6ba9d8ef20f8ecd5bbdbb1bb02b503b3bc51055dae9824b45a72a1dd604f1a61"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/array-comment-publication.json",
+      "sha256": "ab197b1be070275553c981aab05d3a157997ee4595364c101f2b75149e9e6de9"
+    },
+    {
+      "path": "scripts/observe-array-comment-publication.mjs",
+      "sha256": "dcc43dd06e532b1d495f182a854c48a9647ea122af2a19f30a016a2db5813e53"
+    },
+    {
+      "path": "target/h2-8a-array-comment-publication-before.log",
+      "sha256": "67309cb02c157c41379d661eff39b9d27e38483f1f02a000095896d25bb1e2a4"
+    },
+    {
+      "path": "target/h2-8a-array-comment-publication-before-repeat.log",
+      "sha256": "7deb9d803ddf83e408d5236271996ac1e4fd8ab0bd3342bf0123906ca389da8f"
+    }
+  ]
+}

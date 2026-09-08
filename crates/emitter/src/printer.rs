@@ -8045,6 +8045,10 @@ impl Printer {
                     expression_context.for_child(item_syntax),
                     writer,
                 )?;
+                // The item's end-comment phase runs once before its delimiter.
+                // tsc-port: emitNodeListItems @6.0.3
+                // tsc-span: _tsc.js:120068-120155
+                // tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
                 self.emit_list_element_end_comments_in_container(
                     transformation,
                     child,
@@ -8053,15 +8057,6 @@ impl Printer {
                 )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
                 if emit_delimiter {
-                    // emitNodeListItems emits the item's end comments before
-                    // its delimiter, so a non-final element's same-line
-                    // trailing comment sits between the element and its comma.
-                    self.emit_list_element_end_comments_in_container(
-                        transformation,
-                        child,
-                        expression_context.comments(),
-                        writer,
-                    )?;
                     writer.write_punctuation(",");
                     pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
                         transformation,

@@ -163,3 +163,6 @@ mod h2_8a_declaration_token_comments;
 
 #[path = "integration/h2_8a_alias_conflict_display.rs"]
 mod h2_8a_alias_conflict_display;
+
+#[path = "integration/h2_8a_array_comment_publication.rs"]
+mod h2_8a_array_comment_publication;

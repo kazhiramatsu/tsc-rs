@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "status": "complete-bounded-after-with-four-retained-printer-failures",
+  "base": "ba2375f8d69b7887a32be2982d80395da99c4735",
+  "complete_commands": 52,
+  "exact_twice": [
+    "js/retained/array-inline",
+    "js/retained/array-newline",
+    "js/retained/array-trailing-comma",
+    "js/retained/array-final-element",
+    "js/retained/array-single-element",
+    "js/retained/object-inline",
+    "js/retained/object-newline",
+    "js/retained/object-trailing-comma",
+    "js/retained/array-binding",
+    "js/retained/object-binding",
+    "js/retained/call-control",
+    "js/retained/empty-array",
+    "js/removed/array-inline",
+    "js/removed/array-newline",
+    "js/removed/array-trailing-comma",
+    "js/removed/array-final-element",
+    "js/removed/array-single-element",
+    "js/removed/object-inline",
+    "js/removed/object-newline",
+    "js/removed/object-trailing-comma",
+    "js/removed/array-binding",
+    "js/removed/object-binding",
+    "js/removed/call-control",
+    "js/removed/empty-array",
+    "ts/retained/array-inline",
+    "ts/retained/array-newline",
+    "ts/retained/array-trailing-comma",
+    "ts/retained/array-final-element",
+    "ts/retained/array-single-element",
+    "ts/retained/object-inline",
+    "ts/retained/object-newline",
+    "ts/retained/object-trailing-comma",
+    "ts/retained/array-binding",
+    "ts/retained/object-binding",
+    "ts/retained/call-control",
+    "ts/retained/empty-array",
+    "ts/removed/array-inline",
+    "ts/removed/array-newline",
+    "ts/removed/array-trailing-comma",
+    "ts/removed/array-final-element",
+    "ts/removed/array-single-element",
+    "ts/removed/object-inline",
+    "ts/removed/object-newline",
+    "ts/removed/object-trailing-comma",
+    "ts/removed/array-binding",
+    "ts/removed/object-binding",
+    "ts/removed/call-control",
+    "ts/removed/empty-array",
+    "js/retained/import-attributes",
+    "js/removed/import-attributes",
+    "ts/retained/import-attributes",
+    "ts/removed/import-attributes"
+  ],
+  "seconds": [
+    46.83
+  ],
+  "exit_code": 0,
+  "emitter": {
+    "units": 483,
+    "existing_contracts": 451,
+    "seconds": [
+      0.48,
+      1.96,
+      0.01
+    ],
+    "exit_code": 101
+  },
+  "source_comment_topology": {
+    "contracts": 18,
+    "seconds": [
+      0.0
+    ],
+    "exit_code": 0
+  },
+  "printer_controls": {
+    "exact_twice": [
+      "call-inline/None/retained",
+      "call-inline/None/removed",
+      "call-inline/NoLeadingComments/retained",
+      "call-inline/NoLeadingComments/removed",
+      "call-inline/NoTrailingComments/retained",
+      "call-inline/NoTrailingComments/removed",
+      "call-inline/NoComments/retained",
+      "call-inline/NoComments/removed",
+      "call-inline/NoNestedComments/retained",
+      "call-inline/NoNestedComments/removed",
+      "call-inline/ParentNoNestedComments/removed",
+      "call-newline/None/retained",
+      "call-newline/None/removed",
+      "call-newline/NoLeadingComments/retained",
+      "call-newline/NoLeadingComments/removed",
+      "call-newline/NoTrailingComments/retained",
+      "call-newline/NoTrailingComments/removed",
+      "call-newline/NoComments/retained",
+      "call-newline/NoComments/removed",
+      "call-newline/NoNestedComments/retained",
+      "call-newline/NoNestedComments/removed",
+      "call-newline/ParentNoNestedComments/removed",
+      "array-inline/None/retained",
+      "array-inline/None/removed",
+      "array-inline/NoLeadingComments/retained",
+      "array-inline/NoLeadingComments/removed",
+      "array-inline/NoTrailingComments/retained",
+      "array-inline/NoTrailingComments/removed",
+      "array-inline/NoComments/retained",
+      "array-inline/NoComments/removed",
+      "array-inline/NoNestedComments/retained",
+      "array-inline/NoNestedComments/removed",
+      "array-inline/ParentNoNestedComments/removed",
+      "array-newline/None/retained",
+      "array-newline/None/removed",
+      "array-newline/NoLeadingComments/retained",
+      "array-newline/NoLeadingComments/removed",
+      "array-newline/NoTrailingComments/retained",
+      "array-newline/NoTrailingComments/removed",
+      "array-newline/NoComments/retained",
+      "array-newline/NoComments/removed",
+      "array-newline/NoNestedComments/retained",
+      "array-newline/NoNestedComments/removed",
+      "array-newline/ParentNoNestedComments/removed"
+    ],
+    "failed_twice": [
+      "call-inline/ParentNoNestedComments/retained",
+      "call-newline/ParentNoNestedComments/retained",
+      "array-inline/ParentNoNestedComments/retained",
+      "array-newline/ParentNoNestedComments/retained"
+    ],
+    "native_executions_per_failed_case": 2,
+    "retained_first_failure_comparisons": [
+      {
+        "case_id": "call-inline/ParentNoNestedComments/retained",
+        "native_executions": 2,
+        "change": "unchanged",
+        "actual_sha256": "c979338d16a74d90680b657c7c87acd48c407b045f8e4927f3937d1d881c0f81",
+        "expected_sha256": "a6e09309f2ec525d28eeab4895f8f9d1e0e0b44ad213d3137b22844951bf346c"
+      },
+      {
+        "case_id": "call-newline/ParentNoNestedComments/retained",
+        "native_executions": 2,
+        "change": "unchanged",
+        "actual_sha256": "aa1762c563059b4d38f3ac9dcc545aa3dd665f2b1c507505a8b5026e60fd0f77",
+        "expected_sha256": "a6e09309f2ec525d28eeab4895f8f9d1e0e0b44ad213d3137b22844951bf346c"
+      },
+      {
+        "case_id": "array-inline/ParentNoNestedComments/retained",
+        "native_executions": 2,
+        "change": "duplicate tail removed; parent scope remains",
+        "actual_sha256": "122acd774eba11a667359da6fd08b7b5ebb7b878fe9bc9c10bd627e0d7b65fe7",
+        "expected_sha256": "497050399a2240137960473e0809fb93c171261ea037fe0dc3f981bb4c057398"
+      },
+      {
+        "case_id": "array-newline/ParentNoNestedComments/retained",
+        "native_executions": 2,
+        "change": "unchanged",
+        "actual_sha256": "bf58016af0d32621e2036a03229668832b44a90ad36e4831024cfd87d2a0547e",
+        "expected_sha256": "40c4b799747b60c64de82329480830bade1029fe42c43fe8bc7e9203b57b0214"
+      }
+    ]
+  },
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "eaab7e38733f93e331c731dc8fa24d5698b1ce8f428ddce065c9c293256ca267"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "52d1835dc36c14f939a38d78580f8002163f1fb65b58981094be70f24a181e3d"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "f1c8d6294a948eafcf0659b10795a2571e104bc609664220562f2425d9d9b857"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "c2a3a4dd189a6bc933221e83ad27e8f8d582ed34d941a3ddd0db02f4ed15b0f9"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/array-comment-publication.json",
+      "sha256": "ab197b1be070275553c981aab05d3a157997ee4595364c101f2b75149e9e6de9"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_array_comment_publication.rs",
+      "sha256": "6ba9d8ef20f8ecd5bbdbb1bb02b503b3bc51055dae9824b45a72a1dd604f1a61"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-array-comment-publication.md",
+      "sha256": "8f98fe00546ae6b8961f6695361f4f3261eb182ff4ecae69d89ffe01358949cc"
+    },
+    {
+      "path": "ratchets/h2-8a-array-comment-publication-before.v1.json",
+      "sha256": "9eecd090bdf3fd51591374a122c37cdf204e8cdf6571d5c13874f637db719582"
+    },
+    {
+      "path": "ratchets/h2-8a-array-comment-publication-readiness.v1.json",
+      "sha256": "afedde37aa37018440126f3ec86887204070040645e8530548bd06d62f10eaaa"
+    },
+    {
+      "path": "scripts/check-array-comment-publication-readiness.py",
+      "sha256": "6f2615b69927b5267785ad32b66809f67660fce89eec3d4569aaa3979a9392ef"
+    },
+    {
+      "path": "scripts/observe-array-comment-publication.mjs",
+      "sha256": "dcc43dd06e532b1d495f182a854c48a9647ea122af2a19f30a016a2db5813e53"
+    }
+  ],
+  "logs": [
+    {
+      "path": "target/h2-8a-array-comment-publication-after.log",
+      "sha256": "f303f6c679ec59677576807c7fe87bd49f5feff2a88b27c170ac69afa0eb1ef2"
+    },
+    {
+      "path": "target/h2-8a-array-comment-publication-emitter-after.log",
+      "sha256": "6d73fa6d0177e8d4dc956ed25959567c73fa0e939269fda41a1a9f808a98afa7"
+    },
+    {
+      "path": "target/h2-8a-array-comment-publication-topology-after.log",
+      "sha256": "dc7527022d10c5b153f51669e331f8af7628a3dd3989046ddccaca7d53150610"
+    }
+  ]
+}
