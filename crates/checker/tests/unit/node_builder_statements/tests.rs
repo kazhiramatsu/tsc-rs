@@ -9,6 +9,79 @@ use crate::state::test_support::with_program_state;
 
 use super::*;
 
+#[test]
+fn implements_reuse_restores_synthetic_scope_after_success_and_factory_error() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[(
+            "/main.js",
+            "class A {}\n/** @implements {A} */\nclass Foo {}\n",
+        )],
+        &options,
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let locals = checker.binder.locals_of(root).unwrap();
+            let foo = locals["Foo"];
+            let declaration = checker.binder.symbol(foo).value_declaration.unwrap();
+            let clauses = checker
+                .get_effective_implements_type_nodes(declaration)
+                .unwrap();
+            assert_eq!(clauses.len(), 1);
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+            let mut other_arena = TransformArena::new();
+            other_arena.add_source(checker.binder.source(0), None);
+            let absent_target = other_arena.add_source(checker.binder.source(0), None);
+            assert!(arena.source(absent_target).is_err());
+            with_context(
+                checker,
+                &mut arena,
+                target,
+                Some(root),
+                None,
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    for kind in [SyntaxKind::ModuleDeclaration, SyntaxKind::Block] {
+                        let conflicting_locals = HashMap::from([("A".to_owned(), foo)]);
+                        context.enclosing_declaration = Some(root);
+                        context.enclosing_declaration_is_synthetic = true;
+                        context.synthetic_scope_kind = Some(kind);
+                        context.synthetic_scope_locals = Some(conflicting_locals.clone());
+                        for destination in [target, absent_target] {
+                            let result =
+                                StatementSerializer::new(checker, arena, destination, context)
+                                    .sanitize_jsdoc_implements(&clauses);
+                            if destination == target {
+                                assert_eq!(result.unwrap().unwrap().len(), 1);
+                            } else {
+                                assert!(matches!(result, Err(EmitResolverError::Factory { .. })));
+                            }
+                            assert_eq!(context.enclosing_declaration, Some(root));
+                            assert!(context.enclosing_declaration_is_synthetic);
+                            assert_eq!(context.synthetic_scope_kind, Some(kind));
+                            assert_eq!(
+                                context.synthetic_scope_locals.as_ref(),
+                                Some(&conflicting_locals)
+                            );
+                        }
+                    }
+                    Ok(())
+                },
+                None,
+            )
+            .expect("the caller observes the typed factory error after scope restoration");
+        },
+    );
+}
+
 fn with_declaration_statements(
     files: &[(&str, &str)],
     target_index: usize,

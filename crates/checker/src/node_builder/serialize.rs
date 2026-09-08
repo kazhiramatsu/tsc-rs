@@ -907,6 +907,19 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
     }
 }
 
+/// tsrs-native: statement serialization uses the same entity-name tracker as
+/// syntactic type reuse, including its source projection and error reporting.
+pub(crate) fn syntactic_track_existing_entity_name(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    node: TransformNode,
+) -> BuildResult<SyntacticTrackedEntityName> {
+    ProductionSyntacticBuilderResolver::new(checker, METHOD)
+        .track_existing_entity_name(arena, target, context, node)
+}
+
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     checker: &mut CheckerState<'_>,

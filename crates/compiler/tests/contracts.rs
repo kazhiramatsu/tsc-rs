@@ -186,3 +186,6 @@ mod h2_8a_hoisted_declaration_export_ranges;
 
 #[path = "integration/h2_8a_synthetic_namespace_export_modifiers.rs"]
 mod h2_8a_synthetic_namespace_export_modifiers;
+
+#[path = "integration/h2_8a_jsdoc_implements_serialization.rs"]
+mod h2_8a_jsdoc_implements_serialization;

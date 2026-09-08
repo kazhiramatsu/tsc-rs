@@ -229,3 +229,22 @@ fn original_synthetic_namespace_exports_match_complete_commands() {
     );
     assert_eq!(exact.len(), 4);
 }
+
+#[test]
+fn original_jsdoc_implements_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 8);
+}

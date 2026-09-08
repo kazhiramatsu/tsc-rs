@@ -34,14 +34,15 @@ use super::{
     chains_symbol_to_entity_name_node, chains_symbol_to_expression,
     check_truncation_length_if_expanding, checker_abort_error, clone_node_builder_context,
     clone_parse_node, create_identifier, create_node, create_node_array, create_token,
-    factory_error, get_declaration_with_type_annotation,
+    factory_error, get_declaration_with_type_annotation, get_type_from_type_node2,
     index_info_to_index_signature_declaration_helper, project_parse_node,
     restore_cloned_node_builder_context, restore_flags, restore_synthetic_module_scope,
     save_restore_flags, serialize_type_for_declaration_seam, set_text_range2,
     signature_to_signature_declaration_helper, specifier_for_module_symbol,
-    syntactic_try_reuse_existing_type_node, tracker_node_description,
-    type_parameter_to_declaration, type_to_type_node_helper, with_context,
-    with_synthetic_module_scope, BuildResult, NodeBuilderContext, SignatureDeclarationOptions,
+    syntactic_track_existing_entity_name, syntactic_try_reuse_existing_type_node,
+    tracker_node_description, type_parameter_to_declaration, type_to_type_node_helper,
+    with_context, with_synthetic_module_scope, BuildResult, NodeBuilderContext,
+    SignatureDeclarationOptions, SyntheticModuleScopeRestore,
 };
 
 const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
@@ -3072,36 +3073,113 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-span: _tsc.js:54565-54599
     fn sanitize_jsdoc_implements(
         &mut self,
-        declaration: NodeId,
-    ) -> BuildResult<Vec<TransformNode>> {
-        let clauses = match self.checker.data_of(declaration) {
-            NodeData::ClassDeclaration(data) => data.heritage_clauses,
-            NodeData::ClassExpression(data) => data.heritage_clauses,
-            _ => None,
-        };
+        clauses: &[NodeId],
+    ) -> BuildResult<Option<Vec<TransformNode>>> {
         let mut result = Vec::new();
-        for clause in self.checker.nodes_of(clauses) {
-            let NodeData::HeritageClause(data) = self.checker.data_of(clause) else {
-                continue;
+        for &element in clauses {
+            // All four slots represent the enclosing scope. A parsed heritage
+            // element must not inherit locals from a synthetic namespace.
+            let restore = SyntheticModuleScopeRestore {
+                enclosing_declaration: self.context.enclosing_declaration.replace(element),
+                enclosing_declaration_is_synthetic: std::mem::replace(
+                    &mut self.context.enclosing_declaration_is_synthetic,
+                    false,
+                ),
+                synthetic_scope_kind: self.context.synthetic_scope_kind.take(),
+                synthetic_scope_locals: self.context.synthetic_scope_locals.take(),
             };
-            if data.token != SyntaxKind::ImplementsKeyword {
-                continue;
-            }
-            for element in self.checker.nodes_of(data.types) {
-                let old = self.context.enclosing_declaration;
-                self.context.enclosing_declaration = Some(element);
-                let cloned = clone_parse_node(self.checker, self.arena, element)?;
-                result.extend(self.cleanup(old, cloned));
-            }
+            let sanitized = (|| -> BuildResult<Option<TransformNode>> {
+                let NodeData::ExpressionWithTypeArguments(data) = self.checker.data_of(element)
+                else {
+                    unreachable!("effective implements nodes are heritage elements");
+                };
+                let expression = data.expression.ok_or_else(|| {
+                    factory_error(tsc_emitter::TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ExpressionWithTypeArguments,
+                        field: "expression",
+                    })
+                })?;
+                let entity = node_util::is_entity_name_expression(
+                    self.checker.binder.source_of_node(expression),
+                    expression,
+                );
+                if entity
+                    && matches!(self.checker.data_of(expression), NodeData::Identifier(name) if name.escaped_text.is_empty())
+                {
+                    return Ok(None);
+                }
+                let Some(mut expression) =
+                    project_parse_node(self.checker, self.arena, expression)?
+                else {
+                    return Ok(None);
+                };
+                if entity {
+                    let tracked = syntactic_track_existing_entity_name(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        self.context,
+                        expression,
+                    )?;
+                    if tracked.introduces_error {
+                        return Ok(None);
+                    }
+                    expression = tracked.node;
+                } else if expression.source() != self.target {
+                    expression = self
+                        .arena
+                        .factory()
+                        .clone_node_to_source(expression, self.target)
+                        .map_err(factory_error)?;
+                }
+                let mut arguments = Vec::new();
+                for argument in self.checker.nodes_of(data.type_arguments) {
+                    let reused = syntactic_try_reuse_existing_type_node(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        self.context,
+                        argument,
+                    )?;
+                    let argument = match reused {
+                        Some(reused) => Some(reused),
+                        None => {
+                            let ty = get_type_from_type_node2(
+                                self.checker,
+                                self.context,
+                                argument,
+                                false,
+                            )?
+                            .expect("mapped types are permitted");
+                            type_to_type_node_helper(
+                                self.checker,
+                                self.arena,
+                                self.target,
+                                ty,
+                                self.context,
+                            )?
+                        }
+                    };
+                    arguments.extend(argument);
+                }
+                let arguments = array(self.arena, self.target, arguments)?
+                    .map(|array| TransformNodeArray::new(self.target, array));
+                self.arena
+                    .factory()
+                    .create_expression_with_type_arguments(self.target, expression, arguments)
+                    .map(Some)
+                    .map_err(factory_error)
+            })();
+            result.extend(self.cleanup(restore, sanitized)?);
         }
-        Ok(result)
+        Ok((result.len() == clauses.len()).then_some(result))
     }
 
     /// tsc-port: sanitizeJSDocImplements.cleanup @6.0.3
     /// tsc-hash: d23a9e5db21b7795490fda5b4ff44840d5cf20e730948fa099e41b18395bf189
     /// tsc-span: _tsc.js:54590-54593
-    fn cleanup<T>(&mut self, old_enclosing: Option<NodeId>, result: Option<T>) -> Option<T> {
-        self.context.enclosing_declaration = old_enclosing;
+    fn cleanup<T>(&mut self, restore: SyntheticModuleScopeRestore, result: T) -> T {
+        restore_synthetic_module_scope(self.context, restore);
         result
     }
 
@@ -3161,9 +3239,25 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .checker
             .get_base_types(class_type)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-        let implements = match original {
-            Some(original) => self.sanitize_jsdoc_implements(original)?,
-            None => Vec::new(),
+        let original_implements = original
+            .and_then(|original| self.checker.get_effective_implements_type_nodes(original));
+        let sanitized = match original_implements {
+            Some(clauses) => self.sanitize_jsdoc_implements(&clauses)?,
+            None => None,
+        };
+        let implements = match sanitized {
+            Some(implements) => implements,
+            None => {
+                let implemented_types = self
+                    .checker
+                    .get_implements_types(class_type)
+                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+                let mut implements = Vec::new();
+                for implemented in implemented_types {
+                    implements.extend(self.serialize_implemented_type(implemented)?);
+                }
+                implements
+            }
         };
         let static_type = self
             .checker
