@@ -5918,3 +5918,258 @@ fn common_js_esmodule_marker_resolver_default_is_typed_unavailable() {
         "isCommonJsModule"
     );
 }
+
+// Complete compiler commands own emitted bytes. These controls independently
+// qualify factory topology and the native host/activity failure boundaries.
+struct ModuleFactoryHost {
+    options: CompilerOptions,
+    format: Option<i32>,
+    format_calls: std::cell::RefCell<Vec<SourceFileId>>,
+}
+
+impl ModuleFactoryHost {
+    fn new(options: CompilerOptions, format: Option<i32>) -> Self {
+        Self {
+            options,
+            format,
+            format_calls: Default::default(),
+        }
+    }
+}
+
+impl EmitResolver for ModuleFactoryHost {}
+
+impl crate::EmitHost for ModuleFactoryHost {
+    fn compiler_options(&self) -> &CompilerOptions {
+        &self.options
+    }
+    fn current_directory(&self) -> &std::path::Path {
+        std::path::Path::new("/project")
+    }
+    fn common_source_directory(&self) -> &std::path::Path {
+        self.current_directory()
+    }
+    fn config_file_path(&self) -> Option<&std::path::Path> {
+        None
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+    fn source_file_ids(&self) -> &[SourceFileId] {
+        &[]
+    }
+    fn source_file(&self, _id: SourceFileId) -> Option<crate::EmitSource<'_>> {
+        None
+    }
+    fn get_emit_module_format_of_file(&self, id: SourceFileId) -> Option<i32> {
+        self.format_calls.borrow_mut().push(id);
+        self.format
+    }
+}
+
+#[test]
+fn module_transformer_selection_factory_names_match_typescript_twice() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/module-transformer-selection.json"
+    )))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 184);
+    let mut mismatches = Vec::new();
+    for case in cases {
+        for repetition in 0..2 {
+            // These fixtures have no JSX/custom/legacy decorator options;
+            // target and module are the only varying factory-list inputs.
+            let options = CompilerOptions {
+                target: Some(case["options"]["target"].as_i64().unwrap() as i32),
+                module: Some(case["options"]["module"].as_i64().unwrap() as i32),
+                ..CompilerOptions::default()
+            };
+            let host = ModuleFactoryHost::new(options, Some(99));
+            let transformers = super::get_script_transformers_for_source(
+                &host.options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17),
+            )
+            .unwrap();
+            let actual =
+                serde_json::json!(transformers.iter().map(|t| t.name()).collect::<Vec<_>>());
+            if actual != case["typescript_factory_names"] {
+                mismatches.push(format!(
+                    "{} repetition {repetition}: {actual}",
+                    case["case_id"]
+                ));
+            }
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "factory-list differences: {mismatches:?}"
+    );
+}
+
+#[test]
+fn module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory() {
+    use crate::{H2ActivityCanary, H2RuntimeSlice};
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        for format in [None, Some(0), Some(1), Some(2), Some(3), Some(99)] {
+            let host = ModuleFactoryHost::new(
+                CompilerOptions {
+                    target: Some(99),
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+                format,
+            );
+            let mut activity = H2ActivityCanary::h2_7e_profile();
+            let members = [17, 18, 19].map(SourceFileId::from_raw);
+            let transformers = super::get_script_transformers_with_activity(
+                &host.options,
+                &host,
+                &host,
+                members[0],
+                &mut activity,
+            )
+            .unwrap();
+            for source in &members[1..] {
+                super::observe_additional_bundle_source_activity(
+                    &host.options,
+                    &host,
+                    *source,
+                    &mut activity,
+                );
+            }
+            let activity = activity.counters();
+            let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+            assert_eq!(
+                host.format_calls.borrow().as_slice(),
+                if implied { &members[..] } else { &[] },
+                "module {module}, format {format:?}"
+            );
+            assert_eq!(activity.script_transformer_list_constructions(), 1);
+            assert_eq!(activity.transform_typescript_constructions(), 1);
+            assert_eq!(activity.transform_class_fields_constructions(), 1);
+            assert_eq!(
+                activity.transform_ecmascript_module_constructions(),
+                u64::from(implied || module == 200)
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1a),
+                u64::from(implied)
+            );
+            let delegate = if implied {
+                format
+            } else if matches!(module, 0 | 2 | 3) {
+                Some(module)
+            } else {
+                None
+            };
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1b),
+                if delegate.is_some_and(|m| m < 5) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1c),
+                if delegate.is_some_and(|m| matches!(m, 2 | 3)) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1d),
+                u64::from(module == 4)
+            );
+            drop(transformers);
+        }
+    }
+}
+
+#[test]
+fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries() {
+    use crate::TransformError;
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), None);
+        let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+        let without_host = get_script_transformers(&options, &host);
+        if implied {
+            assert!(
+                matches!(
+                    without_host,
+                    Err(TransformError::EmitHostRequiredForImpliedModuleFormat)
+                ),
+                "module {module}"
+            );
+        } else {
+            assert!(without_host.is_ok(), "module {module}");
+        }
+        let mut transformers = super::get_script_transformers_for_source(
+            &options,
+            &host,
+            &host,
+            SourceFileId::from_raw(17),
+        )
+        .expect("missing format is not a construction error");
+        let parsed = parse_source_file("/project/empty.ts", "", Default::default(), None);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(17)));
+        let result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![transformers.pop().unwrap()],
+            false,
+        );
+        if implied {
+            assert!(
+                matches!(result, Err(TransformError::MissingProgramSourceForModuleFormat(id)) if id == source),
+                "module {module}"
+            );
+        } else {
+            assert!(result.is_ok(), "module {module}");
+            assert!(host.format_calls.borrow().is_empty(), "module {module}");
+        }
+        let bundle_options = CompilerOptions {
+            out_file: Some("/project/bundle.js".into()),
+            ..options
+        };
+        assert!(matches!(
+            get_script_transformers(&bundle_options, &host),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "outFile",
+                ..
+            })
+        ));
+    }
+    for module in [-1, 8, 201] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), Some(99));
+        assert!(matches!(
+            super::get_script_transformers_for_source(
+                &options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17)
+            ),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "module",
+                ..
+            })
+        ));
+        assert!(host.format_calls.borrow().is_empty());
+    }
+}

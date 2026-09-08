@@ -265,3 +265,19 @@ fn original_commonjs_esmodule_markers_match_complete_commands() {
     );
     assert_eq!(exact.len(), 7);
 }
+
+#[test]
+fn original_module_transformer_selection_matches_complete_commands() {
+    let ids = ["amd", "umd", "commonjs", "esnext", "preserve", "system"]
+        .into_iter()
+        .map(|module| {
+            format!("typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3D{module}")
+        })
+        .collect::<Vec<_>>();
+    let names = ids.iter().map(String::as_str).collect::<Vec<_>>();
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 6);
+}

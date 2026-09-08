@@ -195,3 +195,6 @@ mod h2_8a_transformed_class_assigned_names;
 
 #[path = "integration/h2_8a_commonjs_esmodule_marker.rs"]
 mod h2_8a_commonjs_esmodule_marker;
+
+#[path = "integration/h2_8a_module_transformer_selection.rs"]
+mod h2_8a_module_transformer_selection;

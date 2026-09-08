@@ -1,0 +1,882 @@
+{
+  "version": 1,
+  "status": "complete-focused-module-factory-selection",
+  "base": "74447b72aa0e51826b6bc832580aa4780d9a1eca",
+  "production_paths": [
+    "crates/emitter/src/builtins.rs"
+  ],
+  "complete_commands_eligible": 368,
+  "complete_commands_exact_twice": 368,
+  "bands": [
+    {
+      "fixture": "module-transformer-selection",
+      "eligible": 184,
+      "exact_twice": [
+        "module-factory/none/es5/ts",
+        "module-factory/none/es5/mts",
+        "module-factory/none/es5/cts",
+        "module-factory/none/es5/js",
+        "module-factory/none/es5/mjs",
+        "module-factory/none/es5/cjs",
+        "module-factory/amd/es5/ts",
+        "module-factory/amd/es5/mts",
+        "module-factory/amd/es5/cts",
+        "module-factory/amd/es5/js",
+        "module-factory/amd/es5/mjs",
+        "module-factory/amd/es5/cjs",
+        "module-factory/umd/es5/ts",
+        "module-factory/umd/es5/mts",
+        "module-factory/umd/es5/cts",
+        "module-factory/umd/es5/js",
+        "module-factory/umd/es5/mjs",
+        "module-factory/umd/es5/cjs",
+        "module-factory/commonjs/es5/ts",
+        "module-factory/commonjs/es5/mts",
+        "module-factory/commonjs/es5/cts",
+        "module-factory/commonjs/es5/js",
+        "module-factory/commonjs/es5/mjs",
+        "module-factory/commonjs/es5/cjs",
+        "module-factory/es2015/es5/ts",
+        "module-factory/es2015/es5/mts",
+        "module-factory/es2015/es5/cts",
+        "module-factory/es2015/es5/js",
+        "module-factory/es2015/es5/mjs",
+        "module-factory/es2015/es5/cjs",
+        "module-factory/es2020/es5/ts",
+        "module-factory/es2020/es5/mts",
+        "module-factory/es2020/es5/cts",
+        "module-factory/es2020/es5/js",
+        "module-factory/es2020/es5/mjs",
+        "module-factory/es2020/es5/cjs",
+        "module-factory/es2022/es5/ts",
+        "module-factory/es2022/es5/mts",
+        "module-factory/es2022/es5/cts",
+        "module-factory/es2022/es5/js",
+        "module-factory/es2022/es5/mjs",
+        "module-factory/es2022/es5/cjs",
+        "module-factory/esnext/es5/ts",
+        "module-factory/esnext/es5/mts",
+        "module-factory/esnext/es5/cts",
+        "module-factory/esnext/es5/js",
+        "module-factory/esnext/es5/mjs",
+        "module-factory/esnext/es5/cjs",
+        "module-factory/node16/es5/ts",
+        "module-factory/node16/es5/mts",
+        "module-factory/node16/es5/cts",
+        "module-factory/node16/es5/js",
+        "module-factory/node16/es5/mjs",
+        "module-factory/node16/es5/cjs",
+        "module-factory/node18/es5/ts",
+        "module-factory/node18/es5/mts",
+        "module-factory/node18/es5/cts",
+        "module-factory/node18/es5/js",
+        "module-factory/node18/es5/mjs",
+        "module-factory/node18/es5/cjs",
+        "module-factory/node20/es5/ts",
+        "module-factory/node20/es5/mts",
+        "module-factory/node20/es5/cts",
+        "module-factory/node20/es5/js",
+        "module-factory/node20/es5/mjs",
+        "module-factory/node20/es5/cjs",
+        "module-factory/nodenext/es5/ts",
+        "module-factory/nodenext/es5/mts",
+        "module-factory/nodenext/es5/cts",
+        "module-factory/nodenext/es5/js",
+        "module-factory/nodenext/es5/mjs",
+        "module-factory/nodenext/es5/cjs",
+        "module-factory/preserve/es5/ts",
+        "module-factory/preserve/es5/mts",
+        "module-factory/preserve/es5/cts",
+        "module-factory/preserve/es5/js",
+        "module-factory/preserve/es5/mjs",
+        "module-factory/preserve/es5/cjs",
+        "module-factory/system/es5/ts",
+        "module-factory/system/es5/mts",
+        "module-factory/system/es5/cts",
+        "module-factory/system/es5/js",
+        "module-factory/system/es5/mjs",
+        "module-factory/system/es5/cjs",
+        "module-factory/none/es2015/ts",
+        "module-factory/none/es2015/mts",
+        "module-factory/none/es2015/cts",
+        "module-factory/none/es2015/js",
+        "module-factory/none/es2015/mjs",
+        "module-factory/none/es2015/cjs",
+        "module-factory/amd/es2015/ts",
+        "module-factory/amd/es2015/mts",
+        "module-factory/amd/es2015/cts",
+        "module-factory/amd/es2015/js",
+        "module-factory/amd/es2015/mjs",
+        "module-factory/amd/es2015/cjs",
+        "module-factory/umd/es2015/ts",
+        "module-factory/umd/es2015/mts",
+        "module-factory/umd/es2015/cts",
+        "module-factory/umd/es2015/js",
+        "module-factory/umd/es2015/mjs",
+        "module-factory/umd/es2015/cjs",
+        "module-factory/commonjs/es2015/ts",
+        "module-factory/commonjs/es2015/mts",
+        "module-factory/commonjs/es2015/cts",
+        "module-factory/commonjs/es2015/js",
+        "module-factory/commonjs/es2015/mjs",
+        "module-factory/commonjs/es2015/cjs",
+        "module-factory/es2015/es2015/ts",
+        "module-factory/es2015/es2015/mts",
+        "module-factory/es2015/es2015/cts",
+        "module-factory/es2015/es2015/js",
+        "module-factory/es2015/es2015/mjs",
+        "module-factory/es2015/es2015/cjs",
+        "module-factory/es2020/es2015/ts",
+        "module-factory/es2020/es2015/mts",
+        "module-factory/es2020/es2015/cts",
+        "module-factory/es2020/es2015/js",
+        "module-factory/es2020/es2015/mjs",
+        "module-factory/es2020/es2015/cjs",
+        "module-factory/es2022/es2015/ts",
+        "module-factory/es2022/es2015/mts",
+        "module-factory/es2022/es2015/cts",
+        "module-factory/es2022/es2015/js",
+        "module-factory/es2022/es2015/mjs",
+        "module-factory/es2022/es2015/cjs",
+        "module-factory/esnext/es2015/ts",
+        "module-factory/esnext/es2015/mts",
+        "module-factory/esnext/es2015/cts",
+        "module-factory/esnext/es2015/js",
+        "module-factory/esnext/es2015/mjs",
+        "module-factory/esnext/es2015/cjs",
+        "module-factory/node16/es2015/ts",
+        "module-factory/node16/es2015/mts",
+        "module-factory/node16/es2015/cts",
+        "module-factory/node16/es2015/js",
+        "module-factory/node16/es2015/mjs",
+        "module-factory/node16/es2015/cjs",
+        "module-factory/node18/es2015/ts",
+        "module-factory/node18/es2015/mts",
+        "module-factory/node18/es2015/cts",
+        "module-factory/node18/es2015/js",
+        "module-factory/node18/es2015/mjs",
+        "module-factory/node18/es2015/cjs",
+        "module-factory/node20/es2015/ts",
+        "module-factory/node20/es2015/mts",
+        "module-factory/node20/es2015/cts",
+        "module-factory/node20/es2015/js",
+        "module-factory/node20/es2015/mjs",
+        "module-factory/node20/es2015/cjs",
+        "module-factory/nodenext/es2015/ts",
+        "module-factory/nodenext/es2015/mts",
+        "module-factory/nodenext/es2015/cts",
+        "module-factory/nodenext/es2015/js",
+        "module-factory/nodenext/es2015/mjs",
+        "module-factory/nodenext/es2015/cjs",
+        "module-factory/preserve/es2015/ts",
+        "module-factory/preserve/es2015/mts",
+        "module-factory/preserve/es2015/cts",
+        "module-factory/preserve/es2015/js",
+        "module-factory/preserve/es2015/mjs",
+        "module-factory/preserve/es2015/cjs",
+        "module-factory/system/es2015/ts",
+        "module-factory/system/es2015/mts",
+        "module-factory/system/es2015/cts",
+        "module-factory/system/es2015/js",
+        "module-factory/system/es2015/mjs",
+        "module-factory/system/es2015/cjs",
+        "module-factory/amd/package-commonjs/ts",
+        "module-factory/amd/package-commonjs/js",
+        "module-factory/amd/package-module/ts",
+        "module-factory/amd/package-module/js",
+        "module-factory/umd/package-commonjs/ts",
+        "module-factory/umd/package-commonjs/js",
+        "module-factory/umd/package-module/ts",
+        "module-factory/umd/package-module/js",
+        "module-factory/commonjs/package-commonjs/ts",
+        "module-factory/commonjs/package-commonjs/js",
+        "module-factory/commonjs/package-module/ts",
+        "module-factory/commonjs/package-module/js",
+        "module-factory/esnext/package-commonjs/ts",
+        "module-factory/esnext/package-commonjs/js",
+        "module-factory/esnext/package-module/ts",
+        "module-factory/esnext/package-module/js"
+      ]
+    },
+    {
+      "fixture": "commonjs-esmodule-marker",
+      "eligible": 91,
+      "exact_twice": [
+        "commonjs-marker/commonjs/js-exports-auto",
+        "commonjs-marker/commonjs/js-exports-force",
+        "commonjs-marker/commonjs/js-exports-legacy",
+        "commonjs-marker/commonjs/js-module-exports-auto",
+        "commonjs-marker/commonjs/js-require-only-force",
+        "commonjs-marker/commonjs/js-no-commonjs-force",
+        "commonjs-marker/commonjs/js-real-esm-mixed",
+        "commonjs-marker/commonjs/js-real-esm",
+        "commonjs-marker/commonjs/jsx-exports-force",
+        "commonjs-marker/commonjs/cjs-exports-auto",
+        "commonjs-marker/commonjs/mjs-exports-auto",
+        "commonjs-marker/commonjs/cts-export-equals",
+        "commonjs-marker/commonjs/ts-real-esm",
+        "commonjs-marker/amd/js-exports-auto",
+        "commonjs-marker/amd/js-exports-force",
+        "commonjs-marker/amd/js-exports-legacy",
+        "commonjs-marker/amd/js-module-exports-auto",
+        "commonjs-marker/amd/js-require-only-force",
+        "commonjs-marker/amd/js-no-commonjs-force",
+        "commonjs-marker/amd/js-real-esm-mixed",
+        "commonjs-marker/amd/js-real-esm",
+        "commonjs-marker/amd/jsx-exports-force",
+        "commonjs-marker/amd/cjs-exports-auto",
+        "commonjs-marker/amd/mjs-exports-auto",
+        "commonjs-marker/amd/cts-export-equals",
+        "commonjs-marker/amd/ts-real-esm",
+        "commonjs-marker/umd/js-exports-auto",
+        "commonjs-marker/umd/js-exports-force",
+        "commonjs-marker/umd/js-exports-legacy",
+        "commonjs-marker/umd/js-module-exports-auto",
+        "commonjs-marker/umd/js-require-only-force",
+        "commonjs-marker/umd/js-no-commonjs-force",
+        "commonjs-marker/umd/js-real-esm-mixed",
+        "commonjs-marker/umd/js-real-esm",
+        "commonjs-marker/umd/jsx-exports-force",
+        "commonjs-marker/umd/cjs-exports-auto",
+        "commonjs-marker/umd/mjs-exports-auto",
+        "commonjs-marker/umd/cts-export-equals",
+        "commonjs-marker/umd/ts-real-esm",
+        "commonjs-marker/node16/js-exports-auto",
+        "commonjs-marker/node16/js-exports-force",
+        "commonjs-marker/node16/js-exports-legacy",
+        "commonjs-marker/node16/js-module-exports-auto",
+        "commonjs-marker/node16/js-require-only-force",
+        "commonjs-marker/node16/js-no-commonjs-force",
+        "commonjs-marker/node16/js-real-esm-mixed",
+        "commonjs-marker/node16/js-real-esm",
+        "commonjs-marker/node16/jsx-exports-force",
+        "commonjs-marker/node16/cjs-exports-auto",
+        "commonjs-marker/node16/mjs-exports-auto",
+        "commonjs-marker/node16/cts-export-equals",
+        "commonjs-marker/node16/ts-real-esm",
+        "commonjs-marker/node18/js-exports-auto",
+        "commonjs-marker/node18/js-exports-force",
+        "commonjs-marker/node18/js-exports-legacy",
+        "commonjs-marker/node18/js-module-exports-auto",
+        "commonjs-marker/node18/js-require-only-force",
+        "commonjs-marker/node18/js-no-commonjs-force",
+        "commonjs-marker/node18/js-real-esm-mixed",
+        "commonjs-marker/node18/js-real-esm",
+        "commonjs-marker/node18/jsx-exports-force",
+        "commonjs-marker/node18/cjs-exports-auto",
+        "commonjs-marker/node18/mjs-exports-auto",
+        "commonjs-marker/node18/cts-export-equals",
+        "commonjs-marker/node18/ts-real-esm",
+        "commonjs-marker/node20/js-exports-auto",
+        "commonjs-marker/node20/js-exports-force",
+        "commonjs-marker/node20/js-exports-legacy",
+        "commonjs-marker/node20/js-module-exports-auto",
+        "commonjs-marker/node20/js-require-only-force",
+        "commonjs-marker/node20/js-no-commonjs-force",
+        "commonjs-marker/node20/js-real-esm-mixed",
+        "commonjs-marker/node20/js-real-esm",
+        "commonjs-marker/node20/jsx-exports-force",
+        "commonjs-marker/node20/cjs-exports-auto",
+        "commonjs-marker/node20/mjs-exports-auto",
+        "commonjs-marker/node20/cts-export-equals",
+        "commonjs-marker/node20/ts-real-esm",
+        "commonjs-marker/nodenext/js-exports-auto",
+        "commonjs-marker/nodenext/js-exports-force",
+        "commonjs-marker/nodenext/js-exports-legacy",
+        "commonjs-marker/nodenext/js-module-exports-auto",
+        "commonjs-marker/nodenext/js-require-only-force",
+        "commonjs-marker/nodenext/js-no-commonjs-force",
+        "commonjs-marker/nodenext/js-real-esm-mixed",
+        "commonjs-marker/nodenext/js-real-esm",
+        "commonjs-marker/nodenext/jsx-exports-force",
+        "commonjs-marker/nodenext/cjs-exports-auto",
+        "commonjs-marker/nodenext/mjs-exports-auto",
+        "commonjs-marker/nodenext/cts-export-equals",
+        "commonjs-marker/nodenext/ts-real-esm"
+      ]
+    },
+    {
+      "fixture": "import-publication-reference",
+      "eligible": 87,
+      "exact_twice": [
+        "cjs/js/named",
+        "cjs/js/quoted",
+        "cjs/js/default",
+        "cjs/js/namespace",
+        "cjs/js/named-conflict",
+        "cjs/js/quoted-conflict",
+        "cjs/js/default-conflict",
+        "cjs/js/namespace-conflict",
+        "cjs/js/default-namespace",
+        "cjs/js/external-reexport",
+        "cjs/js/unicode-alias",
+        "cjs/js/escaped-alias",
+        "cjs/js/multiple-exports-comments",
+        "cjs/ts/named",
+        "cjs/ts/quoted",
+        "cjs/ts/default",
+        "cjs/ts/namespace",
+        "cjs/ts/named-conflict",
+        "cjs/ts/quoted-conflict",
+        "cjs/ts/default-conflict",
+        "cjs/ts/namespace-conflict",
+        "cjs/ts/import-equals",
+        "cjs/ts/exported-import-equals",
+        "cjs/ts/export-equals-suppression",
+        "cjs/ts/default-namespace",
+        "cjs/ts/external-reexport",
+        "cjs/ts/unicode-alias",
+        "cjs/ts/escaped-alias",
+        "cjs/ts/multiple-exports-comments",
+        "amd/js/named",
+        "amd/js/quoted",
+        "amd/js/default",
+        "amd/js/namespace",
+        "amd/js/named-conflict",
+        "amd/js/quoted-conflict",
+        "amd/js/default-conflict",
+        "amd/js/namespace-conflict",
+        "amd/js/default-namespace",
+        "amd/js/external-reexport",
+        "amd/js/unicode-alias",
+        "amd/js/escaped-alias",
+        "amd/js/multiple-exports-comments",
+        "amd/ts/named",
+        "amd/ts/quoted",
+        "amd/ts/default",
+        "amd/ts/namespace",
+        "amd/ts/named-conflict",
+        "amd/ts/quoted-conflict",
+        "amd/ts/default-conflict",
+        "amd/ts/namespace-conflict",
+        "amd/ts/import-equals",
+        "amd/ts/exported-import-equals",
+        "amd/ts/export-equals-suppression",
+        "amd/ts/default-namespace",
+        "amd/ts/external-reexport",
+        "amd/ts/unicode-alias",
+        "amd/ts/escaped-alias",
+        "amd/ts/multiple-exports-comments",
+        "umd/js/named",
+        "umd/js/quoted",
+        "umd/js/default",
+        "umd/js/namespace",
+        "umd/js/named-conflict",
+        "umd/js/quoted-conflict",
+        "umd/js/default-conflict",
+        "umd/js/namespace-conflict",
+        "umd/js/default-namespace",
+        "umd/js/external-reexport",
+        "umd/js/unicode-alias",
+        "umd/js/escaped-alias",
+        "umd/js/multiple-exports-comments",
+        "umd/ts/named",
+        "umd/ts/quoted",
+        "umd/ts/default",
+        "umd/ts/namespace",
+        "umd/ts/named-conflict",
+        "umd/ts/quoted-conflict",
+        "umd/ts/default-conflict",
+        "umd/ts/namespace-conflict",
+        "umd/ts/import-equals",
+        "umd/ts/exported-import-equals",
+        "umd/ts/export-equals-suppression",
+        "umd/ts/default-namespace",
+        "umd/ts/external-reexport",
+        "umd/ts/unicode-alias",
+        "umd/ts/escaped-alias",
+        "umd/ts/multiple-exports-comments"
+      ]
+    }
+  ],
+  "original_exact_twice": [
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Desnext",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dsystem",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd"
+  ],
+  "native_complete_command_executions": 736,
+  "positive_executions_per_case": 2,
+  "supplemental_executions": 0,
+  "fresh_repaired": [
+    "module-factory/none/es5/mts",
+    "module-factory/none/es5/mjs",
+    "module-factory/amd/es5/mts",
+    "module-factory/amd/es5/mjs",
+    "module-factory/umd/es5/mts",
+    "module-factory/umd/es5/mjs",
+    "module-factory/none/es2015/mts",
+    "module-factory/none/es2015/mjs",
+    "module-factory/amd/es2015/mts",
+    "module-factory/amd/es2015/mjs",
+    "module-factory/umd/es2015/mts",
+    "module-factory/umd/es2015/mjs"
+  ],
+  "original_repaired": [
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd"
+  ],
+  "compiler_activity_controls": [
+    "emit_session_contract::deprecated_module_none_selects_transform_modules_commonjs_delegate",
+    "emit_session_contract::filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation",
+    "emit_session_contract::h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1c_amd_and_umd_wrappers_match_the_pinned_transform",
+    "emit_session_contract::h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity"
+  ],
+  "new_native_controls": [
+    "builtins::tests::module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries",
+    "builtins::tests::module_transformer_selection_factory_names_match_typescript_twice",
+    "builtins::tests::module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory"
+  ],
+  "emitter_tests": {
+    "lib": 488,
+    "contracts": 451
+  },
+  "seconds": {
+    "after": [
+      0.0,
+      515.81,
+      30.95,
+      0.04,
+      0.01
+    ],
+    "emitter-library": [
+      0.81
+    ],
+    "emitter-contracts": [
+      2.36
+    ]
+  },
+  "validation_exit_records": {
+    "after": {
+      "manifest": "target/h2-8a-module-transformer-selection-after-prelaunch.json",
+      "manifest_sha256": "0e687428348d8e6f6bb7746759ce82bd5f662fe648863e3f50a94a004d96de0b",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "-p",
+        "tsc-rs-emitter",
+        "--lib",
+        "--test",
+        "contracts",
+        "--test",
+        "h2_8a_original_corpus",
+        "--no-fail-fast",
+        "--",
+        "module_transformer_selection",
+        "h2_8a_commonjs_esmodule_marker",
+        "h2_8a_import_publication_reference",
+        "deprecated_module_none_selects_transform_modules_commonjs_delegate",
+        "filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation",
+        "h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity",
+        "h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity",
+        "h2_1c_amd_and_umd_wrappers_match_the_pinned_transform",
+        "h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity",
+        "h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity",
+        "h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 1014.180467542028,
+      "log": "target/h2-8a-module-transformer-selection-after.log",
+      "log_sha256": "422d5757ec37bcf28619d439dcdf6a918d3643b877ae14b5d2759325a5afc526"
+    },
+    "emitter-library": {
+      "manifest": "target/h2-8a-module-transformer-selection-emitter-library-prelaunch.json",
+      "manifest_sha256": "aa867eda67bd2ac393bbb41a6c163dd1fb3af7aea20ee9d2a15895ae9df826d4",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "/Users/hiramatsu/dev/tsc-rs/target/debug/deps/tsc_emitter-d982429bdc044ae0",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 27.49039150000317,
+      "log": "target/h2-8a-module-transformer-selection-emitter-library.log",
+      "log_sha256": "146074bf21a38de7e4e0f8e149fb3b45b3a5104f2758d21e3eeb802687a858ce"
+    },
+    "emitter-contracts": {
+      "manifest": "target/h2-8a-module-transformer-selection-emitter-contracts-prelaunch.json",
+      "manifest_sha256": "3965d3d60ae717b69e595e552766f5c7913b06e9455eac5d108da76e32692263",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "/Users/hiramatsu/dev/tsc-rs/target/debug/deps/contracts-894153682c66b67d",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 59.28206404199591,
+      "log": "target/h2-8a-module-transformer-selection-emitter-contracts.log",
+      "log_sha256": "45b17902a14016da2eced348ba2a0df05b83dc76ed144153682a7612f52228f8"
+    }
+  },
+  "precompiled_unit_suite_receipt": {
+    "status": "fresh executions of unchanged candidate binaries after Cargo finished building; compiler replay still running",
+    "building_command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-compiler",
+      "-p",
+      "tsc-rs-emitter",
+      "--lib",
+      "--test",
+      "contracts",
+      "--test",
+      "h2_8a_original_corpus",
+      "--no-fail-fast",
+      "--",
+      "module_transformer_selection",
+      "h2_8a_commonjs_esmodule_marker",
+      "h2_8a_import_publication_reference",
+      "deprecated_module_none_selects_transform_modules_commonjs_delegate",
+      "filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation",
+      "h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity",
+      "h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity",
+      "h2_1c_amd_and_umd_wrappers_match_the_pinned_transform",
+      "h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity",
+      "h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity",
+      "h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "source_prelaunch": {
+      "path": "target/h2-8a-module-transformer-selection-after-prelaunch.json",
+      "sha256": "0e687428348d8e6f6bb7746759ce82bd5f662fe648863e3f50a94a004d96de0b"
+    },
+    "inputs": [
+      {
+        "path": "target/debug/deps/tsc_emitter-d982429bdc044ae0",
+        "sha256": "3dcb5dabff3f64f939705c470ccfff645c82566b276cc158d1a2ed8406715c0e",
+        "bytes": 14461904,
+        "mtime_ns": 1788907310989409188
+      },
+      {
+        "path": "target/debug/deps/contracts-894153682c66b67d",
+        "sha256": "fbc64f42072728e3a844a364dd1fcc7d614b0fba86217118c43249df4f799b6a",
+        "bytes": 12500496,
+        "mtime_ns": 1788907433826319960
+      },
+      {
+        "path": "target/h2-8a-module-transformer-selection-after-prelaunch.json",
+        "sha256": "0e687428348d8e6f6bb7746759ce82bd5f662fe648863e3f50a94a004d96de0b"
+      }
+    ],
+    "binaries_archived": false,
+    "build_finished_log_snapshot": "   Compiling tsc-rs-emitter v0.1.0 (/Users/hiramatsu/dev/tsc-rs/crates/emitter)\n   Compiling tsc-rs-checker v0.1.0 (/Users/hiramatsu/dev/tsc-rs/crates/checker)\n   Compiling tsc-rs-harness v0.1.0 (/Users/hiramatsu/dev/tsc-rs/crates/harness)\n   Compiling tsc-rs-compiler v0.1.0 (/Users/hiramatsu/dev/tsc-rs/crates/compiler)\n    Finished `test` profile [unoptimized] target(s) in 6m 24s\n"
+  },
+  "first_build_record": "ratchets/h2-8a-module-transformer-selection-first-build.v1.json",
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "54d2eae1a4708676308b6a7f43e1e75a3213681b20d3fc7a453d5cd23670d8b5"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-transformer-selection.json",
+      "sha256": "7a4b7bd3a6ddaf00fd3cacddaed1d3c3b782b58db96e58ab6b500d00ce5693d9"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "d191fd83ed4598fdb119bcdc8842b02a0295e70c4e74c621c907a86deb42784b"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "sha256": "7012b3cb0bcf65488044419dcc8b44c896c7c99d937a73a494aa1b2732e3e1cd"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_module_transformer_selection.rs",
+      "sha256": "3266ac890d11a97337904f45bf1d7d5c1800e4f2f643ff38259f7c03f40c0325"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "02583a7b7275911977b2d6d1095a8b7c72a402048cd0c5f31e5a4899fa7bedd7"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "b6edcb4e4b3ded47faf5bd160e7a0bb0901e10c23c2b46d5cf3934aa0e906df9"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-module-transformer-selection.md",
+      "sha256": "7490bbfc0d5874f44cfa42574826fc11a8cb7f902c6340e0cddae791a4e5bd34"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "2a8fc1d5447006d01042d1468c45df520d16a8ccbbed9e048237112211d59497"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-before.v1.json",
+      "sha256": "8a477cfe7e48ec5f241407251c4802de17561a53e520e512855c5d779f2e43f7"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-first-build.v1.json",
+      "sha256": "3c3a150ce452ab5798ee651e97a43bbd47b9dbcdd00aa8fd3c68cb4f8da4c468"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-readiness.v1.json",
+      "sha256": "1c67f55a3496d3ac47d1d3c7278b520b92e5433cfe0475545ee70edcfb5107db"
+    },
+    {
+      "path": "scripts/check-module-transformer-selection-readiness.py",
+      "sha256": "5fe36b57d2283824bd154c63a0a57a4332f3907366e0c4c9b9998cc5604ecbb1"
+    },
+    {
+      "path": "scripts/observe-module-transformer-selection.mjs",
+      "sha256": "85d246467b93370084922b822de18a7782f80ddd8df2c41432afd39ede58f2d8"
+    },
+    {
+      "path": "target/finish-module-transformer-selection-validation.py",
+      "sha256": "a97e8b8aa00a38fbd5c0b71ff9c3b12cfe007f4d413af65735c3313633c3ae33"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-after-exit.json",
+      "sha256": "40c9dd74776ec841d82b89c4603536be4e79ffde4430c9a9cb17c1bdccdd5ecc"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-after-prelaunch.json",
+      "sha256": "0e687428348d8e6f6bb7746759ce82bd5f662fe648863e3f50a94a004d96de0b"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-after.log",
+      "sha256": "422d5757ec37bcf28619d439dcdf6a918d3643b877ae14b5d2759325a5afc526"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-contracts-exit.json",
+      "sha256": "a2f1fc08b9ed6cc29bdbb761187be64b239af1fc9c3b8f35a052d3cb0be8c6be"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-contracts-prelaunch.json",
+      "sha256": "3965d3d60ae717b69e595e552766f5c7913b06e9455eac5d108da76e32692263"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-contracts.log",
+      "sha256": "45b17902a14016da2eced348ba2a0df05b83dc76ed144153682a7612f52228f8"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-library-exit.json",
+      "sha256": "b42e911d005839ed705afbda1db063dd6ec7c0b8f2bb57353c1717390275e719"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-library-prelaunch.json",
+      "sha256": "aa867eda67bd2ac393bbb41a6c163dd1fb3af7aea20ee9d2a15895ae9df826d4"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-emitter-library.log",
+      "sha256": "146074bf21a38de7e4e0f8e149fb3b45b3a5104f2758d21e3eeb802687a858ce"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-fmt-after-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-fmt-after.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-native-test-list.log",
+      "sha256": "78ef8347c75a3c888a378fad8384ece9b7b4e8d25acf4ba10412533222644327"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-precompiled-unit-prelaunch.json",
+      "sha256": "e31eff9274a41508899d416a132fceba54e182c70c850008fbc74e96328b432a"
+    },
+    {
+      "path": "target/implement-module-transformer-selection.py",
+      "sha256": "4c53d750448a6c84a930b0460d6f7664a3a45561334cc05a4b9a0b666dd675a3"
+    },
+    {
+      "path": "target/prepare-module-transformer-selection-after.py",
+      "sha256": "4521bb59410a0c4d30f5720bd713a256505a52c471cc8efbcfa6fdf5dea28745"
+    }
+  ],
+  "prelaunch_snapshot_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "54d2eae1a4708676308b6a7f43e1e75a3213681b20d3fc7a453d5cd23670d8b5"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-esmodule-marker.json",
+      "sha256": "4bcd12c87d170ee27fbcd682f5c712f8f5e6e23af2dd4f9369a912778ee4034e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-transformer-selection.json",
+      "sha256": "7a4b7bd3a6ddaf00fd3cacddaed1d3c3b782b58db96e58ab6b500d00ce5693d9"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "d191fd83ed4598fdb119bcdc8842b02a0295e70c4e74c621c907a86deb42784b"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "sha256": "7012b3cb0bcf65488044419dcc8b44c896c7c99d937a73a494aa1b2732e3e1cd"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_esmodule_marker.rs",
+      "sha256": "43e09105baf4e7534c6fbefe6084baa6c918002af1d57cee5090e54f0ff1fbbc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs",
+      "sha256": "bf1dd5a3c159338e6d1f903fcede3957cf006a2e371c83a33082ca3f77a9689a"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_module_transformer_selection.rs",
+      "sha256": "3266ac890d11a97337904f45bf1d7d5c1800e4f2f643ff38259f7c03f40c0325"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/tests/contracts.rs",
+      "sha256": "4c7fca5794ab7f097de394ca9291cf74fa2ecd997dbabb2d53954c929cb777e3"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "e46ac2304dfd889c473a4f71f5c6b9ca586c93f842d22350f48e9e5dc3892365"
+    },
+    {
+      "path": "crates/emitter/tests/integration/artifact_sink_contract.rs",
+      "sha256": "a6f52dc0c44463152b957358382355f65b3a155d4ae9c93f26b8ebda6cc01970"
+    },
+    {
+      "path": "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+      "sha256": "21ff731253ff39ff0e521a4ca9efea850cd5a4c14bca84fe35dad55125bc6e9c"
+    },
+    {
+      "path": "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs",
+      "sha256": "9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b"
+    },
+    {
+      "path": "crates/emitter/tests/integration/dependency_direction_contract.rs",
+      "sha256": "8ab37dfb3938b8be7efcb2203efaba0e0411e1e1950f9332589e3bd8253517e7"
+    },
+    {
+      "path": "crates/emitter/tests/integration/factory_transform_contract.rs",
+      "sha256": "250671479a6fa24fdbeb6a49afcefa0a7e2624fbe415d933d74fc5ebd3820e33"
+    },
+    {
+      "path": "crates/emitter/tests/integration/output_plan_contract.rs",
+      "sha256": "66a501004ef6898d13940fca82c31dd516412c76835e486429b0e306131960d9"
+    },
+    {
+      "path": "crates/emitter/tests/integration/printer_foundation_contract.rs",
+      "sha256": "6706f2dd7759d7fb88f5090082442c7de2d956531523465bdf028479cefd49a8"
+    },
+    {
+      "path": "crates/emitter/tests/integration/printer_oracle_contract.rs",
+      "sha256": "e17bcbdc03d3be5b0d787fec4d721820aafbce0528aa8f4b9a9da01c45e6bc5e"
+    },
+    {
+      "path": "crates/emitter/tests/integration/token_cursor_contract.rs",
+      "sha256": "2ebf7c0f8f87aad6c67dd5ab75987e7a2ea8bd04d014e502695766e226fa90b2"
+    },
+    {
+      "path": "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs",
+      "sha256": "bf6bdedc07360f7042903b1fdc0a27d0efd037cf7c97896b854ac270f9489202"
+    },
+    {
+      "path": "crates/emitter/tests/integration/writer_position_contract.rs",
+      "sha256": "cabbf95b98915988589754ad79a0f4ea32db590d019b7eda85670bb422750b7b"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "02583a7b7275911977b2d6d1095a8b7c72a402048cd0c5f31e5a4899fa7bedd7"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-module-transformer-selection.md",
+      "sha256": "d856d53fea43d214a9c2d386b6018698eeae4a3e1d75d517aaeb42e324cc5f01"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-before.v1.json",
+      "sha256": "8a477cfe7e48ec5f241407251c4802de17561a53e520e512855c5d779f2e43f7"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-first-build.v1.json",
+      "sha256": "3c3a150ce452ab5798ee651e97a43bbd47b9dbcdd00aa8fd3c68cb4f8da4c468"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-readiness.v1.json",
+      "sha256": "1bd57835f2b5e5ce69e89d742274a52bd41896e04e9c8f510ba00568305b8f9c"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/check-module-transformer-selection-readiness.py",
+      "sha256": "5fe36b57d2283824bd154c63a0a57a4332f3907366e0c4c9b9998cc5604ecbb1"
+    },
+    {
+      "path": "scripts/observe-module-transformer-selection.mjs",
+      "sha256": "85d246467b93370084922b822de18a7782f80ddd8df2c41432afd39ede58f2d8"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-fmt-after.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "prelaunch_snapshot_subdirectory": "prelaunch",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-module-factory-after-rrb_dpsa",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

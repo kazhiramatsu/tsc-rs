@@ -537,7 +537,7 @@ fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
     );
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
-        1
+        0
     );
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
@@ -830,11 +830,11 @@ fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
         assert!(outcome.diagnostics().is_empty());
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(sink.writes()[0].callback_text(), expected);
-        for slice in [
-            H2RuntimeSlice::H2_1a,
-            H2RuntimeSlice::H2_1b,
-            H2RuntimeSlice::H2_1c,
-        ] {
+        assert_eq!(
+            outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
+            0
+        );
+        for slice in [H2RuntimeSlice::H2_1b, H2RuntimeSlice::H2_1c] {
             assert_eq!(outcome.h2_activity().runtime_slice(slice), 1);
         }
     }
@@ -1877,11 +1877,7 @@ fn h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activ
     for module in [2, 3] {
         assert_filesystem_failure_at_each_write_index(
             module,
-            &[
-                (H2RuntimeSlice::H2_1a, 2),
-                (H2RuntimeSlice::H2_1b, 2),
-                (H2RuntimeSlice::H2_1c, 2),
-            ],
+            &[(H2RuntimeSlice::H2_1b, 2), (H2RuntimeSlice::H2_1c, 2)],
         );
     }
 }
@@ -2515,7 +2511,11 @@ fn assert_filesystem_failure_at_each_write_index(
         assert_eq!(activity.transform_class_fields_constructions(), 2);
         assert_eq!(
             activity.transform_ecmascript_module_constructions(),
-            if module == 4 { 0 } else { 2 }
+            if matches!(module, 0 | 2 | 3 | 4) {
+                0
+            } else {
+                2
+            }
         );
         assert_eq!(activity.transform_context_constructions(), 2);
         assert_eq!(activity.printer_constructions(), 1);

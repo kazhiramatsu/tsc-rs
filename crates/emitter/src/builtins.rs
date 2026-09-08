@@ -139,6 +139,40 @@ pub(crate) fn get_script_transformers_with_activity<'transformers>(
     get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ModuleTransformerKind {
+    EcmaScript,
+    ImpliedNodeFormat,
+    System,
+    Module,
+}
+
+/// tsc-port: getModuleTransformer @6.0.3
+/// tsc-hash: bbb6a0f805e34703e2cf88a3a7e6fe951a390a2b6da3899aab9c02584fff9174
+/// tsc-span: _tsc.js:115876-115895
+fn get_module_transformer_kind(module_kind: i32) -> ModuleTransformerKind {
+    match module_kind {
+        MODULE_PRESERVE => ModuleTransformerKind::EcmaScript,
+        MODULE_ES_NEXT | MODULE_ES2022 | MODULE_ES2020 | MODULE_ES2015 | MODULE_NODE16
+        | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT | MODULE_COMMON_JS => {
+            ModuleTransformerKind::ImpliedNodeFormat
+        }
+        MODULE_SYSTEM => ModuleTransformerKind::System,
+        _ => ModuleTransformerKind::Module,
+    }
+}
+
+// Native activity follows the selected module delegate. Direct transformModule
+// uses the compiler module kind; only the implied composite asks the host.
+fn observe_module_delegate_activity(format: Option<i32>, activity: &mut H2ActivityCanary) {
+    if format.is_some_and(|format| format < 5) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    }
+    if format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+    }
+}
+
 // The transformer list is shared by a Bundle, while these predicates inspect
 // a particular source. Option-wide owners retain one event per list.
 fn observe_script_source_routing(
@@ -218,14 +252,14 @@ pub(crate) fn observe_additional_bundle_source_activity(
     activity: &mut H2ActivityCanary,
 ) {
     observe_script_source_routing(options, host, source, false, activity);
-    if !matches!(options.emit_module_kind(), MODULE_PRESERVE | MODULE_SYSTEM) {
-        let emit_format = host.get_emit_module_format_of_file(source);
-        if emit_format.is_some_and(|format| format < 5) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    match get_module_transformer_kind(options.emit_module_kind()) {
+        ModuleTransformerKind::Module => {
+            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
         }
-        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        ModuleTransformerKind::ImpliedNodeFormat => {
+            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
         }
+        ModuleTransformerKind::EcmaScript | ModuleTransformerKind::System => {}
     }
 }
 
@@ -334,23 +368,26 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2015).then(|| es2015::transform_es2015(options, resolver));
     let transform_generators =
         (target < ScriptTarget::ES2015).then(|| generators::transform_generators(target, resolver));
-    let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
-        activity.construct_transform_ecmascript_module();
-        transform_ecmascript_module(options)
-    } else if options.emit_module_kind() == MODULE_SYSTEM {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
-        system::transform_system_module(options, resolver, host.map(|(host, _)| host))
-    } else {
-        let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
-        let emit_format = host.get_emit_module_format_of_file(source);
-        if emit_format.is_some_and(|format| format < 5) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    let module_transformer = match get_module_transformer_kind(options.emit_module_kind()) {
+        ModuleTransformerKind::EcmaScript => {
+            activity.construct_transform_ecmascript_module();
+            transform_ecmascript_module(options)
         }
-        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        ModuleTransformerKind::System => {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
+            system::transform_system_module(options, resolver, host.map(|(host, _)| host))
         }
-        transform_implied_node_format_dependent_module(options, resolver, host, activity)
+        ModuleTransformerKind::ImpliedNodeFormat => {
+            let (host, source) =
+                host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
+            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
+            transform_implied_node_format_dependent_module(options, resolver, host, activity)
+        }
+        ModuleTransformerKind::Module => {
+            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
+            transform_module_with_optional_host(options, resolver, host.map(|(host, _)| host))
+        }
     };
     let mut transformers = vec![transform_typescript];
     if let Some(transform_legacy_decorators) = transform_legacy_decorators {
