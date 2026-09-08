@@ -130,3 +130,16 @@ fn original_local_namespace_alias_matches_complete_command() {
     );
     assert_eq!(exact.len(), 1);
 }
+
+#[test]
+fn original_reexported_commonjs_aliases_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 2);
+}

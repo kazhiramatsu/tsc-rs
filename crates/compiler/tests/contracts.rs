@@ -133,3 +133,6 @@ mod h2_8a_local_aliases;
 
 #[path = "integration/h2_8a_class_dependency_order.rs"]
 mod h2_8a_class_dependency_order;
+
+#[path = "integration/h2_8a_repeated_target_aliases.rs"]
+mod h2_8a_repeated_target_aliases;

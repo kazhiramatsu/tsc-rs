@@ -1051,7 +1051,7 @@ pub(crate) fn compute_module_specifiers(
                 }
             } else {
                 state
-                    .resolve_external_module_name(importing_file, literal, true)?
+                    .resolve_external_module_name(literal, literal, true)?
                     .and_then(|module| source_file_index_of_module(state, module))
             };
             // tsc-port: computeModuleSpecifiers reuses the source literal's
@@ -1060,9 +1060,13 @@ pub(crate) fn compute_module_specifiers(
             // answer (for example after an invalid package metadata field),
             // while the checker node still owns the semantic resolution
             // (_tsc.js:45493-45510,124100-124117).
+            // Preserve the literal as the resolution location: its require or
+            // import context selects the cached mode. A source-file location
+            // instead selects the file default (_tsc.js:49489-49492), which
+            // can miss a require entry and poison later alias queries.
             if resolved_module.is_none() {
                 resolved_module = state
-                    .resolve_external_module_name(importing_file, literal, true)?
+                    .resolve_external_module_name(literal, literal, true)?
                     .and_then(|module| source_file_index_of_module(state, module));
             }
             let Some(resolved_module) = resolved_module else {
