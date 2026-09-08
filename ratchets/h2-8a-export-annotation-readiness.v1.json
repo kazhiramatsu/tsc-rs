@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-1",
+  "base": "43e1107e823727df2a62caa88463326f41337e34",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-export-annotations.md",
+      "sha256": "332f516e7576d254ebde5e2187a99656cb168b09fe2446e67fb2e264c1adaf1e"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-global-before.v1.json",
+      "sha256": "d8beabca4abf261656a3d7897a6c042b1b448fdf17b84cf54a384376a0b9a11e"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "aa1e6336129dc81d990f751e4b2ba919b0e3b5e26a44f408d08a02d583f4b810"
+    },
+    {
+      "path": "crates/checker/src/contextual.rs",
+      "sha256": "ded153bf4523b26def66a7e32c66dfc44af2e748092aa4dfe80f3c32ab402bc9"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "aa527076b30eb7b1d13bf3ec1e989ce270e627ebb54927545d0aea64280b421b"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "4cc2e4c886cb42cef6a698788e77fc9410789580d53b84fd78410b35a7f8f812"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "ee7aea6a75fcab25644c0b49f3357d9f77cb2467bb4ae5da052b7f69f68b6f24"
+    },
+    {
+      "path": "crates/checker/src/jsdoc.rs",
+      "sha256": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getEffectiveTypeAnnotationNode",
+      "start": 16761,
+      "end": 16767,
+      "sha256": "bc478fa37f444f4159e1b5e522468db266b4b7e42116029d47eea22c813b3339"
+    },
+    {
+      "owner": "getTypeFromTypeNode",
+      "start": 63196,
+      "end": 63198,
+      "sha256": "5d4a798af65bf23738c21df6d7142d44f9ac093ea314f620267fde2a974f3004"
+    },
+    {
+      "owner": "checkTypeAssignableTo",
+      "start": 63931,
+      "end": 63933,
+      "sha256": "c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833"
+    },
+    {
+      "owner": "checkExpressionCached",
+      "start": 80580,
+      "end": 80595,
+      "sha256": "d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178"
+    },
+    {
+      "owner": "checkExportAssignment",
+      "start": 86391,
+      "end": 86501,
+      "sha256": "2481cb70fb33663829bfdf493fafea233783acafbd6069e1e83a2f85c5cf1a19"
+    }
+  ],
+  "steps": [
+    "A6-1-1",
+    "A6-1-2"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "test": "crates/compiler/tests/h2_8a_original_corpus.rs",
+  "witnesses": [
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment1.ts#default",
+      "input_sha256": "c08685e11ec9bc2447405a8a1ce2f98ace00588ec967b57d02f87526857a8cd2",
+      "observation_sha256": "1ab6c73c0e2fd947e724b0f1aebf45814a52f1f4df853ab70242384c1efee708",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment2.ts#default",
+      "input_sha256": "e825bf3e361f6e188d2e26d5bfa8372edc8b10d78d449ea949a814bcf7ae42e8",
+      "observation_sha256": "b972820e0aad3e6b391ab17f93dd3e9bff6d78b434a43e5a513b30958496b3f9",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment3.ts#default",
+      "input_sha256": "e2f9233723acd636f25837d935bebeb3b060f3d3712aa6bdd4886143c3e65c29",
+      "observation_sha256": "41e37023c6d692b16b430c49086ca904990ef70b0e54037c4769da6da8db1bbd",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment4.ts#default",
+      "input_sha256": "93fced748beef76f8206d9b9fd06d574c540bc028ed1cbd4c1afa8e215521edc",
+      "observation_sha256": "83d3c19ef9af6e08c15f88f2a3c7257a6f0d829a8b47bb9c801ef7fed0babd35",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment5.ts#default",
+      "input_sha256": "d66de90d12ac59898cacce1a7288b382a6e60dbf90557568b0ee8c3609cde84c",
+      "observation_sha256": "6abd5067343bec7cf9411fd6b837f7322e79d41125dd426f9ab0fe141e890e5b",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment6.ts#default",
+      "input_sha256": "a8737a29e268aeb64222e18023cf6eab9b258ab81ee95a4279151ca78550daa4",
+      "observation_sha256": "6d990d617ad650440b9bb349f21780e22f21358f9f6ca0e6b2f95c58c6a130f3",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment7.ts#default",
+      "input_sha256": "ad407d68e6c60f9edf2a993f3ca42bbbe4147dca5ac9484f613c95dcaca505b3",
+      "observation_sha256": "8523c9187c9b91f2774c3a288612115a0192ffd19d9f2c276197b5bd0d60d867",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment8.ts#default",
+      "input_sha256": "2a2eef71e1c353d01ef9d85dc9ff2907ecb552a1766f025a17981d94fd6a2310",
+      "observation_sha256": "e116d9ff86461916a966a8db1eb278272b86a50b2d14c3dbb58c9ea481c235fb",
+      "before": "exact"
+    }
+  ]
+}

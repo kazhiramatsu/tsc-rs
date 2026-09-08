@@ -278,6 +278,57 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
             "moduleDetection" => options.module_detection = Some(value.as_i64().unwrap() as i32),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
             "allowJs" => options.allow_js = value.as_bool().unwrap(),
+            "allowImportingTsExtensions" => {
+                options.allow_importing_ts_extensions = Some(value.as_bool().unwrap())
+            }
+            "allowSyntheticDefaultImports" => {
+                options.allow_synthetic_default_imports = Some(value.as_bool().unwrap())
+            }
+            "allowUnreachableCode" => {
+                options.allow_unreachable_code = Some(value.as_bool().unwrap())
+            }
+            "isolatedModules" => options.isolated_modules = Some(value.as_bool().unwrap()),
+            "noEmitHelpers" => options.no_emit_helpers = Some(value.as_bool().unwrap()),
+            "rewriteRelativeImportExtensions" => {
+                options.rewrite_relative_import_extensions = Some(value.as_bool().unwrap())
+            }
+            "skipLibCheck" => options.skip_lib_check = Some(value.as_bool().unwrap()),
+            "useUnknownInCatchVariables" => {
+                options.use_unknown_in_catch_variables = Some(value.as_bool().unwrap())
+            }
+            "verbatimModuleSyntax" => {
+                options.verbatim_module_syntax = Some(value.as_bool().unwrap())
+            }
+            "jsx" => options.jsx = Some(value.as_i64().unwrap() as i32),
+            "maxNodeModuleJsDepth" => {
+                options.max_node_module_js_depth = Some(value.as_f64().unwrap().into())
+            }
+            "moduleSuffixes" => {
+                options.module_suffixes = Some(
+                    strings(value)
+                        .into_iter()
+                        .map(tsc_program::ModuleSuffix::value)
+                        .collect(),
+                )
+            }
+            "paths" => {
+                let mappings = value
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .map(|(pattern, substitutions)| {
+                        tsc_program::PathMapping::new(pattern, strings(substitutions))
+                    })
+                    .collect();
+                program = match case["effective_options"]["pathsBasePath"].as_str() {
+                    Some(base) => program.with_config_paths(mappings, base),
+                    None => program.with_paths(mappings),
+                };
+            }
+            "pathsBasePath" => {
+                assert!(case["effective_options"]["paths"].is_object());
+                assert_eq!(program.paths_base_path(), value.as_str());
+            }
             "alwaysStrict" => options.always_strict = Some(value.as_bool().unwrap()),
             "checkJs" => options.check_js = Some(value.as_bool().unwrap()),
             "composite" => options.composite = Some(value.as_bool().unwrap()),
@@ -319,14 +370,19 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
             "noLib" => program = program.with_no_lib(value.as_bool().unwrap()),
             "types" => program = program.with_types(strings(value)),
             "typeRoots" => {
-                assert!(host.use_case_sensitive_file_names());
+                let cwd = host.current_directory().unwrap();
                 program = program.with_type_roots(
                     strings(value)
                         .into_iter()
                         .map(|path| {
-                            // Both fixed typeRoots inputs are already absolute /types.
-                            assert_eq!(path, "/types");
-                            ProgramPath::from_trusted_parts(&path, &path).unwrap()
+                            let display =
+                                tsc_program::canonical_emit_path(Path::new(&path), &cwd, true);
+                            let canonical = tsc_program::canonical_emit_path(
+                                Path::new(&path),
+                                &cwd,
+                                host.use_case_sensitive_file_names(),
+                            );
+                            ProgramPath::from_trusted_parts(display, canonical).unwrap()
                         })
                         .collect(),
                 );
@@ -926,5 +982,136 @@ pub(super) fn assert_output_directory_references(workspace_root: &Path) -> BTree
         failures.join("\n")
     );
     assert_eq!(exact.len(), 23);
+    exact
+}
+
+/// Fresh original output inputs through the existing complete command comparator.
+/// Membership is frozen independently of Rust success; every eligible row runs
+/// twice and every mismatch remains a failure.
+#[allow(dead_code)] // Also imported by the D/E runner until H2.8a hosted integration.
+pub(super) fn assert_output_matrix_candidates(workspace_root: &Path) -> BTreeSet<String> {
+    assert_output_matrix_cases(workspace_root, None)
+}
+
+#[allow(dead_code)] // Focused original-input projections share the complete comparator.
+pub(super) fn assert_output_matrix_projection(
+    workspace_root: &Path,
+    selected: &[&str],
+) -> BTreeSet<String> {
+    let ids = selected.iter().copied().collect::<BTreeSet<_>>();
+    assert_eq!(ids.len(), selected.len(), "duplicate focused input");
+    assert_output_matrix_cases(workspace_root, Some(&ids))
+}
+
+fn assert_output_matrix_cases(
+    workspace_root: &Path,
+    selected: Option<&BTreeSet<&str>>,
+) -> BTreeSet<String> {
+    assert_eq!(
+        workspace_root.canonicalize().unwrap(),
+        workspace().canonicalize().unwrap()
+    );
+    let read = |name: &str| -> Value {
+        serde_json::from_slice(&std::fs::read(workspace().join(name)).unwrap()).unwrap()
+    };
+    let census_artifact = read("ratchets/h2-8a-candidates.v1.json");
+    let input_artifact = read("ratchets/h2-8a-candidate-inputs.v1.json");
+    let oracle_artifact = read("ratchets/h2-8a-observations.v1.json");
+    for artifact in [&census_artifact, &input_artifact, &oracle_artifact] {
+        assert_eq!(artifact["typescript"], "6.0.3");
+        assert_eq!(artifact["source_commit"], SOURCE_COMMIT);
+        assert_eq!(artifact["cases"].as_array().unwrap().len(), 809);
+    }
+    for artifact in [&census_artifact, &oracle_artifact] {
+        for pin in artifact["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain([&artifact["generator"]])
+        {
+            assert_eq!(
+                json!(digest(
+                    std::fs::read(workspace().join(pin["path"].as_str().unwrap())).unwrap()
+                )),
+                pin["sha256"]
+            );
+        }
+    }
+    assert_eq!(oracle_artifact["repetitions"], 2);
+    let census = indexed(&census_artifact);
+    let inputs = indexed(&input_artifact);
+    let oracle = indexed(&oracle_artifact);
+    assert_eq!(
+        census.keys().collect::<Vec<_>>(),
+        inputs.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        census.keys().collect::<Vec<_>>(),
+        oracle.keys().collect::<Vec<_>>()
+    );
+    let libraries = libraries();
+    let mut exact = BTreeSet::new();
+    let mut failures = Vec::new();
+    let mut eligible = 0;
+    for (id, candidate) in &census {
+        assert_original_source(candidate);
+        assert_eq!(
+            candidate["input_sha256"],
+            digest(serde_json::to_vec(inputs[id]).unwrap())
+        );
+        assert_eq!(oracle[id]["input_sha256"], candidate["input_sha256"]);
+        assert_eq!(oracle[id]["required_slices"], candidate["required_slices"]);
+        assert_eq!(oracle[id]["repetitions"], 2);
+        assert_eq!(candidate["disposition"], "candidate-only");
+        assert_eq!(candidate["runtime_admitted"], false);
+        if owners(candidate) != ["H2.8a"] {
+            continue;
+        }
+        eligible += 1;
+        if selected.is_some_and(|ids| !ids.contains(id)) {
+            continue;
+        }
+        let before = failures.len();
+        for repetition in 0..2 {
+            let compared = std::panic::catch_unwind(|| {
+                let host = memory_host(inputs[id], &input_artifact, &libraries);
+                let actual = observe(inputs[id], &host, &libraries);
+                let expected = &oracle[id]["typescript_observation"];
+                if actual != *expected {
+                    if let Some(directory) = std::env::var_os("TSC_RS_H2_8A_FAILURE_DIR") {
+                        let directory = PathBuf::from(directory);
+                        std::fs::create_dir_all(&directory).unwrap();
+                        std::fs::write(directory.join(format!("{}-{repetition}.json", digest(id))),
+                            serde_json::to_vec_pretty(&json!({"case_id":id,"repetition":repetition,"actual":actual,"expected":expected})).unwrap()).unwrap();
+                    }
+                }
+                assert_complete(&actual, expected);
+            });
+            if let Err(error) = compared {
+                failures.push(format!(
+                    "{id} repetition {repetition}: {}",
+                    panic_text(error.as_ref())
+                ));
+            }
+        }
+        if failures.len() == before {
+            exact.insert((*id).to_owned());
+            eprintln!("H2.8a output matrix EXACT x2 {id}");
+        }
+    }
+    assert_eq!(eligible, 769);
+    assert!(
+        failures.is_empty(),
+        "{} output matrix failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+    assert_eq!(exact.len(), selected.map_or(eligible, BTreeSet::len));
+    if let Some(selected) = selected {
+        assert_eq!(
+            exact.iter().map(String::as_str).collect::<BTreeSet<_>>(),
+            *selected
+        );
+    }
     exact
 }
