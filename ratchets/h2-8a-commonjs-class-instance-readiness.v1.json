@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-17",
+  "base": "83d06cfbb21340e13ba6f43bd8c7cae0617661f2",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/annotate.rs",
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/type_nodes.rs"
+  ],
+  "steps": [
+    "A6-17-1",
+    "A6-17-2",
+    "A6-17-3"
+  ],
+  "owners": [
+    {
+      "owner": "isClassInstanceSide",
+      "start": 50771,
+      "end": 50773,
+      "sha256": "8e21fadcbc33deb3417c74d765f9cb21010fabad5d134be360a3918935e4f1de"
+    },
+    {
+      "owner": "getDeclaredTypeOfClassOrInterface",
+      "start": 57375,
+      "end": 57403,
+      "sha256": "b159a970fade450a929f147df283c2d536e3a3459c66ac6b6e9b9675173ef57c"
+    },
+    {
+      "owner": "createAnonymousTypeNode",
+      "start": 51750,
+      "end": 51810,
+      "sha256": "0c4bd387aaaa40e88a957f74d475f7dc797d65b59c06df516af17e933713bf98"
+    },
+    {
+      "owner": "isTypeRepresentableAsFunctionNamespaceMerge",
+      "start": 55083,
+      "end": 55098,
+      "sha256": "59d447d2e6b4f724aecd7cea606cb5a4f3c66955eb99ec2305be8b639de4afc4"
+    },
+    {
+      "owner": "getInitializerTypeFromAssignmentDeclaration",
+      "start": 56348,
+      "end": 56446,
+      "sha256": "9e23e3cbf38ef08a8fa25529eaf36a4c7796bfa243d6f2ad834907e8cf5c5f5b"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "modified-requalify"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-class-instance.md",
+      "sha256": "3b19c7198110313b2368ff39967d6d184d204952a41d171a56e80c25da67d457"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-before.v1.json",
+      "sha256": "9d3882d699627b2a223a30586ac5067027c1669ad2ae561a86d655bfc3d5c31a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "scripts/observe-commonjs-class-instance.mjs",
+      "sha256": "9f30d8bcfd6bda22fb7bb9eb066a3ae2d1354e7b4909ed0acc5e46dfb2686fcb"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-native-query.v1.json",
+      "sha256": "eb75bdb520d4738891ef7afdec292cb94849a60e47853fd0b19850fd13800b12"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-parentheses-guard-after.v1.json",
+      "sha256": "14f55a8e0ee3b032a0f217ace309653c36d176d0d919611eac39e2c921770970"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "4cc2e4c886cb42cef6a698788e77fc9410789580d53b84fd78410b35a7f8f812"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3f5cf46151a93fd5f943ca200624c5431c39e8295b8a60d9d29a77ed7b56ea1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "9e221d9709cc0979f50e700fce82d7df7f11c04fd01d14173d197f41fcb4f141"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "es5/js/instance",
+      "row_sha256": "213721e2091832eda6efe5463d4b39e53f1cede1e0731765bb3c1957db37e6bc",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/added-member",
+      "row_sha256": "5a64894995a3137486b9012b51a4c0153771308c785b9423ea5d6d8097db10e6",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/same-member",
+      "row_sha256": "24910cf7a65156a6db845a12f9a4b6df2122f2a0cc3c64eb998e64e1a321934c",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/constructor",
+      "row_sha256": "a3962b1dcc80d43106b6945a14ba6f330f6598cfa5542f04f238ca7de50203a3",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/object",
+      "row_sha256": "be6570ec1e01c03e550a75c4fff0668cfcad1e4cd82dc134a4c86e5c1a803d93",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/local-instance",
+      "row_sha256": "b0e30f7a16787f18c4f1831f54970f7e443d96f5602fc23ac1cc44e81b940253",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/factory-instance",
+      "row_sha256": "5907106c4b72937b17ade57a50d2f3191bd365a463fe6e214a5913e46a37af74",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/generic-instance",
+      "row_sha256": "76c0e01cda9b4d217ae4d1f1a4b4cc44fe17fbc4ff52909f7efeff3b34e81bde",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/derived-instance",
+      "row_sha256": "fd76a3ca05cc1e6395ebe25507867c63e700903a561f8a9528bdf00f29fe2663",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/anonymous-instance",
+      "row_sha256": "01818f731a54018558ac783258fb8aa58026568860f829defdc1f524bbb9f27f",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/private-instance",
+      "row_sha256": "7bba48bc1f5fac2663876269c0587c203cb991654c9adced55c8dfa60bf100e1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/accessor-instance",
+      "row_sha256": "aa87c9e14d66d7d4ea2b26e068f77d2350ddf0861fb2b28478e047a7b7cabbc5",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/instance",
+      "row_sha256": "ca732f62a727b135b3d4920229c6e9bb98352141e50935cf6ff32e056cdb015b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/constructor",
+      "row_sha256": "04036b007b41010a9f08d365c5047f9e07258cb4f556db9d316ba7270a9a4098",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/object",
+      "row_sha256": "a45250200d61cc3df453a72797a62c447fc1b9edea6d6f5c39fb97222bfc2814",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/generic-instance",
+      "row_sha256": "62381899a5a0dab4d9dca090fd74914ea2bc059eb4b58b99c7db5c9a872d535d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/instance",
+      "row_sha256": "75ddb03ad70ba71f85a56953da96895beaca4b95db61f86fa76b6df2721972cc",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/added-member",
+      "row_sha256": "38d4208f942d14bd4f9e49d318e2cb09609f9c0830387ccac50777c8e46bb0c4",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/same-member",
+      "row_sha256": "334dbd40e6fa2a5d7ed1aeb907585767b87c6014d81d6a2be96b1fde4f8fcc90",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/constructor",
+      "row_sha256": "057cd7ecf0cfb075e9416d6ccdf789de3fa3c1550dbbcb97b556a8d003ca05ba",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/object",
+      "row_sha256": "8f416194e4aecb508e0d60a4a1a9d7fd12dd56b7cdd1bf7155d1bed59f16774c",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/local-instance",
+      "row_sha256": "c43b6ded3c90fb2f46829180e1cd2ef1a99abd110e37ee60f7d858f51ad17df9",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/factory-instance",
+      "row_sha256": "0322ac7433e0900cc0efe8dff9b8f3acc0b2dcfcad5f9b530a14c369710cf7c7",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/generic-instance",
+      "row_sha256": "c7cf1fad9b42f0ce23240c4e0a4286ebff9cea82ee1aa0f67000aea0a7a794b7",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/derived-instance",
+      "row_sha256": "2b2ddea5b66e258b3a06c55abc4dd7bc63f20d0923e0838bfc55e9be8742f67b",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/anonymous-instance",
+      "row_sha256": "5c2aa9f1d4ea0c9de4692c61ec4a0cdefcd84486e687c22be0c226c1a38c3977",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/private-instance",
+      "row_sha256": "b1fe49f9fe7a473ad32f3f2412edc8ee0bd3d045780ac061a460d2a2ddac1111",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/accessor-instance",
+      "row_sha256": "3c910a357f4befc5bd1b6c5278a504a6ff6f5fce938be58c1a657cb695236fe2",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-class-instance-declaration",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/instance",
+      "row_sha256": "2f0195fc4faa6025eb1b8f4f2b4a9e4e20e3c3982a610d99748c247d32233c56",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/constructor",
+      "row_sha256": "eab074e95a6ff302cb69d679c98ba1574f85c41d345e345f052215b5ff41f39e",
+      "before": "failed-two-independent-jobs",
+      "disposition": "outside-static-initializer-mapping",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/object",
+      "row_sha256": "59e00daedfee3414ad9c6f860d52f092c01035f9049c2c1c71ece71f2ac47533",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/generic-instance",
+      "row_sha256": "9c186a7c7df2f7d8cba0f98c6ee69e39870623f49e824e731f0601ac97ee91c6",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    }
+  ]
+}

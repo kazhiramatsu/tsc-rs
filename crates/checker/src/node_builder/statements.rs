@@ -4321,9 +4321,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         host_symbol: SymbolId,
     ) -> BuildResult<bool> {
         let object_flags = self.checker.tables.object_flags_of(r#type);
-        if !object_flags.intersects(ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
-            || object_flags.intersects(ObjectFlags::CLASS)
-        {
+        if !object_flags.intersects(ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED) {
             return Ok(false);
         }
         // tsc-port: types originating directly in a type node are kept as a
@@ -4354,6 +4352,10 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .get_index_infos_of_type(r#type)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
             .is_empty()
+            || self
+                .checker
+                .is_class_instance_side(r#type)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
             || get_declaration_with_type_annotation(
                 self.checker,
                 host_symbol,

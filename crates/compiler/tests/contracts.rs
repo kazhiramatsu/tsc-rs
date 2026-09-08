@@ -175,3 +175,6 @@ mod h2_8a_synthetic_default_alias;
 
 #[path = "integration/h2_8a_jsdoc_parentheses_guard.rs"]
 mod h2_8a_jsdoc_parentheses_guard;
+
+#[path = "integration/h2_8a_commonjs_class_instance.rs"]
+mod h2_8a_commonjs_class_instance;

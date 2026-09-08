@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-with-ten-retained-outside-map-failures",
+  "base": "83d06cfbb21340e13ba6f43bd8c7cae0617661f2",
+  "production_paths": [
+    "crates/checker/src/annotate.rs",
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/type_nodes.rs"
+  ],
+  "complete_commands_eligible": 158,
+  "complete_commands_exact_twice": 148,
+  "fresh_exact_twice": [
+    "es5/js/same-member",
+    "es5/js/object",
+    "es5/js/local-instance",
+    "es5/js/factory-instance",
+    "es5/js/generic-instance",
+    "es5/js/derived-instance",
+    "es5/js/anonymous-instance",
+    "es5/js/private-instance",
+    "es5/js/accessor-instance",
+    "es5/ts/object",
+    "es5/ts/generic-instance",
+    "es2015/js/same-member",
+    "es2015/js/object",
+    "es2015/js/local-instance",
+    "es2015/js/factory-instance",
+    "es2015/js/generic-instance",
+    "es2015/js/derived-instance",
+    "es2015/js/anonymous-instance",
+    "es2015/js/private-instance",
+    "es2015/js/accessor-instance",
+    "es2015/ts/object",
+    "es2015/ts/generic-instance"
+  ],
+  "fresh_failed_once": [
+    "es5/js/instance",
+    "es5/js/added-member",
+    "es5/js/constructor",
+    "es5/ts/instance",
+    "es5/ts/constructor",
+    "es2015/js/instance",
+    "es2015/js/added-member",
+    "es2015/js/constructor",
+    "es2015/ts/instance",
+    "es2015/ts/constructor"
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "es5/js/instance",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8e8207fb04847548217ad9734eb09342cd14d3002ab65781c096c7dc4f02e7e1",
+      "expected_sha256": "d1d490cb757f7f53d0238ec92b6c56e8556c3894b6148b68f381e5099b7925db",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/js/added-member",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "f8e4559c24e2fcb279d531e7c479355d852a05c958228d892e1fcee5bac11ef9",
+      "expected_sha256": "0b6854d58a3d57e666ee179e9d1514e7a5689913073d0eaea659daf653279d32",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/js/constructor",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a777281b66e75c22ea7177e005130e888b7d05b3207fc8d5052f83e7b9478a5a",
+      "expected_sha256": "77f6aa410586aeeb69981ba89543535063a1986a21d171373aa20d0346e0f755",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/ts/instance",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "32286316245bbe3b0569aba4fdb078e4704b751553b612a819976f4dded94348",
+      "expected_sha256": "78f5d3794552a94c24eb55d4ad62344d403282d709d299fce40dfa8ea3b6f607",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es5/ts/constructor",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8b51648d5150d4b0fb782a571489bc02be8606cc99b0cde9de867d5457a339af",
+      "expected_sha256": "cb9205fef35bc93472fd246d9f40005ff080550918e01749a78075270e668c91",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/js/instance",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "073eac4735a3625504fa4e2e5436690a056f02e7d4939d9717655f1f919bc032",
+      "expected_sha256": "1877da89f1d08a7bb878ddbd26256d56d2632a41b3e409512b00534673199e41",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/js/added-member",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "935553d47f43471fe191b58b6c71138436fced6ec9570a85b1b7bc7b2d4516f4",
+      "expected_sha256": "647ac55b06fac66368c945e7e76dd32ab4d232ba0b059761efd67071b8eb0c63",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/js/constructor",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d0055c7a4a3ff5953fbc7bcf2f4476711bfa28cb7ea0b6e066b69eaec6fddf17",
+      "expected_sha256": "90f304b1ef62bee78d4a02bfee4d6b8b69cbacf751582b331fcec1d9a99c8a35",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/ts/instance",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "30379da643162398e6fa7f61359d30172e3d792e82ab2645d8be6aa623071566",
+      "expected_sha256": "8bc636cf20030892b28aa24b11aa1093df2283c8e4d10b22db291ddb525c8fb3",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "es2015/ts/constructor",
+      "native_executions": 1,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6d15b0cbf6fe1f708bfb969444a984d16137d25b7f80f3929064121954ff9017",
+      "expected_sha256": "8c1a2df7ad041ef1da69360eca4aeed1a34ab73a7ebb6000a3f41ea4ec265e11",
+      "same_first_vector_as_both_before_jobs": true,
+      "later_complete_command_fields": "not-qualified"
+    }
+  ],
+  "adjacent": [
+    {
+      "fixture": "crates/compiler/tests/fixtures/local-alias-declarations.json",
+      "fixture_sha256": "04ec81185ee0c6927d7c284de8bdaf81298a77d77f39a4e8d3dadb6842e1404e",
+      "exact_twice": [
+        "js/es5/require-renamed",
+        "js/es5/require-same",
+        "js/es5/local-renamed",
+        "js/es5/class-named",
+        "js/es5/class-anonymous",
+        "js/es5/compound-local",
+        "js/es5/compound-require",
+        "js/es5/module-exports-member",
+        "js/es5/object-shorthand",
+        "js/es5/object-renamed",
+        "js/es5/default",
+        "js/es5/export-equals",
+        "ts/es5/namespace-import",
+        "ts/es5/local-renamed",
+        "ts/es5/default",
+        "ts/es5/export-equals",
+        "js/es2015/require-renamed",
+        "js/es2015/require-same",
+        "js/es2015/local-renamed",
+        "js/es2015/class-named",
+        "js/es2015/class-anonymous",
+        "js/es2015/compound-local",
+        "js/es2015/compound-require",
+        "js/es2015/module-exports-member",
+        "js/es2015/object-shorthand",
+        "js/es2015/object-renamed",
+        "js/es2015/default",
+        "js/es2015/export-equals",
+        "ts/es2015/namespace-import",
+        "ts/es2015/local-renamed",
+        "ts/es2015/default",
+        "ts/es2015/export-equals"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/ambient-alias-target-names.json",
+      "fixture_sha256": "36c5f242fbe53f070a9ceb4b17394a8dfa021dbe075f8396ede798a5d22f9fdb",
+      "exact_twice": [
+        "ambient/es5/default",
+        "ambient/es5/named",
+        "ambient/es5/namespace",
+        "ambient/es5/equals",
+        "ambient/es2015/default",
+        "ambient/es2015/named",
+        "ambient/es2015/namespace",
+        "ambient/es2015/equals"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-declaration-dependency-order.json",
+      "fixture_sha256": "5ab33278e98e880ce5b3bb3f582cf1fc72a719da6b88cf898bf170d1e3d555e0",
+      "exact_twice": [
+        "js/es5/base-namespace",
+        "js/es5/reverse-namespace",
+        "js/es5/duplicate-base",
+        "js/es5/member-after-base",
+        "js/es5/member-without-merge",
+        "js/es5/class-no-base",
+        "js/es5/private-local-base",
+        "js/es5/two-derived",
+        "ts/es5/private-base",
+        "ts/es5/namespace-merge",
+        "ts/es5/member-order",
+        "ts/es5/nested-scope",
+        "js/es2015/base-namespace",
+        "js/es2015/reverse-namespace",
+        "js/es2015/duplicate-base",
+        "js/es2015/member-after-base",
+        "js/es2015/member-without-merge",
+        "js/es2015/class-no-base",
+        "js/es2015/private-local-base",
+        "js/es2015/two-derived",
+        "ts/es2015/private-base",
+        "ts/es2015/namespace-merge",
+        "ts/es2015/member-order",
+        "ts/es2015/nested-scope"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/class-declaration-member-order.json",
+      "fixture_sha256": "e81dfbc60571e6518cbd573eb3c1d35779bfe8c689543d0f3ffb9984297036cf",
+      "exact_twice": [
+        "js/es5/typed-member-plain",
+        "js/es5/typed-member-merged",
+        "js/es2015/typed-member-plain",
+        "js/es2015/typed-member-merged"
+      ]
+    },
+    {
+      "fixture": "crates/compiler/tests/fixtures/repeated-target-declaration-aliases.json",
+      "fixture_sha256": "7c8127c402a3fbeb50c9c144a1fc59d6db3009ffb0bab41ef921cdc250dace28",
+      "exact_twice": [
+        "js/es5/class-same-renamed",
+        "js/es5/class-reverse-bindings",
+        "js/es5/class-two-renames",
+        "js/es5/function-same-renamed",
+        "ts/es5/class-same-renamed",
+        "ts/es5/class-reverse-bindings",
+        "ts/es5/class-two-renames",
+        "ts/es5/function-same-renamed",
+        "js/es2015/class-same-renamed",
+        "js/es2015/class-reverse-bindings",
+        "js/es2015/class-two-renames",
+        "js/es2015/function-same-renamed",
+        "ts/es2015/class-same-renamed",
+        "ts/es2015/class-reverse-bindings",
+        "ts/es2015/class-two-renames",
+        "ts/es2015/function-same-renamed",
+        "default/js/es5/class-same-renamed",
+        "esmodule/js/es5/class-same-renamed",
+        "default/js/es5/class-reverse-bindings",
+        "esmodule/js/es5/class-reverse-bindings",
+        "default/js/es5/class-two-renames",
+        "esmodule/js/es5/class-two-renames",
+        "default/js/es5/function-same-renamed",
+        "esmodule/js/es5/function-same-renamed",
+        "default/ts/es5/class-same-renamed",
+        "esmodule/ts/es5/class-same-renamed",
+        "default/ts/es5/class-reverse-bindings",
+        "esmodule/ts/es5/class-reverse-bindings",
+        "default/ts/es5/class-two-renames",
+        "esmodule/ts/es5/class-two-renames",
+        "default/ts/es5/function-same-renamed",
+        "esmodule/ts/es5/function-same-renamed",
+        "default/js/es2015/class-same-renamed",
+        "esmodule/js/es2015/class-same-renamed",
+        "default/js/es2015/class-reverse-bindings",
+        "esmodule/js/es2015/class-reverse-bindings",
+        "default/js/es2015/class-two-renames",
+        "esmodule/js/es2015/class-two-renames",
+        "default/js/es2015/function-same-renamed",
+        "esmodule/js/es2015/function-same-renamed",
+        "default/ts/es2015/class-same-renamed",
+        "esmodule/ts/es2015/class-same-renamed",
+        "default/ts/es2015/class-reverse-bindings",
+        "esmodule/ts/es2015/class-reverse-bindings",
+        "default/ts/es2015/class-two-renames",
+        "esmodule/ts/es2015/class-two-renames",
+        "default/ts/es2015/function-same-renamed",
+        "esmodule/ts/es2015/function-same-renamed"
+      ]
+    }
+  ],
+  "original_exact_twice": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5"
+  ],
+  "fixture": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+  "fixture_sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886",
+  "checker_unit_tests": 25,
+  "seconds": [
+    149.75,
+    33.49,
+    0.03
+  ],
+  "exit_codes": [
+    101,
+    0
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3689fe549b0b64dc85473471dccd4f5a19b5e1ab5484f5d23093e502abb2d514"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "1c510e3890b899325f5b47ac8be58409f2ddeeb289e0c042d469b65cd3e88ed0"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "b079985cfa3244951ca8a2654da4f3af089ff46017c4dbb8f06e8d53e12b6d33"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-commonjs-class-instance.md",
+      "sha256": "3b19c7198110313b2368ff39967d6d184d204952a41d171a56e80c25da67d457"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-before.v1.json",
+      "sha256": "9d3882d699627b2a223a30586ac5067027c1669ad2ae561a86d655bfc3d5c31a"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-native-query.v1.json",
+      "sha256": "eb75bdb520d4738891ef7afdec292cb94849a60e47853fd0b19850fd13800b12"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-readiness.v1.json",
+      "sha256": "bfaa49be8f7f16dbf2cfa51f85374c555f229e27ef40c5160be3da003c47b698"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "6383d4bd02e9768c8419b60fce3382a39613746c106c1be4ce9c09020d7a480f"
+    },
+    {
+      "path": "scripts/check-commonjs-class-instance-readiness.py",
+      "sha256": "e7a48355d0ba6012bbd91516a5b8f99743ba531338caad4c4ff457cecb6f9600"
+    },
+    {
+      "path": "scripts/observe-commonjs-class-instance.mjs",
+      "sha256": "9f30d8bcfd6bda22fb7bb9eb066a3ae2d1354e7b4909ed0acc5e46dfb2686fcb"
+    },
+    {
+      "path": "target/h2-8a-commonjs-class-instance-after.log",
+      "sha256": "076a57245c85afd75f007cdd06650e216489367d67abee3d005e2d84bf83649f"
+    },
+    {
+      "path": "target/h2-8a-commonjs-class-instance-checker-after.log",
+      "sha256": "4deefab2a84337046e7671a953b3730ed8017def36ebc91bc6190794da991529"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-commonjs-class-instance-after-iiyiopq7",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}
