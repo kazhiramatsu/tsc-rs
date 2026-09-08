@@ -154,3 +154,9 @@ mod h2_8a_export_name_syntax;
 
 #[path = "integration/h2_8a_export_name_syntax_maps.rs"]
 mod h2_8a_export_name_syntax_maps;
+
+#[path = "integration/h2_8a_system_variable_publication.rs"]
+mod h2_8a_system_variable_publication;
+
+#[path = "integration/h2_8a_declaration_token_comments.rs"]
+mod h2_8a_declaration_token_comments;

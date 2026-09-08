@@ -1,0 +1,4252 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "501dc4e4b3ea2fa7eca28a71948e707fc98700dfc08d8328115b139494d97839",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "system/js/all/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ksV0FBVyxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ksV0FBVyxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiB2YWx1ZSAqLyB2YWx1ZSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 343,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiB2YWx1ZSAqLyB2YWx1ZSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 343,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 311,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGI,WAAW,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/all/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiogdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 344,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiogdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 344,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 312,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGK,YAAY,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/all/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiEgdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 344,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiEgdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 344,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 312,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGK,YAAY,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/all/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBSVAsUUFBUTtZQUNoQixLQUFLIn0=",
+            "callback_utf8_bytes": 149,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBSVAsUUFBUTtZQUNoQixLQUFLIn0=",
+            "materialized_utf8_bytes": 149,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvLyB2YWx1ZQ0KICAgICAgICAgICAgdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 353,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvLyB2YWx1ZQ0KICAgICAgICAgICAgdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 353,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 321,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAIP,QAAQ;YAChB,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/dts-only/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/dts-only/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/dts-only/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/js/dts-only/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/all/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ksV0FBVyxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ksV0FBVyxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiB2YWx1ZSAqLyB2YWx1ZSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 343,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiB2YWx1ZSAqLyB2YWx1ZSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 343,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 311,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGI,WAAW,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/all/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiogdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 344,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiogdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 344,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 312,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGK,YAAY,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/all/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBR0ssWUFBWSxDQUFDLEtBQUsifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiEgdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 344,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvKiEgdmFsdWUgKi8gdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 344,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 312,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAGK,YAAY,CAAC,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/all/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBSVAsUUFBUTtZQUNoQixLQUFLIn0=",
+            "callback_utf8_bytes": 149,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7OztZQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7aUNBSVAsUUFBUTtZQUNoQixLQUFLIn0=",
+            "materialized_utf8_bytes": 149,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvLyB2YWx1ZQ0KICAgICAgICAgICAgdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 353,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICB2YWx1ZSA9IDE7DQogICAgICAgICAgICBleHBvcnRzXzEoImRlZmF1bHQiLCAvLyB2YWx1ZQ0KICAgICAgICAgICAgdmFsdWUpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 353,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 321,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;;;;;YAAM,KAAK,GAAG,CAAC,CAAC;iCAIP,QAAQ;YAChB,KAAK\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/dts-only/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/dts-only/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/dts-only/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/dts-only/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "cjs/js/all/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNnQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNnQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACgC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/all/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACkC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/all/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACkC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/all/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUdDLEtBQUssQ0FBQyJ9",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUdDLEtBQUssQ0FBQyJ9",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBAGC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/dts-only/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/dts-only/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/dts-only/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/js/dts-only/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/all/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNnQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNnQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACgC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/all/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACkC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/all/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "callback_utf8_bytes": 160,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUNrQyxLQUFLLENBQUMifQ==",
+            "materialized_utf8_bytes": 160,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBACkC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/all/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUdDLEtBQUssQ0FBQyJ9",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUM7QUFDaEIsZUFBZTtBQUNmLGtCQUdDLEtBQUssQ0FBQyJ9",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 172,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmNvbnN0IHZhbHVlID0gMTsNCi8qKiBleHBvcnRlZCAqLw0KZXhwb3J0cy5kZWZhdWx0ID0gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 172,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 140,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf,kBAGC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/dts-only/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/dts-only/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/dts-only/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/dts-only/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/all/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFdBQVcsU0FBUyxXQUFXLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFdBQVcsU0FBUyxXQUFXLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiB0b2tlbiAqLyBkZWZhdWx0IC8qIHZhbHVlICovIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiB0b2tlbiAqLyBkZWZhdWx0IC8qIHZhbHVlICovIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 84,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,WAAW,SAAS,WAAW,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/all/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiogdG9rZW4gKi8gZGVmYXVsdCAvKiogdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiogdG9rZW4gKi8gZGVmYXVsdCAvKiogdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 86,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,YAAY,SAAS,YAAY,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/all/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiEgdG9rZW4gKi8gZGVmYXVsdCAvKiEgdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiEgdG9rZW4gKi8gZGVmYXVsdCAvKiEgdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 86,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,YAAY,SAAS,YAAY,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/all/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFFBQVE7UUFDQyxRQUFRO0NBQ2hCLEtBQUssQ0FBQyJ9",
+            "callback_utf8_bytes": 177,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFFBQVE7UUFDQyxRQUFRO0NBQ2hCLEtBQUssQ0FBQyJ9",
+            "materialized_utf8_bytes": 177,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovLyB0b2tlbg0KZGVmYXVsdCAvLyB2YWx1ZQ0KIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 113,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovLyB0b2tlbg0KZGVmYXVsdCAvLyB2YWx1ZQ0KIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 113,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 81,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,QAAQ;QACC,QAAQ;CAChB,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/dts-only/block",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/dts-only/jsdoc",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/dts-only/pinned",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/dts-only/line",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 48,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlZmF1bHQgdmFsdWU7DQpkZWNsYXJlIGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 48,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/all/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFdBQVcsU0FBUyxXQUFXLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFdBQVcsU0FBUyxXQUFXLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiB0b2tlbiAqLyBkZWZhdWx0IC8qIHZhbHVlICovIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiB0b2tlbiAqLyBkZWZhdWx0IC8qIHZhbHVlICovIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 116,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 84,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,WAAW,SAAS,WAAW,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/all/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiogdG9rZW4gKi8gZGVmYXVsdCAvKiogdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiogdG9rZW4gKi8gZGVmYXVsdCAvKiogdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 86,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,YAAY,SAAS,YAAY,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/all/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFlBQVksU0FBUyxZQUFZLENBQUMsS0FBSyxDQUFDIn0=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiEgdG9rZW4gKi8gZGVmYXVsdCAvKiEgdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovKiEgdG9rZW4gKi8gZGVmYXVsdCAvKiEgdmFsdWUgKi8gdmFsdWU7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 86,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,YAAY,SAAS,YAAY,CAAC,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/all/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": true,
+        "emitDeclarationOnly": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFFBQVE7UUFDQyxRQUFRO0NBQ2hCLEtBQUssQ0FBQyJ9",
+            "callback_utf8_bytes": 177,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLGVBQWU7QUFDZjtBQUNBLFFBQVE7UUFDQyxRQUFRO0NBQ2hCLEtBQUssQ0FBQyJ9",
+            "materialized_utf8_bytes": 177,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovLyB0b2tlbg0KZGVmYXVsdCAvLyB2YWx1ZQ0KIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 113,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgdmFsdWUgPSAxOw0KLyoqIGV4cG9ydGVkICovDQpleHBvcnQgDQovLyB0b2tlbg0KZGVmYXVsdCAvLyB2YWx1ZQ0KIHZhbHVlOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 113,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 81,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAK,GAAG,CAAC,CAAC;AAChB,eAAe;AACf;AACA,QAAQ;QACC,QAAQ;CAChB,KAAK,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/dts-only/block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/* token */ default /* value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/dts-only/jsdoc",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/** token */ default /** value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qKiB0b2tlbiAqLyBkZWZhdWx0IC8qKiB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/dts-only/pinned",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n/*! token */ default /*! value */ value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCANCi8qISB0b2tlbiAqLyBkZWZhdWx0IC8qISB2YWx1ZSAqLyB2YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 94,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/dts-only/line",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\n/** exported */\nexport\n// token\n default // value\n value;\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovKiogZXhwb3J0ZWQgKi8NCmV4cG9ydCBkZWZhdWx0IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "system/js/dts-only/export-list",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "system/ts/dts-only/export-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 4,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "cjs/js/dts-only/export-list",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "cjs/ts/dts-only/export-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 1,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/js/dts-only/export-list",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGZpcnN0OiAxOw0KZXhwb3J0IGNvbnN0IHNlY29uZDogMjsNCg==",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "esnext/ts/dts-only/export-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const first = 1, second = 2;\nexport { /* first */ first, /* second */ second };\n"
+        }
+      ],
+      "options": {
+        "module": 99,
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "sourceMap": false,
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBmaXJzdCA9IDEsIHNlY29uZCA9IDI7DQpleHBvcnQgeyAvKiBmaXJzdCAqLyBmaXJzdCwgLyogc2Vjb25kICovIHNlY29uZCB9Ow0K",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

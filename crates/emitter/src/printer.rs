@@ -455,6 +455,15 @@ enum LeadingCommentContext {
     DelimitedListStart,
 }
 
+/// A list's trailing-position phase is independent of its child's ordinary
+/// leading comments. Only the ordinary-node context obeys NoLeadingComments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InterveningCommentContext {
+    Node,
+    DelimitedListStart,
+    MultilineDelimitedListStart,
+}
+
 /// Typed projection of ListFormat::Indented for the expression/binding lists
 /// emitted by `emit_delimited_expression_list`.
 ///
@@ -13344,7 +13353,7 @@ impl Printer {
         let list_owned = self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
-            false,
+            InterveningCommentContext::DelimitedListStart,
             leading_space,
             writer,
         )?;
@@ -13400,7 +13409,7 @@ impl Printer {
         let resume = self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
-            true,
+            InterveningCommentContext::MultilineDelimitedListStart,
             TokenLeadingSpace::None,
             writer,
         )?;
@@ -13422,25 +13431,34 @@ impl Printer {
         self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
-            false,
+            InterveningCommentContext::Node,
             TokenLeadingSpace::None,
             writer,
         )
     }
 
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:120068-120155
+    /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
+    /// tsc-port: emitTrailingCommentsOfPosition @6.0.3
+    /// tsc-span: _tsc.js:121191-121198
+    /// tsc-hash: 953cde198b7f8098bd7bc8d865e535cdac106e983efe35a4a067498ff239cbc0
     fn emit_intervening_comments_before_node_with_policy(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        suppress_opening_line_comments: bool,
+        comment_context: InterveningCommentContext,
         leading_space: TokenLeadingSpace,
         writer: &mut TextWriter,
     ) -> Result<Option<CommentResume>, PrinterError> {
         if self.options.remove_comments
-            || transformation
-                .arena()
-                .metadata(node)
-                .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS))
+            || comment_context == InterveningCommentContext::Node
+                && transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| {
+                        metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS)
+                    })
         {
             return Ok(None);
         }
@@ -13457,7 +13475,7 @@ impl Printer {
         let Some(last_comment) = comments.last().copied() else {
             return Ok(None);
         };
-        if suppress_opening_line_comments {
+        if comment_context == InterveningCommentContext::MultilineDelimitedListStart {
             for comment in comments {
                 if !source.text()[start..comment.start]
                     .chars()
@@ -14906,6 +14924,9 @@ impl Printer {
         )
     }
 
+    /// tsc-port: emitTokenWithComment @6.0.3
+    /// tsc-span: _tsc.js:118731-118764
+    /// tsc-hash: d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50
     #[allow(clippy::too_many_arguments)]
     fn emit_token_with_comments_at_boundary(
         &self,
@@ -15099,7 +15120,12 @@ impl Printer {
             if owner_record.kind == SyntaxKind::JsxExpression {
                 emit_source_jsx_trailing_comments_of_position(source.text(), token_end, writer);
             } else {
-                emit_source_trailing_comments_of_position(source.text(), token_end, writer);
+                emit_source_trailing_comments_of_position_with_filter(
+                    source.text(),
+                    token_end,
+                    self.options.only_print_js_doc_style,
+                    writer,
+                );
             }
         }
 
@@ -15169,6 +15195,12 @@ impl Printer {
         Ok(())
     }
 
+    /// tsc-port: emitLeadingCommentsOfPosition @6.0.3
+    /// tsc-span: _tsc.js:121166-121175
+    /// tsc-hash: fa23b688b1540c772ccf513c874d47bba4a08a44e019bc430feb79cbea73d2cd
+    ///
+    /// Fixed tokens and ordinary child/name boundaries use the declaration
+    /// printer's JSDoc filter. List-owned intervening comments are separate.
     fn emit_comments_at_cursor_with_anchor(
         &self,
         transformation: &TransformationResult<'_>,
@@ -15226,7 +15258,12 @@ impl Printer {
             );
         }
         if comment_resume.is_none() {
-            emit_source_trailing_comments_of_position(source.text(), start, writer);
+            emit_source_trailing_comments_of_position_with_filter(
+                source.text(),
+                start,
+                self.options.only_print_js_doc_style,
+                writer,
+            );
             emitted_through = trailing
                 .iter()
                 .map(|comment| u32::try_from(comment.end).unwrap_or(u32::MAX))
@@ -15239,7 +15276,13 @@ impl Printer {
             .map(|comment| u32::try_from(comment.end).unwrap_or(u32::MAX))
             .chain(emitted_through)
             .max();
-        emit_source_leading_comments_of_position(source.text(), start, &excluded, false, writer);
+        emit_source_leading_comments_of_position(
+            source.text(),
+            start,
+            &excluded,
+            self.options.only_print_js_doc_style,
+            writer,
+        );
         if needs_indent {
             writer.decrease_indent();
         }
@@ -16269,7 +16312,22 @@ fn emit_source_trailing_comments_of_position(
     position: usize,
     writer: &mut TextWriter,
 ) {
+    emit_source_trailing_comments_of_position_with_filter(source, position, false, writer);
+}
+
+/// tsc-port: emitTrailingComment @6.0.3
+/// tsc-span: _tsc.js:121179-121190
+/// tsc-hash: 14654b8999872d42159a4d2c11a27fb01fbe47c50e8131b82de8453536d60394
+fn emit_source_trailing_comments_of_position_with_filter(
+    source: &str,
+    position: usize,
+    only_print_js_doc_style: bool,
+    writer: &mut TextWriter,
+) {
     for comment in collect_source_comment_ranges(source, position, true) {
+        if only_print_js_doc_style && !should_write_js_doc_style_comment(source, comment.start) {
+            continue;
+        }
         if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
             writer.write_space(" ");
         }
@@ -16283,6 +16341,10 @@ fn emit_source_trailing_comments_of_position(
 /// `emitNodeListItems` uses the non-prefixing trailing-comment callback for
 /// comments between an opening delimiter and its first child. Unlike token
 /// trailing comments, a same-line block comment receives a following space.
+///
+/// tsc-port: emitTrailingCommentOfPosition @6.0.3
+/// tsc-span: _tsc.js:121208-121218
+/// tsc-hash: 78fd8227de7e58556e3f2906ffe5aafb334a35d70f8dc0f916bed71b16cb78ea
 fn emit_source_intervening_comments_of_position(
     source: &str,
     position: usize,

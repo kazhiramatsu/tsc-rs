@@ -1,0 +1,345 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "ec12b2ba030aa48e499718e3b706448c73c952b83c8306e03349c9cf0414a192",
+  "cases": [
+    {
+      "case_id": "call-inline/None/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-inline/None/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/NoLeadingComments/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-inline/NoLeadingComments/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/NoTrailingComments/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "f(/* FIRST */ x, /* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-inline/NoTrailingComments/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/NoComments/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "f(/* FIRST */ x, /* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-inline/NoComments/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/NoNestedComments/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-inline/NoNestedComments/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/ParentNoNestedComments/retained",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-inline/ParentNoNestedComments/removed",
+      "source": "f(/* FIRST */ x /* AFTER */, /* SECOND */ y);\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/None/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-newline/None/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoLeadingComments/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "f(x /* AFTER */, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoLeadingComments/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoTrailingComments/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "f(\n/* FIRST */ x, \n/* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-newline/NoTrailingComments/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoComments/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoComments/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/NoNestedComments/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "f(\n/* FIRST */ x /* AFTER */, \n/* SECOND */ y);\n"
+    },
+    {
+      "case_id": "call-newline/NoNestedComments/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/ParentNoNestedComments/retained",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "call-newline/ParentNoNestedComments/removed",
+      "source": "f(\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y);\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "f(x, y);\n"
+    },
+    {
+      "case_id": "array-inline/None/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n"
+    },
+    {
+      "case_id": "array-inline/None/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/NoLeadingComments/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n"
+    },
+    {
+      "case_id": "array-inline/NoLeadingComments/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/NoTrailingComments/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "[/* FIRST */ x, /* SECOND */ y];\n"
+    },
+    {
+      "case_id": "array-inline/NoTrailingComments/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/NoComments/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "[/* FIRST */ x, /* SECOND */ y];\n"
+    },
+    {
+      "case_id": "array-inline/NoComments/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/NoNestedComments/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n"
+    },
+    {
+      "case_id": "array-inline/NoNestedComments/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/ParentNoNestedComments/retained",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-inline/ParentNoNestedComments/removed",
+      "source": "[/* FIRST */ x /* AFTER */, /* SECOND */ y];\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "[x, y];\n"
+    },
+    {
+      "case_id": "array-newline/None/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "None",
+      "remove_comments": false,
+      "output": "[\n    /* FIRST */ x /* AFTER */,\n    /* SECOND */ y\n];\n"
+    },
+    {
+      "case_id": "array-newline/None/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "None",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoLeadingComments/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": false,
+      "output": "[\n    x /* AFTER */,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoLeadingComments/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoLeadingComments",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoTrailingComments/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": false,
+      "output": "[\n    /* FIRST */ x,\n    /* SECOND */ y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoTrailingComments/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoTrailingComments",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoComments/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoComments",
+      "remove_comments": false,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoComments/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoComments",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoNestedComments/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoNestedComments",
+      "remove_comments": false,
+      "output": "[\n    /* FIRST */ x /* AFTER */,\n    /* SECOND */ y\n];\n"
+    },
+    {
+      "case_id": "array-newline/NoNestedComments/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "NoNestedComments",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/ParentNoNestedComments/retained",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": false,
+      "output": "[\n    x,\n    y\n];\n"
+    },
+    {
+      "case_id": "array-newline/ParentNoNestedComments/removed",
+      "source": "[\n/* FIRST */ x /* AFTER */,\n/* SECOND */ y];\n",
+      "variant": "ParentNoNestedComments",
+      "remove_comments": true,
+      "output": "[\n    x,\n    y\n];\n"
+    }
+  ]
+}

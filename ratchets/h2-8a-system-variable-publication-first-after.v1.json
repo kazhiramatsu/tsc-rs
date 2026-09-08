@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "status": "complete-first-after-with-owned-comment-residues-and-pending-original-identity-correction",
+  "checkpoint": "84bf461c3381fac483dc1ad0dbdeba5bec0ab9f6",
+  "eligible": 72,
+  "exact": [
+    "js/es5/plain/direct-alias",
+    "js/es5/plain/direct-plain",
+    "js/es5/plain/local-alias",
+    "js/es5/plain/direct-pattern-alias",
+    "js/es5/plain/default-reference",
+    "js/es5/plain/direct-uninitialized",
+    "js/es5/plain/direct-multiple-alias",
+    "js/es5/plain/local-export-equals",
+    "js/es5/maps/direct-alias",
+    "js/es5/maps/direct-plain",
+    "js/es5/maps/local-alias",
+    "js/es5/maps/direct-pattern-alias",
+    "js/es5/maps/default-reference",
+    "js/es5/maps/direct-uninitialized",
+    "js/es5/maps/direct-multiple-alias",
+    "js/es5/maps/local-export-equals",
+    "ts/es5/plain/direct-alias",
+    "ts/es5/plain/direct-plain",
+    "ts/es5/plain/local-alias",
+    "ts/es5/plain/direct-pattern-alias",
+    "ts/es5/plain/default-reference",
+    "ts/es5/plain/direct-uninitialized",
+    "ts/es5/plain/direct-multiple-alias",
+    "ts/es5/plain/local-export-equals",
+    "ts/es5/maps/direct-alias",
+    "ts/es5/maps/direct-plain",
+    "ts/es5/maps/local-alias",
+    "ts/es5/maps/direct-pattern-alias",
+    "ts/es5/maps/default-reference",
+    "ts/es5/maps/direct-uninitialized",
+    "ts/es5/maps/direct-multiple-alias",
+    "ts/es5/maps/local-export-equals",
+    "js/es2015/plain/direct-alias",
+    "js/es2015/plain/direct-plain",
+    "js/es2015/plain/local-alias",
+    "js/es2015/plain/direct-pattern-alias",
+    "js/es2015/plain/default-reference",
+    "js/es2015/plain/direct-uninitialized",
+    "js/es2015/plain/direct-multiple-alias",
+    "js/es2015/plain/local-export-equals",
+    "js/es2015/maps/direct-alias",
+    "js/es2015/maps/direct-plain",
+    "js/es2015/maps/local-alias",
+    "js/es2015/maps/direct-pattern-alias",
+    "js/es2015/maps/default-reference",
+    "js/es2015/maps/direct-uninitialized",
+    "js/es2015/maps/direct-multiple-alias",
+    "js/es2015/maps/local-export-equals",
+    "ts/es2015/plain/direct-alias",
+    "ts/es2015/plain/direct-plain",
+    "ts/es2015/plain/local-alias",
+    "ts/es2015/plain/direct-pattern-alias",
+    "ts/es2015/plain/default-reference",
+    "ts/es2015/plain/direct-uninitialized",
+    "ts/es2015/plain/direct-multiple-alias",
+    "ts/es2015/plain/local-export-equals",
+    "ts/es2015/maps/direct-alias",
+    "ts/es2015/maps/direct-plain",
+    "ts/es2015/maps/local-alias",
+    "ts/es2015/maps/direct-pattern-alias",
+    "ts/es2015/maps/default-reference",
+    "ts/es2015/maps/direct-uninitialized",
+    "ts/es2015/maps/direct-multiple-alias",
+    "ts/es2015/maps/local-export-equals"
+  ],
+  "failed": [
+    "js/es5/plain/default-comments",
+    "js/es5/maps/default-comments",
+    "ts/es5/plain/default-comments",
+    "ts/es5/maps/default-comments",
+    "js/es2015/plain/default-comments",
+    "js/es2015/maps/default-comments",
+    "ts/es2015/plain/default-comments",
+    "ts/es2015/maps/default-comments"
+  ],
+  "run_seconds": 70.76,
+  "exit_code": 101,
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "416e5659a1fdefa553aaf3337291378f27cea4e686328727fda2209ad7b1e185"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "9564bdbc3d1bd7f80a3a8288e37d285dcef26cf4fb5354bfe837ac294566c0d8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-variable-publication.json",
+      "sha256": "99fb90b738886bf6f3867eb827f1156c3d70a5ec2d7119fc2e1ef1077777c425"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_system_variable_publication.rs",
+      "sha256": "643840deed77e4e836e289292a16fd240fdc83d398e4fe98fb6bcbcc6e1f2056"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-system-variable-publication.md",
+      "sha256": "1d4e49376284ed9c2e4fa2e93049c313c7e798bd207a77a1a391a0fabb3ee843"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-readiness.v1.json",
+      "sha256": "c8ba888b5ad061ecd30b694f61ed540d2c47f27bb12b1ce1609b968d211bf4ab"
+    },
+    {
+      "path": "ratchets/h2-8a-system-variable-publication-before.v1.json",
+      "sha256": "9bb0396bf7ced688e4f04a60f40fd8a19c446d553defcc472b6ad3b1d1946d7c"
+    },
+    {
+      "path": "scripts/check-system-publication-readiness.py",
+      "sha256": "1aca68960cace66328d60d4c66d76ed0b0ccbc365cf51093b8f63246994ce4ae"
+    },
+    {
+      "path": "scripts/observe-system-variable-publication.mjs",
+      "sha256": "a371893b4e718d7fca757b08be6fb41a82ffa49069049ac445fcbe579aa6eaf5"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-first-after.log",
+      "sha256": "3d1a35ba1b03ee4d7007667e25c1f276a73ce44018c3b3b5032fe4566198fa93"
+    },
+    {
+      "path": "target/h2-8a-system-publication-original-identity-review.md",
+      "sha256": "b466888880358a122da73d08ccbf7406c3e3995bc28430c4e2663968000e358a"
+    }
+  ]
+}

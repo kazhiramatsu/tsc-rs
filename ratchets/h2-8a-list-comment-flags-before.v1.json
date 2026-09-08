@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "status": "complete-printer-before",
+  "checkpoint": "84bf461c3381fac483dc1ad0dbdeba5bec0ab9f6",
+  "eligible": 48,
+  "exact_twice": [
+    "call-inline/None/retained",
+    "call-inline/None/removed",
+    "call-inline/NoLeadingComments/removed",
+    "call-inline/NoTrailingComments/retained",
+    "call-inline/NoTrailingComments/removed",
+    "call-inline/NoComments/removed",
+    "call-inline/NoNestedComments/retained",
+    "call-inline/NoNestedComments/removed",
+    "call-inline/ParentNoNestedComments/removed",
+    "call-newline/None/retained",
+    "call-newline/None/removed",
+    "call-newline/NoLeadingComments/retained",
+    "call-newline/NoLeadingComments/removed",
+    "call-newline/NoTrailingComments/retained",
+    "call-newline/NoTrailingComments/removed",
+    "call-newline/NoComments/retained",
+    "call-newline/NoComments/removed",
+    "call-newline/NoNestedComments/retained",
+    "call-newline/NoNestedComments/removed",
+    "call-newline/ParentNoNestedComments/removed",
+    "array-inline/None/removed",
+    "array-inline/NoLeadingComments/removed",
+    "array-inline/NoTrailingComments/retained",
+    "array-inline/NoTrailingComments/removed",
+    "array-inline/NoComments/removed",
+    "array-inline/NoNestedComments/removed",
+    "array-inline/ParentNoNestedComments/removed",
+    "array-newline/None/retained",
+    "array-newline/None/removed",
+    "array-newline/NoLeadingComments/retained",
+    "array-newline/NoLeadingComments/removed",
+    "array-newline/NoTrailingComments/retained",
+    "array-newline/NoTrailingComments/removed",
+    "array-newline/NoComments/retained",
+    "array-newline/NoComments/removed",
+    "array-newline/NoNestedComments/retained",
+    "array-newline/NoNestedComments/removed",
+    "array-newline/ParentNoNestedComments/removed"
+  ],
+  "failed_twice": [
+    "call-inline/NoLeadingComments/retained",
+    "call-inline/NoComments/retained",
+    "call-inline/ParentNoNestedComments/retained",
+    "call-newline/ParentNoNestedComments/retained",
+    "array-inline/None/retained",
+    "array-inline/NoLeadingComments/retained",
+    "array-inline/NoComments/retained",
+    "array-inline/NoNestedComments/retained",
+    "array-inline/ParentNoNestedComments/retained",
+    "array-newline/ParentNoNestedComments/retained"
+  ],
+  "seconds": 0.01,
+  "exit_code": 101,
+  "unqualified_package_error": "target/h2-8a-list-comment-flags-package-error.log",
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "9564bdbc3d1bd7f80a3a8288e37d285dcef26cf4fb5354bfe837ac294566c0d8"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "e71ba67e26cee608add53946c882f7546c8630c1ff120d6a48d1a51c3f2877dc"
+    },
+    {
+      "path": "crates/emitter/tests/list_comment_flags_contract.rs",
+      "sha256": "8712a3eae4782e0379903a5011e514c0e89b2f59948009064b95929ac6dbbea7"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/list-comment-flags.json",
+      "sha256": "53ae72fa61187561a0f00ff57d151b3e9678915a6c9a019f6c612b80703c27ae"
+    },
+    {
+      "path": "scripts/observe-list-comment-flags.mjs",
+      "sha256": "ec12b2ba030aa48e499718e3b706448c73c952b83c8306e03349c9cf0414a192"
+    },
+    {
+      "path": "target/h2-8a-list-comment-flags-before.log",
+      "sha256": "8664da8477153beb4b0b87b90fddeda4520c9cca9ddf6d4a7e6bfcf50ec00503"
+    },
+    {
+      "path": "target/h2-8a-list-comment-flags-package-error.log",
+      "sha256": "f49552a6b5661cd0e0000c2be32a0a24ea72185774da3d9b246b5dceb579887e"
+    },
+    {
+      "path": "target/h2-8a-list-comment-flags-first-build.log",
+      "sha256": "cd50e9ea36726ce9267a073b6056425e67a130891910258e79df1e94c3332f9a"
+    }
+  ]
+}
