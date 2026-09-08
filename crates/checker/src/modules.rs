@@ -1428,7 +1428,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// TS core kinds plus CommonJS/object-literal assignments and
     /// checked-JS bare/accessed require aliases.
-    fn get_target_of_alias_declaration(
+    pub(crate) fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
         dont_recursively_resolve: bool,

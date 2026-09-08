@@ -2098,7 +2098,7 @@ pub(crate) fn type_parameter_to_name(
 /// tsc-port: symbolToName @6.0.3
 /// tsc-hash: 8000600326491063f035e6aea718ffc812fadb6de27ef8661ac40f43f7f91d26
 /// tsc-span: _tsc.js:53315-53336
-fn symbol_to_name(
+pub(super) fn symbol_to_name(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,

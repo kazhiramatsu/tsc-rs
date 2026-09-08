@@ -105,3 +105,16 @@ fn original_javascript_imports_match_complete_commands() {
     );
     assert_eq!(exact.len(), 7);
 }
+
+#[test]
+fn original_local_alias_declarations_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 2);
+}

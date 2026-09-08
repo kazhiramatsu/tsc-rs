@@ -3546,7 +3546,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         };
         let Some(target) = self
             .checker
-            .get_immediate_aliased_symbol(symbol)
+            .get_target_of_alias_declaration(declaration, true)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
         else {
             return Ok(());
@@ -3556,13 +3556,18 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             return Ok(());
         }
         let target_data = self.checker.binder.symbol(target).clone();
-        let mut verbatim_target_name = self
-            .get_some_target_name_from_declarations(
-                &self.checker.binder.symbol(symbol).declarations,
-            )
-            .unwrap_or_else(|| {
-                tsc_binder::unescape_leading_underscores(&target_data.escaped_name).to_owned()
-            });
+        let declaration_name = self
+            .checker
+            .is_shorthand_ambient_module_symbol(target)
+            .then(|| {
+                self.get_some_target_name_from_declarations(
+                    &self.checker.binder.symbol(symbol).declarations,
+                )
+            })
+            .flatten();
+        let mut verbatim_target_name = declaration_name.unwrap_or_else(|| {
+            tsc_binder::unescape_leading_underscores(&target_data.escaped_name).to_owned()
+        });
         if verbatim_target_name == tsc_types::InternalSymbolName::EXPORT_EQUALS
             && self.checker.options.allow_synthetic_default_imports == Some(true)
         {
@@ -3867,11 +3872,21 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     specifier,
                 )?;
             }
-            SyntaxKind::ExportAssignment
-            | SyntaxKind::BinaryExpression
+            SyntaxKind::ExportAssignment => {
+                let _ = self.serialize_maybe_alias_assignment(symbol)?;
+            }
+            SyntaxKind::BinaryExpression
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression => {
-                let _ = self.serialize_maybe_alias_assignment(symbol)?;
+                if matches!(
+                    self.checker.binder.symbol(symbol).escaped_name.as_str(),
+                    tsc_types::InternalSymbolName::DEFAULT
+                        | tsc_types::InternalSymbolName::EXPORT_EQUALS
+                ) {
+                    let _ = self.serialize_maybe_alias_assignment(symbol)?;
+                } else {
+                    self.serialize_export_specifier(local_name, &target_name, None)?;
+                }
             }
             SyntaxKind::ShorthandPropertyAssignment => {
                 self.serialize_export_specifier(local_name, &target_name, None)?;
@@ -4075,21 +4090,14 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let is_default = name == tsc_types::InternalSymbolName::DEFAULT;
         let compatible = is_export_equals || is_default;
         let alias_declaration = self.checker.get_declaration_of_alias_symbol(symbol);
-        let target = if self
-            .checker
-            .symbol_flags(symbol)
-            .intersects(SymbolFlags::ALIAS)
-        {
-            self.checker
-                .get_immediate_aliased_symbol(symbol)
-                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
-        } else {
-            alias_declaration
-                .map(|declaration| self.alias_like_assignment_target(declaration))
-                .transpose()?
-                .flatten()
-        }
-        .filter(|&target| target != self.checker.unknown_symbol);
+        let target = alias_declaration
+            .map(|declaration| {
+                self.checker
+                    .get_target_of_alias_declaration(declaration, true)
+                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))
+            })
+            .transpose()?
+            .flatten();
         if let Some(target) = target.filter(|&target| {
             self.checker
                 .binder
@@ -4103,35 +4111,93 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     })
                 })
         }) {
-            self.include_private_symbol(target);
+            let expression = alias_declaration
+                .and_then(|declaration| self.alias_assignment_expression(declaration));
+            let first = expression
+                .filter(|&expression| self.checker.is_entity_name_expression(expression))
+                .and_then(|expression| self.first_non_module_exports_identifier(expression));
+            let referenced = first
+                .map(|first| {
+                    self.checker
+                        .resolve_entity_name_ex(
+                            first,
+                            SymbolFlags::ALL,
+                            true,
+                            self.enclosing_declaration,
+                            true,
+                        )
+                        .map_err(|abort| checker_abort_error(self.checker, self.context, abort))
+                })
+                .transpose()?
+                .flatten();
+            self.include_private_symbol(referenced.unwrap_or(target));
             let old_disable = self.context.tracker.disable_track_symbol;
             self.context.tracker.disable_track_symbol = true;
-            if compatible {
-                add_approximate_length(self.context, 10);
-                let expression = chains_symbol_to_expression(
-                    self.checker,
-                    self.arena,
-                    self.target,
-                    self.context,
-                    target,
-                    EmitSymbolMeaning::ALIAS_RESOLVE,
-                )?;
-                let assignment = create_export_assignment(
-                    self.arena,
-                    self.target,
-                    is_export_equals,
-                    expression,
-                )?;
-                self.results.push(assignment);
-            } else {
-                let target_symbol_name = tsc_binder::unescape_leading_underscores(
-                    &self.checker.binder.symbol(target).escaped_name,
-                )
-                .to_owned();
-                let target_name = self.get_internal_symbol_name(target, &target_symbol_name);
-                self.serialize_export_specifier(&name, &target_name, None)?;
-            }
+            let result = (|| -> BuildResult<()> {
+                if compatible {
+                    add_approximate_length(self.context, 10);
+                    let expression = chains_symbol_to_expression(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        self.context,
+                        target,
+                        EmitSymbolMeaning(SymbolFlags::ALL.bits() as u32),
+                    )?;
+                    let assignment = create_export_assignment(
+                        self.arena,
+                        self.target,
+                        is_export_equals,
+                        expression,
+                    )?;
+                    self.results.push(assignment);
+                } else if let Some(first) = first.filter(|&first| Some(first) == expression) {
+                    let target_name = self
+                        .checker
+                        .identifier_text_of(first)
+                        .expect("first entity-name identifier has text")
+                        .to_owned();
+                    self.serialize_export_specifier(&name, &target_name, None)?;
+                } else if expression.is_some_and(|expression| {
+                    self.checker.kind_of(expression) == SyntaxKind::ClassExpression
+                }) {
+                    let target_symbol_name = tsc_binder::unescape_leading_underscores(
+                        &self.checker.binder.symbol(target).escaped_name,
+                    )
+                    .to_owned();
+                    let target_name = self.get_internal_symbol_name(target, &target_symbol_name);
+                    self.serialize_export_specifier(&name, &target_name, None)?;
+                } else {
+                    let variable_name = self.get_unused_name(&name, Some(symbol));
+                    add_approximate_length(self.context, variable_name.encode_utf16().count() + 10);
+                    let identifier = create_identifier(self.arena, self.target, &variable_name)?;
+                    let reference = super::chains::symbol_to_name(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        target,
+                        self.context,
+                        EmitSymbolMeaning(SymbolFlags::ALL.bits() as u32),
+                        false,
+                    )?;
+                    let import = self
+                        .arena
+                        .factory()
+                        .create_import_equals_declaration(
+                            self.target,
+                            None,
+                            false,
+                            identifier,
+                            reference,
+                        )
+                        .map_err(factory_error)?;
+                    self.add_result(import, ModifierFlags::NONE)?;
+                    self.serialize_export_specifier(&name, &variable_name, None)?;
+                }
+                Ok(())
+            })();
             self.context.tracker.disable_track_symbol = old_disable;
+            result?;
             return Ok(true);
         }
 
@@ -4359,43 +4425,47 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         Ok(true)
     }
 
-    /// `getTargetOfAliasDeclaration(..., true)` for the checked-JS
-    /// property-assignment shapes that do not carry `SymbolFlags::Alias`.
-    fn alias_like_assignment_target(
-        &mut self,
-        declaration: NodeId,
-    ) -> BuildResult<Option<SymbolId>> {
-        let expression = match self.checker.data_of(declaration) {
+    /// tsc-port: getExportAssignmentExpression/getPropertyAssignmentAliasLikeExpression @6.0.3
+    /// tsc-hash: 555b5894a20546f1a771c2cde2c6963f2cc9e8961826b41bc643f2dc91ecd6f4
+    /// tsc-span: _tsc.js:15736-15741
+    fn alias_assignment_expression(&self, declaration: NodeId) -> Option<NodeId> {
+        match self.checker.data_of(declaration) {
+            NodeData::ExportAssignment(data) => data.expression,
             NodeData::BinaryExpression(data) => data.right,
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => self
-                .checker
-                .parent_of(declaration)
-                .and_then(|parent| match self.checker.data_of(parent) {
-                    NodeData::BinaryExpression(data) if data.left == Some(declaration) => {
-                        data.right
-                    }
-                    _ => None,
-                }),
-            NodeData::PropertyAssignment(data) => data.initializer,
             NodeData::ShorthandPropertyAssignment(data) => data.name,
-            _ => None,
-        };
-        let Some(expression) = expression else {
-            return Ok(None);
-        };
-        if matches!(
-            self.checker.kind_of(expression),
-            SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression
-        ) {
-            return self
-                .checker
-                .get_symbol_of_declaration(expression)
-                .map(Some)
-                .map_err(|abort| checker_abort_error(self.checker, self.context, abort));
+            NodeData::PropertyAssignment(data) => data.initializer,
+            _ => self.checker.parent_of(declaration).and_then(|parent| {
+                match self.checker.data_of(parent) {
+                    NodeData::BinaryExpression(data) => data.right,
+                    _ => None,
+                }
+            }),
         }
-        self.checker
-            .get_resolved_symbol(expression)
-            .map_err(|abort| checker_abort_error(self.checker, self.context, abort))
+    }
+
+    /// tsc-port: getFirstNonModuleExportsIdentifier @6.0.3
+    /// tsc-hash: fd0ad02c73705d11e5747df7e983ccdf1830a844a7e01de093b64c3b98eca502
+    /// tsc-span: _tsc.js:85964-85982
+    fn first_non_module_exports_identifier(&self, mut expression: NodeId) -> Option<NodeId> {
+        loop {
+            match self.checker.data_of(expression) {
+                NodeData::Identifier(_) => return Some(expression),
+                NodeData::QualifiedName(data) => expression = data.left?,
+                NodeData::PropertyAccessExpression(data) => {
+                    let receiver = data.expression?;
+                    let name = data.name?;
+                    if tsc_binder::assignment::is_module_exports_access_expression(
+                        self.checker.binder.source_of_node(receiver),
+                        receiver,
+                    ) && self.checker.kind_of(name) != SyntaxKind::PrivateIdentifier
+                    {
+                        return Some(name);
+                    }
+                    expression = receiver;
+                }
+                _ => return None,
+            }
+        }
     }
 
     fn property_in_base_type(
