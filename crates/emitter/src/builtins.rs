@@ -2806,6 +2806,34 @@ fn create_module_export_name_literal(
     Ok(literal)
 }
 
+/// The source of a hoisted publication also selects getLocalName versus
+/// getDeclarationName for its value. Keep direct-first dedup provenance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HoistedExportOrigin {
+    DirectDeclaration,
+    ExplicitSpecifier,
+}
+
+#[derive(Clone, Debug)]
+struct HoistedDeclarationExport {
+    name: ModuleExportName,
+    origin: HoistedExportOrigin,
+}
+
+/// A module-allocated anonymous name has no parsed resolver identity.
+#[derive(Clone, Debug)]
+enum HoistedDeclarationName {
+    Source(TransformNode),
+    Allocated(Box<str>),
+}
+
+#[derive(Clone, Debug)]
+struct HoistedDeclarationExports {
+    declaration: TransformNode,
+    local: HoistedDeclarationName,
+    publications: Vec<HoistedDeclarationExport>,
+}
+
 #[derive(Clone, Debug)]
 struct ImportReExportPlan {
     exported_name: ModuleExportName,
@@ -2963,7 +2991,7 @@ struct CommonJsModuleInfo {
     exported_bindings: BTreeMap<NodeId, Vec<ModuleExportName>>,
     export_specifier_locations: BTreeMap<(Box<str>, Box<str>), NodeId>,
     exported_names: Vec<ModuleExportName>,
-    hoisted_function_exports: Vec<(ModuleExportName, Box<str>, TransformNode)>,
+    hoisted_function_exports: Vec<HoistedDeclarationExports>,
     direct_exported_variable_names: BTreeSet<Box<str>>,
 }
 
@@ -2977,30 +3005,37 @@ impl CommonJsModuleInfo {
         self.export_equals.is_none()
     }
 
-    /// Typed publication plan for tsc's `appendExportsOfHoistedDeclaration`.
-    /// Direct `export` modifiers are declaration behavior and therefore do
-    /// not inherit collector-level export-name uniqueness. Explicit export
-    /// specifiers remain collection data and follow the direct publication.
+    /// Preserve publication origin before direct-first deduplication, and
+    /// retain the declaration name separately from the exported spelling.
+    /// tsc-port: appendExportsOfHoistedDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111722-111742
+    /// tsc-hash: bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7
+    /// tsc-port: appendExportsOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111743-111762
+    /// tsc-hash: b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2
     fn hoisted_declaration_exports(
         &self,
         arena: &TransformArena,
         source: TransformSourceId,
+        declaration: TransformNode,
         modifiers: Option<NodeArrayId>,
         name: Option<NodeId>,
         local: &str,
-    ) -> Result<Vec<ModuleExportName>, TransformError> {
+    ) -> Result<Option<HoistedDeclarationExports>, TransformError> {
         if !self.appends_declaration_exports() {
-            return Ok(Vec::new());
+            return Ok(None);
         }
-        let mut exports = Vec::<ModuleExportName>::new();
+        let mut publications = Vec::<HoistedDeclarationExport>::new();
         if has_modifier(arena, source, modifiers, SyntaxKind::ExportKeyword)? {
-            exports.push(
-                if has_modifier(arena, source, modifiers, SyntaxKind::DefaultKeyword)? {
-                    "default".into()
-                } else {
-                    ModuleExportName::declaration_name(arena, source, name, local)?
-                },
-            );
+            let name = if has_modifier(arena, source, modifiers, SyntaxKind::DefaultKeyword)? {
+                "default".into()
+            } else {
+                ModuleExportName::declaration_name(arena, source, name, local)?
+            };
+            publications.push(HoistedDeclarationExport {
+                name,
+                origin: HoistedExportOrigin::DirectDeclaration,
+            });
         }
         for export in self
             .export_specifiers_by_local
@@ -3008,14 +3043,41 @@ impl CommonJsModuleInfo {
             .cloned()
             .unwrap_or_default()
         {
-            if !exports
+            if !publications
                 .iter()
-                .any(|existing| existing.as_ref() == export.as_ref())
+                .any(|existing| existing.name.as_ref() == export.as_ref())
             {
-                exports.push(export);
+                publications.push(HoistedDeclarationExport {
+                    name: export,
+                    origin: HoistedExportOrigin::ExplicitSpecifier,
+                });
             }
         }
-        Ok(exports)
+        if publications.is_empty() {
+            return Ok(None);
+        }
+        let source_name = name
+            .and_then(|name| arena.node_ref(source, name))
+            .filter(|name| {
+                arena
+                    .node(*name)
+                    .is_ok_and(|node| node.kind == SyntaxKind::Identifier)
+                    && arena
+                        .metadata(*name)
+                        .and_then(crate::EmitMetadata::generated_binding_id)
+                        .is_none()
+            });
+        let local = match source_name {
+            Some(name) if arena.is_parsed_node(arena.get_original_node(name))? => {
+                HoistedDeclarationName::Source(name)
+            }
+            _ => HoistedDeclarationName::Allocated(local.into()),
+        };
+        Ok(Some(HoistedDeclarationExports {
+            declaration,
+            local,
+            publications,
+        }))
     }
 
     fn collect(
@@ -3689,11 +3751,15 @@ impl CommonJsModuleInfo {
                 continue;
             };
             let original_declaration = arena.get_original_node(statement);
-            for export in
-                info.hoisted_declaration_exports(arena, source, data.modifiers, data.name, &local)?
-            {
-                info.hoisted_function_exports
-                    .push((export, local.clone(), original_declaration));
+            if let Some(exports) = info.hoisted_declaration_exports(
+                arena,
+                source,
+                original_declaration,
+                data.modifiers,
+                data.name,
+                &local,
+            )? {
+                info.hoisted_function_exports.push(exports);
             }
         }
         Ok(info)
@@ -4705,13 +4771,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 output.push(self.create_expression_statement(expression)?);
             }
             if self.info.appends_declaration_exports() {
-                for (export, local, declaration) in hoisted_function_exports {
-                    let target = self.create_export_access_from_module_name(&export)?;
-                    let value = self.create_identifier(&local)?;
-                    let assignment = self.create_assignment(target, value)?;
-                    let statement = self.create_expression_statement(assignment)?;
-                    self.set_source_map_range_from(statement, declaration)?;
-                    output.push(statement);
+                for exports in hoisted_function_exports {
+                    output.extend(self.materialize_hoisted_declaration_exports(exports)?);
                 }
             }
 
@@ -5237,6 +5298,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             NodeData::ClassDeclaration(mut data) => {
                 let original_declaration = self.context.arena().get_original_node(statement);
+                let source_name = data.name;
                 if data.name.is_none() {
                     let key = self.context.arena().get_original_node(statement).node();
                     if let Some(name) = self
@@ -5258,25 +5320,19 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         self.info.hoisted_declaration_exports(
                             self.context.arena(),
                             self.source,
+                            original_declaration,
                             data.modifiers,
-                            data.name,
+                            source_name,
                             name,
                         )
                     })
                     .transpose()?
-                    .unwrap_or_default();
+                    .flatten();
                 data.modifiers = self.remove_export_modifiers(data.modifiers)?;
                 let class = self.update_generic(statement, NodeData::ClassDeclaration(data))?;
                 let mut statements = vec![class];
-                if let Some(name) = name {
-                    for export in exported {
-                        let target = self.create_export_access_from_module_name(&export)?;
-                        let value = self.create_identifier(&name)?;
-                        let assignment = self.create_assignment(target, value)?;
-                        let publication = self.create_expression_statement(assignment)?;
-                        self.set_source_map_range_from(publication, original_declaration)?;
-                        statements.push(publication);
-                    }
+                if let Some(exports) = exported {
+                    statements.extend(self.materialize_hoisted_declaration_exports(exports)?);
                 }
                 Ok(statements)
             }
@@ -5497,7 +5553,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         plan: ImportReExportPlan,
     ) -> Result<TransformNode, TransformError> {
-        let value = self.create_import_publication_reference(plan.declaration, plan.local_name)?;
+        let value =
+            self.create_declaration_publication_reference(plan.declaration, plan.local_name)?;
         let statement = if plan.live_binding {
             self.create_live_export_statement(&plan.exported_name, value)?
         } else {
@@ -5514,6 +5571,70 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(statement)
     }
 
+    /// tsc-port: createExportStatement @6.0.3
+    /// tsc-span: _tsc.js:111791-111804
+    /// tsc-hash: d533ed2215809bab955e6b206a545e71c1a8490754d2bb396fec41aca15000cc
+    /// tsc-port: appendExportsOfHoistedDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111722-111742
+    /// tsc-hash: bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7
+    fn materialize_hoisted_declaration_exports(
+        &mut self,
+        exports: HoistedDeclarationExports,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut statements = Vec::with_capacity(exports.publications.len());
+        for publication in exports.publications {
+            let target = self.create_export_access_from_module_name(&publication.name)?;
+            let value = match &exports.local {
+                HoistedDeclarationName::Source(name) => match publication.origin {
+                    HoistedExportOrigin::DirectDeclaration => {
+                        self.clone_declaration_publication_name(*name, EmitFlags::LOCAL_NAME)?
+                    }
+                    HoistedExportOrigin::ExplicitSpecifier => {
+                        self.create_declaration_publication_reference(exports.declaration, *name)?
+                    }
+                },
+                HoistedDeclarationName::Allocated(name) => self.create_identifier(name)?,
+            };
+            let assignment = self.create_assignment(target, value)?;
+            let statement = self.create_expression_statement(assignment)?;
+            match publication.origin {
+                HoistedExportOrigin::DirectDeclaration => {
+                    self.context
+                        .factory()?
+                        .set_text_range(statement, exports.declaration)?;
+                    let metadata = self.context.arena_mut()?.metadata_mut(statement);
+                    metadata.add_flags(EmitFlags::NO_COMMENTS);
+                    metadata.set_starts_on_new_line(true);
+                }
+                HoistedExportOrigin::ExplicitSpecifier => {
+                    self.set_explicit_export_statement_location(statement, &publication.name)?;
+                }
+            }
+            statements.push(statement);
+        }
+        Ok(statements)
+    }
+
+    /// tsc-port: getName @6.0.3
+    /// tsc-span: _tsc.js:24788-24799
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-port: getLocalName @6.0.3
+    /// tsc-span: _tsc.js:24803-24805
+    /// tsc-hash: db85ef71236480d7de1d2e131b01d6f8fed272ef41d0f5297ce7fb3485ee7979
+    fn clone_declaration_publication_name(
+        &mut self,
+        original: TransformNode,
+        additional_flags: EmitFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.context.factory()?.clone_node(original)?;
+        self.context.factory()?.set_text_range(name, original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS | additional_flags);
+        Ok(name)
+    }
+
     /// tsc-port: getName @6.0.3
     /// tsc-span: _tsc.js:24788-24799
     /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
@@ -5523,7 +5644,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// tsc-port: substituteExpressionIdentifier @6.0.3
     /// tsc-span: _tsc.js:111946-111989
     /// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
-    fn create_import_publication_reference(
+    fn create_declaration_publication_reference(
         &mut self,
         declaration: TransformNode,
         local_name: TransformNode,
@@ -5537,13 +5658,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .and_then(crate::EmitMetadata::generated_binding_id)
                 .is_none();
         let name = if ordinary_identifier {
-            let name = self.context.factory()?.clone_node(local_name)?;
-            self.context.factory()?.set_text_range(name, local_name)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(name)
-                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
-            name
+            self.clone_declaration_publication_name(local_name, EmitFlags::NONE)?
         } else {
             self.context.factory()?.get_generated_name_for_node(
                 declaration,

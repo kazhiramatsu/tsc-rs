@@ -180,3 +180,6 @@ mod h2_8a_jsdoc_parentheses_guard;
 mod h2_8a_commonjs_class_instance;
 #[path = "integration/h2_8a_static_initializer_map_ranges.rs"]
 mod h2_8a_static_initializer_map_ranges;
+
+#[path = "integration/h2_8a_hoisted_declaration_export_ranges.rs"]
+mod h2_8a_hoisted_declaration_export_ranges;

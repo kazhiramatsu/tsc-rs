@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "status": "compile-failed-zero-native-commands",
+  "base": "2f7f297c13046fb569bbb199b39393b4a235a3e5",
+  "exit_code": 101,
+  "completed_commands": 0,
+  "cause": "Missed three System consumers of shared hoisted declaration export plan: two method calls and export-star function-name iteration. Compiler E0061/E0308 before test execution.",
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "48260749efda20f5b006ae1e58eea0f232b462b26f40bc00a39f2879b5c81201"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/hoisted-declaration-export-ranges.json",
+      "sha256": "0f13d2838627a8201d3aba4aa320194f12ee752fc078d5367bf6629a2a0c5fca"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_hoisted_declaration_export_ranges.rs",
+      "sha256": "dcd50df5dc6dc4f0e0d92848dfb01e0519a55e5c99ac131f2b456dfa5626a1f9"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-hoisted-declaration-export-ranges.md",
+      "sha256": "78e217369c1a6a0b170fb8b1836f258129c490e7080a3794a7366ea1d5852fc1"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-before.v1.json",
+      "sha256": "f43c8e77c912460ed958c66f1797a3627a074b6a806915807614bd13b271dcc7"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-readiness.v1.json",
+      "sha256": "e0918bb3fb454bb4302f9c5688c1e6000fd1360021fa3906bf65b236fbbfe0a9"
+    },
+    {
+      "path": "scripts/check-hoisted-declaration-export-ranges-readiness.py",
+      "sha256": "12d562a3c59290086e8db60df7464f2f4a726fc488a341a04df67d1159314f3e"
+    },
+    {
+      "path": "scripts/observe-hoisted-declaration-export-ranges.mjs",
+      "sha256": "63fc03d202e8743e0cb516e71e90ddaa8216e0d7d5c68f0be8a2f9472bdf7baf"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-after-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-after.log",
+      "sha256": "166dac26a1ec0ba2f7706acb33c877044de0224e6dd3f1199c3486b65e2afdc9"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-hoisted-export-compile-failure-epc3osbn"
+}

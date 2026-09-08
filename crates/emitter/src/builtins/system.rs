@@ -929,12 +929,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.info.common.hoisted_declaration_exports(
                         self.context.arena(),
                         self.source,
+                        self.context.arena().get_original_node(original),
                         data.modifiers,
                         data.name,
                         local,
                     )
                 })
                 .transpose()?
+                .flatten()
+                .map(|exports| exports.publications)
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -945,7 +948,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if let Some(local) = local {
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call_with_name(&export, value)?;
+                let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         }
@@ -2056,12 +2059,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.info.common.hoisted_declaration_exports(
                         self.context.arena(),
                         self.source,
+                        self.context.arena().get_original_node(original),
                         data.modifiers,
                         data.name,
                         local,
                     )
                 })
                 .transpose()?
+                .flatten()
+                .map(|exports| exports.publications)
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -2091,7 +2097,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             output.push(statement);
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call_with_name(&export, value)?;
+                let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         } else {
@@ -2533,8 +2539,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn create_export_star_prelude(&mut self) -> Result<Vec<TransformNode>, TransformError> {
         let mut output = Vec::new();
         let mut exported_names = self.info.non_function_exported_names.clone();
-        for (export, _, _) in self.info.common.hoisted_function_exports.clone() {
-            push_unique(&mut exported_names, &export);
+        for exports in &self.info.common.hoisted_function_exports {
+            for publication in &exports.publications {
+                push_unique(&mut exported_names, &publication.name);
+            }
         }
         let local_names = if exported_names.is_empty() {
             None
