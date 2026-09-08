@@ -165,13 +165,8 @@ fn validate_emit_options(
     if !matches!(options.jsx, None | Some(1..=5)) {
         return unsupported("jsx");
     }
-    for (present, name) in [
-        (options.root_dir.is_some(), "rootDir"),
-        (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
-    ] {
-        if present {
-            return unsupported(name);
-        }
+    if options.ts_build_info_file.is_some() {
+        return unsupported("tsBuildInfoFile");
     }
     Ok(())
 }

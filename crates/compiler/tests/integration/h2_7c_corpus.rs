@@ -149,7 +149,12 @@ pub(super) fn assert_corpus(artifact: &Value) {
                     limits,
                 )
                 .unwrap();
-                if let Some(option) = case["rust_expected_unsupported_option"].as_str() {
+                // H2.8a replays the original rootDir tuple exactly. The
+                // historical qualification's membership remains unchanged.
+                if let Some(option) = case["rust_expected_unsupported_option"]
+                    .as_str()
+                    .filter(|option| *option != "rootDir")
+                {
                     let mut sink = tsc_compiler::MemoryOutputSink::new();
                     let error = tsc_compiler::ProgramSession::new(prepared)
                         .emit(&mut sink)

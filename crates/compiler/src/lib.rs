@@ -382,43 +382,21 @@ fn common_emit_source_directory(
     prepared: &PreparedProgram,
     source_files: &[SourceFileId],
 ) -> PathBuf {
-    if let Some(root_dir) = prepared.compiler_options().root_dir.as_deref() {
-        let root = Path::new(root_dir);
-        return if root.is_absolute() {
-            root.to_path_buf()
-        } else {
-            prepared.current_directory().display().join(root)
-        };
-    }
-
-    let mut directories = source_files.iter().filter_map(|id| {
-        let source = prepared.source_file(*id)?;
-        (source.may_be_emitted() && !is_declaration_file_name(source.path().display()))
-            .then(|| source.path().display().parent().map(Path::to_path_buf))
-            .flatten()
-    });
-    let Some(mut common) = directories.next() else {
-        return prepared.current_directory().display().to_path_buf();
-    };
-    let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
-    for directory in directories {
-        while !path_starts_with(&directory, &common, case_sensitive) {
-            if !common.pop() {
-                return prepared.current_directory().display().to_path_buf();
-            }
-        }
-    }
-    common
-}
-
-fn path_starts_with(path: &Path, prefix: &Path, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        path.starts_with(prefix)
-    } else {
-        path.to_string_lossy()
-            .to_lowercase()
-            .starts_with(&prefix.to_string_lossy().to_lowercase())
-    }
+    let sources = source_files
+        .iter()
+        .filter_map(|id| prepared.source_file(*id))
+        .map(|source| source.path().display())
+        .collect::<Vec<_>>();
+    tsc_program::common_source_directory(
+        prepared.compiler_options(),
+        prepared
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display()),
+        &sources,
+        prepared.current_directory().display(),
+        prepared.path_context().use_case_sensitive_file_names(),
+    )
 }
 
 impl PreparedModuleProvider<'_> {

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A3",
+  "base": "56e666af51a12ddd3339bf08b17680148d2eeeba",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-filesystem.md",
+      "sha256": "6aaad4d1bea486352d1c4562e001e8f441cfd8cff3681b55e661a7df0fdd0f1a"
+    },
+    {
+      "path": "scripts/observe-output-filesystem.mjs",
+      "sha256": "40d54e8a9128341d9dfe59a7989601cf437c30ec3a1817145afcba5877d664cf"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/output-filesystem.json",
+      "sha256": "5bb3d84a789270759caad1a2e92ba547ae040d409ccdc8dda65ae334c044c904"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "crates/program/src/output_directories.rs",
+      "sha256": "8e7ef589c55ab820d99909ea55c5282c953ead7331a078741c0e5868ebf52650"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/sink.rs",
+      "sha256": "31c61d2ce54c744c763ed4a67c9cb835624cf99cdc6d4050405ef38f374fddaf"
+    },
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "sha256": "66cca5aa06ba119e3ac73488cd56fc75aa66db9e7ba5d0827da9e8b90d82323a"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "writeFileEnsuringDirectories",
+      "start": 16663,
+      "end": 16670,
+      "step": "A3-1",
+      "sha256": "7a161f0c5aec317eb20a1f26977e5929c56ec7608d9f621e19eb1235322f9cd2",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    },
+    {
+      "owner": "ensureDirectoriesExist",
+      "start": 16656,
+      "end": 16662,
+      "step": "A3-1",
+      "sha256": "6d2d75310879fb4ad132c16f8817a30d754187c1c28691182d5eafb57f3aab28",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    },
+    {
+      "owner": "normalizePath and simpleNormalizePath",
+      "start": 5568,
+      "end": 5592,
+      "step": "A3-2",
+      "sha256": "29248b60d28d3e20a53c9ff93befb7e99c618ea30eba9d9d6dead935733b8a67",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    },
+    {
+      "owner": "getDirectoryPath and getRootLength",
+      "start": 5387,
+      "end": 5397,
+      "step": "A3-2",
+      "sha256": "a4b071fc290aa0429c3aecd0a35bffed56174e37fa513fde53cb49dd85305029",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    },
+    {
+      "owner": "emitFilesAndReportErrors status",
+      "start": 129452,
+      "end": 129459,
+      "step": "A3-3",
+      "sha256": "ffd97acd664b2228d17e00413e1c5b7668923b92ebc72b7b4ca32f1e4bef2759",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    },
+    {
+      "owner": "getNormalizedAbsolutePath",
+      "start": 5493,
+      "end": 5596,
+      "step": "A3-3",
+      "sha256": "ae029f68182ab514c2f381af0cbb13202b65da060a2c0785116e6fca190724d4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_filesystem.rs"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-OUTPUT-SCRIPT",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PLAN-SCRIPT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-OUTPUT-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    }
+  ]
+}

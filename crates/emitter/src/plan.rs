@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_program::SourceFileId;
 
-use crate::host::normalize_lexical_path;
 use crate::{EmitContractViolation, EmitFailure, EmitHost, EmitSource, UnsupportedEmitFeature};
 
 #[cfg(test)]
@@ -366,16 +365,14 @@ pub fn source_file_may_be_emitted(source: EmitSource<'_>) -> bool {
 /// deliberately does not apply outFile's external-module selection filter.
 #[doc(hidden)]
 pub fn source_file_may_be_emitted_for_host(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
-    if !source_file_may_be_emitted(source) || no_emit_for_js_source(source, host) {
-        return false;
-    }
-    !source
-        .path()
-        .to_string_lossy()
-        .to_ascii_lowercase()
-        .ends_with(".json")
-        || host.compiler_options().out_dir.is_some()
-        || active_out_file(host).is_some()
+    tsc_program::source_file_may_be_emitted_for_options(
+        source.path(),
+        source.may_be_emitted(),
+        host.compiler_options(),
+        host.config_file_path(),
+        host.current_directory(),
+        host.use_case_sensitive_file_names(),
+    )
 }
 
 fn no_emit_for_js_source(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
@@ -758,11 +755,11 @@ fn verify_emit_file_path(
 
 fn canonical_case_key(host: &dyn EmitHost, path: &Path) -> PathBuf {
     let canonical = host.canonical_output_path(path);
-    if host.use_case_sensitive_file_names() {
-        canonical
-    } else {
-        PathBuf::from(canonical.to_string_lossy().to_lowercase())
-    }
+    tsc_program::canonical_emit_path(
+        &canonical,
+        host.current_directory(),
+        host.use_case_sensitive_file_names(),
+    )
 }
 
 fn source_file_path_in_new_dir(
@@ -770,33 +767,21 @@ fn source_file_path_in_new_dir(
     host: &dyn EmitHost,
     output_directory: &str,
 ) -> PathBuf {
-    // getSourceFilePathInNewDirWorker (_tsc.js:16638-16643) retains the
-    // requested directory in callback paths; blocked-path comparison is canonical.
-    let output_directory = Path::new(output_directory);
-    let source = absolute_display_path(host, source_file);
-    let common = absolute_display_path(host, host.common_source_directory());
-    let canonical_source = host.canonical_output_path(&source);
-    let canonical_common = host.canonical_output_path(&common);
-    let relative = canonical_source
-        .starts_with(&canonical_common)
-        .then(|| {
-            source
-                .components()
-                .skip(common.components().count())
-                .collect::<PathBuf>()
-        })
-        .filter(|path| !path.as_os_str().is_empty())
-        .unwrap_or(source);
-    output_directory.join(relative)
-}
-
-fn absolute_display_path(host: &dyn EmitHost, path: &Path) -> PathBuf {
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
+    // EmitHost exposes a native directory Path, whose trailing separator is
+    // optional. The tsc string worker requires the common-directory separator.
+    let common = host.common_source_directory().to_string_lossy();
+    let common = if !common.is_empty() && !common.ends_with('/') {
+        std::borrow::Cow::Owned(format!("{common}/"))
     } else {
-        host.current_directory().join(path)
+        common
     };
-    normalize_lexical_path(&absolute)
+    tsc_program::source_file_path_in_new_directory(
+        source_file,
+        output_directory,
+        Path::new(common.as_ref()),
+        host.current_directory(),
+        host.use_case_sensitive_file_names(),
+    )
 }
 
 fn is_declaration_file_name(path: &Path) -> bool {

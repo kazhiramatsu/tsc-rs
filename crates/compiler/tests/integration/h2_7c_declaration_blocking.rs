@@ -77,6 +77,7 @@ pub(super) fn assert_cases_with_reporting(artifact: &Value, command_reporting: b
                     "declaration" => options.declaration = value.as_bool(),
                     "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
                     "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+                    "outFile" => options.out_file = value.as_str().map(str::to_owned),
                     "rootDir" => options.root_dir = value.as_str().map(str::to_owned),
                     "allowJs" => options.allow_js = value.as_bool().unwrap(),
                     "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),

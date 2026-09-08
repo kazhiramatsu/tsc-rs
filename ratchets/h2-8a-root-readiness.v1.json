@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A2",
+  "base": "56e666af51a12ddd3339bf08b17680148d2eeeba",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-roots.md",
+      "sha256": "49a8e104c40c873371fdb4f1de49a240833458b5cf1ac9eb159bd2ce9c699cf2"
+    },
+    {
+      "path": "scripts/observe-output-roots.mjs",
+      "sha256": "15b4038146f885be2c4a629bbf1b2ad7d403890c37d1938ff89562cd9de15b04"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/output-roots.json",
+      "sha256": "b1814a55d8e8f08eb564eef3fd97217354ab7deac22d5c0e66b7abb7db616e89"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "crates/program/src/module_resolution.rs",
+      "sha256": "48c52eca9efd9e55bd45973763ee3c247362f038c99b0b2006265c21d7c456ac"
+    },
+    {
+      "path": "crates/host/src/lib.rs",
+      "sha256": "2bd253b0e507a392bfcbbbf73a997608b75ac53c2380e1073c0379e7a2ba5b3c"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "sha256": "587dbbd4f3d9ef07e24457f1cead7bd3774786bf4cacc0dd2f44a685cf4953de"
+    },
+    {
+      "path": "crates/diagnostics/src/text.rs",
+      "sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/program/src/lib.rs",
+      "sha256": "25949133104287f3115dfae13753ff7ec70ecf8008b56bc9c7d1f86d488b69f7"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "sha256": "531f3f614c5bfb26b0a58d04cecc412231e3065ff22e9037134b2a4ceccb5824"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "ce7fd707a69584cb468172015d9e7ebe2392154ced6cbea1fdea5b147e40cac9"
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256": "13e4bbdd0fc108029bf9db3d4c18cebad76dcd226d370b4899eccc17dc292ee1"
+    },
+    {
+      "path": "crates/emitter/src/host.rs",
+      "sha256": "59de52ca290ad2190615284c92827bc43ef48c9a52cb2f98af90714f648c0a24"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "f46407eda9fd6cedc10278624adf893798110273a1a92fae5c8dc98ed42f17f1"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getCommonSourceDirectory",
+      "start": 116460,
+      "end": 116475,
+      "sha256": "6213cf3653b969239fea4dd1852031f25b46c5ed630b923fe3a7ca0b55d9c930",
+      "step": "A2-1",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "computeCommonSourceDirectoryOfFilenames",
+      "start": 121909,
+      "end": 121939,
+      "sha256": "900713690ffd0a6a34f2b76b227d6c7b71a8c2f505b247c142dd946bfb31196b",
+      "step": "A2-1",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "sourceFileMayBeEmitted",
+      "start": 16617,
+      "end": 16634,
+      "sha256": "333fcd249758d38eb80146910286d7cabdbbf6f1ea0787f8f1a2c85e9535ecb2",
+      "step": "A2-2",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "getSourceFilePathInNewDirWorker",
+      "start": 16638,
+      "end": 16643,
+      "sha256": "1c92b6269af48b15f457c7c5e64b620cc19f367cb7e0a38b07b74b05b4940203",
+      "step": "A2-2",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "getCommonSourceDirectory2",
+      "start": 123142,
+      "end": 123157,
+      "sha256": "2094a35b2b43bd321bdfa976fe2f35efc413dd0ef5735be500e21bc6bbbc9f06",
+      "step": "A2-3",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "checkSourceFilesBelongToPath",
+      "start": 124639,
+      "end": 124657,
+      "sha256": "ce80660462a7406eafca61b870f95cc1d860753bbf6a7f7b4c97a857a0fec137",
+      "step": "A2-3",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "createDiagnosticExplainingFile",
+      "start": 125851,
+      "end": 125932,
+      "sha256": "a52da4c2aafdb0c939e2bf00de5064eb03340c4858ad40378af65b5b6c9de41d",
+      "step": "A2-4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "fileIncludeReasonToRelatedInformation",
+      "start": 125939,
+      "end": 125987,
+      "sha256": "05bbc4f45bccdd6c1d9c8843019e1bb8a1678c4ee524168e64d7bbf94f4e3b02",
+      "step": "A2-4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "createDiagnosticForOption",
+      "start": 125368,
+      "end": 125386,
+      "sha256": "24da25470bdd02c4cde5520b78ea191837823bf1df686438144a8106edfd5f53",
+      "step": "A2-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "verifyCompilerOptions",
+      "start": 124907,
+      "end": 124943,
+      "sha256": "37d75cd1533127623cddc13e96bd9dec83595c91e1c2cc7166c7e2b27bfeaeeb",
+      "step": "A2-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "toFileNameLowerCase",
+      "start": 874,
+      "end": 876,
+      "sha256": "65dcaf0c3334d707bf26b65cb7670523b964dc52d8f70cde69526e8af1d66186",
+      "step": "A2-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "getNormalizedAbsolutePath",
+      "start": 5493,
+      "end": 5596,
+      "sha256": "ae029f68182ab514c2f381af0cbb13202b65da060a2c0785116e6fca190724d4",
+      "step": "A2-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "fileIncludeReasonToDiagnostics",
+      "start": 129300,
+      "end": 129342,
+      "sha256": "2a11066cc3ba0e36cbbd946a4bac7d9bc1ebd443e15ce79edef3d37f3c0462ae",
+      "step": "A2-4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "getRelativePathFromFile and component worker",
+      "start": 5694,
+      "end": 5733,
+      "sha256": "b9c4ffbd25559248137bd6ff73388666a2d5dab265671c065dd78cd86f425da3",
+      "step": "A2-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    },
+    {
+      "owner": "ensurePathIsNonModuleName",
+      "start": 5616,
+      "end": 5618,
+      "sha256": "7629461b280d7022d83dad0db7b895dafdb434bec99cad3c363ae8c644e27975",
+      "step": "A2-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_roots.rs"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PLAN-SCRIPT",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-DECL-PATH",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-OUTPUT-SCRIPT",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PLAN-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "id": "E-OUTPUT-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    }
+  ]
+}

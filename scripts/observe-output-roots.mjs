@@ -54,6 +54,33 @@ for (const rootDir of [undefined, "src", "SRC"]) {
 }
 add("case-fold/protected-unicode", { "İ/a.ts": nested["src/a.ts"], "i̇/b.ts": nested["src/nested/b.ts"] },
   { outDir: "out" }, { use_case_sensitive_file_names: false });
+const supplementalEnd = inputs.length;
+assert.equal(supplementalEnd, 40);
+for (const noEmitOnError of [false, true]) {
+  const files = { ".hidden/a.ts": nested["src/a.ts"] };
+  add(`edge/config-hidden/${noEmitOnError}`, files, {}, { config: JSON.stringify({
+    compilerOptions: { target: "esnext", module: "commonjs", outDir: "out", noEmitOnError,
+      skipDefaultLibCheck: true, newLine: "crlf" }, files: Object.keys(files) }) });
+}
+for (const outDir of [undefined, "out"]) {
+  add(`edge/config-declaration-directory/${outDir}`, nested, {}, { config: JSON.stringify({
+    compilerOptions: { target: "esnext", module: "commonjs", declaration: true, declarationDir: "types", outDir,
+      skipDefaultLibCheck: true, newLine: "crlf" }, files: Object.keys(nested) }) });
+}
+add("edge/config-duplicate-output-key", nested, {}, { config:
+  '{"compilerOptions":{"target":"esnext","module":"commonjs","outDir":"old","outDir":"out","skipDefaultLibCheck":true,"newLine":"crlf"},"files":["src/a.ts","src/nested/b.ts"]}' });
+for (const [rootDir, outDir] of [["/project/sr", "out"], ["/project/src", "/project/src"]]) {
+  add(`edge/json-prefix/${rootDir}`, { "src/b.json": '{"b":1}\n' },
+    { rootDir, outDir, allowJs: true, resolveJsonModule: true });
+}
+add("edge/case-fold-protected-sharp-s", { "ß/a.ts": nested["src/a.ts"], "SS/b.ts": nested["src/nested/b.ts"] },
+  { rootDir: "/project/ß", outDir: "out" }, { use_case_sensitive_file_names: false });
+for (const literal of ['"../external/b"', '"../external/\\u0062"']) {
+  add(`edge/import-literal/${literal}`, {
+    "src/a.ts": `import { b } from ${literal}; export const a = b;\n`,
+    "external/b.ts": "export const b: number = 1;\n",
+  }, { rootDir: "src", outDir: "out" });
+}
 
 function diagnostic(d) {
   return { code: d.code, category: ts.DiagnosticCategory[d.category], file: d.file?.fileName ?? null,
@@ -110,12 +137,14 @@ const observations = inputs.map(input => {
   assert.deepEqual(observe(input), first, input.case_id);
   return { ...input, typescript_observation: first };
 });
-const cases = observations.slice(0, baseCount), supplemental_cases = observations.slice(baseCount);
+const cases = observations.slice(0, baseCount), supplemental_cases = observations.slice(baseCount, supplementalEnd),
+  edge_cases = observations.slice(supplementalEnd);
 assert.equal(sha256(JSON.stringify(cases)), "3a7b08b0e6e373f9071cbb1a962ab0cd78d6b7d4c78fb386c5b8ec21585d728b", "original 27 cases stay frozen");
+assert.equal(sha256(JSON.stringify(supplemental_cases)), "a20c0303a3f82602f6870f583e2a842b352e33288321003c54cc4636a39ac182", "first 13 supplemental cases stay frozen");
 const artifact = { version: 1, typescript: ts.version, source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8",
   compiler_sha256: sha256(fs.readFileSync(path.join(root, "vendor/typescript-6.0.3/lib/typescript.js"))),
-  observer_sha256: sha256(fs.readFileSync(import.meta.filename)), repetitions: 2, cases, supplemental_cases };
+  observer_sha256: sha256(fs.readFileSync(import.meta.filename)), repetitions: 2, cases, supplemental_cases, edge_cases };
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 if (process.argv[2] === "--write") fs.writeFileSync(destination, rendered);
 else assert.equal(fs.readFileSync(destination, "utf8"), rendered);
-console.log(`output roots: ${cases.length} original + ${supplemental_cases.length} supplemental cases, two identical complete observations each`);
+console.log(`output roots: ${cases.length} original + ${supplemental_cases.length} supplemental + ${edge_cases.length} edge cases, two identical complete observations each`);

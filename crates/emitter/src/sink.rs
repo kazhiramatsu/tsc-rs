@@ -48,28 +48,42 @@ impl<'filesystem> FsOutputSink<'filesystem> {
     /// tsc-hash: 6d2d75310879fb4ad132c16f8817a30d754187c1c28691182d5eafb57f3aab28
     /// tsc-span: _tsc.js:16656-16662
     fn ensure_parent_directories(&mut self, output: &Path) -> Result<(), EmitIoError> {
-        let Some(mut directory) = output.parent() else {
-            return Ok(());
-        };
+        use crate::source_map::paths;
+
+        // Only retry-parent discovery is normalized. Both write attempts keep
+        // the caller's original path, including relative dot segments.
+        let normalized = paths::get_normalized_absolute_path(&output.to_string_lossy(), "");
+        let mut directory = directory_path(&normalized);
         let mut missing = Vec::new();
-        while directory.parent().is_some() {
-            if self.filesystem.directory_exists(directory) {
+        while directory.len() > paths::get_root_length(directory) {
+            if self.filesystem.directory_exists(Path::new(directory)) {
                 break;
             }
-            missing.push(directory.to_path_buf());
-            directory = directory
-                .parent()
-                .expect("loop only retains paths with a parent");
+            missing.push(directory);
+            directory = directory_path(directory);
         }
         for directory in missing.into_iter().rev() {
             self.filesystem
-                .create_directory(&directory)
+                .create_directory(Path::new(directory))
                 .map_err(|message| {
                     EmitIoError::new(EmitIoOperation::CreateParentDirectory, directory, message)
                 })?;
         }
         Ok(())
     }
+}
+
+/// Root-aware directory slicing on an already slash-normalized emitted path.
+/// tsc-port: getDirectoryPath @6.0.3
+/// tsc-hash: 7f2c6450b6b1c1bc4e1c65523c113201cd6cad6445d29d8c2d368913af418157
+/// tsc-span: _tsc.js:5391-5397
+fn directory_path(path: &str) -> &str {
+    let root_length = crate::source_map::paths::get_root_length(path);
+    if path.len() == root_length {
+        return path;
+    }
+    let path = path.strip_suffix('/').unwrap_or(path);
+    &path[..path.rfind('/').unwrap_or(0).max(root_length)]
 }
 
 impl OutputSink for FsOutputSink<'_> {

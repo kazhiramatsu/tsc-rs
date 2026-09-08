@@ -22,3 +22,15 @@ fn output_root_inclusion_and_eligibility_match_typescript_observations() {
         true,
     );
 }
+
+#[test]
+fn output_root_option_and_json_edges_match_typescript_observations() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/output-roots.json")).unwrap();
+    let cases = &artifact["edge_cases"];
+    assert_eq!(cases.as_array().unwrap().len(), 10);
+    super::h2_7c_declaration_blocking::assert_cases_with_reporting(
+        &serde_json::json!({"cases": cases}),
+        true,
+    );
+}

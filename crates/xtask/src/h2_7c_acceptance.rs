@@ -33,7 +33,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     check_result(std::panic::catch_unwind(|| {
         h2_7c_corpus::assert_corpus(&artifact)
     }))?;
-    println!("H2.7c corpus: 42 candidates, 31 exact, 11 deferred (1 typed refusal checked), repetitions=2");
+    println!("H2.7c corpus: 42 candidates, 32 exact (1 H2.8a rootDir migration), 10 deferred, repetitions=2");
     Ok(())
 }
 

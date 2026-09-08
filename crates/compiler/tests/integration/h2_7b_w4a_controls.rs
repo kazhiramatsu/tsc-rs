@@ -324,8 +324,30 @@ fn assert_observation_with_listing(
         (outcome, reported, None)
     };
 
+    assert_completed_observation(
+        case_id,
+        &outcome,
+        &reported,
+        command_status,
+        sink.writes(),
+        expected,
+        exact_listing,
+    )
+}
+
+/// Compare a real completed command while allowing its caller to observe a
+/// production filesystem sink's operation trace independently.
+pub(super) fn assert_completed_observation(
+    case_id: &str,
+    outcome: &tsc_emitter::EmitOutcome,
+    reported: &[tsc_diagnostics::Diagnostic],
+    command_status: Option<(Vec<String>, i32)>,
+    writes: &[tsc_emitter::EmitArtifact],
+    expected: &Value,
+    exact_listing: bool,
+) -> tsc_emitter::H2ActivityCounters {
     assert_eq!(
-        actual_diagnostics(&reported),
+        actual_diagnostics(reported),
         expected_diagnostics(&expected["reported_diagnostics"]),
         "{case_id}: exact ordered reported diagnostics"
     );
@@ -335,7 +357,7 @@ fn assert_observation_with_listing(
         "{case_id}: exact ordered emit diagnostics"
     );
     if exact_listing {
-        assert_related_diagnostics(&reported, &expected["reported_diagnostics"], case_id);
+        assert_related_diagnostics(reported, &expected["reported_diagnostics"], case_id);
         assert_related_diagnostics(
             outcome.diagnostics(),
             &expected["emit_result"]["diagnostics"],
@@ -394,11 +416,11 @@ fn assert_observation_with_listing(
     );
 
     assert_eq!(
-        sink.writes().len(),
+        writes.len(),
         expected_writes.len(),
         "{case_id}: write count"
     );
-    for (write, expected) in sink.writes().iter().zip(expected_writes) {
+    for (write, expected) in writes.iter().zip(expected_writes) {
         // Callback filenames are observable text; Path equality folds dot components.
         assert_eq!(
             write.path().as_os_str(),

@@ -95,6 +95,7 @@ mod loader;
 mod module_requests;
 mod module_resolution;
 mod option_validation;
+mod output_directories;
 mod path;
 mod prepared;
 mod resolution;
@@ -142,6 +143,10 @@ pub use module_resolution::{
 pub use option_validation::{
     validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,
     CompilerOptionViolation,
+};
+pub use output_directories::{
+    canonical_emit_path, common_source_directory, inferred_common_source_directory,
+    source_file_may_be_emitted_for_options, source_file_path_in_new_directory,
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{

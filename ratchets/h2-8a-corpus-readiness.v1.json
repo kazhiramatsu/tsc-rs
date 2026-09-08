@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A4",
+  "base": "56e666af51a12ddd3339bf08b17680148d2eeeba",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-corpus.md",
+      "sha256": "de6e61a44b54543cdeb2facf0f98002283beaa484305ca0d85533d784e558d10"
+    },
+    {
+      "path": "scripts/observe-system-dynamic-imports.mjs",
+      "sha256": "a4b2572ee0547a6060c6c289148c118aab92d079d77ce90f0b1abc56e2f202ff"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-dynamic-imports.json",
+      "sha256": "9e6164473c8ea1f2e532bb6adda9ef39e44e54238e6c85d497e651397d7a80e6"
+    },
+    {
+      "path": "scripts/observe-output-directory-corpus.mjs",
+      "sha256": "107792c4ede34f8a52ae6a14e0bcddb1d2c8a3c97d7be1272be6ab9030225eb1"
+    },
+    {
+      "path": "ratchets/h2-8a-output-directory-corpus.v1.json",
+      "sha256": "4df4915db7431ea4fdab021ba392a9bae03fc46a715fd8dafdb20701b8247823"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "crates/emitter/src/external_module_names.rs",
+      "sha256": "ed0014f53d1744786c1479a12738bd49197682a957fab0565efbb42c356fee60"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "aa1e6336129dc81d990f751e4b2ba919b0e3b5e26a44f408d08a02d583f4b810"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "7f60bd555dc7dedec328730560062f00aea974654c939e659bec7827c85e05cc"
+    },
+    {
+      "path": "crates/program/src/module_requests.rs",
+      "sha256": "527ed8dbb574fbf53a77398b64f932deb28470d919c2584ed15ba33d1e3d9535"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getExternalModuleNameLiteral",
+      "start": 27713,
+      "end": 27719,
+      "step": "A4-1",
+      "sha256": "2d6cd262d872b1b38c0094ffd8a9d77b5864e3d8f912de6e8dd07e1e7f5d5852",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "tryGetModuleNameFromFile and tryGetModuleNameFromDeclaration",
+      "start": 27724,
+      "end": 27738,
+      "step": "A4-1",
+      "sha256": "e8dfc62a7b3c92d9c2c06c96b0a5866de1d8798416a3a8417483df075c2fd60c",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "visitImportCallExpression",
+      "start": 113092,
+      "end": 113106,
+      "step": "A4-2",
+      "sha256": "7f302ac9bb6fc987c269f7f7089633ff472f5301aa4e07b2f3609afbc0865cba",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getResolvedExternalModuleName",
+      "start": 16535,
+      "end": 16537,
+      "step": "A4-3",
+      "sha256": "d563d5806a3c929b098ad52a2d31b607624d9b26e9bb6ed5271e84c25903fafa",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getExternalModuleNameFromPath",
+      "start": 16552,
+      "end": 16566,
+      "step": "A4-3",
+      "sha256": "6ba63b23b3a5d9605a52edf790695293b2935f2922082d0d816ab9b193bcca35",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "collectExternalModuleReferences dynamic collector",
+      "start": 124075,
+      "end": 124120,
+      "step": "A4-4",
+      "sha256": "30f3e4ae0c31d9a55861e9377bd41c3c3876a222efe940703abebcc371827387",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "forEachDynamicImportOrRequireCall",
+      "start": 20016,
+      "end": 20038,
+      "step": "A4-4",
+      "sha256": "1e1e7b9cb98192bd9b58bb1ebe20bbe20491c7204a9732f86bca53fca6191f69",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "isStringLiteralLike",
+      "start": 12583,
+      "end": 12585,
+      "step": "A4-4",
+      "sha256": "ed538467a0c7f8b0bcfe254ebe6c185883f3f824d7ff32150a95b6f3c3fbf4c6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-IDENTITY-G",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ORDER-G",
+      "disposition": "modified-requalify"
+    }
+  ]
+}

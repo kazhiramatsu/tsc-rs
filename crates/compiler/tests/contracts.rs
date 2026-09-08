@@ -110,6 +110,9 @@ mod h2_8a_output_directories;
 #[path = "integration/h2_8a_output_roots.rs"]
 mod h2_8a_output_roots;
 
+#[path = "integration/h2_8a_output_filesystem.rs"]
+mod h2_8a_output_filesystem;
+
 #[path = "integration/h2_7c_declaration_getters.rs"]
 mod h2_7c_declaration_getters;
 

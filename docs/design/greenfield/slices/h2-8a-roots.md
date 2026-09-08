@@ -1,6 +1,6 @@
 # H2.8a A2: Program output directories and root diagnostics
 
-Kind: runtime; status: design candidate, 2026-09-08. This continues the
+Kind: runtime; status: implementation in progress, 2026-09-08. This continues the
 [H2.8 train](h2-8.md), preserving the full H2.8a–e objective. A1's output-directory
 and Unicode changes are the current worktree prerequisite. A2 activates rootDir
 and config-based directory semantics, without activating targeted ordinary emit,
@@ -88,3 +88,84 @@ emitter tests, changed program loader/casing tests and all-target Clippy; the
 whole H2.8a train later runs existing hosted acceptance before landing. The
 historical certificate walk/full developer CI remain outside the current
 lightweight workflow and are not claimed.
+
+## Boundary amendment and first replay
+
+The first A2 runtime replay matches 39 of 40 root observations and all 42 A1
+controls. `reason/reference/true` exposes the shared inclusion-message helper
+adding quotes to a reference argument whose diagnostic template already owns
+the quotes. A2-4 also corrects `source_inclusion_reason_message`'s path/type
+reference arguments, using the stored raw specifier. For imports, replace the
+private `SourceInclusionReason::Import::specifier` with `reference_text`, copied
+from the prepared parent text at the already retained UTF-16 request span in
+`process_module_requests`. Diagnostic formatting consumes that original literal,
+including double quotes and escapes, without synthesizing a quote style.
+Use the prepared snapshot's existing `PositionIndex::utf16_to_byte` for both
+boundaries and copy that UTF-8 slice; do not rescan the source prefix for each
+import. Both boundaries are validated module-request token spans. Pin the
+unchanged `prepared.rs` and diagnostics `text.rs` inputs for this native seam.
+The reason remains owned by the staged graph; no extra long-lived syntax borrow
+or public field is introduced. Pin `fileIncludeReasonToDiagnostics` at
+`_tsc.js:129300–129342` before this edit. Existing casing observers stay exact.
+
+Ten `edge_cases` extend the packet without changing either prior projection:
+hidden config directories with both blocking settings, declarationDir alone
+and with outDir, duplicate option keys, JSON prefix/equal-output controls and
+protected sharp-s casing, double-quoted and escaped import literals. Their
+complete TS observations repeat twice. The
+original supplemental projection SHA256 is
+`a20c0303a3f82602f6870f583e2a842b352e33288321003c54cc4636a39ac182`.
+The added production test is
+`output_root_option_and_json_edges_match_typescript_observations`; its first
+comparison is `target/h2-8a-roots-edges-before.log`.
+
+A2-5's config-relative helper follows `getRelativePathFromFile` and
+`ensurePathIsNonModuleName`, pinned at `_tsc.js:5694–5733` and 5616–5618.
+Hidden `.hidden` names require `./.hidden`; only actual relative paths retain
+their prefix. A2-2's relocation worker receives the common-directory string
+exactly as its caller supplies it: ordinary planning provides a trailing
+separator, while JSON eligibility passes `getNormalizedAbsolutePath`'s result
+without that separator. The shared worker must not insert a separator or
+normalize that argument again. This distinction can change eligibility even
+when `getOutputPathsFor` subsequently suppresses an equal-location JSON copy.
+No path or diagnostic is repaired after production output.
+
+A2-6 removes the obsolete private emitter `normalize_lexical_path` once both
+callers delegate to the shared worker. The unchanged original H2.7c rootDir
+corpus observation now executes instead of asserting its old refusal; its
+acceptance reader reports 32 exact and 10 deferred while retaining the
+historical artifact's 31/11 membership. All 50 root observations, earlier
+controls and owner regressions remain required before this packet completes.
+
+The corrected replay passes all 50 root observations and all 42 A1 controls
+twice (five tests, 150.23s after compilation), recorded in
+`target/h2-8a-roots-corrected.log`. The complete Program contract suite passes
+467 tests with five previously ignored tests (5.18s after compilation), in
+`target/h2-8a-program-regressions.log`. The 50-case oracle `--check` also passes.
+The later combined A1/A2/A3 replay also passes all 116 cases, including the
+retained-position-index refinement and comparator extraction (six tests,
+212.17s after compilation; `target/h2-8a-filesystem-after.log`). H2.7c,
+map/reference controls, final Program regressions, Clippy and the H2.8a global
+close remain pending.
+
+## Native directory representation amendment
+
+The whole-emitter regression passes 480 unit tests and 447 contracts but finds
+four existing `output_plan_contract` failures (the full log is
+`target/h2-8a-emitter-a3-regressions.log`). Native `EmitHost` returns its common
+directory as `&Path`, for which a trailing separator is optional. Its original
+plan/declaration/case-fold/JavaScript-family controls use `/project/src` and
+retain their original relocated expectations. The low-level TS string worker
+cannot receive that directory verbatim: its prefix slicing expects the
+separator supplied by TS's `getCommonSourceDirectory`.
+
+A2-6's private `plan::source_file_path_in_new_dir` is the native adapter:
+append a separator for a nonempty common directory only when absent, borrowing
+the existing string otherwise, then call the shared worker. An empty common
+directory stays empty. Document the optional separator on the existing
+`EmitHost::common_source_directory` method. The shared worker and JSON
+eligibility keep their exact input-string behavior; they must not receive this
+native-directory adaptation. This is within the existing A2 allowed owners,
+with the already pinned `getCommonSourceDirectory` and relocation spans.
+No fixture or existing contract expectation changes. Recheck the four original
+contracts, the complete emitter suite and the full A1/A2/A3 comparison.

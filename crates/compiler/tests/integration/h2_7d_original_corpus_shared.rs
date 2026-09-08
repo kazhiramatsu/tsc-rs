@@ -831,3 +831,100 @@ pub(super) fn assert_original_corpus(workspace_root: &Path) -> BTreeSet<String> 
     assert_eq!(compared_ids.len(), 283);
     compared_ids
 }
+
+/// The H2.8a entry independently executes the original output-directory
+/// intersections; the D283 qualification and its membership remain frozen.
+#[allow(dead_code)] // This shared module is also compiled by the D283 entry.
+pub(super) fn assert_output_directory_references(workspace_root: &Path) -> BTreeSet<String> {
+    assert_eq!(
+        workspace_root.canonicalize().unwrap(),
+        workspace().canonicalize().unwrap()
+    );
+    let census_artifact = frozen(CENSUS);
+    let input_artifact = frozen(INPUTS);
+    let observation_artifact = frozen(ORACLE);
+    let current: Value = serde_json::from_slice(
+        &std::fs::read(workspace().join("ratchets/h2-8a-output-directory-corpus.v1.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(current["kind"], "h2-8a-output-directory-corpus");
+    assert_eq!(current["typescript"], "6.0.3");
+    assert_eq!(current["repetitions"], 2);
+    for pin in current["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain([&current["generator"]])
+    {
+        assert_eq!(
+            json!(digest(
+                std::fs::read(workspace().join(pin["path"].as_str().unwrap())).unwrap()
+            )),
+            pin["sha256"]
+        );
+    }
+    let census = indexed(&census_artifact);
+    let inputs = indexed(&input_artifact);
+    let original = indexed(&observation_artifact);
+    let fresh = indexed(&current);
+    let selected = census
+        .iter()
+        .filter(|(_, row)| owners(row) == ["H2.7d", "H2.8a"])
+        .map(|(id, _)| *id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(selected.len(), 23);
+    assert_eq!(selected, fresh.keys().copied().collect());
+    let libraries = libraries();
+    let mut exact = BTreeSet::new();
+    let mut failures = Vec::new();
+    for id in selected {
+        assert_original_source(census[id]);
+        assert_eq!(fresh[id]["input_sha256"], original[id]["input_sha256"]);
+        assert_eq!(
+            fresh[id]["typescript_observation"],
+            original[id]["typescript_observation"]
+        );
+        let before = failures.len();
+        for repetition in 0..2 {
+            let compared = std::panic::catch_unwind(|| {
+                let host = memory_host(inputs[id], &input_artifact, &libraries);
+                let actual = observe(inputs[id], &host, &libraries);
+                let expected = &fresh[id]["typescript_observation"];
+                if actual != *expected {
+                    if let Some(directory) = std::env::var_os("TSC_RS_H2_8A_FAILURE_DIR") {
+                        let directory = PathBuf::from(directory);
+                        std::fs::create_dir_all(&directory).unwrap();
+                        std::fs::write(
+                            directory.join(format!("{}-{repetition}.json", digest(id))),
+                            serde_json::to_vec_pretty(
+                                &json!({"case_id":id,"repetition":repetition,
+                                "actual":actual,"expected":expected}),
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    }
+                }
+                assert_complete(&actual, expected);
+            });
+            if let Err(error) = compared {
+                failures.push(format!(
+                    "{id} repetition {repetition}: {}",
+                    panic_text(error.as_ref())
+                ));
+            }
+        }
+        if failures.len() == before {
+            exact.insert(id.to_owned());
+            eprintln!("H2.8a original directory EXACT x2 {id}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} directory corpus failures:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+    assert_eq!(exact.len(), 23);
+    exact
+}

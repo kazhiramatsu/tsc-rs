@@ -2077,16 +2077,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
         if is_dynamic_import {
-            let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
-            let arguments = arguments
-                .into_iter()
-                .map(|argument| self.visit(argument.node()))
-                .collect::<Result<Vec<_>, _>>()?;
-            let context = self.create_identifier(&self.context_name.clone())?;
-            let import = self.create_property_access(context, "import")?;
-            let transformed = self.create_call(import, arguments)?;
-            self.set_original_and_range(transformed, original)?;
-            return Ok(transformed);
+            return self.visit_import_call_expression(original, data);
         }
 
         let mut node_data = NodeData::CallExpression(data);
@@ -2098,6 +2089,56 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         // namespace property as the direct callee. Unlike CommonJS, tsc's
         // System transform does not synthesize `(0, imported)(...)` here.
         self.update_generic_without_visit(original, NodeData::CallExpression(data))
+    }
+
+    /// tsc-port: visitImportCallExpression @6.0.3
+    /// tsc-hash: 7f302ac9bb6fc987c269f7f7089633ff472f5301aa4e07b2f3609afbc0865cba
+    /// tsc-span: _tsc.js:113092-113106
+    fn visit_import_call_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::CallExpressionData,
+    ) -> Result<TransformNode, TransformError> {
+        let first = node_array_nodes(self.context.arena(), self.source, data.arguments)?
+            .into_iter()
+            .next();
+        let external_module_name = match first {
+            Some(argument)
+                if self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral =>
+            {
+                crate::external_module_names::resolved_external_module_name_literal(
+                    self.host,
+                    self.resolver,
+                    self.context.arena(),
+                    original,
+                )?
+            }
+            _ => None,
+        };
+        let first = first
+            .map(|argument| self.visit(argument.node()))
+            .transpose()?;
+        let argument = if let Some(name) = external_module_name {
+            let same_name = match first {
+                Some(argument) => {
+                    self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral
+                        && string_literal_text(self.context.arena(), argument)? == name
+                }
+                None => false,
+            };
+            if same_name {
+                first
+            } else {
+                Some(self.create_string_literal(&name)?)
+            }
+        } else {
+            first
+        };
+        let context = self.create_identifier(&self.context_name.clone())?;
+        let import = self.create_property_access(context, "import")?;
+        let transformed = self.create_call(import, argument.into_iter().collect())?;
+        self.set_original_and_range(transformed, original)?;
+        Ok(transformed)
     }
 
     fn visit_meta_property(
