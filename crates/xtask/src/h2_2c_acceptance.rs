@@ -4245,6 +4245,8 @@ pub fn run_h2_6b(workspace: &Path) -> Result<(), Box<dyn Error>> {
 
 #[path = "h2_6c_de_promotions.rs"]
 mod h2_6c_de_promotions;
+#[path = "h2_6c_output_promotions.rs"]
+mod h2_6c_output_promotions;
 #[path = "h2_6c_refusal_migrations.rs"]
 mod h2_6c_refusal_migrations;
 
@@ -5001,6 +5003,7 @@ fn execute_h2_6c_case(
         .unwrap_or(0);
     let expected_h2_7b_members = h2_6c_de_promotions::find(&case_id)
         .map(|row| row.declaration_members)
+        .or_else(|| h2_6c_output_promotions::find(&case_id).map(|row| row.declaration_members))
         .unwrap_or(expected_h2_7b_members);
     let second_program = first_program.clone();
     let first_session = ProgramSession::new(first_program);
@@ -5468,6 +5471,7 @@ fn h2_6c_refused_option_totals(
         ("rootDir".to_owned(), 4),
     ]);
     let projected = h2_6c_de_promotions::adjusted_refusals(projected)?;
+    let projected = h2_6c_output_promotions::adjusted_refusals(projected)?;
     let projected = h2_6c_refusal_migrations::adjust_refusal_totals(projected)?;
     let legacy_pre_flip = h2_6c_de_promotions::promoted_count() == 0
         && h2_6c_refusal_migrations::count() == 0
@@ -5555,6 +5559,7 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let listed = load_h2_6c_divergence_manifest_state(workspace, write_manifest)?;
     let inputs = H2_6cExecutionInputs::load(workspace)?;
     h2_6c_de_promotions::validate(workspace, cases, &inputs.h2_7b_expected_members)?;
+    h2_6c_output_promotions::validate(cases, &inputs.h2_7b_expected_members)?;
     h2_6c_refusal_migrations::validate(workspace, cases, &listed)?;
     let worker_count = h2_5g_worker_count()?.min(cases.len());
     println!(
@@ -5576,15 +5581,18 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 Ok(total + outcome.h2_7b_activity)
             })?;
     h2_6c_de_promotions::validate_results(&results, &ordinary_manifest)?;
-    let expected_h2_7b_activity = h2_6c_de_promotions::declaration_members_total();
+    h2_6c_output_promotions::validate_results(&results, &ordinary_manifest)?;
+    let expected_h2_7b_activity = h2_6c_de_promotions::declaration_members_total()
+        + h2_6c_output_promotions::declaration_members_total();
     if observed_h2_7b_activity != expected_h2_7b_activity {
         return Err(failure(format!(
             "H2.6c aggregate H2.7b activity differs: expected {expected_h2_7b_activity}, observed {observed_h2_7b_activity}"
         )));
     }
     println!(
-        "H2.6c successful-result H2.7b activity (refusal activity is unavailable): historical_join_rows=133 D/E_promoted_old_IDs={} declaration_members={observed_h2_7b_activity}; old candidate denominator unchanged",
-        h2_6c_de_promotions::promoted_count()
+        "H2.6c successful-result H2.7b activity (refusal activity is unavailable): historical_join_rows=133 D/E_promoted_old_IDs={} output_promoted_old_IDs={} declaration_members={observed_h2_7b_activity}; old candidate denominator unchanged",
+        h2_6c_de_promotions::promoted_count(),
+        h2_6c_output_promotions::promoted_count()
     );
     let refused_option_totals = h2_6c_refused_option_totals(&results, &migrations)?;
     println!("H2.6c refused_option totals: {refused_option_totals:?}");

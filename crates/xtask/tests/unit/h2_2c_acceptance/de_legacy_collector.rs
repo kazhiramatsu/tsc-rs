@@ -407,6 +407,204 @@ fn collect_h2_6c_de_legacy177() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[test]
+#[ignore = "explicit local H2.8a legacy16 measurement; no acceptance or adoption"]
+fn collect_h2_8a_legacy_output16() -> Result<(), Box<dyn Error>> {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?;
+    let history_path =
+        PathBuf::from(std::env::var_os("TSRS_H2_8A_LEGACY_SOURCE").ok_or_else(|| {
+            failure("set TSRS_H2_8A_LEGACY_SOURCE to the completed legacy177 record")
+        })?);
+    let output_path = PathBuf::from(
+        std::env::var_os("TSRS_H2_8A_LEGACY_OUTPUT")
+            .ok_or_else(|| failure("set TSRS_H2_8A_LEGACY_OUTPUT to a new target JSON path"))?,
+    );
+    if !output_path.is_absolute()
+        || !output_path
+            .components()
+            .any(|part| part.as_os_str() == "target")
+    {
+        return Err(failure(
+            "legacy16 output must be an absolute path under target",
+        ));
+    }
+    let history_sha = "56721751cdf2368c3af395a789de1aa1fc36203089030468748ab5e728e4ea3e";
+    let history = pinned(&history_path, history_sha)?;
+    let qualification = pinned(
+        &workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
+        "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec",
+    )?;
+    let cases = validate_h2_6c_qualification(&qualification)?;
+    let selected = array(&history, "cases")?
+        .iter()
+        .filter(|row| row["identity"]["remaining_slices"] == json!(["H2.7d", "H2.8a"]))
+        .collect::<Vec<_>>();
+    if selected.len() != 16 {
+        return Err(failure(
+            "the pinned completed history must contain 16 output references",
+        ));
+    }
+    let inputs = H2_6cExecutionInputs::load(&workspace)?;
+    let mut records = Vec::new();
+    let mut counts = BTreeMap::<String, usize>::new();
+    let mut failed = Vec::new();
+    for reference in selected {
+        let id = string(reference, "case_id")?;
+        let case = cases
+            .iter()
+            .find(|case| case["case_id"] == id)
+            .ok_or_else(|| failure(format!("{id}: original case missing")))?;
+        if case["case_fingerprint_sha256"] != reference["identity"]["old_case_sha256"]
+            || case["observation_input_sha256"] != reference["identity"]["old_input_sha256"]
+            || case["source"] != reference["source"]
+            || sha256(serde_json::to_vec(compact_typescript_observation(case)?)?)
+                != reference["old_expected_tuple_sha256"]
+        {
+            return Err(failure(format!("{id}: frozen original identity changed")));
+        }
+        // The completed historical record is byte-pinned above. Current
+        // divergence manifests have already removed 160 other promotions;
+        // they are not an authority for this unchanged old-input measurement.
+        let measured = match collect_case(&workspace, case, &inputs) {
+            Ok(measured) => {
+                if measured["native_and_json_repetitions_equal"] != true {
+                    failed.push(id.to_owned());
+                }
+                measured
+            }
+            Err(error) => {
+                failed.push(id.to_owned());
+                json!({"setup_error":error.to_string(),"observations":[]})
+            }
+        };
+        let kind = measured["observations"][0]["comparison_kind"]
+            .as_str()
+            .unwrap_or("setup-error")
+            .to_owned();
+        if kind == "comparison-error" {
+            failed.push(id.to_owned());
+        }
+        *counts.entry(kind.clone()).or_default() += 1;
+        eprintln!("H2.8a legacy16 {kind}: {id}");
+        records.push(json!({"case_id":id,"identity":reference["identity"],
+            "old_expected_tuple_sha256":reference["old_expected_tuple_sha256"],
+            "measurement":measured}));
+    }
+    let artifact = json!({"kind":"h2-8a-legacy16-local-measurement", "registered_rows":0,
+        "history_sha256":history_sha,"repetitions":2,"cases":records,
+        "summary":{"cases":16,"counts":counts,"failed_measurement_ids":failed,
+            "adoption":false}});
+    let output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&output_path)?;
+    serde_json::to_writer_pretty(output, &artifact)?;
+    eprintln!("H2.8a legacy16 summary: {}", artifact["summary"]);
+    if !failed.is_empty() {
+        return Err(failure(
+            "legacy16 measurement contains setup/comparison failures or unstable results",
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "explicit local H2.8a original output134 measurement; no acceptance or adoption"]
+fn collect_h2_8a_legacy_output134() -> Result<(), Box<dyn Error>> {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()?;
+    let output_path = PathBuf::from(
+        std::env::var_os("TSRS_H2_8A_LEGACY_OUTPUT")
+            .ok_or_else(|| failure("set TSRS_H2_8A_LEGACY_OUTPUT to a new target JSON path"))?,
+    );
+    if !output_path.is_absolute() || !output_path.starts_with(workspace.join("target")) {
+        return Err(failure(
+            "output134 measurement must be under this workspace target",
+        ));
+    }
+    let qualification = pinned(
+        &workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
+        "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec",
+    )?;
+    let history_bytes = std::process::Command::new("git")
+        .args([
+            "show",
+            "4b0f4d75b5f79edcf93baca34c44b250a0d68710:ratchets/h2-6c-known-divergences.v1.json",
+        ])
+        .current_dir(&workspace)
+        .output()?;
+    if !history_bytes.status.success() {
+        return Err(failure(
+            "failed to read committed pre-H2.8a output divergence history",
+        ));
+    }
+    let history: Value = serde_json::from_slice(&history_bytes.stdout)?;
+    let selected = array(&history, "cases")?
+        .iter()
+        .filter(|row| matches!(row["refused_option"].as_str(), Some("outDir" | "rootDir")))
+        .collect::<Vec<_>>();
+    if selected.len() != 134 {
+        return Err(failure(
+            "committed output refusal history must contain 134 IDs",
+        ));
+    }
+    let cases = validate_h2_6c_qualification(&qualification)?;
+    let inputs = H2_6cExecutionInputs::load(&workspace)?;
+    let mut records = Vec::new();
+    let mut counts = BTreeMap::<String, usize>::new();
+    let mut failed = Vec::new();
+    for reference in selected {
+        let id = string(reference, "case_id")?;
+        let case = cases
+            .iter()
+            .find(|case| case["case_id"] == id)
+            .ok_or_else(|| failure(format!("{id}: original input missing")))?;
+        let measured = match collect_case(&workspace, case, &inputs) {
+            Ok(measured) => {
+                if measured["native_and_json_repetitions_equal"] != true {
+                    failed.push(id.to_owned());
+                }
+                measured
+            }
+            Err(error) => {
+                failed.push(id.to_owned());
+                json!({"setup_error":error.to_string(),"observations":[]})
+            }
+        };
+        let kind = measured["observations"][0]["comparison_kind"]
+            .as_str()
+            .unwrap_or("setup-error")
+            .to_owned();
+        if matches!(kind.as_str(), "comparison-error" | "unrepresented-error") {
+            failed.push(id.to_owned());
+        }
+        *counts.entry(kind.clone()).or_default() += 1;
+        eprintln!("H2.8a output134 {kind}: {id}");
+        records.push(json!({"case_id":id,"old_case_sha256":case["case_fingerprint_sha256"],
+            "old_input_sha256":case["observation_input_sha256"],"old_vector":reference,
+            "old_expected_tuple_sha256":sha256(serde_json::to_vec(compact_typescript_observation(case)?)?),
+            "measurement":measured}));
+    }
+    let artifact = json!({"kind":"h2-8a-output134-local-measurement","registered_rows":0,
+        "history_sha256":sha256(&history_bytes.stdout),"repetitions":2,"cases":records,
+        "summary":{"cases":134,"counts":counts,"failed_measurement_ids":failed,"adoption":false}});
+    let output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&output_path)?;
+    serde_json::to_writer_pretty(output, &artifact)?;
+    eprintln!("H2.8a output134 summary: {}", artifact["summary"]);
+    if !failed.is_empty() {
+        return Err(failure(
+            "output134 contains unstable results or measurement errors",
+        ));
+    }
+    Ok(())
+}
+
 // Reuse the original old input/host/library-prefix path and complete comparison.
 // This regression creates no measurement artifact or admission entry.
 #[test]

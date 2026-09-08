@@ -41,6 +41,7 @@ impl Records {
         let listed = load_h2_6c_divergence_manifest_state(&workspace, false).unwrap();
         let inputs = H2_6cExecutionInputs::load(&workspace).unwrap();
         h2_6c_de_promotions::validate(&workspace, &cases, &inputs.h2_7b_expected_members).unwrap();
+        h2_6c_output_promotions::validate(&cases, &inputs.h2_7b_expected_members).unwrap();
         h2_6c_refusal_migrations::validate(&workspace, &cases, &listed).unwrap();
         let migrations = cases
             .iter()
@@ -100,7 +101,8 @@ impl Records {
                     return Ok(h2_6c_refusal_migrations::migrated(self.observed(id)));
                 }
                 let promotion = h2_6c_de_promotions::find(id);
-                let divergence = if promotion.is_some() {
+                let output_promotion = h2_6c_output_promotions::find(id);
+                let divergence = if promotion.is_some() || output_promotion.is_some() {
                     H2VectorDivergence::default()
                 } else {
                     self.listed.entries.get(id).cloned().unwrap_or_default()
@@ -108,15 +110,16 @@ impl Records {
                 Ok(h2_6c_refusal_migrations::compared(H2VectorCaseOutcome {
                     case_id: id.to_owned(),
                     deferred: case["disposition"] == "deferred-to-slices",
-                    h2_7b_activity: promotion.map(|row| row.declaration_members).unwrap_or_else(
-                        || {
+                    h2_7b_activity: promotion
+                        .map(|row| row.declaration_members)
+                        .or_else(|| output_promotion.map(|row| row.declaration_members))
+                        .unwrap_or_else(|| {
                             self.inputs
                                 .h2_7b_expected_members
                                 .get(id)
                                 .copied()
                                 .unwrap_or(0)
-                        },
-                    ),
+                        }),
                     divergence,
                 }))
             })
@@ -302,6 +305,7 @@ fn populated_partition_preserves_history_and_reports_current_refusals_separately
     let listed = h2_6c_refusal_migrations::ordinary_manifest(&records.listed);
     h2_6c_refusal_migrations::validate_ordinary_results(&ordinary, &listed).unwrap();
     h2_6c_de_promotions::validate_results(&ordinary, &listed).unwrap();
+    h2_6c_output_promotions::validate_results(&ordinary, &listed).unwrap();
     let actual_counts = h2_6c_refused_option_totals(&ordinary, &migrations).unwrap();
     let (exact, deferred, diverging) =
         h2_vector_ratchet_join("H2.6c", ordinary, &listed, true).unwrap();
@@ -311,7 +315,9 @@ fn populated_partition_preserves_history_and_reports_current_refusals_separately
         .listed
         .entries
         .iter()
-        .filter(|(id, _)| h2_6c_de_promotions::find(id).is_none())
+        .filter(|(id, _)| {
+            h2_6c_de_promotions::find(id).is_none() && h2_6c_output_promotions::find(id).is_none()
+        })
         .map(|(id, row)| (id.clone(), row.clone()))
         .collect::<HashMap<_, _>>();
     assert_eq!(
@@ -370,6 +376,7 @@ fn populated_exact_registry_rejects_new_vectors_deferred_and_duplicate_results()
         h2_6c_refusal_migrations::partition(&records.cases, records.results()).unwrap();
     let listed = h2_6c_refusal_migrations::ordinary_manifest(&records.listed);
     h2_6c_de_promotions::validate_results(&ordinary, &listed).unwrap();
+    h2_6c_output_promotions::validate_results(&ordinary, &listed).unwrap();
     let id = records.promotion_id();
     let index = ordinary
         .iter()
@@ -416,4 +423,47 @@ fn populated_exact_registry_rejects_new_vectors_deferred_and_duplicate_results()
         "unknown-exact-original",
         H2RuntimeSlice::H2_7d
     ));
+}
+
+#[test]
+fn original_output_registry_rejects_identity_activity_and_result_mutations() {
+    let records = Records::load();
+    let (ordinary, _) =
+        h2_6c_refusal_migrations::partition(&records.cases, records.results()).unwrap();
+    let listed = h2_6c_refusal_migrations::ordinary_manifest(&records.listed);
+    h2_6c_output_promotions::validate_results(&ordinary, &listed).unwrap();
+    let index = ordinary
+        .iter()
+        .position(|result| {
+            h2_6c_output_promotions::find(&result.as_ref().unwrap().case_id).is_some()
+        })
+        .unwrap();
+    let id = &ordinary[index].as_ref().unwrap().case_id;
+    let mut cases = records.cases.clone();
+    cases
+        .iter_mut()
+        .find(|case| case["case_id"] == *id)
+        .unwrap()["observation_input_sha256"] = json!("changed");
+    assert!(
+        h2_6c_output_promotions::validate(&cases, &records.inputs.h2_7b_expected_members).is_err()
+    );
+    let mut changed = ordinary.clone();
+    changed[index].as_mut().unwrap().h2_7b_activity += 1;
+    assert!(h2_6c_output_promotions::validate_results(&changed, &listed).is_err());
+    let mut changed = ordinary.clone();
+    changed[index].as_mut().unwrap().divergence =
+        vectorize_refusal(H2MismatchProfile::H2_6c, "outDir");
+    assert!(h2_6c_output_promotions::validate_results(&changed, &listed).is_err());
+    let mut missing = ordinary.clone();
+    let _ = missing.remove(index);
+    assert!(h2_6c_output_promotions::validate_results(&missing, &listed).is_err());
+    let mut duplicate = ordinary.clone();
+    duplicate.push(ordinary[index].clone());
+    assert!(h2_6c_output_promotions::validate_results(&duplicate, &listed).is_err());
+    let mut replaced = listed.clone();
+    replaced.insert(
+        id.clone(),
+        vectorize_refusal(H2MismatchProfile::H2_6c, "unregistered"),
+    );
+    assert!(h2_6c_output_promotions::validate_results(&ordinary, &replaced).is_err());
 }
