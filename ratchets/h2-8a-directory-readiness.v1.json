@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869"
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",
@@ -171,6 +171,20 @@
       "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/emitter-architecture.md",
       "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
     }
   ]
 }

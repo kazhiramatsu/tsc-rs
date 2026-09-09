@@ -1735,7 +1735,7 @@ impl<'arena> NodeFactory<'arena> {
         Ok(flags)
     }
 
-    fn modifier_flags(
+    pub(crate) fn modifier_flags(
         &self,
         modifiers: Option<TransformNodeArray>,
     ) -> Result<ModifierFlags, TransformError> {

@@ -43,7 +43,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747"
+      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -95,7 +95,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869"
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -103,11 +103,11 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "f45b79cfb28218b8adc23a7984bdc82776dbb46947d6a35d3c3e79386a979b4a"
+      "sha256": "0a01f52ea278d8596ef95cae9c459c4405e4632f7f79f0a01ea94a5a4af543b4"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
-      "sha256": "3e925d359c916efbb5a1f6a54ef61ac0533f16cf3ddac83d841dda33c46c8f53"
+      "sha256": "d69df1099a8ccd1584d7ebc3e73776599b5c5d21a9d71c2ceb7af52505a77650"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "4d844c9ddcd07ee3a3e05f4f2bcc9b012263239f5b28ccf19751b759a7c6ced6"
+      "sha256": "a40442dc73cd6b305f50cd9a7510e406d1906cbad8881296343bb5bce0f75bdd"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -151,7 +151,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "15789e0c570d63a6e790b2f3c8856b3ebcbf2263cfaccaae31f5f43c35a6f4fc"
+      "sha256": "3b51c6564a1a39dda39e4b07abda0c292802288d503c1dd40c6dbc8790e6e92c"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -464,6 +464,105 @@
           "sha256": "15789e0c570d63a6e790b2f3c8856b3ebcbf2263cfaccaae31f5f43c35a6f4fc",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
           "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747",
+          "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-readiness-50gmc84i/head/crates/compiler/tests/contracts.rs",
+          "reason": "A6-29 explicit 144-case registration and three-producer readiness; prior qualified bytes retained"
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "f45b79cfb28218b8adc23a7984bdc82776dbb46947d6a35d3c3e79386a979b4a",
+          "sha256": "46476c99369bfbdd6d0c1adf2203c24079480cadb200d3454241c50a69796c4d",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-readiness-50gmc84i/docs/design/greenfield/slices/README.md",
+          "reason": "A6-29 explicit 144-case registration and three-producer readiness; prior qualified bytes retained"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "4d844c9ddcd07ee3a3e05f4f2bcc9b012263239f5b28ccf19751b759a7c6ced6",
+          "sha256": "587fdf1267d95aedd3c9a4fec44d29c72977117dafacfc8635a36aa368dd5a8e",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-readiness-50gmc84i/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-29 explicit 144-case registration and three-producer readiness; prior qualified bytes retained"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "15789e0c570d63a6e790b2f3c8856b3ebcbf2263cfaccaae31f5f43c35a6f4fc",
+          "sha256": "186a80a8cc5b8045d2d37acb584ff94b1427369104bc4009567da081cd359d0b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-readiness-50gmc84i/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-29 explicit 144-case registration and three-producer readiness; prior qualified bytes retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+          "sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "587fdf1267d95aedd3c9a4fec44d29c72977117dafacfc8635a36aa368dd5a8e",
+          "sha256": "b110a96c5c3d66e5aade7eccb5e3fd4a9c52547d3055b213ff8fb40c8cc5ab44",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "186a80a8cc5b8045d2d37acb584ff94b1427369104bc4009567da081cd359d0b",
+          "sha256": "f22ec0ccc8d9922be304726b09effae2177fd70b6db3b56aeca095e8a42d0a1c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+          "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "46476c99369bfbdd6d0c1adf2203c24079480cadb200d3454241c50a69796c4d",
+          "sha256": "0a01f52ea278d8596ef95cae9c459c4405e4632f7f79f0a01ea94a5a4af543b4",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/slices/README.md",
+          "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+        },
+        {
+          "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+          "old_sha256": "3e925d359c916efbb5a1f6a54ef61ac0533f16cf3ddac83d841dda33c46c8f53",
+          "sha256": "d69df1099a8ccd1584d7ebc3e73776599b5c5d21a9d71c2ceb7af52505a77650",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+          "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "b110a96c5c3d66e5aade7eccb5e3fd4a9c52547d3055b213ff8fb40c8cc5ab44",
+          "sha256": "a40442dc73cd6b305f50cd9a7510e406d1906cbad8881296343bb5bce0f75bdd",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "f22ec0ccc8d9922be304726b09effae2177fd70b6db3b56aeca095e8a42d0a1c",
+          "sha256": "3b51c6564a1a39dda39e4b07abda0c292802288d503c1dd40c6dbc8790e6e92c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
         }
       ]
     }
@@ -1416,7 +1515,7 @@
     },
     {
       "id": "E-ARENA",
-      "row_sha256": "408e806262efc3b66804b3654aa73826eadfa1ec53d8605386184fe14904c352",
+      "row_sha256": "8d9acb66fc4ede78903efbb5ca9c41cba0818e263a6d459f6778650de742ced6",
       "disposition": "premise-unchanged",
       "rust_symbol": "TransformArena/NodeFactory",
       "visibility": "public",
@@ -1428,7 +1527,7 @@
     },
     {
       "id": "E-METADATA-BASE",
-      "row_sha256": "5f32e161f3fbdb5520788a5fdb2a0e95b72c76a66658eb29a24c91a7231f2387",
+      "row_sha256": "c8f2b0aff8f1d2b108325e49379e5c09616a7d131ee284c3b1a876631ff8086c",
       "disposition": "modified-requalify",
       "rust_symbol": "TypeScript/LegacyDecorators/DownlevelClass explicit export names; CommonJs outer assignment -> TransformArena original/raw metadata",
       "visibility": "private visitor/public arena",
@@ -1548,7 +1647,7 @@
     },
     {
       "id": "E-HELPERS-BASE",
-      "row_sha256": "0631d41079f66c241d72246bb7274e63e8f319db1410ca6cb23e9c86a78470bb",
+      "row_sha256": "a01e128ebdb34219a0968177d297f0e49de79c90edada656fbb616bfd51cb49c",
       "disposition": "premise-unchanged",
       "rust_symbol": "TransformationContext::request_emit_helper",
       "visibility": "public",
@@ -5688,6 +5787,20 @@
     "source_disposition_review": {
       "path": "target/h2-8a-one-sided-class-comments-after-disposition-review.json",
       "sha256": "9733207f9c41bebbfc6cebb1d8c67f9e67f3ad18025e357bca7d0dfc9a221087"
+    }
+  },
+  "following_helper_accessor_qualification": {
+    "record": "ratchets/h2-8a-class-helper-accessor-producers-regressions.v1.json",
+    "sha256": "0594f0cf179dea18f57c65c7ed2822dff5704e474935be71e69802d13f64265c",
+    "eligible": 1140,
+    "exact_twice": 1020,
+    "original_A28_exact_twice": 412,
+    "original_A28_owned_still_open": 0,
+    "original_A28_outside_still_open": 80,
+    "global_matrix_claim": false,
+    "source_disposition_review": {
+      "path": "target/h2-8a-class-helper-accessor-producers-after-disposition-review.json",
+      "sha256": "4a5cfef4d2f313b3f230d8c7bced60938b0a2d940d99b62c36659bc0404faab9"
     }
   }
 }

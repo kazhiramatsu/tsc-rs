@@ -54,7 +54,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747"
+      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -74,7 +74,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869"
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
     },
     {
       "path": "ratchets/h2-8a-meta-property-token-maps-after.v1.json",
@@ -822,7 +822,7 @@
     },
     {
       "id": "E-ARENA",
-      "row_sha256": "408e806262efc3b66804b3654aa73826eadfa1ec53d8605386184fe14904c352",
+      "row_sha256": "8d9acb66fc4ede78903efbb5ca9c41cba0818e263a6d459f6778650de742ced6",
       "disposition": "premise-unchanged",
       "rust_symbol": "TransformArena/NodeFactory",
       "visibility": "public",
@@ -834,7 +834,7 @@
     },
     {
       "id": "E-METADATA-BASE",
-      "row_sha256": "5f32e161f3fbdb5520788a5fdb2a0e95b72c76a66658eb29a24c91a7231f2387",
+      "row_sha256": "c8f2b0aff8f1d2b108325e49379e5c09616a7d131ee284c3b1a876631ff8086c",
       "disposition": "modified-requalify",
       "rust_symbol": "DownlevelClassVisitor::inline_class_expression/visit/materialize_static_operations; StaticBindings -> TransformArena raw ranges/original",
       "visibility": "private visitor/public arena",
@@ -954,7 +954,7 @@
     },
     {
       "id": "E-HELPERS-BASE",
-      "row_sha256": "0631d41079f66c241d72246bb7274e63e8f319db1410ca6cb23e9c86a78470bb",
+      "row_sha256": "a01e128ebdb34219a0968177d297f0e49de79c90edada656fbb616bfd51cb49c",
       "disposition": "premise-unchanged",
       "rust_symbol": "TransformationContext::request_emit_helper",
       "visibility": "public",
@@ -4669,6 +4669,27 @@
       "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/emitter-architecture.md",
       "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747",
+      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-readiness-50gmc84i/head/crates/compiler/tests/contracts.rs",
+      "reason": "A6-29 explicit 144-case registration and three-producer readiness; prior qualified bytes retained"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
     }
   ],
   "qualification": {
@@ -4683,6 +4704,20 @@
     "source_disposition_review": {
       "path": "target/h2-8a-one-sided-class-comments-after-disposition-review.json",
       "sha256": "9733207f9c41bebbfc6cebb1d8c67f9e67f3ad18025e357bca7d0dfc9a221087"
+    }
+  },
+  "following_helper_accessor_qualification": {
+    "record": "ratchets/h2-8a-class-helper-accessor-producers-regressions.v1.json",
+    "sha256": "0594f0cf179dea18f57c65c7ed2822dff5704e474935be71e69802d13f64265c",
+    "eligible": 1140,
+    "exact_twice": 1020,
+    "original_A28_exact_twice": 412,
+    "original_A28_owned_still_open": 0,
+    "original_A28_outside_still_open": 80,
+    "global_matrix_claim": false,
+    "source_disposition_review": {
+      "path": "target/h2-8a-class-helper-accessor-producers-after-disposition-review.json",
+      "sha256": "4a5cfef4d2f313b3f230d8c7bced60938b0a2d940d99b62c36659bc0404faab9"
     }
   }
 }

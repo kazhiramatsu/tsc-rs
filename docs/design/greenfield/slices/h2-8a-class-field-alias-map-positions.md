@@ -1,23 +1,18 @@
 # H2.8a A6-28: class-field substitution and sequence positions
 
-All original A28 source owners are qualified on the current train candidate.
-The [independent-comment endpoint qualification](h2-8a-one-sided-class-comments.md)
-has 396/492 original complete commands exact twice, repairing all 192 original
-owned failures while preserving all 198 original positives. Six originally
-outside ES2022 cases are also exact; 96 other outside cases retain their owners.
-All 494 emitter units and 451 contracts pass. The unchanged minimum 390 target
-and every selected original owner are satisfied. H2.8a, the global matrix and
-B–E remain open.
+All original A28 source owners remain qualified on the train. The subsequent
+[helper and accessor producer qualification](h2-8a-class-helper-accessor-producers.md)
+brings the original inventory to 412/492 exact twice, repairing 16 formerly
+outside helper/setter-map cases. All 192 original owned repairs and 198 original
+positives remain exact, along with six previously repaired ES2022 cases.
+The other 80 original outside cases, H2.8a global and B–E remain open.
+All 494 emitter units and 451 contracts pass with unchanged test IDs.
 
-The immutable first candidate was 362/492 exact twice with 164 owned repairs,
-28 owned failures and all 490/451 emitter tests passing. The
-[initializer-comment prerequisite](h2-8a-class-field-initializer-comments.md)
-repaired eight of those failures, reaching 370/492. The
-[promoted/export-map correction](h2-8a-promoted-class-export-maps.md) repaired
-16 more and six outside ES2022 cases, reaching 392/492. Independent comment
-endpoints repair the final four. Each extension has its own source scope,
-before evidence and qualification; the following original design and before
-record retain their historical counts and production scope.
+Historical milestones remain immutable: first candidate 362/492, initializer
+comments 370/492, promoted/export maps 392/492 and independent comment endpoints
+396/492. A6-29 has its own three-file scope and before/after evidence; it does
+not rewrite the original A28 scope or its minimum390 requirement. The following
+design and before record retain their historical counts and source ownership.
 
 Runtime slice at base `dc868373612af16ad299ed08bdec4ece437325dc`, on the H2.8
 train with trusted base10748f6ee19ec083ce5748224930c5dcfbbd86df. A27 leaves four

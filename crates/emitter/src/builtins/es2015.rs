@@ -6651,10 +6651,10 @@ impl Es2015Visitor<'_, '_, '_> {
         // target: range+parent-threaded clone of the receiver.
         let target = self.clone_node(receiver)?;
         self.set_text_range(target, receiver)?;
-        self.add_emit_flags(
-            target,
-            EmitFlags::NO_COMMENTS | EmitFlags::NO_TRAILING_SOURCE_MAP,
-        )?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(target)
+            .set_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_TRAILING_SOURCE_MAP);
         let first_name = self.accessor_name(first_accessor)?;
         self.set_source_map_range_from(target, first_name)?;
         let visited_accessor_name = self.visit_required_expression(first_name)?;

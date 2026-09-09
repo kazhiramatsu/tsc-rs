@@ -2006,6 +2006,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             && assigned_class_name.is_some()
             && has_transformable_static_member
             && !already_has_named_evaluation;
+        if needs_named_evaluation {
+            // Named evaluation requests this helper before visiting the class
+            // heritage and members. Keep AST/name allocation at the later call
+            // producer; the context deduplicates its repeated request.
+            self.context
+                .request_emit_helper(super::super::helpers::set_function_name())?;
+        }
         // tsc injects a named-evaluation block before entering the private
         // environment. This pass emits that helper directly below, so its
         // pending assigned name represents the same cloned-class metadata.
@@ -2921,7 +2928,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
             let getter = self.create_auto_accessor_getter(name, storage.node(), modifiers)?;
-            let setter = self.create_auto_accessor_setter(name, storage.node(), modifiers)?;
+            let modifier_array = modifiers.map(|modifiers| self.array(modifiers));
+            let modifier_flags = self.context.factory()?.modifier_flags(modifier_array)?;
+            let setter_modifiers = self
+                .context
+                .factory()?
+                .create_modifiers_from_modifier_flags(self.source, modifier_flags)?
+                .map(|modifiers| modifiers.array());
+            let setter =
+                self.create_auto_accessor_setter(name, storage.node(), setter_modifiers)?;
             self.generated_auto_accessor_pairs
                 .insert(getter.node(), setter.node());
             // transformAutoAccessor keeps all three nodes synthetic. Original

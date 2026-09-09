@@ -224,3 +224,6 @@ mod h2_8a_promoted_class_export_maps;
 
 #[path = "integration/h2_8a_one_sided_class_comments.rs"]
 mod h2_8a_one_sided_class_comments;
+
+#[path = "integration/h2_8a_class_helper_accessor_producers.rs"]
+mod h2_8a_class_helper_accessor_producers;
