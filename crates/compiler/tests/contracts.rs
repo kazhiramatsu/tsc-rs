@@ -209,3 +209,6 @@ mod h2_8a_defineproperty_readonly_exports;
 mod h2_8a_defineproperty_setter_annotations;
 #[path = "integration/h2_8a_defineproperty_setter_names.rs"]
 mod h2_8a_defineproperty_setter_names;
+
+#[path = "integration/h2_8a_meta_property_token_maps.rs"]
+mod h2_8a_meta_property_token_maps;

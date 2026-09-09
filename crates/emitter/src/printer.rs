@@ -7254,6 +7254,9 @@ impl Printer {
                 )?;
                 Ok(())
             }
+            NodeData::MetaProperty(data) => {
+                self.emit_meta_property(transformation, node, data, expression_context, writer)
+            }
             _ if !changed => {
                 self.write_original_without_leading_trivia(transformation, node, writer)
             }
@@ -7262,6 +7265,61 @@ impl Printer {
                 kind: record.kind,
             }),
         }
+    }
+
+    /// tsc-port: emitMetaProperty @6.0.3
+    /// tsc-hash: ccda2152b0b958533ee97a36457267d71d70e27d4358766024d5c56a80f69096
+    /// tsc-span: _tsc.js:118570-118574
+    fn emit_meta_property(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: tsc_syntax::nodes::MetaPropertyData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let spelling = match data.keyword_token {
+            SyntaxKind::NewKeyword => "new",
+            SyntaxKind::ImportKeyword => "import",
+            _ => {
+                return Err(PrinterError::UnsupportedTransformedSyntax {
+                    node,
+                    kind: SyntaxKind::MetaProperty,
+                });
+            }
+        };
+        let raw_pos = transformation.arena().node(node)?.pos;
+        let range = self.token_map_range_spanning(
+            transformation,
+            node.source(),
+            raw_pos,
+            spelling.len(),
+            writer,
+        )?;
+        // writeToken has no contextNode here: neither the MetaProperty's
+        // token-map flags nor its per-token range override owns this token.
+        if let Some(range) = range {
+            self.record_map_range_side(transformation, MapBoundary::Before, range, writer)?;
+        }
+        writer.write_punctuation(spelling);
+        if let Some(range) = range {
+            self.record_map_range_side(transformation, MapBoundary::After, range, writer)?;
+        }
+        writer.write_punctuation(".");
+        if let Some(name) = data.name {
+            let name = transformation
+                .arena()
+                .node_ref(node.source(), name)
+                .ok_or(PrinterError::UnknownStatement(name.0))?;
+            self.emit_node_with_hint(
+                transformation,
+                name,
+                EmitHint::Unspecified,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
     }
 
     fn is_prologue_statement(

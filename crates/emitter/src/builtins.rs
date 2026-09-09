@@ -7077,6 +7077,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
             NodeData::Token => original,
+            // tsc-port: onSubstituteNode @6.0.3
+            // tsc-hash: 4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c
+            // tsc-span: _tsc.js:111871-111882
+            // emitMetaProperty emits its name with Unspecified. Preserve
+            // that leaf instead of eagerly querying it as a value reference.
+            NodeData::MetaProperty(_) => original,
             NodeData::Identifier(_)
                 if !is_non_reference_identifier_node(self.context.arena(), original)? =>
             {

@@ -6173,3 +6173,339 @@ fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_bou
         assert!(host.format_calls.borrow().is_empty());
     }
 }
+
+/// Internal printer invariants use the same built-in transform selection as
+/// the TypeScript Program.emit oracle, then apply the recorded after mutation.
+#[test]
+fn meta_property_token_maps_internal_invariants_match_typescript() {
+    use crate::{SourceMapRange, SourceRange, TransformError, TransformNode, TransformSourceId};
+    use tsc_syntax::{NodeArrayId, NodeDataChildVisitor, SyntaxKind};
+
+    struct Mutator<'a> {
+        arena: &'a mut TransformArena,
+        source: TransformSourceId,
+        mode: &'a str,
+        touched: usize,
+    }
+    impl NodeDataChildVisitor for Mutator<'_> {
+        type Error = TransformError;
+        fn node_kind(&self, id: NodeId) -> SyntaxKind {
+            self.arena
+                .node(self.arena.node_ref(self.source, id).unwrap())
+                .unwrap()
+                .kind
+        }
+        fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+            let node = self.arena.node_ref(self.source, id).unwrap();
+            let mut data = self.arena.node(node)?.data.clone();
+            let flags = self.arena.transform_flags(node);
+            if let NodeData::MetaProperty(meta) = &mut data {
+                self.touched += 1;
+                match self.mode {
+                    "baseline" => {}
+                    "no-token-maps" => self
+                        .arena
+                        .metadata_mut(node)
+                        .add_flags(EmitFlags::NO_TOKEN_SOURCE_MAPS),
+                    "token-override" => {
+                        let range = SourceRange::from_raw(
+                            0,
+                            1,
+                            self.arena.source(self.source)?.syntax().positions(),
+                        )
+                        .unwrap();
+                        self.arena.metadata_mut(node).set_token_source_map_range(
+                            meta.keyword_token,
+                            SourceMapRange::new(self.source, range),
+                        );
+                    }
+                    "absent-name" => meta.name = None,
+                    other => panic!("unknown invariant mode {other}"),
+                }
+            } else {
+                tsc_syntax::try_visit_each_child(&mut data, self)?;
+            }
+            self.arena
+                .factory()
+                .update_node(node, data, flags)
+                .map(|node| Some(node.node()))
+        }
+        fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+            let array = self.arena.node_array_ref(self.source, id).unwrap();
+            let ids = self.arena.node_array(array)?.nodes.clone();
+            let nodes = ids
+                .into_iter()
+                .map(|id| {
+                    let visited = self.visit_node(id)?.unwrap();
+                    Ok(self.arena.node_ref(self.source, visited).unwrap())
+                })
+                .collect::<Result<Vec<TransformNode>, TransformError>>()?;
+            self.arena
+                .factory()
+                .update_node_array(array, nodes)
+                .map(|array| Some(array.array()))
+        }
+        fn required_child_removed(
+            &mut self,
+            parent: SyntaxKind,
+            field: &'static str,
+        ) -> Self::Error {
+            TransformError::RequiredChildRemoved { parent, field }
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/meta-property-token-map-invariants.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let rows = artifact["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 8);
+    let mut failures = Vec::new();
+    for row in rows {
+        let id = row["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let parsed = parse_source_file(
+                    "/main.ts",
+                    row["source_text"].as_str().unwrap(),
+                    Default::default(),
+                    None,
+                );
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+                let options = CompilerOptions {
+                    target: Some(ScriptTarget::ES2015.bits()),
+                    module: Some(ModuleKind::ES_NEXT.bits()),
+                    source_map: Some(true),
+                    ..Default::default()
+                };
+                let resolver = LegacyScriptJsxResolver;
+                let host =
+                    ModuleFactoryHost::new(options.clone(), Some(ModuleKind::ES_NEXT.bits()));
+                let transformers = crate::get_script_transformers_for_source(
+                    &options,
+                    &resolver,
+                    &host,
+                    SourceFileId::from_raw(0),
+                )
+                .unwrap();
+                let mut transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    transformers,
+                    false,
+                )
+                .unwrap();
+                let arena = transformed.arena_mut().unwrap();
+                let root = arena.root(source).unwrap();
+                let mut visitor = Mutator {
+                    arena,
+                    source,
+                    mode: row["mode"].as_str().unwrap(),
+                    touched: 0,
+                };
+                let updated = visitor.visit_node(root.node()).unwrap().unwrap();
+                assert_eq!(
+                    visitor.touched,
+                    row["observation"]["touched"].as_u64().unwrap() as usize
+                );
+                let updated = visitor.arena.node_ref(source, updated).unwrap();
+                visitor.arena.replace_root(source, updated).unwrap();
+                let printed = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_target(ScriptTarget::ES2015),
+                )
+                .print(
+                    &mut transformed,
+                    PrintRequest::SourceFile(source),
+                    Some(crate::SourceMapRecordingInputs {
+                        file: "main.js".into(),
+                        source_root: "".into(),
+                        sources_directory_path: "/".into(),
+                        current_directory: "/".into(),
+                        use_case_sensitive_source_keys: true,
+                        inline_sources: false,
+                    }),
+                )
+                .unwrap();
+                let expected = &row["observation"];
+                let write = expected["writes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|w| w["path"] == "/main.js")
+                    .unwrap();
+                // Compiler-owned sourceMappingURL is outside the printer. Split
+                // only at the oracle's explicit UTF-16 callback metadata position.
+                let utf16 = write["callback_text"]
+                    .as_str()
+                    .unwrap()
+                    .encode_utf16()
+                    .collect::<Vec<_>>();
+                let url_pos = write["data_source_map_url_pos"].as_u64().unwrap() as usize;
+                let expected_text = String::from_utf16(&utf16[..url_pos]).unwrap();
+                assert_eq!(printed.text(), expected_text, "{id}: internal printer text");
+                let actual_map = printed.source_map().unwrap().clone().to_json_string();
+                assert_eq!(
+                    actual_map,
+                    expected["source_maps"][0]["source_map_json"]
+                        .as_str()
+                        .unwrap(),
+                    "{id}: complete internal map JSON"
+                );
+            });
+            if result.is_err() {
+                failures.push((id, repetition));
+            } else {
+                eprintln!("MetaProperty invariant EXACT {id} repetition {repetition}");
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "MetaProperty internal invariant failures: {failures:?}"
+    );
+}
+
+/// Eager module visitors must preserve the Unspecified name slot used by
+/// emitMetaProperty. Reference queries remain observable on the real value use.
+#[test]
+fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
+    struct QueryResolver {
+        references: BTreeMap<NodeId, NodeId>,
+        queried: std::cell::RefCell<Vec<NodeId>>,
+    }
+    impl EmitResolver for QueryResolver {
+        fn get_constant_value(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+            Ok(None)
+        }
+        fn has_node_check_flag(
+            &self,
+            _: EmitResolverNode,
+            _: u32,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(false)
+        }
+        fn get_referenced_import_declaration(
+            &self,
+            node: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            self.queried.borrow_mut().push(node.node());
+            Ok(self
+                .references
+                .get(&node.node())
+                .map(|&decl| EmitResolverNode::new(node.source(), decl)))
+        }
+        fn is_referenced_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn is_value_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn get_referenced_export_container(
+            &self,
+            _: EmitResolverNode,
+            _: EmitExportContainerMode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn get_referenced_value_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn is_external_or_common_js_module(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/meta-property-token-maps.json"
+    )))
+    .unwrap();
+    let mut observed = Vec::new();
+    for row in artifact["cases"].as_array().unwrap() {
+        let id = row["case_id"].as_str().unwrap();
+        if !id.contains("/es2015/") || !id.ends_with("imported-binding") {
+            continue;
+        }
+        let text = row["files"][0]["text"].as_str().unwrap();
+        let parsed = parse_source_file("/project/main.ts", text, Default::default(), None);
+        let mut meta_name = None;
+        let mut import = None;
+        let mut identifiers = Vec::new();
+        let mut stack = vec![parsed.root];
+        while let Some(node) = stack.pop() {
+            let record = parsed.arena.node(node);
+            match &record.data {
+                NodeData::MetaProperty(data) => meta_name = data.name,
+                NodeData::ImportSpecifier(_) => import = Some(node),
+                NodeData::Identifier(data) if data.text == "meta" || data.text == "target" => {
+                    identifiers.push(node)
+                }
+                _ => {}
+            }
+            for_each_child(&parsed.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let meta_name = meta_name.unwrap();
+        let import = import.unwrap();
+        let value = identifiers
+            .iter()
+            .copied()
+            .find(|&node| node != meta_name && parsed.arena.node(node).parent != Some(import))
+            .unwrap();
+        let resolver = QueryResolver {
+            references: identifiers.into_iter().map(|node| (node, import)).collect(),
+            queried: Default::default(),
+        };
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(row["options"]["module"].as_i64().unwrap() as i32),
+            ..Default::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), options.module);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let transformers = crate::get_script_transformers_for_source(
+            &options,
+            &resolver,
+            &host,
+            SourceFileId::from_raw(0),
+        )
+        .unwrap();
+        let _transformed = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            transformers,
+            false,
+        )
+        .unwrap();
+        let queried = resolver.queried.borrow();
+        let name_was_not_queried = !queried.contains(&meta_name);
+        let value_query_matches_phase =
+            queried.contains(&value) == (options.module != Some(ModuleKind::ES_NEXT.bits()));
+        observed.push((id, name_was_not_queried, value_query_matches_phase));
+    }
+    assert_eq!(observed.len(), 6);
+    assert!(
+        observed.iter().all(|(_, name, value)| *name && *value),
+        "MetaProperty name/reference query observations: {observed:?}"
+    );
+}

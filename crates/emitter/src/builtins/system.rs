@@ -2230,12 +2230,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .as_deref()
                 == Some("meta");
         if !is_import_meta {
-            return self.update_generic(original, NodeData::MetaProperty(data));
+            // tsc-port: substituteMetaProperty @6.0.3
+            // tsc-hash: e84500cf33cc66757fb10aaaf3d10bc88a7a222cce65c52c3d1c24c79ed6419d
+            // tsc-span: _tsc.js:113312-113317
+            // The retained name is emitted with Unspecified, so an import
+            // named target must not substitute the name in new.target.
+            return Ok(original);
         }
         let context = self.create_identifier(&self.context_name.clone())?;
-        let transformed = self.create_property_access(context, "meta")?;
-        self.set_original_and_range(transformed, original)?;
-        Ok(transformed)
+        // substituteMetaProperty leaves the replacement wholly synthetic;
+        // the parsed import.meta range must not reach its source maps.
+        self.create_property_access(context, "meta")
     }
 
     fn visit_binary_expression(
