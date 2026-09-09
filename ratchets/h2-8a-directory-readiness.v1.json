@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7"
+      "sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
@@ -220,6 +220,13 @@
       "sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/docs/design/greenfield/slices/h2-8.md",
       "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7",
+      "sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-convergence-doc-before-szpzwoc2/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A34 same-head convergence checkpoint and reviewed next-owner order; runtime and expected inputs unchanged"
     }
   ]
 }

@@ -87,7 +87,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "b46a0d8233bda9c83f898d938bc7a2b89113049aa337629ad668f7b704a838c6"
+      "sha256": "0d6bb7533d2606ac38992994ecf4bfc37e44eec2fdfd5e2ba743b93a8aff7bc6"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -531,6 +531,13 @@
       "sha256": "84445e50a423d3842a8ddbd74c6197031090d5376de1010a16391dc0efe78d78",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
       "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "b46a0d8233bda9c83f898d938bc7a2b89113049aa337629ad668f7b704a838c6",
+      "sha256": "0d6bb7533d2606ac38992994ecf4bfc37e44eec2fdfd5e2ba743b93a8aff7bc6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-convergence-doc-before-szpzwoc2/docs/design/greenfield/slices/README.md",
+      "reason": "A34 same-head convergence checkpoint and reviewed next-owner order; runtime and expected inputs unchanged"
     }
   ],
   "owners": [

@@ -1,0 +1,534 @@
+{
+  "version": 1,
+  "status": "reviewed-cause-groups-at-complete-same-head-checkpoint",
+  "revision": "b6621f25aa47851b2ee264ebc200639f96a8aa03",
+  "independent_review": {
+    "path": "target/claude-emitter-convergence-review-result.md",
+    "sha256": "57c7055b28c24c9ca882b4249beca316eeb440d29ea991ab07b9e455cf9c5d32",
+    "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-convergence-after-a6-34-1vhxkuld/independent-review.md"
+  },
+  "observations": [
+    {
+      "path": "ratchets/h2-8a-global-after-a6-34.v1.json",
+      "sha256": "72bb3c0d016e959cd660cd8e18f14b287c57b470a589a18fb844af1e464c4385",
+      "eligible": 769,
+      "exact": 736,
+      "failed": 33,
+      "current": true
+    },
+    {
+      "path": "ratchets/h2-8a-class-convergence-after-a6-34.v1.json",
+      "sha256": "8d843fe5782529e4b6d8b27007e89958d9ad24fc94ed5ed87e0495d09ec943ae",
+      "eligible": 1228,
+      "exact": 1100,
+      "failed": 128,
+      "current": true,
+      "failed_repetitions": 1,
+      "failed_full_tuple_qualification": false
+    }
+  ],
+  "global_cause_groups": [
+    {
+      "cause_id": "G1",
+      "title": "External helper namespace import and helper references",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "builtins.rs: CommonJsModuleTransformer / CommonJsVisitor",
+      "ts_owners": [
+        "createExternalHelpersImportDeclarationIfNeeded",
+        "substituteExpressionIdentifier"
+      ],
+      "repair_group": "import-helpers",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G2",
+      "title": "Require relative extension rewrite",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+        "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "builtins.rs: CommonJsVisitor::visit_call_expression and RelativeModuleSpecifierVisitor",
+      "ts_owners": [
+        "shimOrRewriteImportOrRequireCall",
+        "forEachDynamicImportOrRequireCall"
+      ],
+      "repair_group": "require-rewrite",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G3",
+      "title": "Spread token comment emission",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+        "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "printer.rs: NodeData::SpreadElement",
+      "ts_owners": [
+        "emitSpreadElement",
+        "emitTokenWithComment"
+      ],
+      "repair_group": "token-comment-phases",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G4a",
+      "title": "Signature location assignment-kind predicate",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "checker/node_builder/statements.rs: get_signature_text_range_location",
+      "ts_owners": [
+        "getSignatureTextRangeLocation"
+      ],
+      "repair_group": "declaration-comments",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G4b",
+      "title": "Prototype method assignment location",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "checker/node_builder/statements.rs: make_serialize_property_symbol",
+      "ts_owners": [
+        "makeSerializePropertySymbol"
+      ],
+      "repair_group": "declaration-comments",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G5a",
+      "title": "JSDoc parameter and return type-node reuse",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default"
+      ],
+      "status": "open",
+      "confidence": "unresolved",
+      "rust_owner": "checker/node_builder: owner not yet isolated",
+      "ts_owners": [
+        "tryReuseExistingTypeNode"
+      ],
+      "repair_group": "jsdoc-type-reuse",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G5b",
+      "title": "Class-expression assignment container",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5"
+      ],
+      "status": "open",
+      "confidence": "source-supported-unreproduced-causality",
+      "rust_owner": "checker/check.rs: containers_of_symbol_slice and node-builder container queries",
+      "ts_owners": [
+        "getContainersOfSymbol"
+      ],
+      "repair_group": "class-expression-container",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G5c",
+      "title": "JSDoc return annotation",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default"
+      ],
+      "status": "open",
+      "confidence": "unresolved",
+      "rust_owner": "checker: return annotation owner not yet isolated",
+      "ts_owners": [
+        "getReturnTypeFromAnnotation",
+        "getJSDocReturnType"
+      ],
+      "repair_group": "jsdoc-return",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G5d",
+      "title": "Declaration module specifier option carrier",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "checker/node_builder/specifier.rs: SpecifierCompilerOptions",
+      "ts_owners": [
+        "getSpecifierForModuleSymbol",
+        "getLocalModuleSpecifier"
+      ],
+      "repair_group": "declaration-specifier-options",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G6",
+      "title": "JSDoc link text formatting",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "checker/node_builder/type_nodes.rs: preserve_comments_on",
+      "ts_owners": [
+        "getTextOfJSDocComment",
+        "formatJSDocLink"
+      ],
+      "repair_group": "jsdoc-link-text",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G7",
+      "title": "Property assignment modifier printing",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "printer.rs: PropertyAssignment / ShorthandPropertyAssignment",
+      "ts_owners": [
+        "emitPropertyAssignment",
+        "emitShorthandPropertyAssignment"
+      ],
+      "repair_group": "property-assignment-modifiers",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G8a",
+      "title": "React JSX unknown node ownership",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/compiler/reactImportDropped.ts#default"
+      ],
+      "status": "open",
+      "confidence": "unresolved",
+      "rust_owner": "builtins.rs: failing node lookup; producing owner not yet isolated",
+      "ts_owners": [],
+      "repair_group": "react-node-provenance",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    },
+    {
+      "cause_id": "G8b",
+      "title": "Allow importing TS extensions admission and diagnostic precedence",
+      "population": "original-output-769",
+      "case_ids": [
+        "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse"
+      ],
+      "status": "open",
+      "confidence": "source-supported",
+      "rust_owner": "execute.rs: validate_emit_options; program/config.rs: option diagnostic 5096",
+      "ts_owners": [
+        "verifyCompilerOptions"
+      ],
+      "repair_group": "import-ts-extensions",
+      "ts_owner_closure_ready": false,
+      "repair_verified": false
+    }
+  ],
+  "global_multiple_cause_case_ids": {
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default": [
+      "G4a",
+      "G5c"
+    ]
+  },
+  "class_cause_groups": [
+    {
+      "cause_group_id": "C1",
+      "title": "Retained ES2022 class field/accessor producers",
+      "population": "class-1228",
+      "case_ids": [
+        "class-field-alias-map-positions/es2022/commonjs/define/auto-accessor",
+        "class-field-alias-map-positions/es2022/commonjs/set/anonymous-field",
+        "class-field-alias-map-positions/es2022/commonjs/set/array-element",
+        "class-field-alias-map-positions/es2022/commonjs/set/assignment-class",
+        "class-field-alias-map-positions/es2022/commonjs/set/auto-accessor",
+        "class-field-alias-map-positions/es2022/commonjs/set/call-argument",
+        "class-field-alias-map-positions/es2022/commonjs/set/comma-class",
+        "class-field-alias-map-positions/es2022/commonjs/set/concise-arrow",
+        "class-field-alias-map-positions/es2022/commonjs/set/conditional-class",
+        "class-field-alias-map-positions/es2022/commonjs/set/declaration-field",
+        "class-field-alias-map-positions/es2022/commonjs/set/existing-parentheses",
+        "class-field-alias-map-positions/es2022/commonjs/set/field-arrow",
+        "class-field-alias-map-positions/es2022/commonjs/set/field-comments",
+        "class-field-alias-map-positions/es2022/commonjs/set/field-function",
+        "class-field-alias-map-positions/es2022/commonjs/set/instance-this-adjacent",
+        "class-field-alias-map-positions/es2022/commonjs/set/legacy-bound-this",
+        "class-field-alias-map-positions/es2022/commonjs/set/legacy-invalid-this",
+        "class-field-alias-map-positions/es2022/commonjs/set/many-inline-operands",
+        "class-field-alias-map-positions/es2022/commonjs/set/mixed-field-block",
+        "class-field-alias-map-positions/es2022/commonjs/set/named-field",
+        "class-field-alias-map-positions/es2022/commonjs/set/nested-class-field",
+        "class-field-alias-map-positions/es2022/commonjs/set/nested-computed-name",
+        "class-field-alias-map-positions/es2022/commonjs/set/object-property",
+        "class-field-alias-map-positions/es2022/commonjs/set/plain-field-adjacent",
+        "class-field-alias-map-positions/es2022/commonjs/set/return-class",
+        "class-field-alias-map-positions/es2022/commonjs/set/wrapper-comments",
+        "class-field-alias-map-positions/es2022/esnext/define/auto-accessor",
+        "class-field-alias-map-positions/es2022/esnext/set/anonymous-field",
+        "class-field-alias-map-positions/es2022/esnext/set/array-element",
+        "class-field-alias-map-positions/es2022/esnext/set/assignment-class",
+        "class-field-alias-map-positions/es2022/esnext/set/auto-accessor",
+        "class-field-alias-map-positions/es2022/esnext/set/call-argument",
+        "class-field-alias-map-positions/es2022/esnext/set/comma-class",
+        "class-field-alias-map-positions/es2022/esnext/set/concise-arrow",
+        "class-field-alias-map-positions/es2022/esnext/set/conditional-class",
+        "class-field-alias-map-positions/es2022/esnext/set/declaration-field",
+        "class-field-alias-map-positions/es2022/esnext/set/existing-parentheses",
+        "class-field-alias-map-positions/es2022/esnext/set/field-arrow",
+        "class-field-alias-map-positions/es2022/esnext/set/field-comments",
+        "class-field-alias-map-positions/es2022/esnext/set/field-function",
+        "class-field-alias-map-positions/es2022/esnext/set/instance-this-adjacent",
+        "class-field-alias-map-positions/es2022/esnext/set/legacy-bound-this",
+        "class-field-alias-map-positions/es2022/esnext/set/legacy-invalid-this",
+        "class-field-alias-map-positions/es2022/esnext/set/many-inline-operands",
+        "class-field-alias-map-positions/es2022/esnext/set/mixed-field-block",
+        "class-field-alias-map-positions/es2022/esnext/set/named-field",
+        "class-field-alias-map-positions/es2022/esnext/set/nested-class-field",
+        "class-field-alias-map-positions/es2022/esnext/set/nested-computed-name",
+        "class-field-alias-map-positions/es2022/esnext/set/object-property",
+        "class-field-alias-map-positions/es2022/esnext/set/plain-field-adjacent",
+        "class-field-alias-map-positions/es2022/esnext/set/return-class",
+        "class-field-alias-map-positions/es2022/esnext/set/wrapper-comments",
+        "class-helper-accessor-producers/es2022/commonjs/define/anonymous-auto-accessor",
+        "class-helper-accessor-producers/es2022/commonjs/define/declaration-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/define/heritage-private-request",
+        "class-helper-accessor-producers/es2022/commonjs/define/instance-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/define/named-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/define/preceding-private-request",
+        "class-helper-accessor-producers/es2022/commonjs/define/static-modifier-comments",
+        "class-helper-accessor-producers/es2022/commonjs/set/anonymous-auto-accessor",
+        "class-helper-accessor-producers/es2022/commonjs/set/declaration-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/set/heritage-private-request",
+        "class-helper-accessor-producers/es2022/commonjs/set/instance-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/set/instance-private-with-static",
+        "class-helper-accessor-producers/es2022/commonjs/set/named-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/commonjs/set/nested-private-names",
+        "class-helper-accessor-producers/es2022/commonjs/set/preceding-private-request",
+        "class-helper-accessor-producers/es2022/commonjs/set/static-modifier-comments",
+        "class-helper-accessor-producers/es2022/esnext/define/anonymous-auto-accessor",
+        "class-helper-accessor-producers/es2022/esnext/define/declaration-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/define/heritage-private-request",
+        "class-helper-accessor-producers/es2022/esnext/define/instance-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/define/named-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/define/preceding-private-request",
+        "class-helper-accessor-producers/es2022/esnext/define/static-modifier-comments",
+        "class-helper-accessor-producers/es2022/esnext/set/anonymous-auto-accessor",
+        "class-helper-accessor-producers/es2022/esnext/set/declaration-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/set/heritage-private-request",
+        "class-helper-accessor-producers/es2022/esnext/set/instance-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/set/instance-private-with-static",
+        "class-helper-accessor-producers/es2022/esnext/set/named-auto-accessor-control",
+        "class-helper-accessor-producers/es2022/esnext/set/nested-private-names",
+        "class-helper-accessor-producers/es2022/esnext/set/preceding-private-request",
+        "class-helper-accessor-producers/es2022/esnext/set/static-modifier-comments"
+      ],
+      "status": "open",
+      "candidate_subcauses": [
+        "Declaration name converted to String",
+        "Initializer receiver construction",
+        "Setter original and map range"
+      ],
+      "subcause_case_assignment_verified": false,
+      "repair_group": "retained-class-producers",
+      "repair_verified": false
+    },
+    {
+      "cause_group_id": "C2",
+      "title": "ES5 this phase and generated binding kind guard",
+      "population": "class-1228",
+      "case_ids": [
+        "class-field-alias-map-positions/es5/commonjs/define/concise-arrow",
+        "class-field-alias-map-positions/es5/commonjs/define/field-arrow",
+        "class-field-alias-map-positions/es5/commonjs/define/legacy-bound-this",
+        "class-field-alias-map-positions/es5/commonjs/define/legacy-static-block",
+        "class-field-alias-map-positions/es5/commonjs/define/nested-computed-name",
+        "class-field-alias-map-positions/es5/commonjs/define/static-block-arrow",
+        "class-field-alias-map-positions/es5/commonjs/set/concise-arrow",
+        "class-field-alias-map-positions/es5/commonjs/set/field-arrow",
+        "class-field-alias-map-positions/es5/commonjs/set/legacy-bound-this",
+        "class-field-alias-map-positions/es5/commonjs/set/legacy-static-block",
+        "class-field-alias-map-positions/es5/commonjs/set/nested-computed-name",
+        "class-field-alias-map-positions/es5/commonjs/set/static-block-arrow",
+        "class-field-alias-map-positions/es5/esnext/define/concise-arrow",
+        "class-field-alias-map-positions/es5/esnext/define/field-arrow",
+        "class-field-alias-map-positions/es5/esnext/define/legacy-bound-this",
+        "class-field-alias-map-positions/es5/esnext/define/legacy-static-block",
+        "class-field-alias-map-positions/es5/esnext/define/nested-computed-name",
+        "class-field-alias-map-positions/es5/esnext/define/static-block-arrow",
+        "class-field-alias-map-positions/es5/esnext/set/concise-arrow",
+        "class-field-alias-map-positions/es5/esnext/set/field-arrow",
+        "class-field-alias-map-positions/es5/esnext/set/legacy-bound-this",
+        "class-field-alias-map-positions/es5/esnext/set/legacy-static-block",
+        "class-field-alias-map-positions/es5/esnext/set/nested-computed-name",
+        "class-field-alias-map-positions/es5/esnext/set/static-block-arrow"
+      ],
+      "status": "open",
+      "candidate_subcauses": [
+        "Class-fields this substitution timing",
+        "Generated-binding kind guard"
+      ],
+      "subcause_case_assignment_verified": false,
+      "repair_group": "static-this-and-binding-kind",
+      "repair_verified": false
+    },
+    {
+      "cause_group_id": "C3",
+      "title": "Nested computed class names",
+      "population": "class-1228",
+      "case_ids": [
+        "class-field-alias-map-positions/es2015/commonjs/define/nested-computed-name",
+        "class-field-alias-map-positions/es2015/commonjs/set/nested-computed-name",
+        "class-field-alias-map-positions/es2015/esnext/define/nested-computed-name",
+        "class-field-alias-map-positions/es2015/esnext/set/nested-computed-name"
+      ],
+      "status": "open",
+      "candidate_subcauses": [
+        "Class environment transition not yet isolated"
+      ],
+      "subcause_case_assignment_verified": false,
+      "repair_group": "nested-computed-name",
+      "repair_verified": false
+    },
+    {
+      "cause_group_id": "C4",
+      "title": "Modifier trailing and token leading comment ownership",
+      "population": "class-1228",
+      "case_ids": [
+        "class-header-token/js/es2015/after-default",
+        "class-header-token/js/es2015/after-export",
+        "class-header-token/js/esnext/after-default",
+        "class-header-token/js/esnext/after-export",
+        "class-header-token/ts/es2015/after-default",
+        "class-header-token/ts/es2015/after-export",
+        "class-header-token/ts/esnext/after-default",
+        "class-header-token/ts/esnext/after-export",
+        "class-helper-accessor-producers/es2015/commonjs/define/static-modifier-comments",
+        "class-helper-accessor-producers/es2015/commonjs/set/static-modifier-comments",
+        "class-helper-accessor-producers/es2015/esnext/define/static-modifier-comments",
+        "class-helper-accessor-producers/es2015/esnext/set/static-modifier-comments"
+      ],
+      "status": "open",
+      "candidate_subcauses": [
+        "Modifier trailing phase and token leading/trailing union"
+      ],
+      "subcause_case_assignment_verified": false,
+      "repair_group": "token-comment-phases",
+      "repair_verified": false
+    },
+    {
+      "cause_group_id": "C5",
+      "title": "Hoisted escaped class declaration/export names",
+      "population": "class-1228",
+      "case_ids": [
+        "hoisted-export/es5/amd/class/direct-escaped",
+        "hoisted-export/es5/amd/class/escaped",
+        "hoisted-export/es5/commonjs/class/direct-escaped",
+        "hoisted-export/es5/commonjs/class/escaped"
+      ],
+      "status": "open",
+      "candidate_subcauses": [
+        "Owner not yet fully isolated"
+      ],
+      "subcause_case_assignment_verified": false,
+      "repair_group": "hoisted-escaped-class",
+      "repair_verified": false
+    }
+  ],
+  "global_group_count": 13,
+  "class_group_count": 5,
+  "total_root_cause_count": null,
+  "total_root_cause_count_reason": "Different populations and unresolved class subcause assignments; do not sum groups as proven causes",
+  "unmeasured_findings": [
+    {
+      "id": "U1",
+      "title": "InKeyword/OutKeyword erasure branches",
+      "case_ids": [],
+      "measured": false
+    },
+    {
+      "id": "U2",
+      "title": "NamespaceKeyword token comment route",
+      "case_ids": [],
+      "measured": false
+    },
+    {
+      "id": "U3",
+      "title": "User tslib import versus injected helper generated-name identity",
+      "case_ids": [],
+      "measured": false
+    }
+  ],
+  "next_repair_order": [
+    "import-helpers",
+    "token-comment-phases",
+    "grouped-local-producer-repairs",
+    "retained-class-producers",
+    "unresolved-causal-probes"
+  ],
+  "verification_notes": [
+    "Existing exact-to-failed regressions are counted per fixed population.",
+    "Newly minted failing cases are discoveries, not old-case regressions.",
+    "Cause repair requires complete before/after evidence; source-supported does not mean fixed.",
+    "Class failures stop at their first comparison; this replay does not qualify full failed tuples.",
+    "Current hosted acceptance stops at H2.7de and does not execute the H2.8a runner.",
+    "Historical full developer CI and chain walk remain omitted under the existing user-authorized workflow."
+  ],
+  "integrator_source_checks": [
+    "Existing substitution_factory supports emit-time helper property access construction.",
+    "Signature assignment-kind predicate and prototype method location omissions verified in current source.",
+    "JSDoc link node filtering verified in current preserve_comments_on source.",
+    "Current acceptance entrypoint ends at H2.7de.",
+    "User tslib import collision is an unobserved discriminating witness, not a confirmed new failure."
+  ]
+}
