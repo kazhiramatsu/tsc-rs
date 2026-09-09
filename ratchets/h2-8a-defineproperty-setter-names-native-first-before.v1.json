@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "status": "first-native-attempt-two-tests-ran-fault-control-hit-wrong-boundary",
+  "exit_code": 101,
+  "tests": {
+    "passed": 0,
+    "failed": 2
+  },
+  "seconds": 0.01,
+  "cache_control": "correct private write_type mismatch observed; public branch passed",
+  "fault_control": "test attempted to mutate immutable file-binder symbol before entering serializer; not qualified",
+  "required_test_amendment": "clone_symbol(property) before deliberately clearing the checker-owned clone declarations; no production edit",
+  "selected_namespace_counts": {
+    "node_builder": 51,
+    "syntactic_type_node_builder": 11,
+    "total_for_filter_node_builder": 62
+  },
+  "prior_unminted_33_target": "superseded by actual new-binary --list; no historical pass or 31 count reused",
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/instantiate.rs",
+      "sha256": "4d409efca2e636732ca5ec938f7aca36c7bc6b845897b24b377ec6ffc89eaa70"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/merge.rs",
+      "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "939733ec4def97c6b37b7e1af6b83d3d99bb4e9dd85a3931adf6cef8971809e8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+      "sha256": "db61e9adcdec9ba0f7840629d2a927e9eebed919057fc8074ea25c0acd1ed9e1"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-annotations-before.v1.json",
+      "sha256": "7b76e601fb8f815aee83ffe5066a967af5ca3eafc0a715aec074a4cc3fcdd5e3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-before.v1.json",
+      "sha256": "7c9045c6d1e72995845605e60f7686b7ea0a3a3cde36587ac2e128e1074d16b8"
+    },
+    {
+      "path": "scripts/observe-setter-symbol-invariant.mjs",
+      "sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-checker-selection.log",
+      "sha256": "4361cdf247f598235d653ffe3bdcc830ef9206b73f79ca389dcfe355d04cbaa5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-before-exit.json",
+      "sha256": "fb9c3442db56637d40a9e94abae5bac66f9b228391c3cea54f84f9f8a35e4c1a"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-before-prelaunch.json",
+      "sha256": "2bfb4d6238c3254e7d93810609832d8631ca67eaaac12a5b8a49245145338c86"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-before.log",
+      "sha256": "e976dfda9433a966ae95c15704834649347c0a716200c3ad090691f1e341117c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-fmt-final-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-setter-symbol-invariant-before.log",
+      "sha256": "5251d8a59136c3041131a641c86ab0e51779501a69791c2feb30876328735898"
+    },
+    {
+      "path": "target/h2-8a-setter-symbol-invariant-check.log",
+      "sha256": "5251d8a59136c3041131a641c86ab0e51779501a69791c2feb30876328735898"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-setter-names-first-native-8knxxlko"
+}

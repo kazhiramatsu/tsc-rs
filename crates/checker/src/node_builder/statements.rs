@@ -4714,37 +4714,56 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .declarations
                     .iter()
                     .copied()
-                    .find(|&declaration| {
-                        self.checker.kind_of(declaration) == SyntaxKind::SetAccessor
-                    });
-                let write_type = self
-                    .checker
-                    .get_write_type_of_symbol(property)
-                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                let type_node = if omit_type {
-                    None
-                } else {
-                    serialize_type_for_declaration_seam(
-                        self.checker,
-                        self.arena,
-                        self.target,
-                        self.context,
-                        setter,
-                        write_type,
-                        Some(property),
-                    )?
-                };
-                let parameter_symbol = setter
-                    .map(|setter| self.checker.get_signature_from_declaration(setter))
-                    .transpose()
-                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
-                    .and_then(|signature| {
+                    .find_map(|declaration| {
+                        if self.checker.kind_of(declaration) == SyntaxKind::SetAccessor {
+                            return Some(declaration);
+                        }
+                        let source = self.checker.binder.source_of_node(declaration);
+                        if !tsc_binder::assignment::is_bindable_object_define_property_call(
+                            source, declaration,
+                        ) {
+                            return None;
+                        }
+                        let NodeData::CallExpression(call) = self.checker.data_of(declaration) else {
+                            return None;
+                        };
+                        let descriptor = self.checker.nodes_of(call.arguments).get(2).copied()?;
+                        let NodeData::ObjectLiteralExpression(descriptor) = self.checker.data_of(descriptor) else {
+                            return None;
+                        };
+                        self.checker.nodes_of(descriptor.properties).into_iter().find(|&property| {
+                            declaration_name(self.checker, property).is_some_and(|name| {
+                                matches!(self.checker.data_of(name), NodeData::Identifier(data) if data.text == "set")
+                            })
+                        })
+                    })
+                    .expect("SetAccessor symbol requires a setter declaration");
+                let parameter_symbol =
+                    if node_util::is_function_like_declaration_kind(self.checker.kind_of(setter)) {
+                        let signature = self
+                            .checker
+                            .get_signature_from_declaration(setter)
+                            .map_err(|abort| {
+                                checker_abort_error(self.checker, self.context, abort)
+                            })?;
                         self.checker
                             .signature_of(signature)
                             .parameters
                             .first()
                             .copied()
-                    });
+                    } else {
+                        None
+                    };
+                // A descriptor method supplies the name, but only an actual
+                // accessor declaration supplies the type seam and member range.
+                let setter_declaration =
+                    property_data
+                        .declarations
+                        .iter()
+                        .copied()
+                        .find(|&declaration| {
+                            self.checker.kind_of(declaration) == SyntaxKind::SetAccessor
+                        });
                 let parameter_name_length = parameter_symbol.map_or(5, |parameter| {
                     self.checker
                         .symbol_display_name(parameter)
@@ -4768,6 +4787,23 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         self.context,
                     )?,
                     None => create_identifier(self.arena, self.target, "value")?,
+                };
+                let type_node = if omit_type {
+                    None
+                } else {
+                    let write_type = self
+                        .checker
+                        .get_write_type_of_symbol(property)
+                        .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+                    serialize_type_for_declaration_seam(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        self.context,
+                        setter_declaration,
+                        write_type,
+                        Some(property),
+                    )?
                 };
                 let parameter = create_node(
                     self.arena,
@@ -4795,7 +4831,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         modifiers,
                     }),
                 )?;
-                result.push(self.range_member(setter_node, setter.or(first_property_like))?);
+                result.push(
+                    self.range_member(setter_node, setter_declaration.or(first_property_like))?,
+                );
             }
             if property_data.flags.intersects(SymbolFlags::GET_ACCESSOR) {
                 let getter = property_data

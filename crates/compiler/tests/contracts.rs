@@ -198,3 +198,10 @@ mod h2_8a_commonjs_esmodule_marker;
 
 #[path = "integration/h2_8a_module_transformer_selection.rs"]
 mod h2_8a_module_transformer_selection;
+
+#[path = "integration/h2_8a_binding_name_map_ranges.rs"]
+mod h2_8a_binding_name_map_ranges;
+#[path = "integration/h2_8a_defineproperty_setter_annotations.rs"]
+mod h2_8a_defineproperty_setter_annotations;
+#[path = "integration/h2_8a_defineproperty_setter_names.rs"]
+mod h2_8a_defineproperty_setter_names;

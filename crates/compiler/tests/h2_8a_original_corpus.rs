@@ -281,3 +281,12 @@ fn original_module_transformer_selection_matches_complete_commands() {
     );
     assert_eq!(exact.len(), 6);
 }
+
+#[test]
+fn original_defineproperty_setter_names_match_complete_commands() {
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &["typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default"],
+    );
+    assert_eq!(exact.len(), 1);
+}

@@ -103,6 +103,7 @@ pub(super) fn assert_cases_with_inspection(
                     }
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
+                    "declarationMap" => options.declaration_map = value.as_bool(),
                     "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
                     "outDir" => options.out_dir = value.as_str().map(str::to_owned),
                     "outFile" => options.out_file = value.as_str().map(str::to_owned),
