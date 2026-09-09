@@ -43,7 +43,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419"
+      "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -103,7 +103,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "0a01f52ea278d8596ef95cae9c459c4405e4632f7f79f0a01ea94a5a4af543b4"
+      "sha256": "3d1893ede303ec7c379cdc61c97595a621127f7d06443fd993b3d6e0b9297ae9"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "a40442dc73cd6b305f50cd9a7510e406d1906cbad8881296343bb5bce0f75bdd"
+      "sha256": "3ae2a5e1a104841beadb30e160d3ccdcbe5e9a4dddfd5c6701f396a6f55c5c14"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -151,7 +151,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "3b51c6564a1a39dda39e4b07abda0c292802288d503c1dd40c6dbc8790e6e92c"
+      "sha256": "a52fd481e2831dca3e7d72b25b42c1c2d06f6dd12756a16411dbd7f620eda2f2"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -563,6 +563,39 @@
           "sha256": "3b51c6564a1a39dda39e4b07abda0c292802288d503c1dd40c6dbc8790e6e92c",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
           "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419",
+          "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-registration-before-fhcz8jtx/crates/compiler/tests/contracts.rs",
+          "reason": "Append only the unconditional A6-30 complete-command test module; exact old source plus three new registration lines proven against A29"
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "0a01f52ea278d8596ef95cae9c459c4405e4632f7f79f0a01ea94a5a4af543b4",
+          "sha256": "3d1893ede303ec7c379cdc61c97595a621127f7d06443fd993b3d6e0b9297ae9",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/docs/design/greenfield/slices/README.md",
+          "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "a40442dc73cd6b305f50cd9a7510e406d1906cbad8881296343bb5bce0f75bdd",
+          "sha256": "3ae2a5e1a104841beadb30e160d3ccdcbe5e9a4dddfd5c6701f396a6f55c5c14",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "3b51c6564a1a39dda39e4b07abda0c292802288d503c1dd40c6dbc8790e6e92c",
+          "sha256": "a52fd481e2831dca3e7d72b25b42c1c2d06f6dd12756a16411dbd7f620eda2f2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
         }
       ]
     }

@@ -299,3 +299,18 @@ fn original_defineproperty_readonly_adjacent_match_complete_commands() {
     );
     assert_eq!(exact.len(), 1);
 }
+
+#[test]
+fn original_jsdoc_block_scope_container_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/callbackTagVariadicType.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/typedefOnStatements.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 4);
+}

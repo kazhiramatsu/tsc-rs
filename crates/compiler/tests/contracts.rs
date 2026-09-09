@@ -227,3 +227,6 @@ mod h2_8a_one_sided_class_comments;
 
 #[path = "integration/h2_8a_class_helper_accessor_producers.rs"]
 mod h2_8a_class_helper_accessor_producers;
+
+#[path = "integration/h2_8a_jsdoc_block_scope_container.rs"]
+mod h2_8a_jsdoc_block_scope_container;

@@ -1,0 +1,1495 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-30",
+  "base": "259c77e6d52bb67cad4d4d382f58f2af7cdbf88e",
+  "runtime_paths": [
+    "crates/binder/src/bind.rs"
+  ],
+  "steps": [
+    "A6-30-1",
+    "A6-30-2",
+    "A6-30-3",
+    "A6-30-4"
+  ],
+  "authorities": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "b99f67907838a2d5d2bcb7d0b6e296d49d7f28a670b643e7a0607acbd49dafb0"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/syntax-and-binder.md",
+      "sha256": "b964a6de2a726aa02e6dd1186283a106654d011efe04636925afb1249f6877d2"
+    },
+    {
+      "path": "docs/design/checker-foundations.md",
+      "sha256": "099df1b88bfc2b2da51f00d8a7357de14c82f57a9e32bb26cdaba99d66ec01d9"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
+      "sha256": "2530fc50f4c28b386adcdd890f5e6bfbfcecf49609f0481bd63aa7fa8074ce13"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-block-scope-container-before.v1.json",
+      "sha256": "d9887260a6997e1322f29ec4b3539daec18cafd81768e4bb0bfab83020d464e5"
+    },
+    {
+      "path": "scripts/observe-jsdoc-block-scope-container.mjs",
+      "sha256": "cee190bee2cdca35a5fc9c6702e98cd5a089a53dd43c542723b588ce8fc2201f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-block-scope-container.json",
+      "sha256": "91643958b35d5e13af052073b84a18e464138ca04b27b7971cf3d9ce9f445e7a"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "685b0b2647f65e003a1065f1caa02bb83d89173839ae190aad72240a9c64e2ac"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_block_scope_container.rs",
+      "sha256": "6847d1a307738c31202e5932a15e6968cbe606c6a6a6ac08a83ac4dcc71b4e77"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/containers.rs",
+      "sha256": "0b3195baf932773a125c9e35fe972bbd018210eaed051a2a6facd4275fac9c37"
+    },
+    {
+      "path": "crates/binder/src/declare.rs",
+      "sha256": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5"
+    },
+    {
+      "path": "crates/binder/src/flow.rs",
+      "sha256": "f2c5948c17ab68f2a653232dfc06bba92ab31ef6a5dd06cb741995086fd5b283"
+    },
+    {
+      "path": "crates/binder/src/lib.rs",
+      "sha256": "f2298c369a62044126914a279badd4ce9bc4c91e4b6ae0b5baa77d5ebacb7896"
+    },
+    {
+      "path": "crates/binder/src/symbols.rs",
+      "sha256": "4e72a55f93f2b2b25c278ea6c228c477fedfb6c49a502df7c6f4bb68ad87f071"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "findAncestor",
+      "declaration_name": "findAncestor",
+      "start": 11411,
+      "end": 11422,
+      "sha256": "014da6a625f349ff90188d7f861ef81a2351d6d7ae2b118d0fa080d78a4d6bd4",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "enclosing_container_from / enclosing_block_scope_container_from",
+      "invariant": "ancestor traversal retains immutable parsed NodeId parents",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "canHaveLocals",
+      "declaration_name": "canHaveLocals",
+      "start": 12418,
+      "end": 12454,
+      "sha256": "9b06bf0fd5d08bb3347bfdf755619719eb61e7885c9da2dbca6c0dc293ca7828",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "ensure_locals / get_container_flags",
+      "invariant": "existing locals-capable containers",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "isBlockScope",
+      "declaration_name": "isBlockScope",
+      "start": 13786,
+      "end": 13809,
+      "sha256": "0f16e21e5d49b19429a2c7da58f19407ff27166aa2072a90ef6837af5b6f5d05",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "is_block_scope",
+      "invariant": "classes are containers but are not block scopes",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "getEnclosingContainer",
+      "declaration_name": "getEnclosingContainer",
+      "start": 13841,
+      "end": 13843,
+      "sha256": "bf8b0ab1aebb621d46c4e762d1c86d15c6b754c41228d5b9eedb726e7192cf6b",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "enclosing_container_from",
+      "invariant": "class container is retained",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "getEnclosingBlockScopeContainer",
+      "declaration_name": "getEnclosingBlockScopeContainer",
+      "start": 13844,
+      "end": 13846,
+      "sha256": "50444054506d87acb188cbcd3ed441a6c57e41352eda843ae6f0840bbbb1cc07",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "enclosing_block_scope_container_from",
+      "invariant": "class host can select source block scope",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "isExternalOrCommonJsModule",
+      "declaration_name": "isExternalOrCommonJsModule",
+      "start": 14119,
+      "end": 14121,
+      "sha256": "e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_block_scoped_declaration",
+      "invariant": "current container identity must own the tested module indicators",
+      "gap": "partial-or-stale",
+      "step": "A6-30-2",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "createFlowNode",
+      "declaration_name": "createFlowNode",
+      "start": 42404,
+      "end": 42406,
+      "sha256": "50f4e5850330909e853e82825ef01ab9cb1bcd9bdd13b31469b77b8127094539",
+      "rust_path": "crates/binder/src/flow.rs",
+      "rust_symbol": "FlowArena::create_flow_node",
+      "invariant": "fresh START flow per delayed tag",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindSourceFile2",
+      "declaration_name": "bindSourceFile2",
+      "start": 42456,
+      "end": 42505,
+      "sha256": "213891d27022fad429657a32a61e019a181b1fa5a1abd1f54586b72fdc3495a1",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_source_file",
+      "invariant": "normal bind, delayed typedefs, JSDoc imports; per-file worker lifetime",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "declareSymbol",
+      "declaration_name": "declareSymbol",
+      "start": 42602,
+      "end": 42674,
+      "sha256": "cb8ed21f44a66ba3e0ee2c2bbdcc066276c64ca5f4a0cd18d8c8f87883cec24e",
+      "rust_path": "crates/binder/src/declare.rs",
+      "rust_symbol": "declare_symbol",
+      "invariant": "existing symbol merge flags and ordered duplicate diagnostics",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "declareModuleMember",
+      "declaration_name": "declareModuleMember",
+      "start": 42675,
+      "end": 42721,
+      "sha256": "971bfda716a6fae24c6b910f1af7b3f1f9349766cb220916bffbcd552b70b3b7",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "declare_module_member",
+      "invariant": "module export/local table dispatch uses current container",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "jsdocTreatAsExported",
+      "declaration_name": "jsdocTreatAsExported",
+      "start": 42722,
+      "end": 42733,
+      "sha256": "1d76227aeb3d4d8a6eb3f3dac5ef9426c5805b0d3acaf8efde651d1110d25ded",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "jsdoc_treat_as_exported",
+      "invariant": "fullName alias export eligibility remains unchanged",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindContainer",
+      "declaration_name": "bindContainer",
+      "start": 42734,
+      "end": 42829,
+      "sha256": "fef772b3e91e50f62414b2e5b26c7432798feb04e6372869308938583e7923b7",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "bind_container",
+      "invariant": "save/restore distinct container and block-scope identities",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindChildren",
+      "declaration_name": "bindChildren",
+      "start": 42843,
+      "end": 42976,
+      "sha256": "69e5dfbb76220dae84ed056c90a443fd58a7edfda6ac555da31683f2567d41c1",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_children",
+      "invariant": "existing child order followed by JSDoc binding",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindJSDocTypeAlias",
+      "declaration_name": "bindJSDocTypeAlias",
+      "start": 43715,
+      "end": 43728,
+      "sha256": "eeaf90a6f512a62877aa3ffdaece1a4a7baaf03ab994940d8132cbd0d66e7a0a",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_jsdoc_type_alias",
+      "invariant": "existing delayed queue producer",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "addToContainerChain",
+      "declaration_name": "addToContainerChain",
+      "start": 43829,
+      "end": 43834,
+      "sha256": "e24ee70c25ec2d285ceae0b89e0b616a61e0e4dda58077013ac7e891793f3bd3",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "add_to_container_chain",
+      "invariant": "existing ordered container chain",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindBlockScopedDeclaration",
+      "declaration_name": "bindBlockScopedDeclaration",
+      "start": 43972,
+      "end": 43998,
+      "sha256": "3d334e9a90d6bdfdb3b7d79213ed700060d8357423cf382de8dede406b119b7f",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_block_scoped_declaration",
+      "invariant": "ModuleDeclaration branch unchanged; SourceFile module predicate corrected; other locals unchanged",
+      "gap": "partial-or-stale",
+      "step": "A6-30-2",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "delayedBindJSDocTypedefTag",
+      "declaration_name": "delayedBindJSDocTypedefTag",
+      "start": 43999,
+      "end": 44072,
+      "sha256": "81918f8d6ca2b8ac860ef667494925641d30f765f62fb8515aa81cb3271fe57e",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "delayed_bind_jsdoc_typedef_tags",
+      "invariant": "separate enclosing containers, normal tag order, state restored",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bind",
+      "declaration_name": "bind",
+      "start": 44226,
+      "end": 44251,
+      "sha256": "a221c564cd1a81b185666ceebcfa20bd6f23de9fb8120aa84b7d7a95e2de759f",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind",
+      "invariant": "existing worker/container/children dispatch; finalized parse parents",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindJSDoc",
+      "declaration_name": "bindJSDoc",
+      "start": 44252,
+      "end": 44269,
+      "sha256": "5ef68b6ca2f9965b685ecab0698ebce940e986b63ded2db2e9e375d2b07a71ce",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_jsdoc",
+      "invariant": "existing JS-only tag traversal",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindWorker",
+      "declaration_name": "bindWorker",
+      "start": 44287,
+      "end": 44527,
+      "sha256": "4b259323fa2534e8d67ea9485669ddbff8e0a5a252719533558d6d8e99181588",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_worker",
+      "invariant": "existing per-kind alias registration",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "getContainerFlags",
+      "declaration_name": "getContainerFlags",
+      "start": 45143,
+      "end": 45201,
+      "sha256": "762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81",
+      "rust_path": "crates/binder/src/containers.rs",
+      "rust_symbol": "get_container_flags",
+      "invariant": "class IS_CONTAINER differs from block-scope classification",
+      "gap": "shared-prerequisite",
+      "step": "A6-30-1",
+      "completion_test": "jsdoc_block_scope_container_matches_complete_typescript_observations"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-ENTRY",
+      "row": "| `E-ENTRY` | No-emit and emit are distinct typed entries; no-emit constructs no emitter-only component. | `tsc_compiler::ProgramSession::{run,emit}`; `tsc_emitter::emit_files_with_activity` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | frozen H2.5g profile (`0653e10d`); H0/H1 no-emit canaries |",
+      "sha256": "688dc79124384ac35c41ed8e80d86cd41e552aed6ceb9f369d735987179c7237",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "row": "| `E-PROTOCOL` | Read host, semantic resolver, artifact, sink, and outcome have separate ownership; planning cannot observe syntax, checked syntax exists only within the live checker/resolver scope, and sink errors become diagnostics at the write boundary. | `tsc_emitter::{EmitHost,EmitResolver,EmitArtifact,OutputSink,EmitOutcome}` (public); private `tsc_compiler::{PreparedEmitHost,CheckedEmitHost}`; `tsc_checker::emit::CheckerSession` implementation in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile; every output slice preserves this boundary |",
+      "sha256": "7107f22958050e97c0f9a68e9ef12f0642360d497f47f5a15b16639e60f415be",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "row": "| `E-RESOLVER-BASE` | Semantic facts cross a borrowing consumer-owned resolver; unavailable methods return typed errors. | `tsc_emitter::{EmitResolver,EmitResolverMethod,EmitResolverError}` (public); `tsc_checker::emit::CheckerSession` impl in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and resolver controls |",
+      "sha256": "c49fe6f747d32438abe077dd0524ec92f754a3ce45784606bfda214bc118d9ba",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-ARENA",
+      "row": "| `E-ARENA` | Parsed trees remain immutable; the detached arena appends synthetic nodes and tracks the mounted parsed interval. | `tsc_emitter::{TransformArena,TransformSource,TransformSourceId,TransformNode,TransformNodeArray,NodeFactory}` (public) Existing `NodeFactory::modifier_flags` is now `pub(crate)`; downlevel auto-accessor setters use fresh factory modifiers while getters retain source tokens. | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; every later transform packet maps provenance explicitly |",
+      "sha256": "8d9acb66fc4ede78903efbb5ca9c41cba0818e263a6d459f6778650de742ced6",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row": "| `E-METADATA-BASE` | Transform flags and `emitNode`-equivalent facts are sparse session side tables; there is no standalone Rust `EmitNode` syntax object. Original/map/comment/value identities are separate. CommentRange carries independent source start/end states through CommentSourceRange; paired source slices and source-map ranges keep their existing domains. | Public `tsc_emitter::TransformArena::{transform_flags,set_transform_flags,array_transform_flags,set_array_transform_flags,metadata,metadata_mut,clear_session_metadata,get_original_node,set_original_node}` over private storage in `crates/emitter/src/factory.rs`; public `tsc_emitter::{EmitMetadata,SourceMapRange,CommentRange,CommentSourceRange,JavaScriptString}` defined in `crates/emitter/src/metadata.rs` (`EmitMetadata` storage fields remain `pub(crate)`, with its cross-crate operations exposed by public methods) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. A6-29 candidate uses existing `EmitMetadata::set_flags` to replace inherited flags on the ES5 accessor receiver clone, retaining its original/text/map ownership. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; H2.5h/H2.6 extend rather than infer from text |",
+      "sha256": "c8f2b0aff8f1d2b108325e49379e5c09616a7d131ee284c3b1a876631ff8086c",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-CONTEXT",
+      "row": "| `E-CONTEXT` | One per-unit context owns lexical/block environments, hoists, helpers, diagnostics, hooks, initialization, and reverse disposal. | `tsc_emitter::{TransformationContext,Transformer,TransformationResult,transform_nodes}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | H2.5g profile and transform lifecycle controls |",
+      "sha256": "159d0e3a6cc7d379030f658a516e21498ab6c901c96bc5a96fc48bb68be31f70",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-POSITIONS",
+      "row": "| `E-POSITIONS` | Source bytes, source/generated UTF-16, synthetic ranges, and source switches remain typed domains. | Public `tsc_emitter` position/writer/hook types; definitions in private `position`, `writer`, `metadata`, and `printer` modules | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H1/H2.5f protect predecessor behavior. | H2.5g profile and H1 Unicode/newline controls |",
+      "sha256": "cb11a74840d3fe403450e0f9b9e2c4226b34fd6e8bc14d0779a82bd4bd75f9f9",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-STRINGS",
+      "row": "| `E-STRINGS` | JavaScript string values preserve UTF-16 code units; lexical spelling and synthesized cooked values have distinct provenance. | Public `tsc_emitter::JavaScriptString` and `EmitMetadata` accessors/setters; `pub(crate)` metadata fields for cooked value, quote choice, and text-source identity; private printer quote routines | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and literal/JSX/module controls |",
+      "sha256": "b46c28d7741f60b23a3bdd5268cf75d12d0b717a5f6cf11109f6c1925db5f776",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/constructor-callback",
+      "disposition": "adjacent-exact",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "7a8dda9c989a192dfa24b4b826ddfac79225921774683d8f3f00b4b0380c08a2",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/semicolon-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "fb44c74d3f63e0ce2af8f3b8607e5df774e763d35d81e7e117a4308d0e7b5da6",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/method-callback",
+      "disposition": "adjacent-exact",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "44043822aec9e376cfef43847f43cc172d26adc32fb533b6400b6ad105faca7f",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/getter-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "416ee7165c94a6fae1ef1a46c7a600a18b1c596fdaf66cb531f03c798cbe7c65",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/property-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "65812fda508cd1be539c547d27489f1081299b08dd592449298e0bd8778fd3b3",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "ff4ba6972cb894dfb18c091a85a452b4734dfd44ac524a20b90f141a24c9ab6a",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "4268f7d2efa44687fa81f4b3d1191288877e9ffcf4f31bc83ff7d774c34067e2",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "87b596320880b351caf555e3bce40d1ae0b302c404b5ba5d218cedc9f2657748",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/class-alias-collision",
+      "disposition": "adjacent-exact",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "01a6c7d4ddcdab0e8a963fafc451d88a070f7e3c96c72ee2235266ee05e125cf",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/script/class-alias-collision-blocked",
+      "disposition": "adjacent-exact",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "9618036ad20083b84e544464e2642c2645436e8957c4ef0601bbb1aa055850f2",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/constructor-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "52409e92d0ec8ddaef22ed886df07728620c75f0327ca018cff799cc48ac7d79",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/semicolon-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "09b1d0333fff96aa1b020939bc48dc380593eda7aac0f69b9ed605b5f493559e",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/method-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "f1ca03449f16c0ffc23fbc6fba40a010d58ad321ca00362c492c95277e418b86",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/getter-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "61828b44ed459a6ca42f909b64549a783437a0327062d466f7e5a5349d88e5ee",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/property-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "c477f0f2d79cbd734c5d19b4473b6cd7cf3cf672e734acbc3bde869242a4039e",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "70d14b77ae8903ee4dcd720c4f60717ba7fc91ec11dc6e6f979ccfe325fc0381",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "eb78b3bf0800cc044494abb324798c650ade1d791fbacfecc9d2de4c57118ec9",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "31e378e2b14609712b1ee108cf4ff5d861d017abc59926485fc7138f9471994d",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/class-alias-collision",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "aaf937b68fc94c30ea551cad5bbd675a28e69b34b23f3c5a68810cbe9945c7a4",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/esm/class-alias-collision-blocked",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "ba5ddd86956fac016babf2a079a317299943a0ba7bdb1c489079de4af00f63bb",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/constructor-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "f763dd1da88b53f232466e04928fa41fb909019a5a1b44a3c8122d0deb88113a",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/semicolon-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "0ce9e363778f7a0973acfd214f3e8386578e1deaaa417703e414f09883b4cdc5",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/method-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "b12746c0cf799fff4e164fe48c63cd647b3a251f03e5bcbe278ed6249c3f45d6",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/getter-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "7e2a2f48301ee652c1a99f92620303fea9a270ef940091308ecdeda7a546e3a3",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/property-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "2bdac642db26e4960cf70af10b48fa03a49ad073b21c836b0f944f17c0207d08",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "fde9d7a891cb303c9a69a27da57669d92220e7a804060b23c8e6b43064b098a8",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "e550ccf0b7b6f2f7e54b60bbc4735a37926f9f1a5edc0d994249c4aecec8f64e",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "e5ef26cd7946c0e69db70df0044ac4ab957ce63b6a441d2edad0693e4ceb59f0",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/class-alias-collision",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "e2ab44295d35819bf9ceccdcd8969b088bdc2def5928eaa2d9981f96f911a55d",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/es2015/commonjs/class-alias-collision-blocked",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "237e370a1511d71ef85bd1eefd3ba37122a365b0ef89564941a6df9762c59751",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/constructor-callback",
+      "disposition": "adjacent-exact",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "ea3f79ee9ae06bc4e03ad05ab1a07b88982d0e8aa19775845290ce26f3b542f2",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/semicolon-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "57e96576bd45124ad469ea2070aec8e12f0b9c56ab527adae1c69aa2c3b3705c",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/method-callback",
+      "disposition": "adjacent-exact",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "b67467f41c2b656c7cd6e5e534b5330d0de5f72f3c085ebaf8ecc6ec03bdfc24",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/getter-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "8714f7b7ee285af553474325e8ab9df6961e512c817d93d08edd0963b9b08d66",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/property-typedef",
+      "disposition": "adjacent-exact",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "80c421828b401e77b510857dae530c7403a7fb8013bbdda82dca5ea738f1c1e1",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "36bd3f820b58126ad1da5d550724893f700b0e9df942e45deed8b034fb71c3e8",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "2dc324c8ac5bddf8df00882c96632c6209516a4d07264697b1d5416c72c7987a",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "71ea45a84562cc8a2f3d35929c1795a73e884ab0ffea0f425e90e6cce4207779",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/class-alias-collision",
+      "disposition": "adjacent-exact",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "752f671344999f85ceda00431af8ec69fa7c14b31d9cea2410b12b873abe1efa",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/script/class-alias-collision-blocked",
+      "disposition": "adjacent-exact",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "1ff9ace67d88fdc2d55febf0ec03feacebba5c5065b4acba0bb6378a7b06211f",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/constructor-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "30b05d9fce6412c043bc954c0311e2352842d5a195b4e59b022c88670ab827cb",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/semicolon-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "0beb947274bbe72fb1bb587c5c9b92a88c2ba58a549dd5aa06aace79f3ae024d",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/method-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "3db68c7370656dea055cf0f69e8d4a5b6e047ca78d1deac057bbe423e13620a5",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/getter-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "81baba92f053f3db2c69ec7d7de556d0e8c23a567fcf848e58ee41e228f7f977",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/property-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "df72ae2a92c36e0991eb41165c4d21a91c528395901467abe75212f9836116f7",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "2112cac9a21ae3b5e18372e756ce8e3dadc730c130809bc3e0fe99201b55d5d3",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "f15290023a843691e9f68cda6adee521f0a4e90ea2466637f893608a3d20c622",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "dd75e4cd2520e4c8f6d2cdad877b5a47593ad41af580bfa1658fa58e5124c605",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/class-alias-collision",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "a80f0e87d37385573fda1db7fedd7c8ef0df3ec3d0041e960834b1e04cff2462",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/esm/class-alias-collision-blocked",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "8a4b3c114de559ab357b1dda5a78f143b4bae8895a06e4c48bd5a2e87ebd951f",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/constructor-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "constructor-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "617936a9316e2fd77a990d3500584d46a1eec9e74b747f7f97d33efd3ed69766",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/semicolon-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "semicolon-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "563b04690a97c315906a3df5e26098d99a8c82885b300c67a375e14f23c491fa",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/method-callback",
+      "disposition": "owned-current-container-module-test",
+      "shape": "method-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "8c5fc3316d8a82e526dbe8605ed60eb8b109e45122f624af153b448530b4d78b",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/getter-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "getter-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "456eb8844e3b57862268456d337e56c98c67733f9f01075776abded0469f46a6",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/property-typedef",
+      "disposition": "owned-current-container-module-test",
+      "shape": "property-typedef",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "2eaf338d119a4ede8b1e8b5a01121216aba40ababbbab58bf50444b43d77ad1c",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/top-level-callback",
+      "disposition": "adjacent-exact",
+      "shape": "top-level-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "6541eab4ec953fe498de8eb34a07262d6ee54fcad780c5b17e9d20076ba0d473",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/function-local-callback",
+      "disposition": "adjacent-exact",
+      "shape": "function-local-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "492f4ad77756320dc6397025d919ef4ca8b8e27c71aad21e9970811bd5330aa9",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/nested-class-function-callback",
+      "disposition": "adjacent-exact",
+      "shape": "nested-class-function-callback",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "script module predicate false or declaration/block containers already agree",
+      "first_boundary": null,
+      "row_sha256": "9c1828076fba69c65390fab165ce981f453b0d8f2afda8c17ef25182c6c42203",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/class-alias-collision",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "856a8304954c6297cd627bbae7320f75664812298864f91f7b88016c096c546c",
+      "step": "A6-30-3"
+    },
+    {
+      "case_id": "jsdoc-block-scope-container/esnext/commonjs/class-alias-collision-blocked",
+      "disposition": "owned-current-container-module-test",
+      "shape": "class-alias-collision-blocked",
+      "owner": "BinderWorker::bind_block_scoped_declaration",
+      "production_path": "crates/binder/src/bind.rs",
+      "cause": "delayed class container differs from source block scope; source-wide module flag chooses class exports instead of source locals",
+      "first_boundary": "exact ordered reported diagnostics",
+      "row_sha256": "3d27ba2dce26335754a40acac11b2d43f378bdd16c16ec7c8bcd1f7297560ab7",
+      "step": "A6-30-3"
+    }
+  ],
+  "unit_sources": [
+    {
+      "path": "crates/binder/tests/unit/assignment/tests.rs",
+      "sha256": "cccd631a6720128e8abfbdf54f890d1ecb69ff8384a06640d9d664a4d1359936"
+    },
+    {
+      "path": "crates/binder/tests/unit/bind/tests.rs",
+      "sha256": "996b7b59af6ec47d5aa7db018483b81a3de43c332223924c1ab1b6352c9ca9c3"
+    },
+    {
+      "path": "crates/binder/tests/unit/declare/tests.rs",
+      "sha256": "5c3d08bec63e54cbd42770b11fe701cf9859cbc3ce4e16ba90051a2642cc0d40"
+    },
+    {
+      "path": "crates/binder/tests/unit/flow/tests.rs",
+      "sha256": "fdd55ae692ac33b5ff4ec6cede14266b25d1db339f4b5dbd7e64feb4e38009ad"
+    },
+    {
+      "path": "crates/binder/tests/unit/node_util/tests.rs",
+      "sha256": "509a671534c2b38d041c17fbc969544c536820423e6d145d34ac7d2299af144b"
+    },
+    {
+      "path": "crates/binder/tests/unit/symbols/tests.rs",
+      "sha256": "c188a68138a220fba52fd3693763281ffca34d622aa21069495476dccd42138c"
+    },
+    {
+      "path": "crates/checker/tests/authoritative_external_fact.rs",
+      "sha256": "3f1f4256a9609dc6837acff95bb7637e79f0305d1b1e22af2e672bf0bc66f895"
+    },
+    {
+      "path": "crates/checker/tests/unit/access/c0_entity_name_recovery_tests.rs",
+      "sha256": "89d4f1c51d7e35910d799f5196129d7087e54487dda8bb0dd76ee886bbade403"
+    },
+    {
+      "path": "crates/checker/tests/unit/access/tests.rs",
+      "sha256": "a0b6ca8b35e45ac9809cf27d4ef590eb4880fc0a3199db8334744ec037a46249"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/accessor_ladder_tests.rs",
+      "sha256": "d63c76d0238d15bd46a9b4c7ad468d82e5b33693fbf1e72cc710a3472e051fac"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/alias_and_typeof_tests.rs",
+      "sha256": "9bfe379f456f269c7c11a6e9cc7d2b5c5117431e423bb7e3411b6f53d76816c7"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/alias_instantiation_tests.rs",
+      "sha256": "dbd7edaad407a1b3fd73b1a0776fbb6e1d08ef02059bc7c6daf255582e030a61"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/bigint_annotation_tests.rs",
+      "sha256": "7a1dd575c111db644133c5b293fb59fc6a20919913c004ceb23c7ad6cdd57279"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/c0_annotation_recovery_tests.rs",
+      "sha256": "f44b933b919431943820aa6e6bdd57a326df40c47db983ee0977e9ed6b846e37"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/conditional_type_tests.rs",
+      "sha256": "8ca031e8fb3a6ac8e1c1ea768f23707cad9258cb957145ee5239224ef0af9f47"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/enum_tests.rs",
+      "sha256": "b3bd94aa29019c24ef0b975c3285ff692f2836f4a822c13942223493267cfe02"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/generic_declared_type_tests.rs",
+      "sha256": "3b0bfddbed8a614e0c84bbbadf0e7a5af0589ff6be3cef367c548ccda91e10b6"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/generic_reference_tests.rs",
+      "sha256": "68dc1927e66d205459b323294455a97725dcb59b7a5771060cb7531add4f5bd7"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/generic_signature_tests.rs",
+      "sha256": "4064616eb946d67ff8696e5c06cbc49f2023bf9e8bdc9a0dfdbdc0ac7921bdd1"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/js_assignment_widening_tests.rs",
+      "sha256": "e088e095e14b05278be8e9dbae09662ba58691836e99964f9f15c872921ab999"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/late_binding_tests.rs",
+      "sha256": "c3981b2414d9c83e04e6201dfbc1c23f42c28f6ea39f0641e9cbfb419ec86a0a"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/mapped_type_tests.rs",
+      "sha256": "77bc8fa2650d10ec045f8978e6407b3b265c70468ecec549ef34b0b9fa529c5b"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/merged_anonymous_members_tests.rs",
+      "sha256": "2308869db0d120835aa763f878a8aead28a94b8ec54fbe02aa97894359f613a6"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/tests.rs",
+      "sha256": "d5f6bb90aa9f6ba71429e2fb17ee8464c3cabe922b003e270b6cdf0afca81c46"
+    },
+    {
+      "path": "crates/checker/tests/unit/annotate/unique_symbol_tests.rs",
+      "sha256": "76c2bb1ece1ed28535b99d8f04137d311fac0dcb92b6d18294c31ee3e9a9044d"
+    },
+    {
+      "path": "crates/checker/tests/unit/calls/eopt_pins.rs",
+      "sha256": "7abebfbbba793bbb4391df3d4655515179778ce7ef277a15bd272edb1a1e289a"
+    },
+    {
+      "path": "crates/checker/tests/unit/calls/tests.rs",
+      "sha256": "72ff5df7b231dcf2568b0afd91f39d84ef4d986e12481c9b925d78d5ad67d17d"
+    },
+    {
+      "path": "crates/checker/tests/unit/check/tests.rs",
+      "sha256": "cd872de7d8255ee48afab3fdd9c6e15b965ddb51aefe049c0d717e04d1155b61"
+    },
+    {
+      "path": "crates/checker/tests/unit/class/tests.rs",
+      "sha256": "b6b4aa1cfed048e69cf42f573b24a775fe1377caeddcf4f410d6305484f83b91"
+    },
+    {
+      "path": "crates/checker/tests/unit/conditional/tests.rs",
+      "sha256": "ef706b53dd971d2d68568a01cac2696dd136818f6bb42a5bffa3236d406ab670"
+    },
+    {
+      "path": "crates/checker/tests/unit/constraints/tests.rs",
+      "sha256": "d079dd235b0cd9cf4425d80f6d9d1c16638e3b5754268535da7db6a3547c5631"
+    },
+    {
+      "path": "crates/checker/tests/unit/contextual/tests.rs",
+      "sha256": "9c0c251523d93b507359c1a7ec58c55ae12a12f7eeed5f59471914a1c1ccea44"
+    },
+    {
+      "path": "crates/checker/tests/unit/declaration_emit_members/tests.rs",
+      "sha256": "08a872539bd37ca28eaa28a8651c70b559b146fea3853c36f372d3df7e52cb9f"
+    },
+    {
+      "path": "crates/checker/tests/unit/elaboration/tests.rs",
+      "sha256": "31f35748b18a126ef6a779db6a7138dd4bb5dba37659dd5286abb2a44ca12857"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "a0abf3ff0b748905f95ca80c0c1c827a226f218325f7d82adc3c856a3916ad0b"
+    },
+    {
+      "path": "crates/checker/tests/unit/engine/relation_error_state_tests.rs",
+      "sha256": "0ca4377c23c69676eb50cf64fbfcd4be7ba7d9cb81957d0e9504e27abda46e07"
+    },
+    {
+      "path": "crates/checker/tests/unit/evaluate/tests.rs",
+      "sha256": "2b12d2f2a730b5ba3ad52bac1ef6ccf1e9d5ec5c3ec8687b1833e5d3b89775fb"
+    },
+    {
+      "path": "crates/checker/tests/unit/expr/c0_expression_recovery_tests.rs",
+      "sha256": "a73649856e4986b6d6d24a7c0c48146197ad05cc198a004a39c84e59560bd875"
+    },
+    {
+      "path": "crates/checker/tests/unit/expr/tests.rs",
+      "sha256": "fd09b8a39278e6eae1d9b4e9afa45edd5aeeea5a4433cfdb20f79f348bcff272"
+    },
+    {
+      "path": "crates/checker/tests/unit/flow/tests.rs",
+      "sha256": "044286588f2e82880ffd8d2b312a810c8d9e0d47edcb042160ca36e51be378ec"
+    },
+    {
+      "path": "crates/checker/tests/unit/functions/tests.rs",
+      "sha256": "0a3415f8253f3dea88607ef332cdd494d474cd3d7df5e2540026be7faaa49616"
+    },
+    {
+      "path": "crates/checker/tests/unit/globals/tests.rs",
+      "sha256": "9ec6e20e4da6cb5c6dd5cdf8beac69b12091f77d230bf3523877345764395d69"
+    },
+    {
+      "path": "crates/checker/tests/unit/indexed/tests.rs",
+      "sha256": "55af6158c57761343c560513245698d32fb039cd4b2096593569ebc88a0e63d5"
+    },
+    {
+      "path": "crates/checker/tests/unit/inference/tests.rs",
+      "sha256": "c1cf2febe67cb2abf993129c5cea39c4abefb03fad65b1a39f3cffd6a8217972"
+    },
+    {
+      "path": "crates/checker/tests/unit/instantiate/class_container_tests.rs",
+      "sha256": "9304aff3c0c6351590a99b28315fa7e253e8be3114ec90f0ec700c03f76fe6fe"
+    },
+    {
+      "path": "crates/checker/tests/unit/instantiate/tests.rs",
+      "sha256": "f5b34376f816aa27da0798bf9a08ae78a910fd2bea6af409e814a20ce7c51650"
+    },
+    {
+      "path": "crates/checker/tests/unit/js_grammar/tests.rs",
+      "sha256": "ef1df6e9a386840734188fe028d37aa2f31c4b59790f03976f19953e54e43395"
+    },
+    {
+      "path": "crates/checker/tests/unit/jsx/c6_recovery_tests.rs",
+      "sha256": "3cb83551ee6ebf58d092c790dc2ac1ce9223463aaf36c49277d04f51d6734421"
+    },
+    {
+      "path": "crates/checker/tests/unit/jsx/tests.rs",
+      "sha256": "50c7e83d37f80fe1772f11f60db694333eb9e837b7f2225c9b0e31ea30d409d9"
+    },
+    {
+      "path": "crates/checker/tests/unit/lib/tests.rs",
+      "sha256": "0b6879fa45fd9e574cbee93d9d70064a458a5e8a029697c8e76f658f61bb66d1"
+    },
+    {
+      "path": "crates/checker/tests/unit/literals/tests.rs",
+      "sha256": "8f63b575913ef39d646bc1c3b29d7ef81b39325bde54b5f7f827dd47ec207c6c"
+    },
+    {
+      "path": "crates/checker/tests/unit/mapped/tests.rs",
+      "sha256": "ddb95bfcec0c5d7b0297cf843354f2471ece5c28d9df9f1a2fe1f9d61935ff8a"
+    },
+    {
+      "path": "crates/checker/tests/unit/merge/tests.rs",
+      "sha256": "f710486e8da85259e0ead499c5da63a5178d6ccf4e82764726e246dcc9da4e9f"
+    },
+    {
+      "path": "crates/checker/tests/unit/modules/c0_module_recovery_tests.rs",
+      "sha256": "349fb5cf2b2717eb8de860d48ee184763848556c7e48b9ebcb40a35c5c5f2cea"
+    },
+    {
+      "path": "crates/checker/tests/unit/modules/tests.rs",
+      "sha256": "542b9514fdd77845ecff25bbc3310d3439e662deab6a2da037b116cca67c3bb4"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_chains/tests.rs",
+      "sha256": "bc775dc84b2c02d0ead3910db01dd2ae20d149836055153d05c1b47ccf5cddef"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_core/tests.rs",
+      "sha256": "5eb77e1900be9862ff0800f22a913f5a0d3a1d0cd015bc713c655cd7f8b44fbb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_serialize/tests.rs",
+      "sha256": "fe39246701879a319517c38888cb1f6d096bbeeec81057df5ff2cabb4e047d99"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+      "sha256": "5ae1d6f8be9c41fdafeb77d5f3c6f9c4161b1a30c06720c59ed1d15cc067b393"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_specifier/tests.rs",
+      "sha256": "fa63317df3ef12a172df84f2862e7711f76c31435fae31d03fe9057d664b40db"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_type_nodes/tests.rs",
+      "sha256": "949cc27520efb352936e70b8ffce7c0b4cb99689f2b608823b3f3dfb4706bf92"
+    },
+    {
+      "path": "crates/checker/tests/unit/operators/tests.rs",
+      "sha256": "7765e0d1357b9146395c053f81ad15b78ad28864cbd037dec59035cc24657f15"
+    },
+    {
+      "path": "crates/checker/tests/unit/program/tests.rs",
+      "sha256": "a6b564aa93b816642efa1278dc0bb6f916f89ce7233380fae87fc2de74ff209c"
+    },
+    {
+      "path": "crates/checker/tests/unit/relate/tests.rs",
+      "sha256": "1484a893a2e8168bbfb22977093f9e071ad65cf34c57777bcabd4c5bea15c7de"
+    },
+    {
+      "path": "crates/checker/tests/unit/resolve/tests.rs",
+      "sha256": "9462a2dbd937d37db5b5f53dea2539b00dce73340280434b94c9514c695e494e"
+    },
+    {
+      "path": "crates/checker/tests/unit/speculate/tests.rs",
+      "sha256": "f6a0c8ee12b78da0d3b13d1fc06547e769c3e5fcaa251db871593011d2375527"
+    },
+    {
+      "path": "crates/checker/tests/unit/state/resolution_unwind_tests.rs",
+      "sha256": "28c58bf74559e9b91ecc17bf330156e4b25228866f373bcd68fd08e6bab437eb"
+    },
+    {
+      "path": "crates/checker/tests/unit/state/test_support.rs",
+      "sha256": "bef84a938e5449656d497fca3012855da713139e22d04aa2dddac84fbca4d423"
+    },
+    {
+      "path": "crates/checker/tests/unit/state/tests.rs",
+      "sha256": "45126dae2f9c4e7d0a781eeb5d0a10c04b2c52c6be3f3da9972ecc1bacf9c9e1"
+    },
+    {
+      "path": "crates/checker/tests/unit/statements/tests.rs",
+      "sha256": "41fbfd719ab3759a773a96ffe1ee36c77044cfc877c981f2e0147e8612f37dc1"
+    },
+    {
+      "path": "crates/checker/tests/unit/structural/tests.rs",
+      "sha256": "96458b0fa42b2ae8fe13a23a17718caa2a5d7b089757a02daaeea93bb2dbb8db"
+    },
+    {
+      "path": "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs",
+      "sha256": "2eca77d2f37b4dce2e6216b74acff0bdd0ccc2f7b24936b33b2fcdbbebad0278"
+    },
+    {
+      "path": "crates/checker/tests/unit/unions/tests.rs",
+      "sha256": "d8a7f306d5fe6c0a886542190c7f8e9b04633a163e9f84e8d9a9d285d2f0b784"
+    },
+    {
+      "path": "crates/checker/tests/unit/unused/c0_unused_owner_recovery_tests.rs",
+      "sha256": "3a4beb8b72b0a0d1d55e67b502058d19b84233a6ee50700271b8781d008dd661"
+    },
+    {
+      "path": "crates/checker/tests/unit/unused/tests.rs",
+      "sha256": "9899b9aad2ec6c2b9ac71ff78f0b5cb6716ad1c2d64ec52d3f8f85060b1df469"
+    },
+    {
+      "path": "crates/checker/tests/unit/variance/tests.rs",
+      "sha256": "1760e67064894e2df2ebbd1c01bc3ab64d90745056b13a4aacf1a7c107e44578"
+    },
+    {
+      "path": "crates/checker/tests/unit/widen/tests.rs",
+      "sha256": "07080a814f9d233abfe00d1c4f395d57d517eda2c5971fca2d5936223424e45b"
+    }
+  ],
+  "original": {
+    "record": "ratchets/h2-8a-global-after-a6-29.v1.json",
+    "sha256": "cb9c30071cdb532202cea66250a795b83552a5d65f06697b635b21db4ea8403c",
+    "owned": [
+      {
+        "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+        "disposition": "owned-current-container-module-test",
+        "tuples": [
+          {
+            "file": "1e1e84414140fe3c9a237aeb8594168dff1b9bf9ea1b1fb904ac0d92d922bc98-0.json",
+            "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+            "repetition": 0,
+            "sha256": "a20d84e8e11cd06ec457eb25fdfb38daa2ffe59b2e3580efd6dc98ae092a39af"
+          },
+          {
+            "file": "1e1e84414140fe3c9a237aeb8594168dff1b9bf9ea1b1fb904ac0d92d922bc98-1.json",
+            "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+            "repetition": 1,
+            "sha256": "05faca71e8e3d101818d2b5236def2a78a8a5ac3f20fe3e69996e3de28500e30"
+          }
+        ]
+      },
+      {
+        "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+        "disposition": "owned-current-container-module-test",
+        "tuples": [
+          {
+            "file": "e1c0d615d6610b4033e451f10d6c80c3b6616367216b4e0bf306d88046b85aad-0.json",
+            "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+            "repetition": 0,
+            "sha256": "754a6c8ca1aa83d5f3ccf995e01b0ce1670ab4091c7324891916c257b9735c64"
+          },
+          {
+            "file": "e1c0d615d6610b4033e451f10d6c80c3b6616367216b4e0bf306d88046b85aad-1.json",
+            "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+            "repetition": 1,
+            "sha256": "70fb0db8519d83e04e5bdca3df6b2382591cb93870790b4fb44b2a9e6ef3ba4c"
+          }
+        ]
+      }
+    ],
+    "adjacent_exact": [
+      "typescript-6.0.3/conformance/jsdoc/callbackTagVariadicType.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/typedefOnStatements.ts#default"
+    ]
+  },
+  "after_required_exact_twice": 64,
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authority_amendments": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "51a16b817ef4433c293ced2cb027ed949fedec58daf43aa348198385852ef9cd",
+      "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
+      "old_sha256": "f1e09088db21014e8dba3491f67301cc9b3f8c55333c5f905cfc0b78d0e2e009",
+      "sha256": "43bc7510c5276bac5f8b008b2c50a9f54e486b26129f4129e137e5da69103ac8",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
+      "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
+      "old_sha256": "43bc7510c5276bac5f8b008b2c50a9f54e486b26129f4129e137e5da69103ac8",
+      "sha256": "2530fc50f4c28b386adcdd890f5e6bfbfcecf49609f0481bd63aa7fa8074ce13",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-packet-links-before-o10uvxq1/docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
+      "reason": "Resolve copied architecture-row links relative to the slice packet; exact source-row hash and semantics unchanged"
+    }
+  ],
+  "qualification": {
+    "record": "ratchets/h2-8a-jsdoc-block-scope-container-after.v1.json",
+    "sha256": "09373d80b9e69602ff9170b250e5579decfec4a7abc64de74377b9021b6ca34f",
+    "exact_twice": 64,
+    "binder_tests": 71,
+    "checker_jsdoc_tests": 108,
+    "global_matrix_claim": false
+  }
+}

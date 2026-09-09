@@ -54,7 +54,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419"
+      "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -4690,6 +4690,13 @@
       "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/emitter-architecture.md",
       "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419",
+      "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-registration-before-fhcz8jtx/crates/compiler/tests/contracts.rs",
+      "reason": "Append only the unconditional A6-30 complete-command test module; exact old source plus three new registration lines proven against A29"
     }
   ],
   "qualification": {
