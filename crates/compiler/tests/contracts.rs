@@ -233,3 +233,6 @@ mod h2_8a_jsdoc_block_scope_container;
 
 #[path = "integration/h2_8a_export_star_declaration_producer.rs"]
 mod h2_8a_export_star_declaration_producer;
+
+#[path = "integration/h2_8a_class_optional_name.rs"]
+mod h2_8a_class_optional_name;

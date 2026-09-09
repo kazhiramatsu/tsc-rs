@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74"
+      "sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
@@ -199,6 +199,13 @@
       "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8.md",
       "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
     }
   ]
 }

@@ -4975,7 +4975,6 @@ impl Printer {
                 data.type_parameters,
                 data.heritage_clauses,
                 data.members,
-                false,
                 expression_context,
                 writer,
             ),
@@ -4988,7 +4987,6 @@ impl Printer {
                 data.type_parameters,
                 data.heritage_clauses,
                 data.members,
-                true,
                 expression_context,
                 writer,
             ),
@@ -8543,24 +8541,9 @@ impl Printer {
         type_parameters: Option<tsc_syntax::NodeArrayId>,
         heritage_clauses: Option<tsc_syntax::NodeArrayId>,
         members: Option<tsc_syntax::NodeArrayId>,
-        expression: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let anonymous_default_declaration = !expression
-            && modifiers
-                .and_then(|array| transformation.arena().node_array_ref(source, array))
-                .map(|array| transformation.arena().node_array(array))
-                .transpose()?
-                .is_some_and(|array| {
-                    array.nodes.iter().any(|id| {
-                        transformation
-                            .arena()
-                            .node_ref(source, *id)
-                            .and_then(|modifier| transformation.arena().node(modifier).ok())
-                            .is_some_and(|modifier| modifier.kind == SyntaxKind::DefaultKeyword)
-                    })
-                });
         if self.emit_modifiers(
             transformation,
             source,
@@ -8597,11 +8580,6 @@ impl Printer {
                 false,
                 writer,
             )?;
-        } else if !expression && !anonymous_default_declaration {
-            return Err(PrinterError::MissingTransformedChild {
-                parent: SyntaxKind::ClassDeclaration,
-                field: "name",
-            });
         }
         if self.options.declaration_syntax {
             self.emit_type_parameters(

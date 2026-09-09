@@ -37,7 +37,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74"
+      "sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
@@ -57,11 +57,11 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0"
+      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
-      "sha256": "7ffe03ab6ecffda8dc42c42ffcac5fc3d0ea89673fed65e8355213a778346c9c"
+      "sha256": "eb5b6ed1cae0eb707ac4bf9733237a2b9436a999b4b176651e426ef6862f2537"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_export_star_declaration_producer.rs",
@@ -1363,6 +1363,27 @@
       "sha256": "2dbb74af951a217323c43afd4fd59fc13fc40c74bd04439855f3e7f504e354d6",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
       "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0",
+      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-registration-before-w8swklbr/crates/compiler/tests/contracts.rs",
+      "reason": "Only append A6-32 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "old_sha256": "7ffe03ab6ecffda8dc42c42ffcac5fc3d0ea89673fed65e8355213a778346c9c",
+      "sha256": "eb5b6ed1cae0eb707ac4bf9733237a2b9436a999b4b176651e426ef6862f2537",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-registration-before-w8swklbr/crates/compiler/tests/h2_8a_original_corpus.rs",
+      "reason": "Only append A6-32 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
     }
   ],
   "qualification": {

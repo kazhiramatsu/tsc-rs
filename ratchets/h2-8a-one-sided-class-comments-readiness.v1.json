@@ -59,7 +59,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0"
+      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -127,7 +127,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "0115a6f2d9721c5594d06263a6eca714d4b0a376279357f7f3a6d42d6fb30393"
+      "sha256": "7cb80c4561c736d48b6d3dab40b0f30baa55d04e54087f53bebfb626bfa9fc07"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -167,7 +167,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "1c2c9aa5092e3d155241f2bd2bcc7e7767dc3c07b3d7d3ac0fb4aac7a0e4a382"
+      "sha256": "0fe1613bb04496701d874ceb34bbfcae5e9ec4c89eb37789fa53181894acab08"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -179,7 +179,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "51226d480908c4a6b28f512959030d332cfc4cff07779bbb5ecd7ce833f16684"
+      "sha256": "c73cb3941d469e7050b06428ff60c57bc96942c5723b60334c308399e1c7a8ad"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
-      "sha256": "9f2902d5532bb53d03484ac2cd321aa141441e6e8444a967111016beb4c8394d"
+      "sha256": "a92e7d975616a42bf68fe06cd2425faf6a6ab31d1d126d10273e19ecac3717ec"
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-shared-after.v1.json",
@@ -703,6 +703,46 @@
           "sha256": "9f2902d5532bb53d03484ac2cd321aa141441e6e8444a967111016beb4c8394d",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
           "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0",
+          "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-registration-before-w8swklbr/crates/compiler/tests/contracts.rs",
+          "reason": "Only append A6-32 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "0115a6f2d9721c5594d06263a6eca714d4b0a376279357f7f3a6d42d6fb30393",
+          "sha256": "7cb80c4561c736d48b6d3dab40b0f30baa55d04e54087f53bebfb626bfa9fc07",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/docs/design/greenfield/slices/README.md",
+          "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "1c2c9aa5092e3d155241f2bd2bcc7e7767dc3c07b3d7d3ac0fb4aac7a0e4a382",
+          "sha256": "0fe1613bb04496701d874ceb34bbfcae5e9ec4c89eb37789fa53181894acab08",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "51226d480908c4a6b28f512959030d332cfc4cff07779bbb5ecd7ce833f16684",
+          "sha256": "c73cb3941d469e7050b06428ff60c57bc96942c5723b60334c308399e1c7a8ad",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "9f2902d5532bb53d03484ac2cd321aa141441e6e8444a967111016beb4c8394d",
+          "sha256": "a92e7d975616a42bf68fe06cd2425faf6a6ab31d1d126d10273e19ecac3717ec",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
         }
       ]
     }

@@ -54,7 +54,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0"
+      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -4704,6 +4704,13 @@
       "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-registration-before-cn0u39ul/crates/compiler/tests/contracts.rs",
       "reason": "Only append the A6-31 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0",
+      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-registration-before-w8swklbr/crates/compiler/tests/contracts.rs",
+      "reason": "Only append A6-32 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
     }
   ],
   "qualification": {

@@ -329,3 +329,18 @@ fn original_export_star_declaration_producer_commands() {
     );
     assert_eq!(exact.len(), 4);
 }
+
+#[test]
+fn original_class_optional_name_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+        "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors2.ts#default",
+        "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors3.ts#default",
+        "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors4.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 4);
+}

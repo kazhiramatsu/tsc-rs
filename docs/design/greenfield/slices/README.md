@@ -17,6 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a optional class name](h2-8a-class-optional-name.md) | A6-32 optional-name branch qualified on the H2.8 train | 58/64 fresh complete commands exact twice, all 18 repairs and 40 prior positives; 38 unchanged printer contracts pass. Remaining comments/recovery and H2.8 remain open. |
 | [H2.8a export-star declaration producer](h2-8a-export-star-declaration-producer.md) | A6-31 qualified on the H2.8 train | 60/60 complete commands exact twice, all 25 repairs and 35 prior positives; 28 unchanged checker units pass. H2.8 remains open. |
 | [H2.8a JSDoc declaration container](h2-8a-jsdoc-block-scope-container.md) | A6-30 qualified on the H2.8 train | 64/64 complete commands exact twice, all 30 repairs and 34 prior positives; 71 binder units and 108 checker JSDoc tests pass. H2.8 remains open. |
 | [H2.8a class helper and accessor producers](h2-8a-class-helper-accessor-producers.md) | A6-29 qualified on the H2.8 train | All 92 selected repairs; 1020/1140 exact twice, all 928 prior positives preserved and unchanged 494/451 emitter tests pass. 120 outside cases and H2.8 remain open. |
