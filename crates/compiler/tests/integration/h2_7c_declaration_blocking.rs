@@ -95,6 +95,7 @@ pub(super) fn assert_cases_with_inspection(
                 match key.as_str() {
                     "target" => options.target = Some(value.as_i64().unwrap() as i32),
                     "module" => options.module = Some(value.as_i64().unwrap() as i32),
+                    "jsx" => options.jsx = Some(value.as_i64().unwrap() as i32),
                     "moduleResolution" => {
                         options.module_resolution = Some(value.as_i64().unwrap() as i32)
                     }

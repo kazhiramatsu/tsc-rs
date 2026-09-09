@@ -43,7 +43,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1"
+      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -59,7 +59,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
-      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb"
+      "sha256": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
@@ -79,7 +79,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256"
+      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -87,7 +87,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "d8025c6bb983de5bda416a6f5694e372cc01c26d51bae4c3efb4823709422fd6"
+      "sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -119,7 +119,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "d49166674111b60aee438575c2056be5c44bddf85b66d7da35c3814cf6d1f0e8"
+      "sha256": "5a9b77cd8769cccd1c3058c08b09fdf7145edeef7593f7f750e87abbb439903e"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -650,6 +650,83 @@
       "sha256": "d49166674111b60aee438575c2056be5c44bddf85b66d7da35c3814cf6d1f0e8",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
       "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/contracts.rs",
+      "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "old_sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb",
+      "sha256": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+      "sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "d8025c6bb983de5bda416a6f5694e372cc01c26d51bae4c3efb4823709422fd6",
+      "sha256": "c30996a4c1ee909aa65b0c5af29ac2e7a9551f3b0888ef2bb86c0e0a31a26708",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/slices/README.md",
+      "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "d49166674111b60aee438575c2056be5c44bddf85b66d7da35c3814cf6d1f0e8",
+      "sha256": "acbedfa50d95e052836cf6a5ebaba05a1ad7488573dc42bd62947e36bd01d909",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+      "sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/docs/design/greenfield/emitter-architecture.md",
+      "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "acbedfa50d95e052836cf6a5ebaba05a1ad7488573dc42bd62947e36bd01d909",
+      "sha256": "ce96398af295acddf892d7b62fb745305b09d0d30bc1d8172f45c02c858788bd",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "c30996a4c1ee909aa65b0c5af29ac2e7a9551f3b0888ef2bb86c0e0a31a26708",
+      "sha256": "5c2a50db039385e63cc38a030e7db14a56fab2ae16f8371f29f262b69794f90e",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/slices/README.md",
+      "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "ce96398af295acddf892d7b62fb745305b09d0d30bc1d8172f45c02c858788bd",
+      "sha256": "5a9b77cd8769cccd1c3058c08b09fdf7145edeef7593f7f750e87abbb439903e",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "5c2a50db039385e63cc38a030e7db14a56fab2ae16f8371f29f262b69794f90e",
+      "sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/docs/design/greenfield/slices/README.md",
+      "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
     }
   ],
   "owners": [

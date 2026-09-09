@@ -428,11 +428,17 @@ pub(super) fn assert_completed_observation(
             "{case_id}: output path"
         );
         let expected_kind = expected["kind"].as_str().expect("frozen write kind");
-        // Original command observers call JavaScript map writes `source-map`;
-        // older owner fixtures use `javascript-map` for the same artifact kind.
+        // Original command observers call JavaScript map writes `source-map`
+        // and preserved JSX writes `javascript`; older owner fixtures use
+        // `javascript-map` and `jsx` for those same artifact kinds and paths.
         let actual_kind =
             if expected_kind == "source-map" && write.kind() == EmitArtifactKind::JavaScriptMap {
                 "source-map"
+            } else if expected_kind == "javascript"
+                && write.kind() == EmitArtifactKind::JavaScript
+                && write.path().extension().and_then(|value| value.to_str()) == Some("jsx")
+            {
+                "javascript"
             } else {
                 artifact_kind(write.kind(), write.path())
             };

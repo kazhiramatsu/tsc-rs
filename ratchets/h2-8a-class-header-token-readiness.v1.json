@@ -1942,7 +1942,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1"
+      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
@@ -1986,7 +1986,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256"
+      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -2154,6 +2154,49 @@
           "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/emitter-architecture.md",
           "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+          "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/contracts.rs",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
         }
       ]
     }

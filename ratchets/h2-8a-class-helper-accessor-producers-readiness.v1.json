@@ -45,7 +45,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1"
+      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -77,7 +77,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
-      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb"
+      "sha256": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
@@ -125,7 +125,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256"
+      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -133,7 +133,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "d8025c6bb983de5bda416a6f5694e372cc01c26d51bae4c3efb4823709422fd6"
+      "sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -177,7 +177,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "d49166674111b60aee438575c2056be5c44bddf85b66d7da35c3814cf6d1f0e8"
+      "sha256": "5a9b77cd8769cccd1c3058c08b09fdf7145edeef7593f7f750e87abbb439903e"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -189,7 +189,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "48b019eaaf4e1e879a7baecee61402753f886173114b284009ce75a797be2026"
+      "sha256": "ef248071ae001fbc485cd2a3b5b7bc8239b8d07ede9dc73206fe6653469c1b9b"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -209,7 +209,7 @@
     },
     {
       "path": "ratchets/h2-8a-directory-readiness.v1.json",
-      "sha256": "135262364bad52510feaafb172ea1b878726c13f8951cdffb1bf12a99a8be99c"
+      "sha256": "45f80be0859a30f6dd1ec2ed8a0e49db9daa041d388b189a821ae22157e4d459"
     },
     {
       "path": "ratchets/h2-8a-meta-property-token-maps-after.v1.json",
@@ -229,7 +229,7 @@
     },
     {
       "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
-      "sha256": "830e8bf37d948ac116dd84eceb4c76816495dda22ceb1acf6eb3f14beee7d31e"
+      "sha256": "2ad9f6bec2685b287e95f97f29aaeaaaef45f91897a0bb7ab172bcbc9ff8fbae"
     },
     {
       "path": "ratchets/h2-8a-one-sided-class-comments-regressions.v1.json",
@@ -249,7 +249,7 @@
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
-      "sha256": "a48775d0c811e55831bfba6d95edb16f50b416f43753226c6a9deb9c27c23c33"
+      "sha256": "f091b42061c65e35efcf3239fe7a669ff50294ae716049284d79e78eaa7a5daa"
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-shared-after.v1.json",
@@ -1256,6 +1256,215 @@
           "sha256": "a48775d0c811e55831bfba6d95edb16f50b416f43753226c6a9deb9c27c23c33",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
           "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+          "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/contracts.rs",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+          "old_sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb",
+          "sha256": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "d8025c6bb983de5bda416a6f5694e372cc01c26d51bae4c3efb4823709422fd6",
+          "sha256": "c30996a4c1ee909aa65b0c5af29ac2e7a9551f3b0888ef2bb86c0e0a31a26708",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/slices/README.md",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "d49166674111b60aee438575c2056be5c44bddf85b66d7da35c3814cf6d1f0e8",
+          "sha256": "acbedfa50d95e052836cf6a5ebaba05a1ad7488573dc42bd62947e36bd01d909",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "48b019eaaf4e1e879a7baecee61402753f886173114b284009ce75a797be2026",
+          "sha256": "82c576bcfa043e9765a1e8ad06bf489991845202b6d4dc3fd742739a46db912a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-directory-readiness.v1.json",
+          "old_sha256": "135262364bad52510feaafb172ea1b878726c13f8951cdffb1bf12a99a8be99c",
+          "sha256": "30e43ce1b51c20616e28d965f90f6d4e5f22d8ad063ea9bb8974644f2986afae",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-directory-readiness.v1.json",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "old_sha256": "830e8bf37d948ac116dd84eceb4c76816495dda22ceb1acf6eb3f14beee7d31e",
+          "sha256": "89f07c3a9b720540305304f8e881f31b172e123758254037f8d82d728b079cfd",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "a48775d0c811e55831bfba6d95edb16f50b416f43753226c6a9deb9c27c23c33",
+          "sha256": "cfb4edddc2c409dd0148db90541565faa208c3682ece02e0689de1a623c7b620",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "acbedfa50d95e052836cf6a5ebaba05a1ad7488573dc42bd62947e36bd01d909",
+          "sha256": "ce96398af295acddf892d7b62fb745305b09d0d30bc1d8172f45c02c858788bd",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "82c576bcfa043e9765a1e8ad06bf489991845202b6d4dc3fd742739a46db912a",
+          "sha256": "67472b3c8f266d35b881c2c7cda4333369e54d19588d48d66931f2640320c3d9",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-directory-readiness.v1.json",
+          "old_sha256": "30e43ce1b51c20616e28d965f90f6d4e5f22d8ad063ea9bb8974644f2986afae",
+          "sha256": "46ebc1e71f1e4683a33f48c04546d7f537591263a8cac4429efe0e04f751ef30",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-directory-readiness.v1.json",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "old_sha256": "89f07c3a9b720540305304f8e881f31b172e123758254037f8d82d728b079cfd",
+          "sha256": "30d218ae4fc734bf84f0b684837ff52ea2ef5b9e33291d4d02c85cf93b8267ec",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "cfb4edddc2c409dd0148db90541565faa208c3682ece02e0689de1a623c7b620",
+          "sha256": "30e1a00c68ba5f355b2f84139e540160f5a638d99ec0bd9e2556e39a0504bf0f",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "c30996a4c1ee909aa65b0c5af29ac2e7a9551f3b0888ef2bb86c0e0a31a26708",
+          "sha256": "5c2a50db039385e63cc38a030e7db14a56fab2ae16f8371f29f262b69794f90e",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/slices/README.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "ce96398af295acddf892d7b62fb745305b09d0d30bc1d8172f45c02c858788bd",
+          "sha256": "5a9b77cd8769cccd1c3058c08b09fdf7145edeef7593f7f750e87abbb439903e",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "67472b3c8f266d35b881c2c7cda4333369e54d19588d48d66931f2640320c3d9",
+          "sha256": "c12352130c815b6fe51d75fee1b1354a6b42f791b5be978e21baba2e574e6d0d",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-directory-readiness.v1.json",
+          "old_sha256": "46ebc1e71f1e4683a33f48c04546d7f537591263a8cac4429efe0e04f751ef30",
+          "sha256": "91c2fc789923bc27d01f6e5022c58b58e8b6f18c34d7722fe618c6af5cdf7275",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-directory-readiness.v1.json",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "old_sha256": "30d218ae4fc734bf84f0b684837ff52ea2ef5b9e33291d4d02c85cf93b8267ec",
+          "sha256": "72e394e777cfc2dcae003ef21ed9fad43a4a2f787a4dad6a2a5b65b9cf15c942",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "30e1a00c68ba5f355b2f84139e540160f5a638d99ec0bd9e2556e39a0504bf0f",
+          "sha256": "7f2beeaf4552eb759182989a4faa802b1990911b08804c17a6d5d220d8950e79",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "5c2a50db039385e63cc38a030e7db14a56fab2ae16f8371f29f262b69794f90e",
+          "sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/docs/design/greenfield/slices/README.md",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "c12352130c815b6fe51d75fee1b1354a6b42f791b5be978e21baba2e574e6d0d",
+          "sha256": "ef248071ae001fbc485cd2a3b5b7bc8239b8d07ede9dc73206fe6653469c1b9b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-directory-readiness.v1.json",
+          "old_sha256": "91c2fc789923bc27d01f6e5022c58b58e8b6f18c34d7722fe618c6af5cdf7275",
+          "sha256": "45f80be0859a30f6dd1ec2ed8a0e49db9daa041d388b189a821ae22157e4d459",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/ratchets/h2-8a-directory-readiness.v1.json",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "old_sha256": "72e394e777cfc2dcae003ef21ed9fad43a4a2f787a4dad6a2a5b65b9cf15c942",
+          "sha256": "2ad9f6bec2685b287e95f97f29aaeaaaef45f91897a0bb7ab172bcbc9ff8fbae",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "7f2beeaf4552eb759182989a4faa802b1990911b08804c17a6d5d220d8950e79",
+          "sha256": "f091b42061c65e35efcf3239fe7a669ff50294ae716049284d79e78eaa7a5daa",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
         }
       ]
     }

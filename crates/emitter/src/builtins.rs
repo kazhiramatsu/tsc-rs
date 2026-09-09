@@ -445,7 +445,6 @@ pub fn transform_type_script<'resolver>(
         resolver,
         legacy_decorators: options.experimental_decorators,
         always_strict: options.always_strict_effective(),
-        downlevels_es2018: options.emit_script_target() < ScriptTarget::ES2018,
         downlevel_iteration: options.downlevel_iteration == Some(true),
         module_kind: options.emit_module_kind(),
         preserve_const_enums: options.should_preserve_const_enums(),
@@ -521,7 +520,6 @@ struct TypeScriptTransformer<'resolver> {
     /// records that decorator syntax is supported by the complete pipeline.
     legacy_decorators: bool,
     always_strict: bool,
-    downlevels_es2018: bool,
     downlevel_iteration: bool,
     module_kind: i32,
     preserve_const_enums: bool,
@@ -587,7 +585,6 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.module_kind == MODULE_SYSTEM,
             self.allow_jsx,
             self.allow_legacy_decorators,
-            self.downlevels_es2018,
         )?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
@@ -15701,7 +15698,6 @@ fn preflight_source(
     _allow_ambient_module_erasure: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
-    downlevels_es2018: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -15710,7 +15706,7 @@ fn preflight_source(
             owner_slice: "H2.9",
         });
     }
-    if has_advanced_comment_placement(syntax.text(), downlevels_es2018) {
+    if has_advanced_comment_placement(syntax.text()) {
         return Err(TransformError::AdvancedCommentPlacementDeferred {
             owner_slice: "H2.8a",
         });
@@ -15748,30 +15744,9 @@ fn preflight_source(
     Ok(())
 }
 
-fn has_advanced_comment_placement(text: &str, downlevels_es2018: bool) -> bool {
-    (!downlevels_es2018 && has_comment_after_ellipsis(text))
-        || has_comment_between_private_name_and_in(text)
+fn has_advanced_comment_placement(text: &str) -> bool {
+    has_comment_between_private_name_and_in(text)
         || has_commented_optional_chain_type_assertion(text)
-}
-
-fn has_comment_after_ellipsis(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    let mut cursor = 0usize;
-    while cursor + 2 < bytes.len() {
-        if &bytes[cursor..cursor + 3] != b"..." {
-            cursor += 1;
-            continue;
-        }
-        let mut next = cursor + 3;
-        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
-            next += 1;
-        }
-        if bytes.get(next..next + 2) == Some(b"/*") || bytes.get(next..next + 2) == Some(b"//") {
-            return true;
-        }
-        cursor += 3;
-    }
-    false
 }
 
 fn has_comment_between_private_name_and_in(text: &str) -> bool {

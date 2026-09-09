@@ -1,0 +1,2747 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "route": "direct-printer-metadata",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "e89168f7dd1b4e3ed263a604eadaa07c699552f7bdce0ecb48a69b3f2dcacc17",
+  "cases": [
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/none/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/none/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-leading/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-leading/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-trailing/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-trailing/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-nested/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-nested/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-own/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-own/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-own-or-nested/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-token/no-own-or-nested/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/none/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/none/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-leading/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-leading/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-trailing/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-trailing/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-nested/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-nested/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-own/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(... /* rest */values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi4gLyogcmVzdCAqL3ZhbHVlczogbnVtYmVyW10pIHsgfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-own/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-own-or-nested/retain",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/parameter-parent/no-own-or-nested/remove",
+      "text": "function collect(... /* rest */ values: number[]) {}\n",
+      "selection_kind": "Parameter",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "function collect(...values: number[]) { }\r\n",
+        "utf8_base64": "ZnVuY3Rpb24gY29sbGVjdCguLi52YWx1ZXM6IG51bWJlcltdKSB7IH0NCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/none/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/none/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-leading/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-leading/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-trailing/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-trailing/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-nested/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-nested/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-own/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-own/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-own-or-nested/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-token/no-own-or-nested/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/none/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/none/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-leading/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-leading/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-trailing/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-trailing/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-nested/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-nested/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-own/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [... /* rest */values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLiAvKiByZXN0ICovdmFsdWVzXSA9IHNvdXJjZTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-own/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-own-or-nested/retain",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/array-binding-parent/no-own-or-nested/remove",
+      "text": "const [... /* rest */ values] = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const [...values] = source;\r\n",
+        "utf8_base64": "Y29uc3QgWy4uLnZhbHVlc10gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/none/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/none/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-leading/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-leading/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-trailing/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-trailing/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-nested/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-nested/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-own/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-own/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-own-or-nested/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-token/no-own-or-nested/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/none/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/none/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-leading/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-leading/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-trailing/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-trailing/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-nested/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-nested/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-own/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ... /* rest */value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi4gLyogcmVzdCAqL3ZhbHVlIH0gPSBzb3VyY2U7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-own/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-own-or-nested/retain",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/object-binding-parent/no-own-or-nested/remove",
+      "text": "const {... /* rest */ value} = source;\n",
+      "selection_kind": "BindingElement",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const { ...value } = source;\r\n",
+        "utf8_base64": "Y29uc3QgeyAuLi52YWx1ZSB9ID0gc291cmNlOw0K",
+        "utf8_bytes": 30,
+        "end_utf16": {
+          "position": 30,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/none/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/none/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-leading/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-leading/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-trailing/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-trailing/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-nested/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-nested/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-own/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-own/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-own-or-nested/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-token/no-own-or-nested/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/none/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/none/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-leading/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-leading/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-trailing/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-trailing/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-nested/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-nested/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-own/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ... /* rest */values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4uIC8qIHJlc3QgKi92YWx1ZXM6IG51bWJlcltdDQpdOw0K",
+        "utf8_bytes": 57,
+        "end_utf16": {
+          "position": 57,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-own/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-own-or-nested/retain",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/named-tuple-parent/no-own-or-nested/remove",
+      "text": "type Values = [... /* rest */ values: number[]];\n",
+      "selection_kind": "NamedTupleMember",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...values: number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4udmFsdWVzOiBudW1iZXJbXQ0KXTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/none/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/none/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-leading/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-leading/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-trailing/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlcyAvKiB0YWlsICovfTwvZGl2PjsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-trailing/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-nested/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-nested/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-own/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlcyAvKiB0YWlsICovfTwvZGl2PjsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-own/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-own-or-nested/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlcyAvKiB0YWlsICovfTwvZGl2PjsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-token/no-own-or-nested/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "DotDotDotToken",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/none/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/none/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-leading/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-leading/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-trailing/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-trailing/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-nested/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-nested/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-own/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{... /* rest */values /* tail */}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLiAvKiByZXN0ICovdmFsdWVzIC8qIHRhaWwgKi99PC9kaXY+Ow0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-own/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-own-or-nested/retain",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-expression-parent/no-own-or-nested/remove",
+      "text": "const node = <div>{... /* rest */ values /* tail */}</div>;\n",
+      "selection_kind": "JsxExpression",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div>{...values}</div>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXY+ey4uLnZhbHVlc308L2Rpdj47DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/none/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[] /* tail */\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10gLyogdGFpbCAqLw0KXTsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/none/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-leading/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[] /* tail */\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10gLyogdGFpbCAqLw0KXTsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-leading/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-trailing/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-trailing/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-nested/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[] /* tail */\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10gLyogdGFpbCAqLw0KXTsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-nested/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-own/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-own/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-own-or-nested/retain",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/rest-type-parent/no-own-or-nested/remove",
+      "text": "type Values = [... /* rest */ number[] /* tail */];\n",
+      "selection_kind": "RestType",
+      "file_name": "main.ts",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "type Values = [\r\n    ...number[]\r\n];\r\n",
+        "utf8_base64": "dHlwZSBWYWx1ZXMgPSBbDQogICAgLi4ubnVtYmVyW10NCl07DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/none/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value /* tail */}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlIC8qIHRhaWwgKi99Lz47DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/none/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-leading/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value /* tail */}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlIC8qIHRhaWwgKi99Lz47DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-leading/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-trailing/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value /* tail */}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlIC8qIHRhaWwgKi99Lz47DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-trailing/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-nested/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-nested/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value /* tail */}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlIC8qIHRhaWwgKi99Lz47DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own-or-nested/retain",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "ellipsis-comment-printer-metadata/jsx-attribute-parent/no-own-or-nested/remove",
+      "text": "const node = <div {... /* rest */ value /* tail */} />;\n",
+      "selection_kind": "JsxSpreadAttribute",
+      "file_name": "main.tsx",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "declaration_syntax": true,
+      "typescript_observation": {
+        "text": "const node = <div {...value}/>;\r\n",
+        "utf8_base64": "Y29uc3Qgbm9kZSA9IDxkaXYgey4uLnZhbHVlfS8+Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 1,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

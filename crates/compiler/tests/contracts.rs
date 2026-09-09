@@ -248,3 +248,6 @@ mod h2_8a_import_helpers;
 
 #[path = "integration/h2_8a_token_comment_phases.rs"]
 mod h2_8a_token_comment_phases;
+
+#[path = "integration/h2_8a_ellipsis_comment_owners.rs"]
+mod h2_8a_ellipsis_comment_owners;

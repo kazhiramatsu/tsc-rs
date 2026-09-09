@@ -230,3 +230,11 @@ them passing. This owner may close only after all 28 repairs, 52 prior positives
 and final bytes are verified. Next independent owners: property-assignment
 modifier emission and A33's modifier-comment/token-leading composition. H2.8
 completion additionally requires the remaining output families and all B–E work.
+
+## Later fixture adapter mapping
+
+A6-37 adds the existing CompilerOptions.jsx integer mapping to the shared fixture
+adapter. The current exact adapter proof composes the frozen A34 preserveConstEnums
+insertion with that single JSX insertion, using separate before/after hashes.
+A34 inputs, expected outputs and runtime qualification remain the dated record;
+the two complete A37 398-case comparisons exercise the updated adapter.

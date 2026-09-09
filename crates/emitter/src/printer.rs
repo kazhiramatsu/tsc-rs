@@ -2887,15 +2887,19 @@ impl Printer {
             }
             NodeData::JsxSpreadAttribute(data) => {
                 writer.write_punctuation("{...");
-                self.emit_required_node_with_context_and_source_extent(
+                let expression = data
+                    .expression
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::JsxSpreadAttribute,
+                        field: "expression",
+                    })?;
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.expression,
                     node,
-                    SyntaxKind::JsxSpreadAttribute,
-                    "expression",
+                    Some(expression),
+                    EmitHint::Expression,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                    DeferredSourceCommentExtent::LeadingAndTrailing,
                     writer,
                 )?;
                 writer.write_punctuation("}");
@@ -2907,6 +2911,7 @@ impl Printer {
                 });
                 if expression.is_none()
                     && (self.options.remove_comments
+                        || expression_context.nested_comments_suppressed()
                         || !self.original_jsx_has_comments_at_open(transformation, node)?)
                 {
                     return Ok(());
@@ -2915,69 +2920,51 @@ impl Printer {
                 if multiline {
                     writer.increase_indent();
                 }
-                let first_child = data
-                    .dot_dot_dot_token
-                    .and_then(|token| transformation.arena().node_ref(node.source(), token))
-                    .or(expression);
-                let open = self.emit_token_with_comments(
+                let open = self.emit_source_leading_token_with_context(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::OpenBraceToken),
-                    self.original_node_start_cursor(transformation, node)?,
-                    false,
+                    self.node_start_cursor(transformation, node)?,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
-                let open_prefix =
-                    self.token_owned_child_prefix(transformation, open, first_child)?;
                 if let Some(dot_dot_dot) = data.dot_dot_dot_token {
-                    if let Some(first_child) = first_child {
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            first_child,
-                            LeadingCommentContext::Normal,
-                            open_prefix,
-                            writer,
-                        )?;
-                    }
-                    self.emit_node_id_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        dot_dot_dot,
+                        node,
+                        Some(dot_dot_dot),
+                        EmitHint::Unspecified,
+                        Some(open),
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
                 if let Some(expression) = expression {
-                    if data.dot_dot_dot_token.is_none() {
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            expression,
-                            LeadingCommentContext::Normal,
-                            open_prefix,
-                            writer,
-                        )?;
-                    }
-                    self.emit_node_id_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        expression.node(),
+                        node,
+                        Some(expression.node()),
+                        EmitHint::Expression,
+                        data.dot_dot_dot_token.is_none().then_some(open),
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
                 let close_anchor = expression
                     .map(|expression| {
-                        self.original_node_end_cursor(transformation, expression)
+                        self.node_end_cursor(transformation, expression)
                             .map(TokenAnchor::from)
                     })
                     .transpose()?
                     .unwrap_or_else(|| TokenAnchor::from(open));
-                self.emit_token_with_comments(
+                self.emit_source_leading_token_with_context(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::CloseBraceToken),
                     close_anchor,
-                    false,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
                 if multiline {
@@ -4022,54 +4009,54 @@ impl Printer {
                         parent: SyntaxKind::BindingElement,
                         field: "name",
                     })?;
-                if let Some(dot_dot_dot) = data.dot_dot_dot_token {
-                    self.emit_node_id_with_context(
-                        transformation,
-                        node.source(),
-                        dot_dot_dot,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
-                }
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    data.dot_dot_dot_token,
+                    EmitHint::Unspecified,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 if let Some(property_name) = data.property_name {
-                    self.emit_identifier_name_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        property_name,
+                        node,
+                        Some(property_name),
+                        EmitHint::Unspecified,
+                        None,
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                     writer.write_punctuation(":");
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name_with_context(
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.name,
-                    SyntaxKind::BindingElement,
-                    "name",
+                    node,
+                    Some(name.node()),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
-                    let equals = self.emit_space_prefixed_token_with_comments(
+                    let equals = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::operator(SyntaxKind::EqualsToken),
                         self.original_node_end_cursor(transformation, name)?,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                     writer.write_space(" ");
-                    let initializer = transformation
-                        .arena()
-                        .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    self.emit_child_after_token_with_complete_source_comments(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        equals,
-                        initializer,
+                        Some(initializer),
+                        EmitHint::Expression,
+                        Some(equals),
                         expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
@@ -4616,12 +4603,16 @@ impl Printer {
             }
             NodeData::JSDocVariadicType(data) => {
                 writer.write_punctuation("...");
-                self.emit_required_node_with_context(
+                let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::JSDocVariadicType,
+                    field: "type",
+                })?;
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.r#type,
-                    SyntaxKind::JSDocVariadicType,
-                    "type",
+                    node,
+                    Some(r#type),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
@@ -4897,39 +4888,47 @@ impl Printer {
                 )? {
                     writer.write_space(" ");
                 }
-                if let Some(rest) = data.dot_dot_dot_token {
-                    self.emit_node_id_with_context(
-                        transformation,
-                        node.source(),
-                        rest,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
-                }
-                self.emit_required_identifier_name_with_context(
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.name,
-                    SyntaxKind::Parameter,
-                    "name",
+                    node,
+                    data.dot_dot_dot_token,
+                    EmitHint::Unspecified,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    Some(name.node()),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if self.options.declaration_syntax {
-                    self.emit_optional_declaration_token(
-                        transformation,
-                        node.source(),
-                        data.question_token,
-                        expression_context,
-                        writer,
-                    )?;
-                    self.emit_type_annotation(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        data.r#type,
-                        expression_context,
+                        data.question_token,
+                        EmitHint::Unspecified,
+                        None,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                    if let Some(r#type) = data.r#type {
+                        writer.write_punctuation(":");
+                        writer.write_space(" ");
+                        self.emit_optional_ordinary_child(
+                            transformation,
+                            node,
+                            Some(r#type),
+                            EmitHint::Unspecified,
+                            None,
+                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                            writer,
+                        )?;
+                    }
                 }
                 let erased_type = (!self.options.declaration_syntax)
                     .then(|| {
@@ -4939,9 +4938,6 @@ impl Printer {
                             .and_then(crate::EmitMetadata::type_node)
                     })
                     .flatten();
-                if erased_type.is_some() {
-                    self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
-                }
                 if let Some(initializer) = data.initializer {
                     let declared_type = self
                         .options
@@ -4954,24 +4950,22 @@ impl Printer {
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
-                    let equals = self.emit_space_prefixed_token_with_comments(
+                    let equals = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::operator(SyntaxKind::EqualsToken),
                         equal_cursor,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                     writer.write_space(" ");
-                    let initializer = transformation
-                        .arena()
-                        .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    self.emit_child_after_token_with_complete_source_comments(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        equals,
-                        initializer,
+                        Some(initializer),
+                        EmitHint::Expression,
+                        Some(equals),
                         expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
@@ -9528,12 +9522,16 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::RestType)?;
         writer.write_punctuation("...");
-        self.emit_required_node_with_context(
+        let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::RestType,
+            field: "type",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.r#type,
-            SyntaxKind::RestType,
-            "type",
+            node,
+            Some(r#type),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )
@@ -9589,37 +9587,60 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::NamedTupleMember)?;
-        self.emit_optional_declaration_token(
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
+            node,
             data.dot_dot_dot_token,
-            expression_context,
-            writer,
-        )?;
-        self.emit_required_identifier_name_with_context(
-            transformation,
-            node.source(),
-            data.name,
-            SyntaxKind::NamedTupleMember,
-            "name",
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        self.emit_optional_declaration_token(
+        let name = data
+            .name
+            .and_then(|id| transformation.arena().node_ref(node.source(), id))
+            .ok_or(PrinterError::MissingTransformedChild {
+                parent: SyntaxKind::NamedTupleMember,
+                field: "name",
+            })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
+            node,
+            Some(name.node()),
+            EmitHint::Unspecified,
+            None,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_optional_ordinary_child(
+            transformation,
+            node,
             data.question_token,
+            EmitHint::Unspecified,
+            None,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_source_leading_token_with_context(
+            transformation,
+            node,
+            FixedToken::punctuation(SyntaxKind::ColonToken),
+            self.node_end_cursor(transformation, name)?,
+            TokenLeadingSpace::None,
             expression_context,
             writer,
         )?;
-        writer.write_punctuation(":");
         writer.write_space(" ");
-        self.emit_required_node_with_context(
+        let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::NamedTupleMember,
+            field: "type",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.r#type,
-            SyntaxKind::NamedTupleMember,
-            "type",
+            node,
+            Some(r#type),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )
@@ -12584,6 +12605,70 @@ impl Printer {
         )
     }
 
+    /// Ordinary `emit` and `emitExpression` calls share the source-comment
+    /// pipeline, but their hints must remain distinct. In particular, a
+    /// parameter/binding name is not an expression substitution request.
+    /// The parent's NoNested extent suppresses child source phases; a child's
+    /// own NoNested flag is applied later, inside its own leading/trailing pair.
+    ///
+    /// tsc-port: emit/emitExpression @6.0.3
+    /// tsc-span: _tsc.js:117145-117161
+    /// tsc-port: emitNodeWithWriter @6.0.3
+    /// tsc-span: _tsc.js:119839-119845
+    #[allow(clippy::too_many_arguments)]
+    fn emit_optional_ordinary_child(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        id: Option<NodeId>,
+        hint: EmitHint,
+        preceding_token: Option<TokenEmission>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(id) = id else {
+            return Ok(());
+        };
+        let child = transformation
+            .arena()
+            .node_ref(parent.source(), id)
+            .ok_or(PrinterError::UnknownStatement(id.0))?;
+        if expression_context.nested_comments_suppressed() {
+            return self.emit_node_with_hint(
+                transformation,
+                child,
+                hint,
+                expression_context,
+                writer,
+            );
+        }
+        let deferred = match preceding_token {
+            Some(token) => DeferredExpressionSourceComments::leading_and_trailing(
+                parent,
+                token,
+                expression_context.comments(),
+            ),
+            None => DeferredExpressionSourceComments::without_preceding_token(
+                parent,
+                DeferredSourceCommentExtent::LeadingAndTrailing,
+                expression_context.comments(),
+            ),
+        };
+        let outcome = self.emit_node_with_hint_and_source_comments(
+            transformation,
+            child,
+            hint,
+            expression_context,
+            Some(deferred),
+            writer,
+        )?;
+        assert!(matches!(
+            outcome,
+            ExpressionSourceCommentsOutcome::Complete { .. }
+        ));
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn emit_required_identifier_name_with_context(
         &self,
@@ -15062,7 +15147,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::None,
-            PositionCommentPhase::BoundaryUnion,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -15086,8 +15171,35 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::None,
-            PositionCommentPhase::SourceLeading,
+            Some(PositionCommentPhase::SourceLeading),
             indent_leading,
+            writer,
+        )
+    }
+
+    /// Preserve the token's source continuation and brace maps when the
+    /// inherited comments extent disables positional comment emission.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_source_leading_token_with_context(
+        &self,
+        transformation: &TransformationResult<'_>,
+        owner: TransformNode,
+        token: FixedToken,
+        anchor: impl Into<TokenAnchor>,
+        leading_space: TokenLeadingSpace,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<TokenEmission, PrinterError> {
+        self.emit_token_with_comments_at_boundary(
+            transformation,
+            owner,
+            token,
+            anchor,
+            TokenCommentBoundary::OwnerEnd,
+            leading_space,
+            (!expression_context.nested_comments_suppressed())
+                .then_some(PositionCommentPhase::SourceLeading),
+            false,
             writer,
         )
     }
@@ -15108,7 +15220,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::AdjacentListItem,
             TokenLeadingSpace::None,
-            PositionCommentPhase::BoundaryUnion,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -15130,7 +15242,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
-            PositionCommentPhase::BoundaryUnion,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -15163,7 +15275,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
-            PositionCommentPhase::BoundaryUnion,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -15181,7 +15293,7 @@ impl Printer {
         anchor: impl Into<TokenAnchor>,
         comment_boundary: TokenCommentBoundary,
         leading_space: TokenLeadingSpace,
-        leading_phase: PositionCommentPhase,
+        leading_phase: Option<PositionCommentPhase>,
         indent_leading: bool,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
@@ -15271,14 +15383,16 @@ impl Printer {
         crate::token_cursor::record_cursor_work(token_start.saturating_sub(start) + spelling.len());
 
         if similar && owner_record.pos != start_position.value() {
-            self.emit_comments_at_cursor_with_phase(
-                transformation,
-                cursor,
-                anchor.comment_resume(),
-                leading_phase,
-                indent_leading,
-                writer,
-            )?;
+            if let Some(leading_phase) = leading_phase {
+                self.emit_comments_at_cursor_with_phase(
+                    transformation,
+                    cursor,
+                    anchor.comment_resume(),
+                    leading_phase,
+                    indent_leading,
+                    writer,
+                )?;
+            }
         }
 
         Self::ensure_token_leading_space(writer, leading_space);
@@ -15349,6 +15463,7 @@ impl Printer {
             && (comment_boundary == TokenCommentBoundary::AdjacentListItem
                 || owner_record.end != token_end_raw)
             && !self.options.remove_comments
+            && leading_phase.is_some()
         {
             let comments = collect_source_comment_ranges(source.text(), token_end, true);
             let last_trailing_comment_end = comments

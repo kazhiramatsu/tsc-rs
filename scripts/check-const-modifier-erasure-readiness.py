@@ -70,5 +70,16 @@ assert digest(old) == adapter["sha256"]
 anchor = b'                    "removeComments" => options.remove_comments = value.as_bool(),\n'
 line = b'                    "preserveConstEnums" => options.preserve_const_enums = value.as_bool(),\n'
 assert old.count(anchor) == 1
-assert (ROOT / adapter["path"]).read_bytes() == old.replace(anchor, anchor + line)
+expected_adapter = old.replace(anchor, anchor + line)
+# Preserve A34's exact one-line delta and validate the later A37 JSX option
+# mapping independently. The historical before/qualification records stay intact.
+if amendment := m["adapter"].get("subsequent_fixture_adapter"):
+    assert amendment["slice"] == "H2.8a-A6-37" and amendment["path"] == adapter["path"]
+    assert digest(expected_adapter) == amendment["before_sha256"]
+    jsx_anchor = b'                    "module" => options.module = Some(value.as_i64().unwrap() as i32),\n'
+    jsx_line = b'                    "jsx" => options.jsx = Some(value.as_i64().unwrap() as i32),\n'
+    assert expected_adapter.count(jsx_anchor) == 1 and jsx_line not in expected_adapter
+    expected_adapter = expected_adapter.replace(jsx_anchor, jsx_anchor + jsx_line)
+    assert digest(expected_adapter) == amendment["after_sha256"]
+assert (ROOT / adapter["path"]).read_bytes() == expected_adapter
 print("H2.8a-A6-34 ready: 36 whole TS owners, 1 property, 12 architecture rows, 2 gaps, 10 Rust rows, 80 witnesses; unresolved=0, undispositioned=0")
