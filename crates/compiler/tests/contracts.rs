@@ -245,3 +245,6 @@ mod h2_8a_const_modifier_erasure;
 
 #[path = "integration/h2_8a_import_helpers.rs"]
 mod h2_8a_import_helpers;
+
+#[path = "integration/h2_8a_token_comment_phases.rs"]
+mod h2_8a_token_comment_phases;

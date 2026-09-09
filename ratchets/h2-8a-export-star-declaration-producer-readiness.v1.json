@@ -29,7 +29,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc"
+      "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -37,7 +37,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2"
+      "sha256": "8f23884ecc00e143b093d61459458a669801736d20fe18cdd76b8c5e2a08fac8"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
@@ -57,11 +57,11 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794"
+      "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
-      "sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0"
+      "sha256": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_export_star_declaration_producer.rs",
@@ -1462,6 +1462,63 @@
           "sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/slices/h2-8.md",
           "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-export-star-declaration-producer-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-readiness-before-itu3c39w/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        },
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794",
+          "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-registration-before-rk0vuq67/crates/compiler/tests/contracts.rs",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        },
+        {
+          "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+          "old_sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0",
+          "sha256": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-registration-before-rk0vuq67/crates/compiler/tests/h2_8a_original_corpus.rs",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-export-star-declaration-producer-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-source-file-amendment-0a17tb95/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A36 source-file statement scope regression amendment; all initial evidence and predecessor qualification retained, no expected outputs changed"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-export-star-declaration-producer-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        },
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2",
+          "sha256": "8f23884ecc00e143b093d61459458a669801736d20fe18cdd76b8c5e2a08fac8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
         }
       ]
     }

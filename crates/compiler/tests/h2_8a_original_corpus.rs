@@ -371,3 +371,17 @@ fn original_import_helper_collisions_match_complete_commands() {
     );
     assert_eq!(exact.len(), 16);
 }
+
+#[test]
+fn original_spread_token_comments_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+        "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 3);
+}
