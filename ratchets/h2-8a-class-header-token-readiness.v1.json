@@ -1942,11 +1942,11 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea"
+      "sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
-      "sha256": "eb5b6ed1cae0eb707ac4bf9733237a2b9436a999b4b176651e426ef6862f2537"
+      "sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0"
     },
     {
       "path": "ratchets/h2-8a-class-header-token-before.v1.json",
@@ -1986,7 +1986,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
+      "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -2068,6 +2068,44 @@
       "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-registration-before-k4273ijg/crates/compiler/tests/contracts.rs",
       "reason": "Exact append of A6-34 complete comparator registration; all prior test bytes unchanged"
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+          "sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-registration-before-dwvi2qwi/crates/compiler/tests/contracts.rs",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        },
+        {
+          "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+          "old_sha256": "eb5b6ed1cae0eb707ac4bf9733237a2b9436a999b4b176651e426ef6862f2537",
+          "sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-registration-before-dwvi2qwi/crates/compiler/tests/h2_8a_original_corpus.rs",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+          "sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-readiness-before-fa2sju0s/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
     }
   ],
   "qualification": {

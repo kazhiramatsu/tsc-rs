@@ -17,6 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a CJS helper imports](h2-8a-import-helpers.md) | Focused profile qualified on the train; H2.8 remains open | Source-owned CJS/AMD/UMD helper imports:106/111 exact twice independently repeated (80 repairs/26 prior/5 outside);16 original exact twice;494 units/451 contracts. No global total inferred; System map-boundary change recorded. |
 | [H2.8a convergence checkpoint](h2-8.md#a6-34-convergence-checkpoint-and-review) | Measured at A6-34; H2.8 remains open | Original736/769 exact twice, class1100/1228 exact twice, no regressions in either population. Imported helpers and shared comment phases are next; this evidence record authorizes no new runtime edit. |
 | [H2.8a Const modifier erasure](h2-8a-const-modifier-erasure.md) | A6-34 TypeScript modifier predicate qualified on the H2.8 train | 144/144 ordinary commands exact twice,28 repairs/116 prior positives;494 units/451 contracts pass. Original3/4exact, property export remains; H2.8 open. |
 | [H2.8a class header comments](h2-8a-class-header-token.md) | A6-33 class keyword and header suppression qualified on the H2.8 train | 144/152 ordinary commands exact twice, all64 repairs/80 prior positives;32/32 direct metadata and451 unchanged emitter contracts pass. Eight composition controls and original recovery remain open, as does H2.8. |

@@ -5796,10 +5796,10 @@ impl crate::Transformer for CommonJsMarkerCleanupProbe<'_> {
 #[test]
 fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
     use crate::EmitResolverMethod;
-    // A real ESM node, TS filename, absent indicator, or export-equals decides
-    // the marker independently of the new fallible binder query.
+    // The marker query remains independent of the enclosing effective-module
+    // query, which also checks unforced JavaScript in CommonJS format.
     for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
-        for (file, text, forced, queried, marker) in [
+        for (file, text, forced, marker_queried, marker) in [
             ("module.js", "exports.value = 1;", true, true, false),
             ("module.jsx", "exports.value = 1;", true, true, false),
             ("module.mjs", "exports.value = 1;", true, true, false),
@@ -5829,6 +5829,8 @@ fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
             );
             let program_source = SourceFileId::from_raw(17);
             let query = EmitResolverNode::new(program_source, parsed.root);
+            let effective_queried = !forced && module == ModuleKind::COMMON_JS;
+            let queried = marker_queried || effective_queried;
             let options = CompilerOptions {
                 module: Some(module.bits()),
                 target: Some(ScriptTarget::ES2015.bits()),
@@ -5878,7 +5880,7 @@ fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
                     }
                 }
                 let mut transformed = transformed.expect("marker transform");
-                if queried {
+                if marker_queried {
                     // Adding the strict prologue has replaced syntax.root, but
                     // the query must still carry the original program root.
                     assert_ne!(
@@ -5889,7 +5891,11 @@ fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
                 let output = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
                     .print(&mut transformed, PrintRequest::SourceFile(source), None)
                     .unwrap();
-                let want_marker = if queried { !answer.unwrap() } else { marker };
+                let want_marker = if marker_queried {
+                    !answer.unwrap()
+                } else {
+                    marker
+                };
                 assert_eq!(
                     output
                         .text()

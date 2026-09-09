@@ -439,6 +439,10 @@ pub struct EmitMetadata {
     pub(crate) token_source_map_ranges: BTreeMap<SyntaxKind, SourceMapRange>,
     pub(crate) constant_value: Option<EmitConstantValue>,
     pub(crate) helpers: Vec<Box<str>>,
+    /// Facts owned by the original SourceFile, not inherited by clone/update
+    /// metadata merging (tsc's mergeEmitNode does not copy these fields).
+    pub(crate) external_helpers_module_name: Option<TransformNode>,
+    pub(crate) external_helpers: bool,
     pub(crate) starts_on_new_line: Option<bool>,
     pub(crate) snippet_element: Option<Box<str>>,
     pub(crate) class_this: Option<TransformNode>,

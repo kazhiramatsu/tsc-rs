@@ -2105,12 +2105,11 @@ impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
 /// module that requested unscoped helpers imports them from `tslib`
 /// (`import { __x } from "tslib";` after the prologue) instead of
 /// inlining their texts (the printer suppresses unscoped helper bodies
-/// for that configuration). Import names come from the transcribed
+/// for the recorded source import). Import names come from the transcribed
 /// helper table (`EmitHelper::import_name`), sorted case-sensitively and
 /// deduplicated. The upstream aliasing arm for a helper name that is not
-/// file-level unique, and the import-equals arm for CommonJS-format
-/// files, are typed fail-closed seams owned by the H2.5h
-/// corpus-adoption slice.
+/// file-level unique remains a typed fail-closed seam. CommonJS-format
+/// imports are owned by CommonJsModuleTransformer.
 fn insert_external_helpers_import_declaration(
     context: &mut TransformationContext,
     source: TransformSourceId,
@@ -2252,7 +2251,47 @@ fn insert_external_helpers_import_declaration(
             .factory()?
             .update_node(root_node, NodeData::SourceFile(source_data), flags)?;
     context.arena_mut()?.replace_root(source, updated)?;
+    let original = original_source_file_node(context.arena(), source)?;
+    context.arena_mut()?.metadata_mut(original).external_helpers = true;
     Ok(())
+}
+
+fn original_source_file_node(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<TransformNode, TransformError> {
+    let original = arena.get_original_node(arena.root(source)?);
+    let actual = arena.node(original)?.kind;
+    if actual != SyntaxKind::SourceFile {
+        return Err(TransformError::RootKindExpected { actual });
+    }
+    Ok(original)
+}
+
+/// tsc-port: getExternalHelpersModuleName @6.0.3
+/// tsc-hash: 0ca5e12b63beaf46f3b5090835cdabe97e837d78e5990b7965f86934519e446f
+/// tsc-span: _tsc.js:27603-27607
+fn get_external_helpers_module_name(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<Option<TransformNode>, TransformError> {
+    let original = original_source_file_node(arena, source)?;
+    Ok(arena
+        .metadata(original)
+        .and_then(|metadata| metadata.external_helpers_module_name))
+}
+
+/// tsc-port: hasRecordedExternalHelpers @6.0.3
+/// tsc-hash: ed1779440c89c10d2a9c3801a8d608a05bb703f53772b2354102ebf477443d76
+/// tsc-span: _tsc.js:27608-27612
+pub(crate) fn has_recorded_external_helpers(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<bool, TransformError> {
+    let original = original_source_file_node(arena, source)?;
+    Ok(arena.metadata(original).is_some_and(|metadata| {
+        metadata.external_helpers || metadata.external_helpers_module_name.is_some()
+    }))
 }
 
 fn transformed_source_has_external_module_indicator(
@@ -2451,6 +2490,8 @@ fn transform_module_with_optional_host<'resolver>(
             .rewrite_relative_import_extensions
             .unwrap_or(false),
         target: options.emit_script_target(),
+        import_helpers: options.import_helpers.unwrap_or(false),
+        current_source: None,
     })
 }
 
@@ -2466,6 +2507,8 @@ struct CommonJsModuleTransformer<'resolver> {
     // keyword by language version (tsc: `languageVersion >= ES2015 ?
     // Const : None`, _tsc.js:111241/111277/111338).
     target: ScriptTarget,
+    import_helpers: bool,
+    current_source: Option<TransformSourceId>,
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
@@ -2507,6 +2550,17 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             .external_module_indicator
             .is_some();
         let current_root = context.arena().root(source)?;
+        // isEffectiveExternalModule: binder CommonJS indicators are produced
+        // only in JavaScript files, and are consumed only by CJS/Node formats.
+        let is_effective_external = is_external
+            || (self.module_kind == MODULE_COMMON_JS || (100..200).contains(&self.module_kind))
+                && context.arena().node(current_root)?.flags & NodeFlags::JAVA_SCRIPT_FILE.bits()
+                    != 0
+                && self.resolver.is_common_js_module(
+                    context
+                        .arena()
+                        .require_parse_tree_resolver_node(current_root)?,
+                )?;
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
         let has_import_reference_substitution =
             source_contains_import_reference_substitution(context.arena(), current_root)?;
@@ -2529,7 +2583,8 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                     .as_deref()
                     .is_some_and(|path| !path.is_empty())
             });
-        let requires_module_rewrite = is_external || has_dynamic_import || json_amd_bundle;
+        let requires_module_rewrite =
+            is_effective_external || has_dynamic_import || json_amd_bundle;
         if !requires_module_rewrite && !has_import_reference_substitution {
             return Ok(TransformRoot::SourceFile(source));
         }
@@ -2545,13 +2600,16 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         }
 
         let current_root = context.arena().root(source)?;
-        let info = CommonJsModuleInfo::collect(
+        let mut info = CommonJsModuleInfo::collect(
             context.arena(),
             source,
             current_root,
             self.resolver,
             self.module_kind,
         )?;
+        if self.import_helpers && is_effective_external {
+            self.collect_external_helpers_import(context, source, &mut info)?;
+        }
         let mut visitor = CommonJsVisitor::new(
             context,
             source,
@@ -2582,14 +2640,160 @@ impl Transformer for CommonJsModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        _context: &mut TransformationContext,
-        _hint: EmitHint,
+        context: &mut TransformationContext,
+        hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        // This Rust ownership adaptation performs substitutions while the AST
-        // is mutable. The hook remains installed because the implied-format
-        // composite must preserve transformModule's upstream hook surface.
-        Ok(node)
+        // Ordinary module substitutions remain eager. Helper qualification
+        // belongs to the source notification extent at print time.
+        if hint != EmitHint::Expression
+            || context.arena().node(node)?.kind != SyntaxKind::Identifier
+            || !context
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
+        {
+            return Ok(node);
+        }
+        let Some(source) = self.current_source else {
+            return Ok(node);
+        };
+        let Some(namespace) = get_external_helpers_module_name(context.arena(), source)? else {
+            return Ok(node);
+        };
+        // CJS clones the declaration name, so the original namespace may not
+        // occur in the final tree. Its identity still owns the finalized name.
+        let final_name = context
+            .arena()
+            .metadata(namespace)
+            .and_then(crate::EmitMetadata::generated_binding_id)
+            .and_then(|binding| context.generated_binding_name(binding))
+            .map(str::to_owned);
+        if let Some(final_name) = final_name {
+            context
+                .arena_mut()?
+                .set_generated_identifier_text(namespace, &final_name)?;
+        }
+        context
+            .substitution_factory()?
+            .create_property_access_expression(source, namespace, node)
+    }
+
+    fn before_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        if context.arena().node(node)?.kind == SyntaxKind::SourceFile {
+            self.current_source = Some(node.source());
+        }
+        Ok(())
+    }
+
+    fn after_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        if context.arena().node(node)?.kind == SyntaxKind::SourceFile {
+            self.current_source = None;
+        }
+        Ok(())
+    }
+
+    fn dispose(&mut self) {
+        self.current_source = None;
+    }
+}
+
+impl CommonJsModuleTransformer<'_> {
+    /// CJS-format arm and its namespace-demand owner.
+    /// tsc-port: createExternalHelpersImportDeclarationIfNeeded @6.0.3
+    /// tsc-hash: d44b2c0d8237d7cad74d638bdaa5cd14dd4347e3a57e408de8b5fb85a6a18f77
+    /// tsc-span: _tsc.js:27613-27680
+    /// tsc-port: getOrCreateExternalHelpersModuleNameIfNeeded @6.0.3
+    /// tsc-hash: 6c3961c1f7fb4a4078962c1e353d7d8d26edcdfdbd1ca04d299c27e3d8ab4e61
+    /// tsc-span: _tsc.js:27684-27695
+    fn collect_external_helpers_import(
+        &self,
+        context: &mut TransformationContext,
+        source: TransformSourceId,
+        info: &mut CommonJsModuleInfo,
+    ) -> Result<(), TransformError> {
+        let namespace = match get_external_helpers_module_name(context.arena(), source)? {
+            Some(namespace) => namespace,
+            None => {
+                let has_helpers = context
+                    .requested_emit_helpers()
+                    .iter()
+                    .any(|helper| !helper.scoped());
+                let has_module_helpers = info.has_export_stars_to_export_values
+                    || self.es_module_interop && (info.has_import_star || info.has_import_default);
+                let create = if has_helpers {
+                    true
+                } else if has_module_helpers {
+                    let format = if (100..200).contains(&self.module_kind) {
+                        let program_source =
+                            context.arena().source(source)?.program_source().ok_or(
+                                TransformError::MissingProgramSourceForModuleFormat(source),
+                            )?;
+                        self.host
+                            .and_then(|host| host.get_emit_module_format_of_file(program_source))
+                            .ok_or(TransformError::MissingProgramSourceForModuleFormat(source))?
+                    } else {
+                        self.module_kind
+                    };
+                    format < MODULE_SYSTEM
+                } else {
+                    false
+                };
+                if !create {
+                    return Ok(());
+                }
+                let namespace = context.factory()?.create_unique_name(
+                    source,
+                    "tslib",
+                    crate::GeneratedIdentifierFlags::NONE,
+                )?;
+                let original = original_source_file_node(context.arena(), source)?;
+                context
+                    .arena_mut()?
+                    .metadata_mut(original)
+                    .external_helpers_module_name = Some(namespace);
+                namespace
+            }
+        };
+        let specifier = context
+            .factory()?
+            .create_string_literal(source, "tslib", false)?;
+        let reference = context
+            .factory()?
+            .create_external_module_reference(source, specifier)?;
+        let declaration = context
+            .factory()?
+            .create_import_equals_declaration(source, None, false, namespace, reference)?;
+        context
+            .arena_mut()?
+            .metadata_mut(declaration)
+            .set_internal_flags(InternalEmitFlags::NEVER_APPLY_IMPORT_HELPER);
+        info.external_helpers_import_declaration = Some(declaration);
+        info.external_imports.insert(0, declaration.node());
+        info.imports.insert(
+            declaration.node(),
+            ImportPlan {
+                declaration,
+                module_specifier_node: specifier,
+                runtime_name: Some(
+                    identifier_or_literal_text(context.arena(), namespace)?.into_boxed_str(),
+                ),
+                namespace_alias: None,
+                helper: ImportHelperKind::None,
+                import_equals_publication: Some(ImportEqualsPublication::LocalBinding),
+            },
+        );
+        Ok(())
     }
 }
 
@@ -3000,6 +3204,10 @@ impl CommonJsFileLevelGeneratedBindingExports {
 struct CommonJsModuleInfo {
     is_external: bool,
     export_equals: Option<NodeId>,
+    external_helpers_import_declaration: Option<TransformNode>,
+    has_export_stars_to_export_values: bool,
+    has_import_star: bool,
+    has_import_default: bool,
     /// `getGeneratedNameForNode` owns one source-wide module-name namespace.
     /// Keep the allocator after collection as well: JSX can retain an
     /// original import identity for substitution even when transformTypeScript
@@ -3155,6 +3363,10 @@ impl CommonJsModuleInfo {
         let mut info = Self {
             is_external,
             export_equals: None,
+            external_helpers_import_declaration: None,
+            has_export_stars_to_export_values: false,
+            has_import_star: false,
+            has_import_default: false,
             generated_module_names: generated_names,
             elided_import_runtime_names: BTreeMap::new(),
             generated_declaration_names,
@@ -3282,6 +3494,8 @@ impl CommonJsModuleInfo {
                             } else {
                                 ImportHelperKind::None
                             };
+                            info.has_import_star |= needs_star;
+                            info.has_import_default |= needs_default;
                             if let Some(_name) = clause_data.name {
                                 info.import_bindings.insert(
                                     arena.get_original_node(clause).node(),
@@ -3577,6 +3791,7 @@ impl CommonJsModuleInfo {
                     }
                 }
                 NodeData::ExportDeclaration(data) if data.module_specifier.is_some() => {
+                    info.has_export_stars_to_export_values |= data.export_clause.is_none();
                     let module_specifier = data
                         .module_specifier
                         .and_then(|id| arena.node_ref(source, id))
@@ -3632,6 +3847,14 @@ impl CommonJsModuleInfo {
                                     if let NodeData::ExportSpecifier(specifier) =
                                         &arena.node(specifier)?.data
                                     {
+                                        info.has_import_default |= specifier
+                                            .property_name
+                                            .or(specifier.name)
+                                            .and_then(|name| arena.node_ref(source, name))
+                                            .and_then(|name| {
+                                                identifier_or_literal_text(arena, name).ok()
+                                            })
+                                            .is_some_and(|name| name == "default");
                                         if let Some(export) = specifier
                                             .name
                                             .and_then(|id| arena.node_ref(source, id))
@@ -3648,6 +3871,7 @@ impl CommonJsModuleInfo {
                                 }
                             }
                             NodeData::NamespaceExport(namespace) => {
+                                info.has_import_star = true;
                                 if let Some(export) = namespace
                                     .name
                                     .and_then(|id| arena.node_ref(source, id))
@@ -4676,7 +4900,7 @@ struct DeclarationExportPlan {
 
 struct AliasedAsynchronousDependency {
     path: String,
-    parameter: String,
+    parameter: TransformNode,
 }
 
 struct AsynchronousDependencies {
@@ -4824,6 +5048,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 }
             }
 
+            if let Some(import) = self.info.external_helpers_import_declaration {
+                output.extend(self.visit_top_level_statement(import)?);
+            }
             if self.module_kind == MODULE_AMD {
                 output.extend(self.create_amd_import_initializers()?);
             }
@@ -5032,7 +5259,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             if let Some(name) = dependency.name {
                 aliased.push(AliasedAsynchronousDependency {
                     path,
-                    parameter: name,
+                    parameter: self.create_identifier(&name)?,
                 });
             } else {
                 unaliased.push(path);
@@ -5045,13 +5272,30 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let module_specifier =
                 string_literal_text(self.context.arena(), module_specifier)?.to_owned();
             if self.module_kind == MODULE_AMD && plan.runtime_name.is_some() {
+                let generated_name = match &self.context.arena().node(plan.declaration)?.data {
+                    NodeData::ImportEqualsDeclaration(data) => data
+                        .name
+                        .and_then(|name| self.context.arena().node_ref(self.source, name))
+                        .filter(|name| {
+                            self.context
+                                .arena()
+                                .metadata(*name)
+                                .and_then(crate::EmitMetadata::generated_binding_id)
+                                .is_some()
+                        }),
+                    _ => None,
+                };
+                let parameter = match generated_name {
+                    Some(name) => name,
+                    None => self.create_identifier(
+                        plan.runtime_name
+                            .as_deref()
+                            .expect("an aliased AMD dependency owns a runtime binding"),
+                    )?,
+                };
                 aliased.push(AliasedAsynchronousDependency {
                     path: module_specifier,
-                    parameter: plan
-                        .runtime_name
-                        .as_deref()
-                        .expect("an aliased AMD dependency owns a runtime binding")
-                        .to_owned(),
+                    parameter,
                 });
             } else {
                 unaliased.push(module_specifier);
@@ -5175,7 +5419,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             self.create_parameter("exports")?,
         ];
         for dependency in &asynchronous_dependencies.aliased {
-            body_parameters.push(self.create_parameter(&dependency.parameter)?);
+            body_parameters.push(self.context.factory()?.create_parameter_declaration(
+                self.source,
+                None,
+                None,
+                dependency.parameter,
+                None,
+                None,
+                None,
+            )?);
         }
         let body_function = self.create_function_expression(body_parameters, body)?;
         let mut dependency_elements = vec![
@@ -5900,7 +6152,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             (ImportEqualsPublication::LocalBinding, false) => {
                 let require = self.create_require_call(original, module_specifier)?;
-                let declaration = self.create_variable_declaration(runtime_name, require)?;
+                let name = data
+                    .name
+                    .and_then(|name| self.context.arena().node_ref(self.source, name))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ImportEqualsDeclaration,
+                        field: "name",
+                    })?;
+                let name = self.context.factory()?.clone_node(name)?;
+                let declaration =
+                    self.create_variable_declaration_from_name(name, Some(require))?;
                 let statement = self.create_variable_statement(
                     vec![declaration],
                     if self.target >= ScriptTarget::ES2015 {
@@ -9614,24 +9875,22 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }),
             TransformFlags::NONE,
         )?;
-        // AMD import/re-export aliases are generated identities, not their
+        // Import/re-export aliases are generated identities, not their
         // provisional text. Factory parameters and body references must share
         // one binding so bundle finalization can rename both. Standalone AMD
         // uses the same identity and the existing per-file name reset.
-        if self.module_kind == MODULE_AMD {
-            if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
-                let binding = match self.generated_module_bindings.entry(text.to_owned()) {
-                    std::collections::btree_map::Entry::Vacant(entry) => {
-                        entry.insert(target_bindings::TargetBinding::allocate_numbered(
-                            self.context,
-                            base.clone(),
-                            text.to_owned(),
-                        )?)
-                    }
-                    std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
-                };
-                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
-            }
+        if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
+            let binding = match self.generated_module_bindings.entry(text.to_owned()) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(target_bindings::TargetBinding::allocate_numbered(
+                        self.context,
+                        base.clone(),
+                        text.to_owned(),
+                    )?)
+                }
+                std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+            };
+            binding.write_generated_metadata(self.context.arena_mut()?, identifier);
         }
         Ok(identifier)
     }

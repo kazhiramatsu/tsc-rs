@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c"
+      "sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
+      "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",
@@ -227,6 +227,37 @@
       "sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-convergence-doc-before-szpzwoc2/docs/design/greenfield/slices/h2-8.md",
       "reason": "A34 same-head convergence checkpoint and reviewed next-owner order; runtime and expected inputs unchanged"
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+          "sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-readiness-before-fa2sju0s/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c",
+          "sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
     }
   ]
 }

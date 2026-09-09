@@ -1540,18 +1540,10 @@ impl Printer {
         source_id: TransformSourceId,
     ) -> Result<Vec<EmitHelper>, PrinterError> {
         // `shouldSkip = printerOptions.noEmitHelpers || hasRecordedExternalHelpers(sourceFile)`
-        // (`_tsc.js:117729-117736`): under `importHelpers` an external
-        // module's unscoped helpers were rewritten into the tslib import by
-        // the module transformer, so their bodies never inline. The
-        // external-module test is equivalent to the recorded flag: the
-        // import is created exactly when unscoped helpers exist there.
-        let suppress_unscoped = self.options.import_helpers
-            && transformation
-                .arena()
-                .source(source_id)?
-                .syntax()
-                .external_module_indicator
-                .is_some();
+        // (_tsc.js:117729-117736): the module producer records an actual
+        // helper import on the original SourceFile.
+        let suppress_unscoped =
+            crate::builtins::has_recorded_external_helpers(transformation.arena(), source_id)?;
         let helpers = if self.options.no_emit_helpers {
             Vec::new()
         } else {

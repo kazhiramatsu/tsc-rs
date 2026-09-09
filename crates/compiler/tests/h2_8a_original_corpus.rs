@@ -344,3 +344,30 @@ fn original_class_optional_name_commands() {
     );
     assert_eq!(exact.len(), 4);
 }
+
+#[test]
+fn original_import_helper_collisions_match_complete_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+        "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 16);
+}
