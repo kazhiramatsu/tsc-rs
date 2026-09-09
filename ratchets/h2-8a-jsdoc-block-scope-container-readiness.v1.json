@@ -30,7 +30,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
+      "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "6540ed7c46287104cea4f3873afaa50a8400eeba7ab9ecd21f803615fc3a691d"
+      "sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
@@ -58,7 +58,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
+      "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
@@ -1721,6 +1721,44 @@
           "sha256": "6540ed7c46287104cea4f3873afaa50a8400eeba7ab9ecd21f803615fc3a691d",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/docs/design/greenfield/slices/h2-8.md",
           "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-jsdoc-block-scope-container-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "6540ed7c46287104cea4f3873afaa50a8400eeba7ab9ecd21f803615fc3a691d",
+          "sha256": "741e55a2a6bf0eef619660502de7d1a371b714060ba100b0ab1fbf6e9556979e",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-a37-doc-before-g1hei6f8/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Completed original769 A37 replay and transitive progress-document pins; runtime and expected tuples unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-jsdoc-block-scope-container-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "741e55a2a6bf0eef619660502de7d1a371b714060ba100b0ab1fbf6e9556979e",
+          "sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/crates/compiler/tests/contracts.rs",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
         }
       ]
     }

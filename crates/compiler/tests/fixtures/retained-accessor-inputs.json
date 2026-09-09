@@ -1,0 +1,4524 @@
+{
+  "version": 1,
+  "description": "Source inputs for complete retained accessor and standard-decorator handoff observations; source shapes do not assign failure ownership.",
+  "cases": [
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/expression-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { accessor value: number = 1; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/expression-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { accessor value: number = 1; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/default-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/default-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/function-local-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { class Box { static accessor value: number = seed; } return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/function-local-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { class Box { static accessor value: number = seed; } return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/function-local-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { class Box { accessor value: number = seed; } return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/function-local-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { class Box { accessor value: number = seed; } return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/return-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class Inner { static accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/return-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class Inner { static accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/return-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class Inner { accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/return-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class Inner { accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/nested-class-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Outer { static child = class Inner { static accessor value: any = this; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/nested-class-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Outer { static child = class Inner { static accessor value: any = this; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/static-leading-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/static-leading-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/instance-leading-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/instance-leading-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/static-newline-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box {\n// field\nstatic\n// modifier\naccessor value: number = 1;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/static-newline-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box {\n// field\nstatic\n// modifier\naccessor value: number = 1;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/unicode-name/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Δ { /* 😀 */ static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/unicode-name/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Δ { /* 😀 */ static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/private-storage-collision/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { #value_accessor_storage = 0; accessor value: number = 1; read() { return this.#value_accessor_storage; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/private-storage-collision/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { #value_accessor_storage = 0; accessor value: number = 1; read() { return this.#value_accessor_storage; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/expression-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { accessor value: number = 1; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/expression-named-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { accessor value: number = 1; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/set/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/commonjs/define/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/declaration-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/declaration-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor value: number = 1; read() { return this.value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/expression-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class Inner { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/default-named-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/mixed-instance-fields/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { before = 1; accessor value: number = 2; after = 3; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/set/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2015/esnext/define/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/set/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/esnext/esnext/define/static-modifier-comments/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst Box = class { static accessor value: any = this; }; export { Box };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/function-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { const Box = class { static accessor value: number = seed; }; return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/function-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { const Box = class { static accessor value: number = seed; }; return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/return-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class { static accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/return-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(seed: number): any { return class { static accessor value: number = seed; }; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/loop-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(): any[] { const result: any[] = []; for (let i = 0; i < 2; i++) { result.push(class { static accessor value: number = i; }); } return result; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/loop-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(): any[] { const result: any[] = []; for (let i = 0; i < 2; i++) { result.push(class { static accessor value: number = i; }); } return result; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/parameter-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(Box: any = class { static accessor value: number = 1; }): any { return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/parameter-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make(Box: any = class { static accessor value: number = 1; }): any { return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/arrow-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport const make = (seed: number): any => class { static accessor value: number = seed; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/arrow-anonymous-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport const make = (seed: number): any => class { static accessor value: number = seed; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/computed-literal-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor [\"value\"]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/computed-literal-static/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { static accessor [\"value\"]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/computed-literal-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor [\"value\"]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/computed-literal-instance/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { accessor [\"value\"]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/computed-call-diagnostic/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction key(): string { return \"value\"; } export class Box { static accessor [key()]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/computed-call-diagnostic/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction key(): string { return \"value\"; } export class Box { static accessor [key()]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/computed-symbol/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst key: unique symbol = Symbol(); export class Box { accessor [key]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/computed-symbol/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst key: unique symbol = Symbol(); export class Box { accessor [key]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/decorated-class-this-control/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; } @dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/decorated-class-this-control/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; } @dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/decorated-computed-cache-control/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; } function key(): string { return \"value\"; } export class Box { @dec accessor [key()]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/decorated-computed-cache-control/retain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; } function key(): string { return \"value\"; } export class Box { @dec accessor [key()]: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/static-leading-comments/remove",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": true
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/static-leading-comments/remove",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /** field */ static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": true
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/set/static-modifier-comments/remove",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": true
+      }
+    },
+    {
+      "case_id": "retained-accessor-redirectors/es2022/esnext/define/static-modifier-comments/remove",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class Box { /* field */ static /* static */ accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": true
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/set/default-anonymous-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class { static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/define/default-anonymous-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class { static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/commonjs/set/default-anonymous-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class { static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/commonjs/define/default-anonymous-static",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport default class { static accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/set/escaped-class-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class \\u0042ox { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/define/escaped-class-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class \\u0042ox { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/commonjs/set/escaped-class-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class \\u0042ox { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/commonjs/define/escaped-class-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport class \\u0042ox { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 1,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/set/loop-computed-instance-and-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst key: unique symbol = Symbol(); export function make(): any[] { const result: any[] = []; for (let i = 0; i < 2; i++) { result.push(class { [key] = i; static accessor value: number = i; }); } return result; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/define/loop-computed-instance-and-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nconst key: unique symbol = Symbol(); export function make(): any[] { const result: any[] = []; for (let i = 0; i < 2; i++) { result.push(class { [key] = i; static accessor value: number = i; }); } return result; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/set/binding-parameter-class-default",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make({ Box }: { Box: any } = { Box: class { static accessor value: number = 1; } }): any { return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-accessor-followup/es2022/esnext/define/binding-parameter-class-default",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nexport function make({ Box }: { Box: any } = { Box: class { static accessor value: number = 1; } }): any { return Box; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-instance-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { accessor value: number = 1; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-private-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static #value: any = this; static read(): any { return this.#value; } }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-public-field",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/member-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\nexport class Box { @dec static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/nested-class-static-accessor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "interface I { method(): number; }\nfunction dec(value: any, context: any): any { return value; }\n@dec export class Box { static make(_classThis: any): any { @dec class Inner { static accessor value: any = this; } return Inner; } static accessor value: any = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ],
+  "groups": {
+    "retained_accessor_original": [
+      "retained-accessor-redirectors/es2022/esnext/set/declaration-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/declaration-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/declaration-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/declaration-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/expression-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/expression-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/expression-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/expression-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/default-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/default-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/default-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/default-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/function-local-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/function-local-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/function-local-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/function-local-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/return-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/return-named-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/return-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/return-named-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/nested-class-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/nested-class-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/static-leading-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/static-leading-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/instance-leading-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/instance-leading-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/static-newline-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/static-newline-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/unicode-name/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/unicode-name/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/private-storage-collision/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/private-storage-collision/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/declaration-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/declaration-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/declaration-instance/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/declaration-instance/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/expression-named-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/expression-named-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/expression-named-instance/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/expression-named-instance/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/default-named-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/default-named-static/retain",
+      "retained-accessor-redirectors/es2022/commonjs/set/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2022/commonjs/define/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/declaration-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/declaration-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/declaration-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/declaration-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/declaration-instance/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/declaration-instance/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/declaration-instance/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/declaration-instance/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/expression-named-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/expression-named-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/expression-named-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/expression-named-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/default-named-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/default-named-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/default-named-static/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/default-named-static/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/mixed-instance-fields/retain",
+      "retained-accessor-redirectors/es2015/esnext/set/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2015/esnext/define/static-modifier-comments/retain",
+      "retained-accessor-redirectors/esnext/esnext/set/static-modifier-comments/retain",
+      "retained-accessor-redirectors/esnext/esnext/define/static-modifier-comments/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/function-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/function-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/return-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/return-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/loop-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/loop-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/parameter-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/parameter-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/arrow-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/arrow-anonymous-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/computed-literal-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/computed-literal-static/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/computed-literal-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/computed-literal-instance/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/computed-call-diagnostic/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/computed-call-diagnostic/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/computed-symbol/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/computed-symbol/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/decorated-class-this-control/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/decorated-class-this-control/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/decorated-computed-cache-control/retain",
+      "retained-accessor-redirectors/es2022/esnext/define/decorated-computed-cache-control/retain",
+      "retained-accessor-redirectors/es2022/esnext/set/static-leading-comments/remove",
+      "retained-accessor-redirectors/es2022/esnext/define/static-leading-comments/remove",
+      "retained-accessor-redirectors/es2022/esnext/set/static-modifier-comments/remove",
+      "retained-accessor-redirectors/es2022/esnext/define/static-modifier-comments/remove"
+    ],
+    "retained_accessor_followup": [
+      "retained-accessor-followup/es2022/esnext/set/default-anonymous-static",
+      "retained-accessor-followup/es2022/esnext/define/default-anonymous-static",
+      "retained-accessor-followup/es2022/commonjs/set/default-anonymous-static",
+      "retained-accessor-followup/es2022/commonjs/define/default-anonymous-static",
+      "retained-accessor-followup/es2022/esnext/set/escaped-class-name",
+      "retained-accessor-followup/es2022/esnext/define/escaped-class-name",
+      "retained-accessor-followup/es2022/commonjs/set/escaped-class-name",
+      "retained-accessor-followup/es2022/commonjs/define/escaped-class-name",
+      "retained-accessor-followup/es2022/esnext/set/loop-computed-instance-and-static-accessor",
+      "retained-accessor-followup/es2022/esnext/define/loop-computed-instance-and-static-accessor",
+      "retained-accessor-followup/es2022/esnext/set/binding-parameter-class-default",
+      "retained-accessor-followup/es2022/esnext/define/binding-parameter-class-default"
+    ],
+    "decorator_handoff": [
+      "decorator-static-accessor-handoff/es2015/esnext/set/class-static-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/set/class-instance-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/set/class-static-private-field",
+      "decorator-static-accessor-handoff/es2015/esnext/set/class-static-public-field",
+      "decorator-static-accessor-handoff/es2015/esnext/set/member-static-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/set/nested-class-static-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/define/class-static-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/define/class-instance-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/define/class-static-private-field",
+      "decorator-static-accessor-handoff/es2015/esnext/define/class-static-public-field",
+      "decorator-static-accessor-handoff/es2015/esnext/define/member-static-accessor",
+      "decorator-static-accessor-handoff/es2015/esnext/define/nested-class-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/set/class-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/set/class-instance-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/set/class-static-private-field",
+      "decorator-static-accessor-handoff/es2022/esnext/set/class-static-public-field",
+      "decorator-static-accessor-handoff/es2022/esnext/set/member-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/set/nested-class-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/define/class-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/define/class-instance-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/define/class-static-private-field",
+      "decorator-static-accessor-handoff/es2022/esnext/define/class-static-public-field",
+      "decorator-static-accessor-handoff/es2022/esnext/define/member-static-accessor",
+      "decorator-static-accessor-handoff/es2022/esnext/define/nested-class-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/set/class-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/set/class-instance-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/set/class-static-private-field",
+      "decorator-static-accessor-handoff/esnext/esnext/set/class-static-public-field",
+      "decorator-static-accessor-handoff/esnext/esnext/set/member-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/set/nested-class-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/define/class-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/define/class-instance-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/define/class-static-private-field",
+      "decorator-static-accessor-handoff/esnext/esnext/define/class-static-public-field",
+      "decorator-static-accessor-handoff/esnext/esnext/define/member-static-accessor",
+      "decorator-static-accessor-handoff/esnext/esnext/define/nested-class-static-accessor"
+    ]
+  },
+  "decorator_coverage": [
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/set/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "es2015",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2015/esnext/define/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "es2015",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/set/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "es2022",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/es2022/esnext/define/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "es2022",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/set/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "esnext",
+      "field_mode": "set"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-accessor",
+      "source_shape": "class-static-accessor",
+      "target": "esnext",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-instance-accessor",
+      "source_shape": "class-instance-accessor",
+      "target": "esnext",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-private-field",
+      "source_shape": "class-static-private-field",
+      "target": "esnext",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/class-static-public-field",
+      "source_shape": "class-static-public-field",
+      "target": "esnext",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/member-static-accessor",
+      "source_shape": "member-static-accessor",
+      "target": "esnext",
+      "field_mode": "define"
+    },
+    {
+      "case_id": "decorator-static-accessor-handoff/esnext/esnext/define/nested-class-static-accessor",
+      "source_shape": "nested-class-static-accessor",
+      "target": "esnext",
+      "field_mode": "define"
+    }
+  ]
+}

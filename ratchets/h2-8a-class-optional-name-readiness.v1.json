@@ -607,7 +607,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
+      "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
@@ -631,7 +631,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
+      "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -808,6 +808,25 @@
           "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
           "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/crates/compiler/tests/contracts.rs",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
         }
       ]
     }

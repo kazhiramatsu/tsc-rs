@@ -4404,15 +4404,9 @@ impl Printer {
                 outcome
             }
             NodeData::PropertyAssignment(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // tsc-port: emitPropertyAssignment @6.0.3
+                // tsc-hash: 4b204f060207e8c2c09624fd24bee6c424610f5a3140824a700c981796dfc399
+                // tsc-span: _tsc.js:119516-119526
                 self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
@@ -4464,15 +4458,9 @@ impl Printer {
                 Ok(())
             }
             NodeData::ShorthandPropertyAssignment(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // tsc-port: emitShorthandPropertyAssignment @6.0.3
+                // tsc-hash: 510c6242520c5f81b69c705335e5bd3384e170459911c222b0c710fb1c3b7b9c
+                // tsc-span: _tsc.js:119527-119535
                 self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),

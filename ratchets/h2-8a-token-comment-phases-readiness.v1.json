@@ -8474,7 +8474,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242"
+      "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
@@ -8506,11 +8506,11 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a"
+      "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8"
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0"
+      "sha256": "d6d408f69c8f6470df7281e898dd3cfd90f5de89519024ce5f811ff4673f3787"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -8526,7 +8526,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-header-token-readiness.v1.json",
-      "sha256": "d823ad535b253e6e520f3d3552944d1912563aaee5cbda17e1c2538d5909f69d"
+      "sha256": "b44ad8e4b5b69958a31e8b0a16e5792becc211e816cc59fdadf0b430663618d7"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-optional-name.json",
@@ -8534,7 +8534,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
-      "sha256": "50787e795b48d0b481d40b942c20bee985a46a1ddf444071f8adf0fc6b5394c8"
+      "sha256": "219cd819fecc467100ea3af088667e23650a8bf7c6531040b0f08a84ae88021b"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-helper-accessor-producers.json",
@@ -8542,11 +8542,11 @@
     },
     {
       "path": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
-      "sha256": "65f86e0fa17eb349e95ca46d30ea178d857e6c76ec8df52683e175d0f322d8bd"
+      "sha256": "efaa0a6e8563575f835fece0efdf62966ebf8f7b508f477a486792ec57c89794"
     },
     {
       "path": "ratchets/h2-8a-import-helpers-readiness.v1.json",
-      "sha256": "9b9ab90255c2d92e07270fdf99eade3bf65912753d0e8bde301d6d758328ed22"
+      "sha256": "8c1598e952962bf0b1bbbda89f40acc62397edeb8824fb99a61ef9287d52fb51"
     },
     {
       "path": "ratchets/h2-8a-import-helpers-after.v1.json",
@@ -8968,6 +8968,86 @@
           "sha256": "9b9ab90255c2d92e07270fdf99eade3bf65912753d0e8bde301d6d758328ed22",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/ratchets/h2-8a-import-helpers-readiness.v1.json",
           "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-token-comment-phases-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "43df50da51ba2971223ec346ce4b5dfb463fd78ee861c152135d994b04654ea0",
+          "sha256": "8b679806d072fe15a99f14719ca6c331aa5f1556cf4e6c3cc913927109360041",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-a37-doc-before-g1hei6f8/docs/design/greenfield/slices/README.md",
+          "reason": "Completed original769 A37 replay and transitive progress-document pins; runtime and expected tuples unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+          "old_sha256": "65f86e0fa17eb349e95ca46d30ea178d857e6c76ec8df52683e175d0f322d8bd",
+          "sha256": "f6e55ccf7e839b193754cf358453c3914c850c1e3d3c21e5820e716cb20caa78",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-a37-doc-before-g1hei6f8/ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+          "reason": "Completed original769 A37 replay and transitive progress-document pins; runtime and expected tuples unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-import-helpers-readiness.v1.json",
+          "old_sha256": "9b9ab90255c2d92e07270fdf99eade3bf65912753d0e8bde301d6d758328ed22",
+          "sha256": "0f9f05edf2eef18077c93bc33a3debbd89c25fe91f4d9533a91952175cc3d39b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-a37-doc-before-g1hei6f8/ratchets/h2-8a-import-helpers-readiness.v1.json",
+          "reason": "Completed original769 A37 replay and transitive progress-document pins; runtime and expected tuples unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-token-comment-phases-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/crates/compiler/tests/contracts.rs",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "8b679806d072fe15a99f14719ca6c331aa5f1556cf4e6c3cc913927109360041",
+          "sha256": "d6d408f69c8f6470df7281e898dd3cfd90f5de89519024ce5f811ff4673f3787",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/slices/README.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-header-token-readiness.v1.json",
+          "old_sha256": "d823ad535b253e6e520f3d3552944d1912563aaee5cbda17e1c2538d5909f69d",
+          "sha256": "b44ad8e4b5b69958a31e8b0a16e5792becc211e816cc59fdadf0b430663618d7",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/ratchets/h2-8a-class-header-token-readiness.v1.json",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+          "old_sha256": "50787e795b48d0b481d40b942c20bee985a46a1ddf444071f8adf0fc6b5394c8",
+          "sha256": "219cd819fecc467100ea3af088667e23650a8bf7c6531040b0f08a84ae88021b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/ratchets/h2-8a-class-optional-name-readiness.v1.json",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+          "old_sha256": "f6e55ccf7e839b193754cf358453c3914c850c1e3d3c21e5820e716cb20caa78",
+          "sha256": "efaa0a6e8563575f835fece0efdf62966ebf8f7b508f477a486792ec57c89794",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "ratchets/h2-8a-import-helpers-readiness.v1.json",
+          "old_sha256": "0f9f05edf2eef18077c93bc33a3debbd89c25fe91f4d9533a91952175cc3d39b",
+          "sha256": "8c1598e952962bf0b1bbbda89f40acc62397edeb8824fb99a61ef9287d52fb51",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/ratchets/h2-8a-import-helpers-readiness.v1.json",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
         }
       ]
     }

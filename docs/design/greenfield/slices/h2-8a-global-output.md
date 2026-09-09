@@ -74,3 +74,17 @@ AMD/UMD module-factory selection for fixed extensions, missing Program path
 options in declaration specifier synthesis, external helper imports, declaration
 serialization/factory adaptation and comment preservation. Each repair needs a
 bounded upstream-owned packet; the first full comparison is not an H2.8a close.
+
+
+## A6-37 replay
+
+The [frozen replay](../../../../ratchets/h2-8a-global-after-a6-37.v1.json) on
+`d1c04df5c7c0d93b26f76539c9101bc2f4b11c69` records755/769 exact twice and14 failed
+twice, with19 improvements over A34, no prior-positive regressions and all188
+project inputs exact. All1538 primary attempts are accounted for:1534 complete
+actual tuples and four stops across two repeated typed/runtime boundaries.
+The12 complete unequal cases have identical repetitions and unchanged complete
+captures relative to A34; their only differing command field is writes.
+The exact original IDs,40 later references and expected outputs are preserved.
+This is an original-matrix checkpoint; separate class producers and the remaining
+H2.8a–e completion/acceptance requirements stay open.

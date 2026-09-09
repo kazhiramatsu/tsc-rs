@@ -1,0 +1,3787 @@
+{
+  "version": 1,
+  "base": "d1c04df5c7c0d93b26f76539c9101bc2f4b11c69",
+  "eligible": 48,
+  "status": "Frozen complete pre-edit evidence for H2.8a-A6-38",
+  "exact_twice": [
+    "object-property-owners/js/blocked/export-property",
+    "object-property-owners/js/blocked/export-shorthand",
+    "object-property-owners/js/commonjs/exported-variable",
+    "object-property-owners/js/declaration/exported-variable",
+    "object-property-owners/js/es2015/exported-variable",
+    "object-property-owners/js/es2015/keyword-property-name",
+    "object-property-owners/js/esnext/exported-variable",
+    "object-property-owners/js/esnext/keyword-property-name",
+    "object-property-owners/ts/blocked/export-property",
+    "object-property-owners/ts/blocked/export-shorthand",
+    "object-property-owners/ts/commonjs/exported-variable",
+    "object-property-owners/ts/declaration/exported-variable",
+    "object-property-owners/ts/es2015/exported-variable",
+    "object-property-owners/ts/es2015/keyword-property-name",
+    "object-property-owners/ts/esnext/exported-variable",
+    "object-property-owners/ts/esnext/keyword-property-name"
+  ],
+  "failed_twice": [
+    "object-property-owners/js/comments-removed/property-comments",
+    "object-property-owners/js/comments-removed/shorthand-comments",
+    "object-property-owners/js/commonjs/export-property",
+    "object-property-owners/js/declaration/export-property",
+    "object-property-owners/js/es2015/export-property",
+    "object-property-owners/js/es2015/export-shorthand",
+    "object-property-owners/js/es2015/property-comments",
+    "object-property-owners/js/es2015/shorthand-comments",
+    "object-property-owners/js/es2015/shorthand-default",
+    "object-property-owners/js/es2015/static-property",
+    "object-property-owners/js/esnext/export-property",
+    "object-property-owners/js/esnext/export-shorthand",
+    "object-property-owners/js/esnext/property-comments",
+    "object-property-owners/js/esnext/shorthand-comments",
+    "object-property-owners/js/esnext/shorthand-default",
+    "object-property-owners/js/esnext/static-property",
+    "object-property-owners/ts/comments-removed/property-comments",
+    "object-property-owners/ts/comments-removed/shorthand-comments",
+    "object-property-owners/ts/commonjs/export-property",
+    "object-property-owners/ts/declaration/export-property",
+    "object-property-owners/ts/es2015/export-property",
+    "object-property-owners/ts/es2015/export-shorthand",
+    "object-property-owners/ts/es2015/property-comments",
+    "object-property-owners/ts/es2015/shorthand-comments",
+    "object-property-owners/ts/es2015/shorthand-default",
+    "object-property-owners/ts/es2015/static-property",
+    "object-property-owners/ts/esnext/export-property",
+    "object-property-owners/ts/esnext/export-shorthand",
+    "object-property-owners/ts/esnext/property-comments",
+    "object-property-owners/ts/esnext/shorthand-comments",
+    "object-property-owners/ts/esnext/shorthand-default",
+    "object-property-owners/ts/esnext/static-property"
+  ],
+  "primary_attempts": 96,
+  "supplemental_executions": 96,
+  "repeated_complete_captures_identical": true,
+  "typed_boundary_cases": [],
+  "rows": [
+    {
+      "case_id": "object-property-owners/js/blocked/export-property",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/blocked/export-shorthand",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/comments-removed/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/comments-removed/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/commonjs/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/commonjs/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/declaration/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/declaration/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/export-shorthand",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/keyword-property-name",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/shorthand-default",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/es2015/static-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/export-shorthand",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/keyword-property-name",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/shorthand-default",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/js/esnext/static-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/blocked/export-property",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/blocked/export-shorthand",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/comments-removed/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/comments-removed/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/commonjs/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/commonjs/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/declaration/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/declaration/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/export-shorthand",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/keyword-property-name",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/shorthand-default",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/es2015/static-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/export-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/export-shorthand",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/exported-variable",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/keyword-property-name",
+      "exact_twice": true,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [],
+      "writes": []
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/property-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/shorthand-comments",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/shorthand-default",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "object-property-owners/ts/esnext/static-property",
+      "exact_twice": false,
+      "complete_actual_tuple": true,
+      "error": null,
+      "changed_top_level_fields": [
+        "writes",
+        "emit_result"
+      ],
+      "writes": [
+        {
+          "path": "/project/out/main.js",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "data_source_map_url_pos",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        },
+        {
+          "path": "/project/out/main.js.map",
+          "changed_fields": [
+            "callback_utf8_base64",
+            "callback_utf8_bytes",
+            "materialized_utf8_base64",
+            "materialized_utf8_bytes"
+          ]
+        }
+      ]
+    }
+  ],
+  "capture_receipts": [
+    {
+      "file": "0907aeafe3cabfeaffd5db145ba1405871b7f415998cb1661efdfa3ab018dcfc-0.json",
+      "case_id": "object-property-owners/js/es2015/export-property",
+      "capture_index": 0,
+      "sha256": "7e1158d1c8c4a34ca5c1729f019a38a34949f4c29960b8af685bbc770380e8a9"
+    },
+    {
+      "file": "0907aeafe3cabfeaffd5db145ba1405871b7f415998cb1661efdfa3ab018dcfc-1.json",
+      "case_id": "object-property-owners/js/es2015/export-property",
+      "capture_index": 1,
+      "sha256": "c57069eaedcac4126747410b7080a1b4c6cf4b041565a1a9984e4fe8fc6abfcf"
+    },
+    {
+      "file": "0a167c3901db3d460364980d39dd1cfec48f53828339c9caad47655c49976c12-0.json",
+      "case_id": "object-property-owners/ts/blocked/export-shorthand",
+      "capture_index": 0,
+      "sha256": "d3ce2f3211ff271c775fc01b7657eac4f9410583360410f8f040ff6be0386c5a"
+    },
+    {
+      "file": "0a167c3901db3d460364980d39dd1cfec48f53828339c9caad47655c49976c12-1.json",
+      "case_id": "object-property-owners/ts/blocked/export-shorthand",
+      "capture_index": 1,
+      "sha256": "82d9ba7433bd1fcc50d1b59601c58ef22fffd407b1e867e9e38c9f6c588e6756"
+    },
+    {
+      "file": "0bd41562030bb328045d08f1617bfc3cac0c41db7ef0958481ebfb47d5ca1734-0.json",
+      "case_id": "object-property-owners/js/es2015/property-comments",
+      "capture_index": 0,
+      "sha256": "16baceabea6a2e8a86658bda418d4212c61cb2608c840880ee8f4986d310f5e2"
+    },
+    {
+      "file": "0bd41562030bb328045d08f1617bfc3cac0c41db7ef0958481ebfb47d5ca1734-1.json",
+      "case_id": "object-property-owners/js/es2015/property-comments",
+      "capture_index": 1,
+      "sha256": "bbd1613b6d7e2f3c69fc16af766b86909c41b2ecdfb989fa0dd7dfe0553dd627"
+    },
+    {
+      "file": "18d9250ae54c42b65ca23e5c4ed5e66ce20203064b9a0f515d7a20f669d40355-0.json",
+      "case_id": "object-property-owners/js/comments-removed/property-comments",
+      "capture_index": 0,
+      "sha256": "d4c6d3105217253613435fec90fead0f4953f72d9bb98c604968fc323abb31ea"
+    },
+    {
+      "file": "18d9250ae54c42b65ca23e5c4ed5e66ce20203064b9a0f515d7a20f669d40355-1.json",
+      "case_id": "object-property-owners/js/comments-removed/property-comments",
+      "capture_index": 1,
+      "sha256": "9d04f46f7a3058175903b8201b9f88206f106494253c3c5dd6ae6ce6f34f90cf"
+    },
+    {
+      "file": "1c9de98eb695720514af1a377e47393e76bb83905c3e4f508618e44a2e5b1bfe-0.json",
+      "case_id": "object-property-owners/ts/esnext/keyword-property-name",
+      "capture_index": 0,
+      "sha256": "f37c20e688536e09039a57329380ef7b4d4d310cb9c1e6cf2e9be7d0e5f3d75a"
+    },
+    {
+      "file": "1c9de98eb695720514af1a377e47393e76bb83905c3e4f508618e44a2e5b1bfe-1.json",
+      "case_id": "object-property-owners/ts/esnext/keyword-property-name",
+      "capture_index": 1,
+      "sha256": "629d58f007f02c612ebf149eeafb0b9fdc880bf488953de97543ff0cd6225896"
+    },
+    {
+      "file": "20fb6a7f502b0da9213b38a5683083e6b6df5aadc4eaa650a9750d569a6b5b37-0.json",
+      "case_id": "object-property-owners/ts/es2015/exported-variable",
+      "capture_index": 0,
+      "sha256": "7eedc8c90261fc4ba5a4ea9cc5f6add51565d96f7d030cf3d91c56a59ae828dd"
+    },
+    {
+      "file": "20fb6a7f502b0da9213b38a5683083e6b6df5aadc4eaa650a9750d569a6b5b37-1.json",
+      "case_id": "object-property-owners/ts/es2015/exported-variable",
+      "capture_index": 1,
+      "sha256": "b5833e013826303cce3b34b9d9c08810843cd8adb5d9a8283d70d0c6f0c09f8b"
+    },
+    {
+      "file": "218425af26181bfbd7d7dfe05db24dcf7f097ed7bc98c28c8cebde512f6348fc-0.json",
+      "case_id": "object-property-owners/ts/es2015/shorthand-default",
+      "capture_index": 0,
+      "sha256": "1fa510d38f0ae4ce0075722d5380f8dbf98beaf469e08628b1f9ba3240c308ec"
+    },
+    {
+      "file": "218425af26181bfbd7d7dfe05db24dcf7f097ed7bc98c28c8cebde512f6348fc-1.json",
+      "case_id": "object-property-owners/ts/es2015/shorthand-default",
+      "capture_index": 1,
+      "sha256": "9d44bd61ae16d986f82a8167b5f983773f9621b5878f73db781064010effae5f"
+    },
+    {
+      "file": "32d8c11eefcfd39d4663ba8c29b4d6c2b6c720c25aba3fb4e9cc76631e086371-0.json",
+      "case_id": "object-property-owners/js/es2015/keyword-property-name",
+      "capture_index": 0,
+      "sha256": "e708f955530569de6c087fe40be847b2a6fbb5dd4a0882982dac4282523d252d"
+    },
+    {
+      "file": "32d8c11eefcfd39d4663ba8c29b4d6c2b6c720c25aba3fb4e9cc76631e086371-1.json",
+      "case_id": "object-property-owners/js/es2015/keyword-property-name",
+      "capture_index": 1,
+      "sha256": "a87aacdf95b8b6264dc34fd262b0609607003b7ab2bab713401596c523d122b6"
+    },
+    {
+      "file": "3bf1b9a3985ec1504e6469c8ab1d5b6b5ea632a0263aa59e456e1943b68c6b7d-0.json",
+      "case_id": "object-property-owners/ts/esnext/export-property",
+      "capture_index": 0,
+      "sha256": "dfef1eebe28866ccbf71b1d45248aec0cef8d6cabbb39600a241e535462ac1c1"
+    },
+    {
+      "file": "3bf1b9a3985ec1504e6469c8ab1d5b6b5ea632a0263aa59e456e1943b68c6b7d-1.json",
+      "case_id": "object-property-owners/ts/esnext/export-property",
+      "capture_index": 1,
+      "sha256": "711310d5af449ef24dcde9ba35bfc75ef31f6bf5f13f2da4efc37ed33b1a5f5d"
+    },
+    {
+      "file": "4759056da72f660cd9f9dde0928a1138861b54c1d5137ea335ef34fd3c84b30d-0.json",
+      "case_id": "object-property-owners/js/es2015/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "20a45ee8e6af939b4fd8d1ba23200e7b40a1059890b6711d571100d13526726a"
+    },
+    {
+      "file": "4759056da72f660cd9f9dde0928a1138861b54c1d5137ea335ef34fd3c84b30d-1.json",
+      "case_id": "object-property-owners/js/es2015/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "4d9486ef212e90a090fc47d227703e88fb8ce17137cf2a0a835b99dc49df7571"
+    },
+    {
+      "file": "4c585aff383a545e5e7c8ca41f63af15b548f6bbb40387ae0b33287c789b4107-0.json",
+      "case_id": "object-property-owners/js/commonjs/exported-variable",
+      "capture_index": 0,
+      "sha256": "3b10278b3f1b67ce2a913fb71a1b3f1547de33c14e97c094c9e746aea1fdb690"
+    },
+    {
+      "file": "4c585aff383a545e5e7c8ca41f63af15b548f6bbb40387ae0b33287c789b4107-1.json",
+      "case_id": "object-property-owners/js/commonjs/exported-variable",
+      "capture_index": 1,
+      "sha256": "61329a873af6e2138fccd3e818cbd996a52e48e4e7c6e1d8b096938431cf1685"
+    },
+    {
+      "file": "4e7c51c77a74745dbf432935b3edc286866d20a8aeaba9b57e06a47d4d076675-0.json",
+      "case_id": "object-property-owners/js/commonjs/export-property",
+      "capture_index": 0,
+      "sha256": "e8c4c5aebbb90139822c7dfab377511166872ef3b5335beae21e3f940cf7bc10"
+    },
+    {
+      "file": "4e7c51c77a74745dbf432935b3edc286866d20a8aeaba9b57e06a47d4d076675-1.json",
+      "case_id": "object-property-owners/js/commonjs/export-property",
+      "capture_index": 1,
+      "sha256": "aaef125ea7133c8a53cc3b7d8b830ed4d795f6603bd3c2efcde1b9536720c6ca"
+    },
+    {
+      "file": "5e363907145d8b7be82c10558c09b5162230f847394dcae0235c4f4918c88555-0.json",
+      "case_id": "object-property-owners/js/esnext/export-property",
+      "capture_index": 0,
+      "sha256": "bd7160ec975cc8dee5335f7c54b45dba748b2da1ccf7237c49e7a62a3510a2b4"
+    },
+    {
+      "file": "5e363907145d8b7be82c10558c09b5162230f847394dcae0235c4f4918c88555-1.json",
+      "case_id": "object-property-owners/js/esnext/export-property",
+      "capture_index": 1,
+      "sha256": "84952506ee801bcdb31d18b62ab66eb7a38931e7439a3358a63b1661296d4de2"
+    },
+    {
+      "file": "61f1e02e7ccf96511c6aa9078eef0c22823e12fb1a6d0d03a68d7b2033b2b625-0.json",
+      "case_id": "object-property-owners/ts/es2015/property-comments",
+      "capture_index": 0,
+      "sha256": "4eda6c562d3aa6ac07dd26da4b1eebc935489b2303cee7694cc5486b32264a9a"
+    },
+    {
+      "file": "61f1e02e7ccf96511c6aa9078eef0c22823e12fb1a6d0d03a68d7b2033b2b625-1.json",
+      "case_id": "object-property-owners/ts/es2015/property-comments",
+      "capture_index": 1,
+      "sha256": "16ced3019acd38d83177d82564195b6ade0cadb474a0fdaa55d2dd55ea3eb359"
+    },
+    {
+      "file": "6ffd25caeecda7fba3a8bdc1cb6a72bda9534adc0260859012204ee450a5bc47-0.json",
+      "case_id": "object-property-owners/ts/es2015/keyword-property-name",
+      "capture_index": 0,
+      "sha256": "cf0b310a47bb3a26cd11b31eb6d52fcd7f02d130b70e49d15a168481708615e0"
+    },
+    {
+      "file": "6ffd25caeecda7fba3a8bdc1cb6a72bda9534adc0260859012204ee450a5bc47-1.json",
+      "case_id": "object-property-owners/ts/es2015/keyword-property-name",
+      "capture_index": 1,
+      "sha256": "97870ed7a792f532dbabc63befb89a25729de931a225d45b40860645a88a0d62"
+    },
+    {
+      "file": "743e2d072664562e44178cac0c2d5f0a2b42945bbc078958a93b8e7ca7290892-0.json",
+      "case_id": "object-property-owners/js/esnext/keyword-property-name",
+      "capture_index": 0,
+      "sha256": "af25e3b3e8008df713da3d21e9b4cc7ea2609e093210b03fcdeb9eb4748c838a"
+    },
+    {
+      "file": "743e2d072664562e44178cac0c2d5f0a2b42945bbc078958a93b8e7ca7290892-1.json",
+      "case_id": "object-property-owners/js/esnext/keyword-property-name",
+      "capture_index": 1,
+      "sha256": "f2435768c8aab328a9864ce781dba330014bcfcf12ac3bba9963a2e009471059"
+    },
+    {
+      "file": "7a698351498e8985b2856450213efef3282b276e57264e334761b6924294e6e0-0.json",
+      "case_id": "object-property-owners/ts/es2015/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "e0213d4a7f18f9d4047f05a2610894d589dd9a8135c82b43c35c77fc8f5beac8"
+    },
+    {
+      "file": "7a698351498e8985b2856450213efef3282b276e57264e334761b6924294e6e0-1.json",
+      "case_id": "object-property-owners/ts/es2015/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "969a986a16239a4f36d6aa2dc66d22f74b5d442faa59a90ffb2c5303131aa544"
+    },
+    {
+      "file": "82a3bca85c61e98bc31bdb34477166e55047b020488d1f15a11cfde09150c5fa-0.json",
+      "case_id": "object-property-owners/ts/comments-removed/property-comments",
+      "capture_index": 0,
+      "sha256": "f2791b69226b1b5f0ba444ef0769dd0dc312c687dbba3871ecc2a8553345ce11"
+    },
+    {
+      "file": "82a3bca85c61e98bc31bdb34477166e55047b020488d1f15a11cfde09150c5fa-1.json",
+      "case_id": "object-property-owners/ts/comments-removed/property-comments",
+      "capture_index": 1,
+      "sha256": "aa64acb2b3d86388984cb16743ca9a36a61145ba555277d1a5767299a6159ce5"
+    },
+    {
+      "file": "83c8639797006ca5b07c414bba97f2c2c80aee87bec840e6e8139ceea973135c-0.json",
+      "case_id": "object-property-owners/ts/es2015/static-property",
+      "capture_index": 0,
+      "sha256": "11d37398307e1f68c0de7ea8a504a25bba7d44fc8819c15ca92d914240fd0ed8"
+    },
+    {
+      "file": "83c8639797006ca5b07c414bba97f2c2c80aee87bec840e6e8139ceea973135c-1.json",
+      "case_id": "object-property-owners/ts/es2015/static-property",
+      "capture_index": 1,
+      "sha256": "8ba2156c2c5d72638faef9a3fcfcbce4033baf42d5b0a1d24684d301e690b36d"
+    },
+    {
+      "file": "874e55708e67de15eafeba2daa8e49668453e586aa003a28e179bde35b911734-0.json",
+      "case_id": "object-property-owners/ts/declaration/export-property",
+      "capture_index": 0,
+      "sha256": "b9cf517aae9ddc651f740b153a8d4707398b1186ec38dabaa19d4eba32b9d70d"
+    },
+    {
+      "file": "874e55708e67de15eafeba2daa8e49668453e586aa003a28e179bde35b911734-1.json",
+      "case_id": "object-property-owners/ts/declaration/export-property",
+      "capture_index": 1,
+      "sha256": "4ba902d223eef4dc2525b0d976f24782eeec3a23da0f0e3a0b75083161e3c3e8"
+    },
+    {
+      "file": "8a070161aa1ffa6600706d2ee0365c2fa1943de26f258c67a0c1b23d478e30f0-0.json",
+      "case_id": "object-property-owners/ts/esnext/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "c2704e7a4e85ac893667fb12dc41d6dcbaeb18e472216db8c1fa2c3d41324022"
+    },
+    {
+      "file": "8a070161aa1ffa6600706d2ee0365c2fa1943de26f258c67a0c1b23d478e30f0-1.json",
+      "case_id": "object-property-owners/ts/esnext/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "ed593caa0441bdf0c2b6b064a4227e7bfc04f4f129c357058c79ff942b4e5e70"
+    },
+    {
+      "file": "8aa2db72dad57f5cd58757c8f688e69c1be2f62a800daab40bb05edce20450c7-0.json",
+      "case_id": "object-property-owners/js/declaration/exported-variable",
+      "capture_index": 0,
+      "sha256": "5519b381fa1bf5fb70c3daafb27c608014404788884bc0249b9679c4e8cb989c"
+    },
+    {
+      "file": "8aa2db72dad57f5cd58757c8f688e69c1be2f62a800daab40bb05edce20450c7-1.json",
+      "case_id": "object-property-owners/js/declaration/exported-variable",
+      "capture_index": 1,
+      "sha256": "c568600a755c5d56e05c3fe9a9b98461f82b95797e62b133d9462a7ad4164d48"
+    },
+    {
+      "file": "8c562b68d2e8ff284e1cc7a7612478f5ba314bbd67d5cf6e46db9d90b4547c76-0.json",
+      "case_id": "object-property-owners/ts/esnext/export-shorthand",
+      "capture_index": 0,
+      "sha256": "bfd5b442f5c0c7aad9c1ada58d24f319398683777606136ec3a26a86907f29df"
+    },
+    {
+      "file": "8c562b68d2e8ff284e1cc7a7612478f5ba314bbd67d5cf6e46db9d90b4547c76-1.json",
+      "case_id": "object-property-owners/ts/esnext/export-shorthand",
+      "capture_index": 1,
+      "sha256": "939f6246dd257af4d3a335a26e5f42621941e59e33c890b9c0a9dbe683b64b9e"
+    },
+    {
+      "file": "8da36023af0c91ab0560cd094b1346b81c85cc40b20fb8b3fe20560920e81cb3-0.json",
+      "case_id": "object-property-owners/js/esnext/exported-variable",
+      "capture_index": 0,
+      "sha256": "0854adbedd9d74498e05ad42ef33688782ef47b66fd7c26be119ed38de13d9ba"
+    },
+    {
+      "file": "8da36023af0c91ab0560cd094b1346b81c85cc40b20fb8b3fe20560920e81cb3-1.json",
+      "case_id": "object-property-owners/js/esnext/exported-variable",
+      "capture_index": 1,
+      "sha256": "e91e4d725e70558dc748f924c39745352f87f761ad886400201d67b389426566"
+    },
+    {
+      "file": "8eba96a469b55aa0c76a2905f0bc5206ab9d34ac3a2067ae785980a0d2f2b11a-0.json",
+      "case_id": "object-property-owners/js/esnext/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "13a880b7db981f7891f77eb16208394deb2882d6e6c560f9b65c0874518d0ce2"
+    },
+    {
+      "file": "8eba96a469b55aa0c76a2905f0bc5206ab9d34ac3a2067ae785980a0d2f2b11a-1.json",
+      "case_id": "object-property-owners/js/esnext/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "37b846cf47fc5f37c29333023ba99c8aa8e4202b576f1316a0a8f3746e843a87"
+    },
+    {
+      "file": "97b583de29f9b7c2a6a5fdcaa65defac52864d1113ab52f70a92ca1e32e8fc35-0.json",
+      "case_id": "object-property-owners/js/esnext/export-shorthand",
+      "capture_index": 0,
+      "sha256": "5e80c4f35a2c459eb4cbc4b8ffec6ed83331e593825f0f1d7fbf349c854b9ceb"
+    },
+    {
+      "file": "97b583de29f9b7c2a6a5fdcaa65defac52864d1113ab52f70a92ca1e32e8fc35-1.json",
+      "case_id": "object-property-owners/js/esnext/export-shorthand",
+      "capture_index": 1,
+      "sha256": "32c2dfb498a8bf70041d7fc3a2450b2c643885b34178c6a969fff09fd7a70d07"
+    },
+    {
+      "file": "9d87206f38eed01a7255a2e96f00a7db96fb466e9e65a39eddd12ff572c65c16-0.json",
+      "case_id": "object-property-owners/ts/es2015/export-property",
+      "capture_index": 0,
+      "sha256": "cb3841dff12b9f62d7b8ebe74228824f39821e8a22cbc8ae05e09e272cde73dc"
+    },
+    {
+      "file": "9d87206f38eed01a7255a2e96f00a7db96fb466e9e65a39eddd12ff572c65c16-1.json",
+      "case_id": "object-property-owners/ts/es2015/export-property",
+      "capture_index": 1,
+      "sha256": "ed32c7a127e97be0aa19efb1b103ba1646a8ca423f16a6c213f964ea626ba078"
+    },
+    {
+      "file": "a301a85fdf2752b12f571b1601a8b572718efd7878e4d738fd9d21becd2105b5-0.json",
+      "case_id": "object-property-owners/js/esnext/shorthand-default",
+      "capture_index": 0,
+      "sha256": "9c25364aea8a200e4ba87879700ac976b4b607dd2639840379ecc74d8d69cedf"
+    },
+    {
+      "file": "a301a85fdf2752b12f571b1601a8b572718efd7878e4d738fd9d21becd2105b5-1.json",
+      "case_id": "object-property-owners/js/esnext/shorthand-default",
+      "capture_index": 1,
+      "sha256": "ac13a032252670dae6609037ac2dde03edd01a2e43b95f4461867e9598ebb81f"
+    },
+    {
+      "file": "a73c73a2d391f4629617aececdd878eb02939ccab31fe5d57ce2310cb77033ee-0.json",
+      "case_id": "object-property-owners/ts/comments-removed/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "6bb519d614e84e40e3f3f26664701879b2252bd7ba22931ecd7cb479cebf92ae"
+    },
+    {
+      "file": "a73c73a2d391f4629617aececdd878eb02939ccab31fe5d57ce2310cb77033ee-1.json",
+      "case_id": "object-property-owners/ts/comments-removed/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "5bd74a23e58edb2ed4224f2b2a259f46a8d6648ae52cc7d3f82248adbb9faa23"
+    },
+    {
+      "file": "aa20df80648fd6e27122e49e09ea1d8aa91ca689c1031a9b872a204049ef562e-0.json",
+      "case_id": "object-property-owners/js/esnext/property-comments",
+      "capture_index": 0,
+      "sha256": "0b6309f727c38ead2b3292d61ba50331b7e352216bb0861205d75a24223294f6"
+    },
+    {
+      "file": "aa20df80648fd6e27122e49e09ea1d8aa91ca689c1031a9b872a204049ef562e-1.json",
+      "case_id": "object-property-owners/js/esnext/property-comments",
+      "capture_index": 1,
+      "sha256": "f450d1ab3a638b5e6dd7034b94485f796547bc2a97821befa91f3c29b00c267f"
+    },
+    {
+      "file": "b27a2cd9adfab45bf752d8f498980bb104db99aff3f6d75211c3df8e6cea1517-0.json",
+      "case_id": "object-property-owners/ts/blocked/export-property",
+      "capture_index": 0,
+      "sha256": "cc407acd881838887fcf9ebd338480e62830ca1208b2032c9968490e72b01c94"
+    },
+    {
+      "file": "b27a2cd9adfab45bf752d8f498980bb104db99aff3f6d75211c3df8e6cea1517-1.json",
+      "case_id": "object-property-owners/ts/blocked/export-property",
+      "capture_index": 1,
+      "sha256": "c0cbe67bd8527d46713ef0e1077c3f06451b7555bb7efd0a2c6227c5b76c2e3a"
+    },
+    {
+      "file": "b80c60acd752b06c66ec6c462f4eeff08f84d8724b1d84fde29812dd803536e3-0.json",
+      "case_id": "object-property-owners/js/esnext/static-property",
+      "capture_index": 0,
+      "sha256": "792715ff52d853daaf903929ea4ab237fb77b5195391455d34bdffec3db03616"
+    },
+    {
+      "file": "b80c60acd752b06c66ec6c462f4eeff08f84d8724b1d84fde29812dd803536e3-1.json",
+      "case_id": "object-property-owners/js/esnext/static-property",
+      "capture_index": 1,
+      "sha256": "621e292364ad0833d3d49fe001a5cc7f524393091bcdd9d4dc727f4e1c392b54"
+    },
+    {
+      "file": "b9820a03b92bb6c1f81d4223d78151b109ef53df3223551cec95109a753a96ab-0.json",
+      "case_id": "object-property-owners/js/es2015/shorthand-default",
+      "capture_index": 0,
+      "sha256": "e127860f03388fc1fe1d08ac7fc18afe067ad42f28d5c4a49e84b517d9ad3882"
+    },
+    {
+      "file": "b9820a03b92bb6c1f81d4223d78151b109ef53df3223551cec95109a753a96ab-1.json",
+      "case_id": "object-property-owners/js/es2015/shorthand-default",
+      "capture_index": 1,
+      "sha256": "33040d8a7f648fa6241f4109f63c2f02a5fffd41a68c848204efa481a6ee9d76"
+    },
+    {
+      "file": "b9a2881d5feac098219318f08d829877ee31cea43e0700cf6fbd3ee10b61a5df-0.json",
+      "case_id": "object-property-owners/ts/commonjs/export-property",
+      "capture_index": 0,
+      "sha256": "7d5607d219e452cc9555c7d25518d0e8e0c7fe08c1653a733a02627187144e1a"
+    },
+    {
+      "file": "b9a2881d5feac098219318f08d829877ee31cea43e0700cf6fbd3ee10b61a5df-1.json",
+      "case_id": "object-property-owners/ts/commonjs/export-property",
+      "capture_index": 1,
+      "sha256": "9adc36bfbf7f6f92d8c3e81e470ae8b1db87727b77b4fdc5063d5fc66066f51d"
+    },
+    {
+      "file": "bf7a8693950a3d5b70f4fa324da02e592fa37e1a22df4c23bb7485b0afc171ce-0.json",
+      "case_id": "object-property-owners/js/es2015/exported-variable",
+      "capture_index": 0,
+      "sha256": "061db28ae750eaaae68ae7b8088b0b3c36d1fca8551ca1a28365e1c22bf07b0f"
+    },
+    {
+      "file": "bf7a8693950a3d5b70f4fa324da02e592fa37e1a22df4c23bb7485b0afc171ce-1.json",
+      "case_id": "object-property-owners/js/es2015/exported-variable",
+      "capture_index": 1,
+      "sha256": "03759fbdf9676212d29e08f8c005e1b742eaf064e5248dc9013b6f71a8519897"
+    },
+    {
+      "file": "c0e07ccce13051fe6aa28efa1ba2e710340a0e35375008ddc8cf4dc73a593801-0.json",
+      "case_id": "object-property-owners/ts/esnext/shorthand-default",
+      "capture_index": 0,
+      "sha256": "5ec6bca613e93fb7e17c8117d97aa7a426f4b32e9e9888f1b26351a90ba376d4"
+    },
+    {
+      "file": "c0e07ccce13051fe6aa28efa1ba2e710340a0e35375008ddc8cf4dc73a593801-1.json",
+      "case_id": "object-property-owners/ts/esnext/shorthand-default",
+      "capture_index": 1,
+      "sha256": "2117033fc96ada1c66b200d8b9c625d41f5a070f2a44a618d4475e54b51231a9"
+    },
+    {
+      "file": "c54b7af9fbc7cf629990984243486615aaca4e7e521e3c56e6ee2bb14a491718-0.json",
+      "case_id": "object-property-owners/js/blocked/export-property",
+      "capture_index": 0,
+      "sha256": "759ffe3d97fa0710829b78fbdb6e44ca8b6df2b618bad4c74e268451e2801bff"
+    },
+    {
+      "file": "c54b7af9fbc7cf629990984243486615aaca4e7e521e3c56e6ee2bb14a491718-1.json",
+      "case_id": "object-property-owners/js/blocked/export-property",
+      "capture_index": 1,
+      "sha256": "16f19a09da6123207f2162e293f9438a77c697fec3090ba1bbc5eedcbb6e1588"
+    },
+    {
+      "file": "c57c1e855d7c84167a543402eb25eff9537b64ec85b60df6e35743e8d2d6faf4-0.json",
+      "case_id": "object-property-owners/js/es2015/static-property",
+      "capture_index": 0,
+      "sha256": "a46c33ef13929a9418cee62158757d0a12ac223691bed1587c97dc0efa48c215"
+    },
+    {
+      "file": "c57c1e855d7c84167a543402eb25eff9537b64ec85b60df6e35743e8d2d6faf4-1.json",
+      "case_id": "object-property-owners/js/es2015/static-property",
+      "capture_index": 1,
+      "sha256": "8032b43505ed4a94b2115bf4be179a22a9e614ff9e108b49817ba9a6a791965e"
+    },
+    {
+      "file": "c962b0b890df4897c2752420812664726a940e694ef71b82bae7d4045effaf8f-0.json",
+      "case_id": "object-property-owners/js/comments-removed/shorthand-comments",
+      "capture_index": 0,
+      "sha256": "7419dfe642ad15b6737b075bbbaabc5f6aea7e7a93e5527425d93069547e89e8"
+    },
+    {
+      "file": "c962b0b890df4897c2752420812664726a940e694ef71b82bae7d4045effaf8f-1.json",
+      "case_id": "object-property-owners/js/comments-removed/shorthand-comments",
+      "capture_index": 1,
+      "sha256": "4376598f9c3dac34e178ca2c33067f2049684d2bf4ea1d79948fd97db22eda9f"
+    },
+    {
+      "file": "c9c2e7626ac355e7e20f0127e76b218bec7882b677fedfbe2099f97489a885ef-0.json",
+      "case_id": "object-property-owners/js/declaration/export-property",
+      "capture_index": 0,
+      "sha256": "f5c2b48172185da1b2de15ca526390095d925b262399de91b6b2d75f0aaceee9"
+    },
+    {
+      "file": "c9c2e7626ac355e7e20f0127e76b218bec7882b677fedfbe2099f97489a885ef-1.json",
+      "case_id": "object-property-owners/js/declaration/export-property",
+      "capture_index": 1,
+      "sha256": "75f2dfc68b1e87f80792e445c66c0f461d4fbfd3d14896427eca50b7362485d5"
+    },
+    {
+      "file": "cc3097b3bb223b3fa62930f1a66f8daa9482fad58a28a3f0ab0ad1c1423c25fb-0.json",
+      "case_id": "object-property-owners/ts/esnext/exported-variable",
+      "capture_index": 0,
+      "sha256": "6f745767659a13b75029ffb13f10bb0688ed6e337439ebddc182be7ceb9bbf37"
+    },
+    {
+      "file": "cc3097b3bb223b3fa62930f1a66f8daa9482fad58a28a3f0ab0ad1c1423c25fb-1.json",
+      "case_id": "object-property-owners/ts/esnext/exported-variable",
+      "capture_index": 1,
+      "sha256": "7961f958d462d5f26791327317b44a642903584812f90e6604fe227b7ba0b7e6"
+    },
+    {
+      "file": "d2ae430735ce030756f0d281bc5c6e8f5aa5d785cf5d29f545027ab653b4b830-0.json",
+      "case_id": "object-property-owners/ts/esnext/static-property",
+      "capture_index": 0,
+      "sha256": "51a292adae2e243b0b61a9255fff3a6ed7754426d8eb6c05dd68cc31f7f49ba5"
+    },
+    {
+      "file": "d2ae430735ce030756f0d281bc5c6e8f5aa5d785cf5d29f545027ab653b4b830-1.json",
+      "case_id": "object-property-owners/ts/esnext/static-property",
+      "capture_index": 1,
+      "sha256": "298603410547133339c1145838134824341d4840910dbf1ca8fefde8ded35232"
+    },
+    {
+      "file": "e5dbd9ebdfeaaab69470e2813ca76b81a8962934b367eb0262eb2e7a4dbf2167-0.json",
+      "case_id": "object-property-owners/ts/declaration/exported-variable",
+      "capture_index": 0,
+      "sha256": "db9885e21ff55be49957a7b243ae13f2dd5d8a7a7858268c19323b9677b1b7b0"
+    },
+    {
+      "file": "e5dbd9ebdfeaaab69470e2813ca76b81a8962934b367eb0262eb2e7a4dbf2167-1.json",
+      "case_id": "object-property-owners/ts/declaration/exported-variable",
+      "capture_index": 1,
+      "sha256": "ad61dedd38d56a5466899790fa296226ef33903e98332f38e8463499e9ff2913"
+    },
+    {
+      "file": "eb5f38036d7dd5e4a8ece491ddcdf1fe4f8be4bb8d8d849fd51b7e1b89a91df4-0.json",
+      "case_id": "object-property-owners/ts/commonjs/exported-variable",
+      "capture_index": 0,
+      "sha256": "c68c21e7b52e02587d38d3ea704c1be1bc5df0de3e023511602f4da7d838d0c1"
+    },
+    {
+      "file": "eb5f38036d7dd5e4a8ece491ddcdf1fe4f8be4bb8d8d849fd51b7e1b89a91df4-1.json",
+      "case_id": "object-property-owners/ts/commonjs/exported-variable",
+      "capture_index": 1,
+      "sha256": "5e0e3e43a73f8e94ea7830b7c6ac2769f8975d4c633a81f734b2a2cc85a197eb"
+    },
+    {
+      "file": "ed12a28a69677c0987e355b6e90c45c3485c52eecb72d4f1b76e851f79010ecb-0.json",
+      "case_id": "object-property-owners/js/blocked/export-shorthand",
+      "capture_index": 0,
+      "sha256": "e22f7156e4357dda6eec39b079feb664aa299026f56cd4ff84a80b101fa4994b"
+    },
+    {
+      "file": "ed12a28a69677c0987e355b6e90c45c3485c52eecb72d4f1b76e851f79010ecb-1.json",
+      "case_id": "object-property-owners/js/blocked/export-shorthand",
+      "capture_index": 1,
+      "sha256": "7511f2e375178c7adc15c560f9b1dc6514a671b475b8302d103f6c2b860bc716"
+    },
+    {
+      "file": "f4f8be32650487bc18a7e7dfe4d11005070b7da0b0218b4c765467510a5b4363-0.json",
+      "case_id": "object-property-owners/ts/esnext/property-comments",
+      "capture_index": 0,
+      "sha256": "e626244c135c60569f3fb82792eeae773e8295dcc6a512d1b4541da2c73da620"
+    },
+    {
+      "file": "f4f8be32650487bc18a7e7dfe4d11005070b7da0b0218b4c765467510a5b4363-1.json",
+      "case_id": "object-property-owners/ts/esnext/property-comments",
+      "capture_index": 1,
+      "sha256": "bb90a23359c467dc19663c145f9d9fae517b7821c6b5bc62fb3a8db8e84a2b80"
+    },
+    {
+      "file": "fe9b10341cf132a94bf41f10c455c11039d51868a63fc11788ff5e60306cb15a-0.json",
+      "case_id": "object-property-owners/ts/es2015/export-shorthand",
+      "capture_index": 0,
+      "sha256": "49fb5939caf62d509ebd335ff597b19eda21e6dbb85f20a8acb579ed4c59bc58"
+    },
+    {
+      "file": "fe9b10341cf132a94bf41f10c455c11039d51868a63fc11788ff5e60306cb15a-1.json",
+      "case_id": "object-property-owners/ts/es2015/export-shorthand",
+      "capture_index": 1,
+      "sha256": "5774c1e64b1f09d7c808d3de67bef16786c85d7f7d97ad937ab9af5896a65680"
+    },
+    {
+      "file": "ffff679879cdb0c53baf24d0908810cc37134fe5189b3031ca3af5b8e24505ed-0.json",
+      "case_id": "object-property-owners/js/es2015/export-shorthand",
+      "capture_index": 0,
+      "sha256": "288c9085d21ed5e52a4bb07e83adeba12f5803e973d36092690f8db9fd10fbce"
+    },
+    {
+      "file": "ffff679879cdb0c53baf24d0908810cc37134fe5189b3031ca3af5b8e24505ed-1.json",
+      "case_id": "object-property-owners/js/es2015/export-shorthand",
+      "capture_index": 1,
+      "sha256": "d438f1cccd4e0aae6255e185e77ae421cd6181b877ff9b7a0ebd7ac5ec659b11"
+    }
+  ],
+  "actual_exit": {
+    "manifest": "target/h2-8a-object-property-before-1-prelaunch.json",
+    "manifest_sha256": "9f990cdd6ecb8ed609a14210263294ecff4b278614b74f08d41832b9fd1debc0",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-compiler",
+      "--test",
+      "contracts",
+      "--",
+      "object_property_owners_match_complete_typescript_observations",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 165.87595854100073,
+    "log": "target/h2-8a-object-property-before-1.log",
+    "log_sha256": "c0ad62a534ebeab2f539c2946160384a46c97fdecc4f5b56ff247b66eae76039"
+  },
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-before-d8v45ftg",
+  "prelaunch_sha256": "9f990cdd6ecb8ed609a14210263294ecff4b278614b74f08d41832b9fd1debc0",
+  "binary": {
+    "path": "target/debug/deps/contracts-cabf44d19c2beb96",
+    "sha256": "3be46ee2847bc0a8eea14fdd5417656e52457ee248bba51c114048401c87b1ec",
+    "size": 126724672,
+    "mtime_ns": 1788994632282588421,
+    "bytes_retained": false
+  },
+  "typescript": {
+    "version": 1,
+    "base": "d1c04df5c7c0d93b26f76539c9101bc2f4b11c69",
+    "status": "48 complete repeated TS commands frozen; native comparison and readiness pending",
+    "cases": 48,
+    "program_executions": 96,
+    "actual_exit": {
+      "manifest": "target/h2-8a-object-property-typescript-1-prelaunch.json",
+      "manifest_sha256": "bd63b09e0fc7de0c30dc2317ace2f0e50ead1cca93b84bdb07da7e33f64cb4e8",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "node",
+        "scripts/observe-object-property-owners.mjs",
+        "--write"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 41.52500883402536,
+      "log": "target/h2-8a-object-property-typescript-1.log",
+      "log_sha256": "5867b9693b9e617362f4b8caf0ca615b08a7740884b0140c7adc8bdf566908dc"
+    },
+    "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-typescript-yzmnqncw",
+    "artifact": {
+      "path": "crates/compiler/tests/fixtures/object-property-owners.json",
+      "sha256": "a3cad67f73c167d52fa5d28c43f47817466f182484c93b2fc2120dcb2f6463f7"
+    },
+    "prelaunch_sha256": "bd63b09e0fc7de0c30dc2317ace2f0e50ead1cca93b84bdb07da7e33f64cb4e8",
+    "diagnostic_codes": {
+      "1042": 36,
+      "2695": 4
+    },
+    "events": [
+      {
+        "case_id": "object-property-owners/js/es2015/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/shorthand-default",
+        "complete_observations": 2,
+        "diagnostics": 2,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/static-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/keyword-property-name",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/js/es2015/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/shorthand-default",
+        "complete_observations": 2,
+        "diagnostics": 2,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/static-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/keyword-property-name",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/js/esnext/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/js/comments-removed/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/comments-removed/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/blocked/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 0,
+        "exit_code": 1
+      },
+      {
+        "case_id": "object-property-owners/js/blocked/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 0,
+        "exit_code": 1
+      },
+      {
+        "case_id": "object-property-owners/js/commonjs/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/declaration/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 4,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/js/commonjs/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/js/declaration/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/shorthand-default",
+        "complete_observations": 2,
+        "diagnostics": 2,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/static-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/keyword-property-name",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/es2015/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/shorthand-default",
+        "complete_observations": 2,
+        "diagnostics": 2,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/static-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/keyword-property-name",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/esnext/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/comments-removed/property-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/comments-removed/shorthand-comments",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/blocked/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 0,
+        "exit_code": 1
+      },
+      {
+        "case_id": "object-property-owners/ts/blocked/export-shorthand",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 0,
+        "exit_code": 1
+      },
+      {
+        "case_id": "object-property-owners/ts/commonjs/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 2,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/declaration/export-property",
+        "complete_observations": 2,
+        "diagnostics": 1,
+        "writes": 4,
+        "exit_code": 2
+      },
+      {
+        "case_id": "object-property-owners/ts/commonjs/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 2,
+        "exit_code": 0
+      },
+      {
+        "case_id": "object-property-owners/ts/declaration/exported-variable",
+        "complete_observations": 2,
+        "diagnostics": 0,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "destination": "/Users/hiramatsu/dev/tsc-rs/crates/compiler/tests/fixtures/object-property-owners.json",
+        "cases": 48,
+        "complete_program_executions": 96,
+        "sha256": "a3cad67f73c167d52fa5d28c43f47817466f182484c93b2fc2120dcb2f6463f7"
+      }
+    ]
+  },
+  "original_reuse": {
+    "version": 1,
+    "base": "d1c04df5c7c0d93b26f76539c9101bc2f4b11c69",
+    "source_record": {
+      "path": "ratchets/h2-8a-global-after-a6-37.v1.json",
+      "sha256": "528440d00cf5b3c57c7bf815bb9e236fcf1cffc7e19c2756b48cc8c5cd4fee5e"
+    },
+    "source_archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-after-a6-37-khsovdao",
+    "new_executions": 0,
+    "reused_primary_attempts": 8,
+    "exact_twice": [
+      "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors2.ts#default",
+      "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors3.ts#default",
+      "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors4.ts#default"
+    ],
+    "failed_twice": [
+      "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default"
+    ],
+    "source_inputs_verified": [
+      {
+        "path": "Cargo.lock",
+        "sha256": "8870eeeeb3b12ba6950d2215858a8b661ddeadc4c38cf948c2e617023091647f"
+      },
+      {
+        "path": "Cargo.toml",
+        "sha256": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5"
+      },
+      {
+        "path": "crates/binder/Cargo.toml",
+        "sha256": "cc7669bb6fc171e2733d20817e150c5334949d57d57a299b42b7b679a7e033f1"
+      },
+      {
+        "path": "crates/binder/src/assignment.rs",
+        "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+      },
+      {
+        "path": "crates/binder/src/bind.rs",
+        "sha256": "a47b59b0a81270c30fe69b1d29fb3a6e47c6032536b85c1c623b9b6dcfeb00e4"
+      },
+      {
+        "path": "crates/binder/src/containers.rs",
+        "sha256": "0b3195baf932773a125c9e35fe972bbd018210eaed051a2a6facd4275fac9c37"
+      },
+      {
+        "path": "crates/binder/src/declare.rs",
+        "sha256": "eb5a88b86c2a2553dbb0231f84d3ef4d9702435f5d7fff56c515f9d31f5198d5"
+      },
+      {
+        "path": "crates/binder/src/flow.rs",
+        "sha256": "f2c5948c17ab68f2a653232dfc06bba92ab31ef6a5dd06cb741995086fd5b283"
+      },
+      {
+        "path": "crates/binder/src/lib.rs",
+        "sha256": "f2298c369a62044126914a279badd4ce9bc4c91e4b6ae0b5baa77d5ebacb7896"
+      },
+      {
+        "path": "crates/binder/src/node_util.rs",
+        "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+      },
+      {
+        "path": "crates/binder/src/symbols.rs",
+        "sha256": "4e72a55f93f2b2b25c278ea6c228c477fedfb6c49a502df7c6f4bb68ad87f071"
+      },
+      {
+        "path": "crates/checker/Cargo.toml",
+        "sha256": "15e0305b1c561122e7d67502ebc2c0dfbe47c24c5d425d9fee5ede2f28509568"
+      },
+      {
+        "path": "crates/checker/src/access.rs",
+        "sha256": "7a5f92a0bbd5930abee7274a96a7745934eb554382f074b232f571392baf7673"
+      },
+      {
+        "path": "crates/checker/src/annotate.rs",
+        "sha256": "7146e8670b2c6acdb3a51ea3df434f26846592c4620fa30fac091f6f3d56cc4e"
+      },
+      {
+        "path": "crates/checker/src/calls.rs",
+        "sha256": "60869af25532743103a03c6bc168f5d248e2035b37f572d10a9bb5aeefe537e3"
+      },
+      {
+        "path": "crates/checker/src/check.rs",
+        "sha256": "6ac7927dc7eb5e5b4b6413900c4cc588c94cf281b486a769fff22a74812074e7"
+      },
+      {
+        "path": "crates/checker/src/class.rs",
+        "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+      },
+      {
+        "path": "crates/checker/src/conditional.rs",
+        "sha256": "6dce39b38875ac79ce649ea0322980ba52be71b5d6c0b71f4fd199ad53b89de3"
+      },
+      {
+        "path": "crates/checker/src/constraints.rs",
+        "sha256": "3d1745e90c5ac47ddcf9918a8ff68a3d8ecca92b7db8fc1fcabfa14c72cd700b"
+      },
+      {
+        "path": "crates/checker/src/contextual.rs",
+        "sha256": "ded153bf4523b26def66a7e32c66dfc44af2e748092aa4dfe80f3c32ab402bc9"
+      },
+      {
+        "path": "crates/checker/src/declaration_emit.rs",
+        "sha256": "ab6204992cb296811931a4b6e49180c8f4371aec0eef42ac4e4ba89b805f811b"
+      },
+      {
+        "path": "crates/checker/src/display_clone.rs",
+        "sha256": "ae87ea05998a8d6fead55bb11142e9108c507f105a7f14f5850b0fb33eadb587"
+      },
+      {
+        "path": "crates/checker/src/display_clone_body.rs",
+        "sha256": "7a1a24d6669e80f506525a2dd55b44ee5032a48c3aa0353dcb6e08709c8e1e28"
+      },
+      {
+        "path": "crates/checker/src/display_clone_module.rs",
+        "sha256": "42dcf2d6216d3e6e28fa022fbdd2552285c3431a338c6fb671038d4747c0f057"
+      },
+      {
+        "path": "crates/checker/src/elaboration.rs",
+        "sha256": "d3ff0f15774dd9826c5f28bf6da8b923f4f58d7f0436dd3de0808e0308c0e2ad"
+      },
+      {
+        "path": "crates/checker/src/emit.rs",
+        "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+      },
+      {
+        "path": "crates/checker/src/engine.rs",
+        "sha256": "9715ad017afd9b9f79ae725b1ed09ff6f52f77f765244edd1eabccd89c66253e"
+      },
+      {
+        "path": "crates/checker/src/evaluate.rs",
+        "sha256": "b00a5a14ef70132a0564976406183af824940da03d47effe47c782fcdf0c6574"
+      },
+      {
+        "path": "crates/checker/src/expr.rs",
+        "sha256": "d8647a5b87b5a773e0f461b97767ab7347bdc081e5fcf4d960bb2dff2b768513"
+      },
+      {
+        "path": "crates/checker/src/facts.rs",
+        "sha256": "392bb0a6401f995957080878d624475147ceb85b0d70a1cf51cf74be29698557"
+      },
+      {
+        "path": "crates/checker/src/flow.rs",
+        "sha256": "2c7ab9ebdcb770b978e36b61c7d106134a6bf04a444e00d6cf0f5ad76111ffa9"
+      },
+      {
+        "path": "crates/checker/src/functions.rs",
+        "sha256": "c994fa4d8e59468d9b035895fac8dbde0dbb1c960df4771251f4b8c6bd43c514"
+      },
+      {
+        "path": "crates/checker/src/globals.rs",
+        "sha256": "7fb0b56017bb9cc0f0cfe7aeac080d82718041afa5d3d12a694ebf81b4920b87"
+      },
+      {
+        "path": "crates/checker/src/indexed.rs",
+        "sha256": "22dd3ba6fec4ade0108db3d075a70f17d5fa4b0a8d8c6853eaeddfad904ccf79"
+      },
+      {
+        "path": "crates/checker/src/inference.rs",
+        "sha256": "8c494c533ecc76cf54f0778148f3823a55846cf1a38baaf3f4a5997032264512"
+      },
+      {
+        "path": "crates/checker/src/instantiate.rs",
+        "sha256": "4d409efca2e636732ca5ec938f7aca36c7bc6b845897b24b377ec6ffc89eaa70"
+      },
+      {
+        "path": "crates/checker/src/intersect.rs",
+        "sha256": "06396f5a9a87540336033332def9a1e63463f4fe8cf1c1ce0d5deedb167cde91"
+      },
+      {
+        "path": "crates/checker/src/iterate.rs",
+        "sha256": "168b8f41e4687a5482c02845a8d418656e066b4795ea328ca5db9f68ec088c01"
+      },
+      {
+        "path": "crates/checker/src/js_grammar.rs",
+        "sha256": "425f1f2e2ae7307032e21964153eaaefd9923618bd076e06428c40dd71daea92"
+      },
+      {
+        "path": "crates/checker/src/jsdoc.rs",
+        "sha256": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c"
+      },
+      {
+        "path": "crates/checker/src/jsx.rs",
+        "sha256": "5e657bbe6e28fe578e35ceb842fe12af39b27c43a5c3bc4453e7d4fc80f0dace"
+      },
+      {
+        "path": "crates/checker/src/lib.rs",
+        "sha256": "c6a81fab3cf83b1fe913f34ddb4d23aa5d6563b0f6db1d29d00378bc232f8fd4"
+      },
+      {
+        "path": "crates/checker/src/links.rs",
+        "sha256": "c3312aad118ec2b9098dde0c3caf19504dbc9e770d5986fdc2bc56efe77c5de4"
+      },
+      {
+        "path": "crates/checker/src/literals.rs",
+        "sha256": "4d70f96e599d87b9242741e063189b0796369cc9da3815b85a395a584539f808"
+      },
+      {
+        "path": "crates/checker/src/mapped.rs",
+        "sha256": "526368a2488bfd0cd590af59a81c4dbe32ae684e5b93afb2bf5f3c131cbbc88a"
+      },
+      {
+        "path": "crates/checker/src/merge.rs",
+        "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+      },
+      {
+        "path": "crates/checker/src/modules.rs",
+        "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+      },
+      {
+        "path": "crates/checker/src/narrow.rs",
+        "sha256": "6b765656de3aecc9991ceca5005b99c198cb9136b969a5334f4720d0aebf437f"
+      },
+      {
+        "path": "crates/checker/src/node_builder/chains.rs",
+        "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+      },
+      {
+        "path": "crates/checker/src/node_builder/context.rs",
+        "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+      },
+      {
+        "path": "crates/checker/src/node_builder/mod.rs",
+        "sha256": "526ef82cbe944cbd119d786a9c2db217497ed3f05cb5607d7ba42422d6c1a0fe"
+      },
+      {
+        "path": "crates/checker/src/node_builder/serialize.rs",
+        "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+      },
+      {
+        "path": "crates/checker/src/node_builder/signatures.rs",
+        "sha256": "0209074e09bbaf56eb92ca5805ac099592eef764cc4d87a9d090700bd5ce8b03"
+      },
+      {
+        "path": "crates/checker/src/node_builder/specifier.rs",
+        "sha256": "259b03b0d6a124915ef9f4559552243a59a9869b818e208d9944b16f7d3718f8"
+      },
+      {
+        "path": "crates/checker/src/node_builder/statements.rs",
+        "sha256": "dac1ba74abd1f67303272bf428f3da9b43ac9ca663eb52b42337d6ba39965f28"
+      },
+      {
+        "path": "crates/checker/src/node_builder/tracker.rs",
+        "sha256": "a3d3ebd7be63a67fef268170f676072ff3ea5a93ff9d2e38944c6d8b0c596f98"
+      },
+      {
+        "path": "crates/checker/src/node_builder/type_nodes.rs",
+        "sha256": "747f784c3fac9f4f184ffa038138a0f0e06519c87d4a267b5fd0d61c70958908"
+      },
+      {
+        "path": "crates/checker/src/operators.rs",
+        "sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
+      },
+      {
+        "path": "crates/checker/src/plain_js_errors.rs",
+        "sha256": "86ddc4868447e0de63166236ae9830f2f39bd9ceef9f9a3c30912d2efa327899"
+      },
+      {
+        "path": "crates/checker/src/program.rs",
+        "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+      },
+      {
+        "path": "crates/checker/src/relate.rs",
+        "sha256": "4d33ab19cc91b8eb566657091700c18f4dabf980f13a2f4c7ea11247dc62f2df"
+      },
+      {
+        "path": "crates/checker/src/relpin.rs",
+        "sha256": "3e039bf259711027ed2c051288c98a3514a2b6c57a3d8905f39b93375e540c9e"
+      },
+      {
+        "path": "crates/checker/src/resolve.rs",
+        "sha256": "351e00140de6d00d4950e54d35082ee79a33a0027ad08ecdf3d0b91a058cd066"
+      },
+      {
+        "path": "crates/checker/src/speculate.rs",
+        "sha256": "bb8047b7e134103260e376c79dcd776c372efcd9a1b4e73fadd809086fe7a260"
+      },
+      {
+        "path": "crates/checker/src/spell.rs",
+        "sha256": "6d6c3cd1bd9968630b2bafabba66ab6868e22054364ffafd29ec08c79e0638ed"
+      },
+      {
+        "path": "crates/checker/src/state.rs",
+        "sha256": "d74d5d4bbf6c2dccc9bfb380d61117ba64f8cdb08bb4c84ea0f8c378349fcd26"
+      },
+      {
+        "path": "crates/checker/src/statements.rs",
+        "sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
+      },
+      {
+        "path": "crates/checker/src/structural.rs",
+        "sha256": "f7c1a4247ab563c0ff6fb2705e7cb9a4b2e06b0024c26a76be700c4d778b76ab"
+      },
+      {
+        "path": "crates/checker/src/syntactic_type_node_builder.rs",
+        "sha256": "a543c48150b86f6444bb1bad2d57f6948d40fd9e644247a6d22cb1d86ac65717"
+      },
+      {
+        "path": "crates/checker/src/unions.rs",
+        "sha256": "c8e6fa89062e56d92ccdcde26259d12803b2027495a2a9f58f6e98cd68ebca4b"
+      },
+      {
+        "path": "crates/checker/src/unused.rs",
+        "sha256": "9d9dd38e961c8c5ade9841bc6aa6f4aab339a854b2ec249a5e5ae00d1690a79e"
+      },
+      {
+        "path": "crates/checker/src/variance.rs",
+        "sha256": "f68fcf74787bd46395d7e68e41e629fdb4e7bd636014d7bacd996a5976ec7a87"
+      },
+      {
+        "path": "crates/checker/src/widen.rs",
+        "sha256": "a8f49bbe15afdc536275bb5610a7902500dfe121b30b8f4daac3025db5fc8174"
+      },
+      {
+        "path": "crates/compiler/Cargo.toml",
+        "sha256": "995953ddc3e9d7280e739e124f93583733a9a4256a7581d27759019da96ec4e6"
+      },
+      {
+        "path": "crates/compiler/src/bin/tsc-rs.rs",
+        "sha256": "31ec2afe45f0b9e10a96a5701aae24a86d0d733c877f7639e2054830310705e2"
+      },
+      {
+        "path": "crates/compiler/src/cli.rs",
+        "sha256": "607e77c0229add802dbd046d2f32dc4881b2cfe3c2fad773a4e6539b456bd6c0"
+      },
+      {
+        "path": "crates/compiler/src/declaration_diagnostics.rs",
+        "sha256": "35a6c4681bb0a3eb14bcc283a7e9be8e3291698f1ecdd83feac199c9a482ca4b"
+      },
+      {
+        "path": "crates/compiler/src/lib.rs",
+        "sha256": "dbb4f77c549791f38b225c3d93305cc311a9bdb75b8560ead8529149e1b40d37"
+      },
+      {
+        "path": "crates/compiler/src/no_emit_canary.rs",
+        "sha256": "ecff9037597bb57f64a5548d4843aae9003b37505759253afe5d9eb76c878665"
+      },
+      {
+        "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+        "sha256": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423"
+      },
+      {
+        "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+        "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+      },
+      {
+        "path": "crates/conformance/Cargo.toml",
+        "sha256": "5214fedd2e02a5d2a558d5f469e0b715b49962cb293e662d4972942f4f35f5d6"
+      },
+      {
+        "path": "crates/conformance/src/bounded_pipeline.rs",
+        "sha256": "abdc6673fd4f8ed82cdfbd07eb15fee038f190624d04ac5cd68a865d3b45e754"
+      },
+      {
+        "path": "crates/conformance/src/families.rs",
+        "sha256": "c24be92fb6efba81870a989fc515e085c55bc0c1f854c15875eeaf271304a653"
+      },
+      {
+        "path": "crates/conformance/src/goldens_diff.rs",
+        "sha256": "b0d0b8c65b4f5a0215a25638f3fe79cafbd14b542404d5333f2f0a9bc0db3f76"
+      },
+      {
+        "path": "crates/conformance/src/h0_memory.rs",
+        "sha256": "54a625edd38ce4bf2d2cfa8ef9979c5a59f6ec61ec0710bf4f41fdfab809b077"
+      },
+      {
+        "path": "crates/conformance/src/host_resolution.rs",
+        "sha256": "09212f5b2decdd05b4f2a97f2d90da4f33caf6364a3e50b7c91e4b96fe399747"
+      },
+      {
+        "path": "crates/conformance/src/identity.rs",
+        "sha256": "a8d3e152b726d842d8d142553b45c15d1ecae9794f32cf101cd34a3329205ab6"
+      },
+      {
+        "path": "crates/conformance/src/lib.rs",
+        "sha256": "6636a17f634774c17d1cf3719d825b9f1b2d1dcf7749afb33e3ca4b4c0f92a4f"
+      },
+      {
+        "path": "crates/conformance/src/ratchet.rs",
+        "sha256": "ec4d1bb775cf595541307e59cdcb70a9f11f7312ffc1c3e1463a5c920b0d8a75"
+      },
+      {
+        "path": "crates/conformance/src/rendered.rs",
+        "sha256": "1528d99d70580e45b1e32ad5bc97bfdc494c9a8e6c8ded1cef20265ee2de66a9"
+      },
+      {
+        "path": "crates/conformance/src/scope.rs",
+        "sha256": "ff40791903b6962296c9f63c3c8ff2f407f6b4dd2e7e32eb65b7a1e930e7e133"
+      },
+      {
+        "path": "crates/conformance/src/shadow_diff.rs",
+        "sha256": "1672ab0435f51932999e5713b720132b66c174391e3f617b6366ae0a3cef75fd"
+      },
+      {
+        "path": "crates/diagnostics/Cargo.toml",
+        "sha256": "5907c1713cc4d1e4a542ed426c167cf67b3d48d6748962db8862fcc23b07afe5"
+      },
+      {
+        "path": "crates/diagnostics/src/gen.rs",
+        "sha256": "378d98bf1d5d4dd30c5388c195b9e88c29f75bcb5f6291cb943c85b13d7a635d"
+      },
+      {
+        "path": "crates/diagnostics/src/lib.rs",
+        "sha256": "6c5d88773007f8a54d98b7ebc51c96c5110caa452b95d4d670e2002079302068"
+      },
+      {
+        "path": "crates/diagnostics/src/line_map.rs",
+        "sha256": "1fe2c477a74c5a0e24e49edfeb8319b964835abb8a79fee27b7321467db1a5a8"
+      },
+      {
+        "path": "crates/diagnostics/src/render.rs",
+        "sha256": "45f68c41d3012f4482796651795b22358c0cee0d7725657c067e068648c529c8"
+      },
+      {
+        "path": "crates/diagnostics/src/text.rs",
+        "sha256": "de756d89e34612086881572f5a5d3fa9c7e58eadfdc1002e060e7816a2c45881"
+      },
+      {
+        "path": "crates/emitter/Cargo.toml",
+        "sha256": "652ccbfbe16502c9addcc130bd1fcc67e1ddca2f8d6e1d0afba109aa7a2c54f2"
+      },
+      {
+        "path": "crates/emitter/src/activity.rs",
+        "sha256": "f13e1d5c8cf91b502c64b24679605e3fe5f637b672ff6f2bae861f05d58713fd"
+      },
+      {
+        "path": "crates/emitter/src/artifact.rs",
+        "sha256": "b90d9389a9d4aa3a737900a6a6f7e1d742720633f57436f77a8d4dfc309f1a8b"
+      },
+      {
+        "path": "crates/emitter/src/builtins.rs",
+        "sha256": "549340935b23290d72d0ae2ef740a3af47cafb4420575ef90e71703e5b830f4a"
+      },
+      {
+        "path": "crates/emitter/src/builtins/class_fields.rs",
+        "sha256": "c9c05e4e2f91df1a926af8e6170c0ceb97b8e8ff7d8f0b13d2f75935054a8da0"
+      },
+      {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "sha256": "8dff6ef023c5b3963bf49269caca07bb7356cd4a8d06e3f3b952c0016f2003a2"
+      },
+      {
+        "path": "crates/emitter/src/builtins/es2015.rs",
+        "sha256": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78"
+      },
+      {
+        "path": "crates/emitter/src/builtins/es2017.rs",
+        "sha256": "2354d799cf4c5fa0883bb491ca895649bb7d08875da2cfefe8b9a53082af97ab"
+      },
+      {
+        "path": "crates/emitter/src/builtins/es2018.rs",
+        "sha256": "a6a0365826c8a91414b2f708c4bfca2d72559707aee5a11bf2aabd8b0f27fde1"
+      },
+      {
+        "path": "crates/emitter/src/builtins/es2021.rs",
+        "sha256": "41533e0c083c6b8a2ca2131596f868998fdc59bc514ba0ac2cee0dc8dcfd2415"
+      },
+      {
+        "path": "crates/emitter/src/builtins/es_next.rs",
+        "sha256": "46823390a78dce47f34ec2c38bf63fa8097a9801a0f358178a95cadbacc51daa"
+      },
+      {
+        "path": "crates/emitter/src/builtins/flatten_destructuring.rs",
+        "sha256": "d7b8b63fe24a2cad97d510645eeae98db0d19f817fc23ef605a5c8195a179c43"
+      },
+      {
+        "path": "crates/emitter/src/builtins/generated_bindings.rs",
+        "sha256": "6389d2ca6a2751a6ccdf8b87c99e0fdc03fbbbba49468ec534c6bab8fad62f4a"
+      },
+      {
+        "path": "crates/emitter/src/builtins/generators.rs",
+        "sha256": "a0b87cde0aa47051c7d56890c395e521b2c7a46ab6c8f28597bf92f14e22a06e"
+      },
+      {
+        "path": "crates/emitter/src/builtins/helpers.rs",
+        "sha256": "63dcef3f0620497d5e1e922a49c9cf0206ad22757d05df1eabc9e1dec7e19eaf"
+      },
+      {
+        "path": "crates/emitter/src/builtins/jsx.rs",
+        "sha256": "910e0f29c2617b6249197fc8475899461aafe678201230bc87a0da03dbb8489c"
+      },
+      {
+        "path": "crates/emitter/src/builtins/legacy_decorators.rs",
+        "sha256": "5162c5d7a5055d91334ddec970ddcaf397591f3aae79ecda567333f4f16b8858"
+      },
+      {
+        "path": "crates/emitter/src/builtins/standard_decorators.rs",
+        "sha256": "042d017e951554a104adf938c138e28af63672ba6ff91b69d671b0c88b40b659"
+      },
+      {
+        "path": "crates/emitter/src/builtins/system.rs",
+        "sha256": "e41228bd9f7766f6e4d61070ad98ecfe64bdd65c3aa966ddbcea83d7fea48ed1"
+      },
+      {
+        "path": "crates/emitter/src/builtins/tagged_template.rs",
+        "sha256": "a39b2f43d76274f383d5e67b54a23c3d7db9f67a707920a23a6dc13fc3d01ef2"
+      },
+      {
+        "path": "crates/emitter/src/builtins/target_bindings.rs",
+        "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+      },
+      {
+        "path": "crates/emitter/src/comment_cursor.rs",
+        "sha256": "2fc7de4954361992832cf95b579cb0b63f85cf344217c61e01b8e56bb02562c6"
+      },
+      {
+        "path": "crates/emitter/src/declaration_map.rs",
+        "sha256": "ddbd7fa53fa29d8e63f7a952f20dcf8a933aae02b55827423273e36df6e076ce"
+      },
+      {
+        "path": "crates/emitter/src/declarations/bundle.rs",
+        "sha256": "d18eba86bb6077281a8508bddc3ba67e2d1aa1c9d11ea6ff0a629f39862622cd"
+      },
+      {
+        "path": "crates/emitter/src/declarations/diagnostics.rs",
+        "sha256": "ee6603b8a46c979c5dbf19431e402e733127c7ee417caf20a73faf12aec83589"
+      },
+      {
+        "path": "crates/emitter/src/declarations/ensure.rs",
+        "sha256": "770db9033f62ddfba33804bc0ffafe4165ab48077cd0e163aa162c59e6e6175c"
+      },
+      {
+        "path": "crates/emitter/src/declarations/isolated.rs",
+        "sha256": "f0ca7de859bfcf65de1e513398a8e45eda9c5b45d250c0f3970f3c3633ece548"
+      },
+      {
+        "path": "crates/emitter/src/declarations/mod.rs",
+        "sha256": "aac263918233242c3cbece85127d660c74f9bd2103d004b3e5bcb838324f1c30"
+      },
+      {
+        "path": "crates/emitter/src/declarations/orchestration.rs",
+        "sha256": "5bace4c609d5ea4ee574ef30659e1e8923386389886a775edee3f69c94054091"
+      },
+      {
+        "path": "crates/emitter/src/declarations/paths.rs",
+        "sha256": "e350c65f030faca55557d943a78137db630cf47808eb524130a620ff380174f4"
+      },
+      {
+        "path": "crates/emitter/src/declarations/root.rs",
+        "sha256": "8666284f08848ff4f83534abca8d97819f89847bf509e6c683784e05b6b07d06"
+      },
+      {
+        "path": "crates/emitter/src/declarations/selection.rs",
+        "sha256": "17c73c0882dc9909b00ff681fbd22ed73585c16ee0afd199d0e57080bb700ff8"
+      },
+      {
+        "path": "crates/emitter/src/declarations/state.rs",
+        "sha256": "1fbd2a6f792bc3a0b3c9d29ebaf964b36a0c3544bf7bd81bba42cf9b044c2faf"
+      },
+      {
+        "path": "crates/emitter/src/declarations/statements.rs",
+        "sha256": "89b40e23a9687e0b1e5cfbcb3cc31e029a2e2ccdaf176e0324ca90baf76a0040"
+      },
+      {
+        "path": "crates/emitter/src/declarations/subtree.rs",
+        "sha256": "af11871c8bd9ee4d23c130f148cdb2321791c99555ab26886e6cc261f8ef354d"
+      },
+      {
+        "path": "crates/emitter/src/declarations/tracker.rs",
+        "sha256": "add080664d2b5ce23135c6d30659d1b554e3ed39eb149f788d6bc3a1c4cf7e2e"
+      },
+      {
+        "path": "crates/emitter/src/error.rs",
+        "sha256": "fcf2572099db449d2471628600170c0234268894755a581d76a0eae05aea084d"
+      },
+      {
+        "path": "crates/emitter/src/execute.rs",
+        "sha256": "61a00d3569ab9099cfc3b79cce6fcf5aeea24d9f3f38137d05163fbbe6076d13"
+      },
+      {
+        "path": "crates/emitter/src/external_module_names.rs",
+        "sha256": "ed0014f53d1744786c1479a12738bd49197682a957fab0565efbb42c356fee60"
+      },
+      {
+        "path": "crates/emitter/src/factory.rs",
+        "sha256": "4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0"
+      },
+      {
+        "path": "crates/emitter/src/factory/parsed_metadata.rs",
+        "sha256": "2e9f0a3588adf1e80f451b1b99acbe59469d532c754ef071ffd98d2675f2b6b9"
+      },
+      {
+        "path": "crates/emitter/src/host.rs",
+        "sha256": "24935f213e955723e3beefb6054c52c37ca7a69203ac666a1d2490a88c4f0f7b"
+      },
+      {
+        "path": "crates/emitter/src/lib.rs",
+        "sha256": "745eed3731bda2fcf0a3b2e79208f6ac879ecdd34bd93f6c1970b00515c31e8c"
+      },
+      {
+        "path": "crates/emitter/src/metadata.rs",
+        "sha256": "7f73ec168773329fbaff08795de32b4504833c3d6dd8583badced16016a29933"
+      },
+      {
+        "path": "crates/emitter/src/outcome.rs",
+        "sha256": "1b72c97602c8ed82347a7f58fa2613ac3bed1fe6b695533693160aa84eba1c2e"
+      },
+      {
+        "path": "crates/emitter/src/plan.rs",
+        "sha256": "d9d429aa746978a297b6660b751f11bdb0872a9877af8fdcc0c32f3a1d3f4a3e"
+      },
+      {
+        "path": "crates/emitter/src/position.rs",
+        "sha256": "f70397ff2bb756810d2fd6edf912a62cfe938b50ae491337dc9d5676899cb243"
+      },
+      {
+        "path": "crates/emitter/src/printer.rs",
+        "sha256": "95b6a7c059141998ddf9c4151a35215095fa8605ff13f82a773a34636f5a7fdc"
+      },
+      {
+        "path": "crates/emitter/src/printer/bundle.rs",
+        "sha256": "b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12"
+      },
+      {
+        "path": "crates/emitter/src/resolver.rs",
+        "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+      },
+      {
+        "path": "crates/emitter/src/sink.rs",
+        "sha256": "97485b67179de8c917f2175304db02cde06f8c91b7981bb93c1a96011acf4b40"
+      },
+      {
+        "path": "crates/emitter/src/source_map.rs",
+        "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+      },
+      {
+        "path": "crates/emitter/src/token_cursor.rs",
+        "sha256": "42424340128f2dddf7b02ed785ff6cf8ec6c48effa83b2ba25e93720f6a4ba29"
+      },
+      {
+        "path": "crates/emitter/src/transform.rs",
+        "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+      },
+      {
+        "path": "crates/emitter/src/writer.rs",
+        "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+      },
+      {
+        "path": "crates/fuzz/Cargo.toml",
+        "sha256": "6234c0e2d4194ef8a717eaf64dbe7a5ef604bedc1de2e373fe093f74684b789e"
+      },
+      {
+        "path": "crates/fuzz/src/adapters/mod.rs",
+        "sha256": "46d1ab68a6f9b1ca7d1e207fe047db8ed3799ae9f6b61b202bba6733bb68b580"
+      },
+      {
+        "path": "crates/fuzz/src/adapters/oracle.rs",
+        "sha256": "3bb8e21f12336233b8bbe4464e9f5130dc8fdb5046db50f2044d6b66c0867511"
+      },
+      {
+        "path": "crates/fuzz/src/adapters/tsrs.rs",
+        "sha256": "01bf2ff1bb623384b2ec906a804ea15ad73ca0ae9e619c270cfd95a954886f46"
+      },
+      {
+        "path": "crates/fuzz/src/bin/tsc-rs-fuzz-producer.rs",
+        "sha256": "f76d781368933097b3e03cf7e9abbec74baf000de7d23c136c37a8c10e45cdcc"
+      },
+      {
+        "path": "crates/fuzz/src/classify.rs",
+        "sha256": "6af58ff8a6843a246332d1d9d263e64c16aed3f108b2a7e4b66a3ed1fef09817"
+      },
+      {
+        "path": "crates/fuzz/src/cli.rs",
+        "sha256": "4d35b144fd33e40e3aa380fad4db2785d2b29017b4bef0bb91b5b83337b69124"
+      },
+      {
+        "path": "crates/fuzz/src/compare.rs",
+        "sha256": "821dc02c72f6e2bb3cce3c85198f2899b8de0e6fa5126a6edeace9e34d3dc560"
+      },
+      {
+        "path": "crates/fuzz/src/error.rs",
+        "sha256": "4d2c366caaf2a87982356f79327dd48e7e9ffbdccd6fddadcd21f77a66d86bd7"
+      },
+      {
+        "path": "crates/fuzz/src/evaluate.rs",
+        "sha256": "7fe2c5dde26cd241c39ae038e7798660c38fc9dfcfa0ee8fec9270fcbb84d65a"
+      },
+      {
+        "path": "crates/fuzz/src/executor.rs",
+        "sha256": "225600eab9d0627a3310677cc11f1a382c91e135d2f03e500391e790ab3c7f53"
+      },
+      {
+        "path": "crates/fuzz/src/lib.rs",
+        "sha256": "86e34b3da7750e75f54168135d6e6e98e45d6e27f8875dc254206369b383d63d"
+      },
+      {
+        "path": "crates/fuzz/src/model.rs",
+        "sha256": "f0f5ddc1212a7222b2c69f7a1a08ee28ac4ca32298b3007982e99988514dc075"
+      },
+      {
+        "path": "crates/fuzz/src/normalize.rs",
+        "sha256": "9140a83e744fea6f121475d1085698024727caf45c6df48f29cfbdc01f8f2317"
+      },
+      {
+        "path": "crates/fuzz/src/preflight.rs",
+        "sha256": "ca83bca733851f7344fb8c4880443ea7ef96327f27c0867072455489110c0c3e"
+      },
+      {
+        "path": "crates/fuzz/src/process_session.rs",
+        "sha256": "b4dcf3b86d49714342ca72713ab89ab76e80b1bd9243d1ec9f015bb1a2a20379"
+      },
+      {
+        "path": "crates/fuzz/src/replay.rs",
+        "sha256": "4cd22fe57c4b65398e7613665cb0bbff10ab5125b5fbadbd26eb75ee22dac047"
+      },
+      {
+        "path": "crates/fuzz/src/rust_worker.rs",
+        "sha256": "086cd56a53e4aa25c2cfd853184a81f6eaab5acd38a00413f48062081c86d580"
+      },
+      {
+        "path": "crates/fuzz/src/schema.rs",
+        "sha256": "e5a991925ce498994da73116bff319c6be26c46775edad63dcb5187657695c29"
+      },
+      {
+        "path": "crates/fuzz/src/worker_protocol.rs",
+        "sha256": "42b378322a24e52b8ea5a91ccc2a475d0c93828dc8401e631eea2f5c3b66422e"
+      },
+      {
+        "path": "crates/harness/Cargo.toml",
+        "sha256": "d6023ecc404cd71235ee2c0d147c385c272563911bb16e24cac90745e96501ee"
+      },
+      {
+        "path": "crates/harness/src/lib.rs",
+        "sha256": "0328f7d28750e8be4c1fe8b00cac26b0493ffe082ca2cd28284673f481068c29"
+      },
+      {
+        "path": "crates/harness/src/upstream_suites.rs",
+        "sha256": "5712b5e1c33e92233429b3a93188da23f8a39ef041c415045f1f145840482425"
+      },
+      {
+        "path": "crates/harness/src/upstream_suites/compiler.rs",
+        "sha256": "3d6e485c06a90b2b6a7d9bc4dd6ac09244af4efefa71dacb47bdcc6636ec7f80"
+      },
+      {
+        "path": "crates/harness/src/upstream_suites/execution.rs",
+        "sha256": "1d1538bb720655e054e73c10136644062d4b028cc6678db15f704c89b72428a9"
+      },
+      {
+        "path": "crates/harness/src/upstream_suites/execution/project.rs",
+        "sha256": "2c3d9b57e22d308ae6b15ca34d62bc799ecdc7fd9c09693d0a3dffaa0cd8c75f"
+      },
+      {
+        "path": "crates/harness/src/upstream_suites/h1_conformance.rs",
+        "sha256": "b03cd27d79f2eb4c5b910a3c028e73653e762fa740b345b9261cc806b314efa7"
+      },
+      {
+        "path": "crates/host/Cargo.toml",
+        "sha256": "1ff88f0fb0229afdf9ca0ca8e0e763d189c236d78506b16d5212defaa8df65bd"
+      },
+      {
+        "path": "crates/host/src/error.rs",
+        "sha256": "064093548d9acfb3f526ffa8a09530b7c96cf4a56346925b4c728c2789e71200"
+      },
+      {
+        "path": "crates/host/src/filesystem.rs",
+        "sha256": "7c9307da8e6f8dcb151a1eae566fb33e76d2cd77c4872f4c0206eb860fa5aa67"
+      },
+      {
+        "path": "crates/host/src/lib.rs",
+        "sha256": "2bd253b0e507a392bfcbbbf73a997608b75ac53c2380e1073c0379e7a2ba5b3c"
+      },
+      {
+        "path": "crates/host/src/memory.rs",
+        "sha256": "42affd0daddf3c73a6d384c6511881dafadb2f6e9a07caf2ce158904e53dfe18"
+      },
+      {
+        "path": "crates/host/src/ordering.rs",
+        "sha256": "2d17e7e44786f56ab44cfecd7338e5df5d4f0fe22a6b39d610b7b609a116a0af"
+      },
+      {
+        "path": "crates/oracle/Cargo.toml",
+        "sha256": "830eb4e735577ecd335b72b7f9ef08ded26402ab5cb8e68cd723586c26ea9ee4"
+      },
+      {
+        "path": "crates/oracle/h2-8a-candidates.mjs",
+        "sha256": "5ca908f41fdb91592c181e248243bc04a4f92e4b7d9f22285a7a60c5f7b6323f"
+      },
+      {
+        "path": "crates/oracle/h2-8a-observations.mjs",
+        "sha256": "4c6e12b92cbd3d5a5eddc5c669828713e7f38fedf14cbfb280d4bfb2feb82fc0"
+      },
+      {
+        "path": "crates/oracle/src/lib.rs",
+        "sha256": "5503f36e2e9349ab9d95291ba877ac8bd5c838be493b5d34c56495b7e1ab08d6"
+      },
+      {
+        "path": "crates/program/Cargo.toml",
+        "sha256": "a9ae732c5699ea06d15fcd1301db253a77ac971f621faa03f0306b1b925c1a20"
+      },
+      {
+        "path": "crates/program/src/config.rs",
+        "sha256": "02dd3f88171d88df08ee5fb7ccdf8922afa0326c04e65d1f4d0f58a2757e2bab"
+      },
+      {
+        "path": "crates/program/src/config_host.rs",
+        "sha256": "b6d4f7e5156277f7ef8fbe15d93d09bf6f01cb716a5eeda8aa21e742d6769d2f"
+      },
+      {
+        "path": "crates/program/src/config_matcher.rs",
+        "sha256": "a2d900bd9e29bc3c19a4b88be8b874586048f7959e58e48f49564f1b26969dc0"
+      },
+      {
+        "path": "crates/program/src/config_options.rs",
+        "sha256": "cd2eb0a3eb971939d2065920ddc9b761b3b62b4324280802e682d6ec83f02270"
+      },
+      {
+        "path": "crates/program/src/error.rs",
+        "sha256": "d6228437145384f9f492fb2ad017e3be99b1f44291202ebd2389f72b5b006702"
+      },
+      {
+        "path": "crates/program/src/json.rs",
+        "sha256": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f"
+      },
+      {
+        "path": "crates/program/src/lib.rs",
+        "sha256": "19ebf13bcfcec8e58b9eff2651d1608ba320c444337b33342038c9dc75f97fff"
+      },
+      {
+        "path": "crates/program/src/library.rs",
+        "sha256": "46c106aabd109225fcee045fb049d62c7264f5ee62c3fada5d4b4bb6813e709a"
+      },
+      {
+        "path": "crates/program/src/loader.rs",
+        "sha256": "bdae1ac0a665f9dd7889c430940f5eca78c06d324450076509b6dad35441d149"
+      },
+      {
+        "path": "crates/program/src/module_requests.rs",
+        "sha256": "1014b13d50ba79336e3ddea487691faa294d5740566b434a57617b8e3e16c855"
+      },
+      {
+        "path": "crates/program/src/module_resolution.rs",
+        "sha256": "34eb3a40eb1763f90828ba53a4e9b2710182839d0dee50bca48505a0e1ed733f"
+      },
+      {
+        "path": "crates/program/src/option_validation.rs",
+        "sha256": "a22c66489924498e137cad16db64e7922d06940efb2c9fbfed72b0bf8f626cf8"
+      },
+      {
+        "path": "crates/program/src/output_directories.rs",
+        "sha256": "8e7ef589c55ab820d99909ea55c5282c953ead7331a078741c0e5868ebf52650"
+      },
+      {
+        "path": "crates/program/src/path.rs",
+        "sha256": "2a30d9b4ef3e7d9b6f495b413782c9fdfae28bbc08520450c590cb718df6f499"
+      },
+      {
+        "path": "crates/program/src/prepared.rs",
+        "sha256": "c5bc6315e91481c58273bdc926be0459fd877593d34e9467789280b610ed1286"
+      },
+      {
+        "path": "crates/program/src/resolution.rs",
+        "sha256": "a8efb67582148d29cd73a735442fc50a66e02b098d1de0c47241f1745a9a18cf"
+      },
+      {
+        "path": "crates/program/src/symlinks.rs",
+        "sha256": "8f2569b183b36aa03bf28fce287b9390bfacb17c7be8044a71ea4d0a12f46d6a"
+      },
+      {
+        "path": "crates/program/src/text.rs",
+        "sha256": "ca37622822c0b897a8460adbf2880be3e16a94a847ba6b5d736863b71a3ab7bb"
+      },
+      {
+        "path": "crates/syntax/Cargo.toml",
+        "sha256": "9f4e553ac36db9dbff3c2f3607c53f3ac9eb22ecca83fc07053d17a42e02125d"
+      },
+      {
+        "path": "crates/syntax/src/arena.rs",
+        "sha256": "f0768edda52c5cc2037786b004de52a71a89e5d233475096d374028c2fbeffbf"
+      },
+      {
+        "path": "crates/syntax/src/chars.rs",
+        "sha256": "5ae6772586bfbe76af42f04822343b47e2c3384e795f7391cac55d92c06889e1"
+      },
+      {
+        "path": "crates/syntax/src/for_each_child.rs",
+        "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+      },
+      {
+        "path": "crates/syntax/src/incremental.rs",
+        "sha256": "fe264b19937baf13ba5500154019010d4249e61ca95bf1a72ecf9b3b9f9eec8e"
+      },
+      {
+        "path": "crates/syntax/src/keywords.rs",
+        "sha256": "7be22526db8e6d88e0a4525a9c7537e40d44f2bc89b90fae9b091aad2f0db001"
+      },
+      {
+        "path": "crates/syntax/src/kind.rs",
+        "sha256": "6d97bb4e276b1543b405cf168bd8c577e0987db9f01f867cc6a6347ec57edf67"
+      },
+      {
+        "path": "crates/syntax/src/lib.rs",
+        "sha256": "66caef32f161ab1c108be327f0d1e6b91bfbc4984d9c44ea40672d514926f1d7"
+      },
+      {
+        "path": "crates/syntax/src/nodes.rs",
+        "sha256": "3f7dda1c3f16bb9115bc8c509d38ecf506ac5efea80a2a229fcb931425552940"
+      },
+      {
+        "path": "crates/syntax/src/observable_fields.rs",
+        "sha256": "7b3fbecb3c5625a38d6205535050e9925922fa266b4caba9356ca14bdedb6116"
+      },
+      {
+        "path": "crates/syntax/src/parser.rs",
+        "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+      },
+      {
+        "path": "crates/syntax/src/parser/jsdoc.rs",
+        "sha256": "9b16f481804ad06bba68714876d7ec28aaf6c0614a9a074178c30d6900e4f359"
+      },
+      {
+        "path": "crates/syntax/src/regex.rs",
+        "sha256": "5e42d57929086d88bb0950abf3bf41653e7c91cb43c861f1f87eb6083ece45fe"
+      },
+      {
+        "path": "crates/syntax/src/regex_unicode.rs",
+        "sha256": "cd81fb8fd47a26cdffab1a174f6cb9e1b0a7284b8c6aadc129f129efbb265042"
+      },
+      {
+        "path": "crates/syntax/src/relocate.rs",
+        "sha256": "1634fb375ab9156d0d4e571dcee2889baf1facf005b1d0f44e3e2666eb9e9d02"
+      },
+      {
+        "path": "crates/syntax/src/scanner.rs",
+        "sha256": "a1fdc4107e764f235efc2e6d8ce73ec255e0e9fe07574646b16306a030a651a5"
+      },
+      {
+        "path": "crates/syntax/src/tokens.rs",
+        "sha256": "054ace65fc6e936276dfd39b7055f3795920fa39b9fce79c60d7a0d99000f673"
+      },
+      {
+        "path": "crates/types/Cargo.toml",
+        "sha256": "4cc58c4b25be29d91e09fe89f5a60752611af9c296ef946d507de961ef977653"
+      },
+      {
+        "path": "crates/types/src/flags.rs",
+        "sha256": "cbd7915f38c2715d426f3d53cd9a5dd6483f4cfb287a14f0b2f37d830bc96d7a"
+      },
+      {
+        "path": "crates/types/src/identity.rs",
+        "sha256": "bd03e47ba29789155534e9b7e1d630133942b45dc2c34be322b5bfbe081a29d8"
+      },
+      {
+        "path": "crates/types/src/lib.rs",
+        "sha256": "8fd4db15f9b489cb03b9dbee114affe826eb2b76610823a4906047ff4650ff69"
+      },
+      {
+        "path": "crates/types/src/options.rs",
+        "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
+      },
+      {
+        "path": "crates/types/src/tables.rs",
+        "sha256": "fb40af06e83696e2b750a53de857fe5ff89563c6b7fa2038a2039d6e5396865a"
+      },
+      {
+        "path": "crates/types/src/ty.rs",
+        "sha256": "51fd62e941dc8d5ace2c80e8c01e405e0c3d2004540b88702ee9618ce6f26cf8"
+      },
+      {
+        "path": "crates/types/src/version.rs",
+        "sha256": "417222e9b354f0accd7ef0281151844c59771c0580f279a836dd2913eb2a28bc"
+      },
+      {
+        "path": "crates/xtask/Cargo.toml",
+        "sha256": "b8315637758d655d75418e41ffc25698cfe23579cca39c0d3743dec8359a3d27"
+      },
+      {
+        "path": "crates/xtask/src/acceptance_plan.rs",
+        "sha256": "fd11f77dc8282a0ea4eb7c86819e689a0796b3988f78ac305644515207f3ba04"
+      },
+      {
+        "path": "crates/xtask/src/acceptance_slices.rs",
+        "sha256": "202a7fa99ffce88f350cf03dc5bb1171934bf56f233a047e68dfea8d2c901724"
+      },
+      {
+        "path": "crates/xtask/src/bounded_pipeline.rs",
+        "sha256": "0c28a1734791196646b869db5d22b9c6f34da617a250bfc99e23997bd3c0e3db"
+      },
+      {
+        "path": "crates/xtask/src/ci_conformance_receipt.rs",
+        "sha256": "9c4f60b5ea6a071742f6a00a3254339b493996f14b209a765f23d690538539b6"
+      },
+      {
+        "path": "crates/xtask/src/ci_test_receipts.rs",
+        "sha256": "dfa1094ffeed7679e44c3640c2ab9a18d90c1f4e4cbefdc420ef71dc38a56c61"
+      },
+      {
+        "path": "crates/xtask/src/completion.rs",
+        "sha256": "5492634f06aa8edb578e80d0adce11bc9db4738baa705ace62aa6e5b8c20746a"
+      },
+      {
+        "path": "crates/xtask/src/h1_conformance.rs",
+        "sha256": "29aa6a9e0d972a4bf8f4735bf8e28cf22611380d0587f4c75e593a00f8e98f7e"
+      },
+      {
+        "path": "crates/xtask/src/h1_emit_acceptance.rs",
+        "sha256": "cbae2669320c23532d517c20957731327e46969fc668057b2514501face379a8"
+      },
+      {
+        "path": "crates/xtask/src/h2_1a_acceptance.rs",
+        "sha256": "f3897a488fd058eb1abf0303ad62df593bc696308a4f11bd5200a9d29f332546"
+      },
+      {
+        "path": "crates/xtask/src/h2_1b_acceptance.rs",
+        "sha256": "a6ea8943cb7ecafc63b58ebffae6ec32a6bc707a300a0935fccc67daf3cdbb3e"
+      },
+      {
+        "path": "crates/xtask/src/h2_1c_acceptance.rs",
+        "sha256": "7fd7481703f0d67ad72aa04d6dd4c5d9194ffd636556df32b7cc1d1925254bf3"
+      },
+      {
+        "path": "crates/xtask/src/h2_1d_acceptance.rs",
+        "sha256": "bd0b544aeca97d82f903f8c7a8a469d64215fcdf84b7daaea03062c239f33e2e"
+      },
+      {
+        "path": "crates/xtask/src/h2_1e_acceptance.rs",
+        "sha256": "bf4ae2f49ddfb8a50d2b214758578c87aa890ede4e2eb68bbd259e677c7e287f"
+      },
+      {
+        "path": "crates/xtask/src/h2_2a_acceptance.rs",
+        "sha256": "fd9a51e7ea084fae1aea3094662d2ff12561c098adc8c09eeb3d4eb8aee054ad"
+      },
+      {
+        "path": "crates/xtask/src/h2_2b_acceptance.rs",
+        "sha256": "c1fa3def3ebd5f77863f6d4d0a718af4f417f0dd8fff57d1e6d7cd3cfe01f018"
+      },
+      {
+        "path": "crates/xtask/src/h2_2c_acceptance.rs",
+        "sha256": "f3c78ddb576916970d7e122cc39b039744a037b14cc5de5349bb6af3f68ea69b"
+      },
+      {
+        "path": "crates/xtask/src/h2_2d_acceptance.rs",
+        "sha256": "1b5a99f4229c5bb0b49408b16985042b58d12dd1ae87e5186e101039c6a60be0"
+      },
+      {
+        "path": "crates/xtask/src/h2_3a_acceptance.rs",
+        "sha256": "0b3de4989b8400123ef72030c800440222d124d110b8f7c9bdb2a57067a2bc77"
+      },
+      {
+        "path": "crates/xtask/src/h2_3b_acceptance.rs",
+        "sha256": "69c37e52a934dcadbace502ccfa8a7524036b92ddf7e4a92eae194270cb163cc"
+      },
+      {
+        "path": "crates/xtask/src/h2_3c_acceptance.rs",
+        "sha256": "b119c79e9384eda83af661bf7b93edbe1c6b8d963a91d8ae7a72c790318622f6"
+      },
+      {
+        "path": "crates/xtask/src/h2_3d_acceptance.rs",
+        "sha256": "f968c8c9fc033109318e38f49f40633d0a2bacaadb9637dc7c419d9b68ccc980"
+      },
+      {
+        "path": "crates/xtask/src/h2_6c_de_promotions.rs",
+        "sha256": "8cc81afce400364c9d0d4eeec7ad6fe08fb772c5f2ed94f7910d27b54ee8d5d0"
+      },
+      {
+        "path": "crates/xtask/src/h2_6c_output_promotions.rs",
+        "sha256": "378fd26d046e748e3a3bb462662bba03cee2c9a9065b02331ec3a549ac642556"
+      },
+      {
+        "path": "crates/xtask/src/h2_6c_refusal_migrations.rs",
+        "sha256": "d37e19f629fd880a0834ae28c1e3e2dde07b781ce30ad8c617d4e4ab20531c6e"
+      },
+      {
+        "path": "crates/xtask/src/h2_7c_acceptance.rs",
+        "sha256": "44afa0ac864a435e73780855a3bb48965c958c972c0da9a27e58705cb0308337"
+      },
+      {
+        "path": "crates/xtask/src/h2_7de_acceptance.rs",
+        "sha256": "aac2e55e99b57e93883b0f9efac20b04dca9290621a0f91b26365845efcec61c"
+      },
+      {
+        "path": "crates/xtask/src/host_resolution.rs",
+        "sha256": "8964cb8f8ad8e0e5c10f64d9abc17c10f4b1e2bc3e94bc7a72d8999da93540e3"
+      },
+      {
+        "path": "crates/xtask/src/invariant_attestation.rs",
+        "sha256": "0309c1ab6c4171892c65f546a29c49151fcbbea5441be76717eed3edacc6bb18"
+      },
+      {
+        "path": "crates/xtask/src/l0_identity_stress.rs",
+        "sha256": "ace5e70f346ed62ad5466ae7ff2391929730da2fc529291b0409e4361e841dfd"
+      },
+      {
+        "path": "crates/xtask/src/l0_text_stress.rs",
+        "sha256": "9d7ba102540d79baaadedf5b9c070adb50dba410d2e429722c5a0c4afe0f8f31"
+      },
+      {
+        "path": "crates/xtask/src/l1_incremental_stress.rs",
+        "sha256": "e8402f1b2da89c2dabb47c98370aa13a77bb21fab5ea48f9ab748291e7e758c3"
+      },
+      {
+        "path": "crates/xtask/src/local_ci_resume.rs",
+        "sha256": "5fea198299710916692044a09ff179fef9a2f171616078ae4d0a07104d2abae4"
+      },
+      {
+        "path": "crates/xtask/src/m8_evidence.rs",
+        "sha256": "a72c4c128f51d6e7e2344206bfd82455ee773018fbb31d3458e9c0b30bf90c4a"
+      },
+      {
+        "path": "crates/xtask/src/m8_plan.rs",
+        "sha256": "b391f60aa6c828ba83db79f18c39aa8197bff8f24a45ca3db1a22163e48d169f"
+      },
+      {
+        "path": "crates/xtask/src/m8_trace.rs",
+        "sha256": "c960ad95ab8f0266acb4cc3219640ad561f3ec2b10c31c660fbfa3e2aec252a5"
+      },
+      {
+        "path": "crates/xtask/src/main.rs",
+        "sha256": "cce2d047fee897509be747f7154b419e0c9ece3671c01aacccc281ebf23c5e0d"
+      },
+      {
+        "path": "crates/xtask/src/recovery_census.rs",
+        "sha256": "68e9b61bf32cd1c3dda96abceb13b051e34c2607ed68b25886eac491907b6537"
+      },
+      {
+        "path": "crates/xtask/src/relpin.rs",
+        "sha256": "e6530437e4b80aede0baf56d0f52624efc1f188acee11b8d2a76754872ef7ae9"
+      },
+      {
+        "path": "crates/xtask/src/slice_evidence.rs",
+        "sha256": "b73ee6565825206bc359a2bd49560be95f2118b6203ee72c8cea2ef6045d2a8b"
+      },
+      {
+        "path": "crates/xtask/src/symbol_audit.rs",
+        "sha256": "00d62885fc4fa332557027d671aea500a636cc8f54cf8095be24448e6e90cdc4"
+      },
+      {
+        "path": "crates/xtask/src/upstream_suites.rs",
+        "sha256": "e09dbb2ff6fdbc807918d1e4a7182acdc189a90ce112f744977e23f3a5cb4e86"
+      },
+      {
+        "path": "crates/xtask/src/workspace_catalog.rs",
+        "sha256": "9301b24d93f3057016b934e05b87c0dded01a0d5ce82a3b5188b11c8e61d0961"
+      },
+      {
+        "path": "crates/xtask/src/workspace_maintenance.rs",
+        "sha256": "3104d5e29c04552344ac42c2b744e763fbc7d535a22da9f2857ef87af5d5ccc0"
+      },
+      {
+        "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+        "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+      },
+      {
+        "path": "ratchets/h2-8a-candidates.v1.json",
+        "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+      },
+      {
+        "path": "ratchets/h2-8a-observations.v1.json",
+        "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.d.ts",
+        "sha256": "0e6477e5049e579cc5de741a70ac91235252edc0468b2e569f22de9db3357786"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.decorators.d.ts",
+        "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.decorators.legacy.d.ts",
+        "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.dom.asynciterable.d.ts",
+        "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.dom.d.ts",
+        "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.dom.iterable.d.ts",
+        "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.collection.d.ts",
+        "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.core.d.ts",
+        "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.d.ts",
+        "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.generator.d.ts",
+        "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.iterable.d.ts",
+        "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.promise.d.ts",
+        "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.proxy.d.ts",
+        "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.reflect.d.ts",
+        "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.symbol.d.ts",
+        "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2015.symbol.wellknown.d.ts",
+        "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2016.array.include.d.ts",
+        "sha256": "32cafbc484dea6b0ab62cf8473182bbcb23020d70845b406f80b7526f38ae862"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2016.d.ts",
+        "sha256": "7fe93b39b810eadd916be8db880dd7f0f7012a5cc6ffb62de8f62a2117fa6f1f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2016.full.d.ts",
+        "sha256": "19adadff5144f8f89fef0a10b299d7a96206f4913d4c17d4864171320e9edbd6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2016.intl.d.ts",
+        "sha256": "fca4cdcb6d6c5ef18a869003d02c9f0fd95df8cfaf6eb431cd3376bc034cad36"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.arraybuffer.d.ts",
+        "sha256": "b93ec88115de9a9dc1b602291b85baf825c85666bf25985cc5f698073892b467"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.d.ts",
+        "sha256": "bb0074cc08b84a2374af33d8bf044b80851ccc9e719a5e202eacf40db2c31600"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.date.d.ts",
+        "sha256": "f5c06dcc3fe849fcb297c247865a161f995cc29de7aa823afdd75aaaddc1419b"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.full.d.ts",
+        "sha256": "83635f912d414d0c5a855fba3e18418e9db7e73c2e0e170009c48275cc8c1a36"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.intl.d.ts",
+        "sha256": "c7b3542146734342e440a84b213384bfa188835537ddbda50d30766f0593aff9"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.object.d.ts",
+        "sha256": "b77e16112127a4b169ef0b8c3a4d730edf459c5f25fe52d5e436a6919206c4d7"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.sharedmemory.d.ts",
+        "sha256": "fbffd9337146eff822c7c00acbb78b01ea7ea23987f6c961eba689349e744f8c"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.string.d.ts",
+        "sha256": "a995c0e49b721312f74fdfb89e4ba29bd9824c770bbb4021d74d2bf560e4c6bd"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2017.typedarrays.d.ts",
+        "sha256": "ce6180fa19b1cccd07ee7f7dbb9a367ac19c0ed160573e4686425060b6df7f57"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.asyncgenerator.d.ts",
+        "sha256": "3f02e2476bccb9dbe21280d6090f0df17d2f66b74711489415a8aa4df73c9675"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.asynciterable.d.ts",
+        "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.d.ts",
+        "sha256": "1a7daebe4f45fb03d9ec53d60008fbf9ac45a697fdc89e4ce218bc94b94f94d6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.full.d.ts",
+        "sha256": "63787dbe04141f5d3ebce2e08b64bc9bba589beb0a4d22e7994d3005af1e48a6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.intl.d.ts",
+        "sha256": "805c86f6cca8d7702a62a844856dbaa2a3fd2abef0536e65d48732441dde5b5b"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.promise.d.ts",
+        "sha256": "e42e397f1a5a77994f0185fd1466520691456c772d06bf843e5084ceb879a0ad"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2018.regexp.d.ts",
+        "sha256": "f4c2b41f90c95b1c532ecc874bd3c111865793b23aebcc1c3cbbabcd5d76ffb0"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.array.d.ts",
+        "sha256": "ab26191cfad5b66afa11b8bf935ef1cd88fabfcb28d30b2dfa6fad877d050332"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.d.ts",
+        "sha256": "f94b133a3cb14a288803be545ac2683e0d0ff6661bcd37e31aaaec54fc382aed"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.full.d.ts",
+        "sha256": "e3de8409485b0c198a5a075bd4a1d06d8f42dc52b377709d33b131b97de56456"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.intl.d.ts",
+        "sha256": "689da16f46e647cef0d64b0def88910e818a5877ca5379ede156ca3afb780ac3"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.object.d.ts",
+        "sha256": "2088bc26531e38fb05eedac2951480db5309f6be3fa4a08d2221abb0f5b4200d"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.string.d.ts",
+        "sha256": "cb9d366c425fea79716a8fb3af0d78e6b22ebbab3bd64d25063b42dc9f531c1e"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2019.symbol.d.ts",
+        "sha256": "500934a8089c26d57ebdb688fc9757389bb6207a3c8f0674d68efa900d2abb34"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.bigint.d.ts",
+        "sha256": "bc21cc8b6fee4f4c2440d08035b7ea3c06b3511314c8bab6bef7a92de58a2593"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.d.ts",
+        "sha256": "f59d0650799f8782fd74cf73c19223730c6d1b9198671b1c5b3a38e1188b5953"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.date.d.ts",
+        "sha256": "7ca53d13d2957003abb47922a71866ba7cb2068f8d154877c596d63c359fed25"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.full.d.ts",
+        "sha256": "577cc49be1979782a5a695b46049566d123e2a75382f10bb82f2e5c87e29059a"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.intl.d.ts",
+        "sha256": "48915f327cd1dea4d7bd358d9dc7732f58f9e1626a29cc0c05c8c692419d9bb7"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.number.d.ts",
+        "sha256": "b7bf9377723203b5a6a4b920164df22d56a43f593269ba6ae1fdc97774b68855"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.promise.d.ts",
+        "sha256": "54725f8c4df3d900cb4dac84b64689ce29548da0b4e9b7c2de61d41c79293611"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.sharedmemory.d.ts",
+        "sha256": "e5594bc3076ac29e6c1ebda77939bc4c8833de72f654b6e376862c0473199323"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.string.d.ts",
+        "sha256": "2f3eb332c2d73e729f3364fcc0c2b375e72a121e8157d25a82d67a138c83a95c"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2020.symbol.wellknown.d.ts",
+        "sha256": "6f4427f9642ce8d500970e4e69d1397f64072ab73b97e476b4002a646ac743b1"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.d.ts",
+        "sha256": "8a15b4607d9a499e2dbeed9ec0d3c0d7372c850b2d5f1fb259e8f6d41d468a84"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.full.d.ts",
+        "sha256": "e4a70ead7fea07d9abe520cc9e30c04ac035ebceaab28f9e67211610006c65de"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.intl.d.ts",
+        "sha256": "a917a49ac94cd26b754ab84e113369a75d1a47a710661d7cd25e961cc797065f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.promise.d.ts",
+        "sha256": "db9709688f82c9e5f65a119c64d835f906efe5f559d08b11642d56eb85b79357"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.string.d.ts",
+        "sha256": "4b25b8c874acd1a4cf8444c3617e037d444d19080ac9f634b405583fd10ce1f7"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2021.weakref.d.ts",
+        "sha256": "37be57d7c90cf1f8112ee2636a068d8fd181289f82b744160ec56a7dc158a9f5"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.array.d.ts",
+        "sha256": "6d3261badeb7843d157ef3e6f5d1427d0eeb0af0cf9df84a62cfd29fd47ac86e"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.d.ts",
+        "sha256": "26e0fe14baee4e127f4365d1ae0b276f400562e45e19e35fd2d4c296684715e6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.error.d.ts",
+        "sha256": "195daca651dde22f2167ac0d0a05e215308119a3100f5e6268e8317d05a92526"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.full.d.ts",
+        "sha256": "01a30f9e8582b369075c0808df71121e6855cb06fd8d3d39511d9ebb66405205"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.intl.d.ts",
+        "sha256": "8b11e4285cd2bb164a4dc09248bdec69e9842517db4ca47c1ba913011e44ff2f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.object.d.ts",
+        "sha256": "0508571a52475e245b02bc50fa1394065a0a3d05277fbf5120c3784b85651799"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.regexp.d.ts",
+        "sha256": "fc611fea8d30ea72c6bbfb599c9b4d393ce22e2f5bfef2172534781e7d138104"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2022.string.d.ts",
+        "sha256": "8f9af488f510c3015af3cc8c267a9e9d96c4dd38a1fdff0e11dc5a544711415b"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2023.array.d.ts",
+        "sha256": "0bd714129fca875f7d4c477a1a392200b0bcd13fb2e80928cd334b63830ea047"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2023.collection.d.ts",
+        "sha256": "e2c9037ae6cd2c52d80ceef0b3c5ffdb488627d71529cf4f63776daf11161c9a"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2023.d.ts",
+        "sha256": "1e9332c23e9a907175e0ffc6a49e236f97b48838cc8aec9ce7e4cec21e544b65"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2023.full.d.ts",
+        "sha256": "821bd6049b8f96b9d24c9fbc49b542dcf7a80d76f9efb330b5ef32c373af83d4"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2023.intl.d.ts",
+        "sha256": "135d5cf4d345f59f1a9caadfafcd858d3d9cc68290db616cc85797224448cccc"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.arraybuffer.d.ts",
+        "sha256": "bc238c3f81c2984751932b6aab223cd5b830e0ac6cad76389e5e9d2ffc03287d"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.collection.d.ts",
+        "sha256": "4a07f9b76d361f572620927e5735b77d6d2101c23cdd94383eb5b706e7b36357"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.d.ts",
+        "sha256": "3753fbc1113dc511214802a2342280a8b284ab9094f6420e7aa171e868679f91"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.full.d.ts",
+        "sha256": "b9f65879de79a7647ad2e5b8089277c215911fa99d4b858d78014df6ba2852f3"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.object.d.ts",
+        "sha256": "7c4e8dc6ab834cc6baa0227e030606d29e3e8449a9f67cdf5605ea5493c4db29"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.promise.d.ts",
+        "sha256": "de7ba0fd02e06cd9a5bd4ab441ed0e122735786e67dde1e849cced1cd8b46b78"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.regexp.d.ts",
+        "sha256": "6148e4e88d720a06855071c3db02069434142a8332cf9c182cda551adedf3156"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.sharedmemory.d.ts",
+        "sha256": "d63dba625b108316a40c95a4425f8d4294e0deeccfd6c7e59d819efa19e23409"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2024.string.d.ts",
+        "sha256": "0568d6befee03dd435bed4fc25c4e46865b24bdcb8c563fdc21f580a2c301904"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.collection.d.ts",
+        "sha256": "30d62269b05b584741f19a5369852d5d34895aa2ac4fd948956f886d15f9cc0d"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.d.ts",
+        "sha256": "999ca32883495a866aa5737fe1babc764a469e4cde6ee6b136a4b9ae68853e4b"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.float16.d.ts",
+        "sha256": "f128dae7c44d8f35ee42e0a437000a57c9f06cc04f8b4fb42eebf44954d53dc8"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.full.d.ts",
+        "sha256": "e03da518b01b46a4c99a1f88cd727ee98ddf14492c43dae1ae7a63e992971bab"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.intl.d.ts",
+        "sha256": "ffbe6d7b295306b2ba88030f65b74c107d8d99bdcf596ea99c62a02f606108b0"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.iterator.d.ts",
+        "sha256": "996fb27b15277369c68a4ba46ed138b4e9e839a02fb4ec756f7997629242fd9f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.promise.d.ts",
+        "sha256": "79b712591b270d4778c89706ca2cfc56ddb8c3f895840e477388f1710dc5eda9"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es2025.regexp.d.ts",
+        "sha256": "20884846cef428b992b9bd032e70a4ef88e349263f63aeddf04dda837a7dba26"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+        "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.es6.d.ts",
+        "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.array.d.ts",
+        "sha256": "5fcab789c73a97cd43828ee3cc94a61264cf24d4c44472ce64ced0e0f148bdb2"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.collection.d.ts",
+        "sha256": "db59a81f070c1880ad645b2c0275022baa6a0c4f0acdc58d29d349c6efcf0903"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.d.ts",
+        "sha256": "17f13ecb98cbc39243f2eee1f16d45cd8ec4706b03ee314f1915f1a8b42f6984"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.date.d.ts",
+        "sha256": "673294292640f5722b700e7d814e17aaf7d93f83a48a2c9b38f33cbc940ad8b0"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.decorators.d.ts",
+        "sha256": "d786b48f934cbca483b3c6d0a798cb43bbb4ada283e76fb22c28e53ae05b9e69"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.disposable.d.ts",
+        "sha256": "1ecb8e347cb6b2a8927c09b86263663289418df375f5e68e11a0ae683776978f"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.error.d.ts",
+        "sha256": "142efd4ce210576f777dc34df121777be89eda476942d6d6663b03dcb53be3ff"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.full.d.ts",
+        "sha256": "ef4a897cd2a3f91000c10264e400b3667c7e51e1b7365f03b62e8081dc53bde6"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.intl.d.ts",
+        "sha256": "379bc41580c2d774f82e828c70308f24a005b490c25ba34d679d84bcf05c3d9d"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.sharedmemory.d.ts",
+        "sha256": "ed484fb2aa8a1a23d0277056ec3336e0a0b52f9b8d6a961f338a642faf43235d"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.temporal.d.ts",
+        "sha256": "4ffedae1d1c2d53fdbca1c96d3c7dda544281f7d262f99b6880634f8fd8d9820"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.esnext.typedarrays.d.ts",
+        "sha256": "83a730b125d477dd264df8ba479afab27a3dae7152b005c214ab94dc7ee44fd3"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.scripthost.d.ts",
+        "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.webworker.asynciterable.d.ts",
+        "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.webworker.d.ts",
+        "sha256": "d52ed68e7eb5881768a55713c9b5c7c443e6b46de15c04e348928b8efd20b110"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.webworker.importscripts.d.ts",
+        "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+      },
+      {
+        "path": "vendor/typescript-6.0.3/lib/lib.webworker.iterable.d.ts",
+        "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+      }
+    ],
+    "captures": [
+      {
+        "file": "8137488add5d4913690044e1b642eb4071b4ffbcc37790c174ed2e9003b53a4a-0.json",
+        "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+        "repetition": 0,
+        "sha256": "9ac0715a50bd71efc04c0a996eab2a7a49201f341f7f3521bef5996b3d2506f7",
+        "path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-after-a6-37-khsovdao/failures/8137488add5d4913690044e1b642eb4071b4ffbcc37790c174ed2e9003b53a4a-0.json"
+      },
+      {
+        "file": "8137488add5d4913690044e1b642eb4071b4ffbcc37790c174ed2e9003b53a4a-1.json",
+        "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+        "repetition": 1,
+        "sha256": "900211b57f5dd49495b087db274dd097f37055f3c82d8e3193f6f448ae72bcc5",
+        "path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-after-a6-37-khsovdao/failures/8137488add5d4913690044e1b642eb4071b4ffbcc37790c174ed2e9003b53a4a-1.json"
+      }
+    ],
+    "all_other_complete_fields_identical": true,
+    "changed_writes": [
+      {
+        "path": "out/plainJSGrammarErrors.js",
+        "actual_bytes": 4291,
+        "expected_bytes": 4284,
+        "text_diff": "--- actual\n+++ expected\n@@ -100,7 +100,7 @@\n const o = {\r\n     [console.log('oh no'), 2]: 'hi',\r\n     #noPrivate: 3,\r\n-    export cantExportProperties: 4,\r\n+    cantExportProperties: 4,\r\n     // TODO: See what the existing JS error is like for these\r\n     cantHaveQuestionMark: 1,\r\n     m() { return 12; },\r\n"
+      }
+    ]
+  },
+  "prior_adjacent": {
+    "record": "ratchets/h2-8a-const-modifier-erasure-after.v1.json",
+    "sha256": "f8e90b28ac8d03a8dafeba83890b7359567ae06b1d51103fdd27c1d0a3676f7a",
+    "cases": 80,
+    "replayed_in_before_job": false
+  }
+}
