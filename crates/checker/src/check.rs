@@ -9052,7 +9052,7 @@ impl<'a> CheckerState<'a> {
             && self
                 .get_properties_of_object_type_owned(property_type)?
                 .is_empty()
-            && !self.is_readonly_symbol(property)
+            && !self.is_readonly_symbol(property)?
         {
             let filtered = self.filter_type_with(property_type, |state, member| {
                 Ok(!state
@@ -9116,7 +9116,7 @@ impl<'a> CheckerState<'a> {
                 rendered?
             }
         };
-        let readonly = if self.is_readonly_symbol(property) {
+        let readonly = if self.is_readonly_symbol(property)? {
             self.slice_add_approximate_length(9);
             "readonly "
         } else {

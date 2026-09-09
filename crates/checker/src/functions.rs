@@ -1256,7 +1256,7 @@ impl<'a> CheckerState<'a> {
                     .resolved_symbol
                     .resolved()
                     .unwrap_or(self.unknown_symbol);
-                Ok(self.is_readonly_symbol(resolved))
+                self.is_readonly_symbol(resolved)
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 // 70385-70387 (LIVE since 6.6f — isSomeSymbolAssigned

@@ -1,0 +1,974 @@
+{
+  "version": 1,
+  "status": "frozen-first-runtime-after-new-original-cycle-stack-overflow",
+  "base": "b89c73fe675da10934c8be78580545c23c383fa2",
+  "exit": {
+    "manifest": "target/h2-8a-defineproperty-readonly-after-amended-prelaunch.json",
+    "manifest_sha256": "c76657ea3a021f9adba9e53df7817d7b419e159a1beb1b09f001d91f4f85e0e3",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-compiler",
+      "-p",
+      "tsc-rs-checker",
+      "--lib",
+      "--test",
+      "contracts",
+      "--test",
+      "h2_8a_original_corpus",
+      "--no-fail-fast",
+      "--",
+      "h2_8a_defineproperty_setter_names::defineproperty_setter_names_matches_complete_typescript_observations",
+      "h2_8a_defineproperty_setter_annotations::defineproperty_setter_annotations_matches_complete_typescript_observations",
+      "h2_8a_jsdoc_implements_serialization::jsdoc_implements_serialization_match_complete_typescript_observations",
+      "original_defineproperty_setter_names_match_complete_commands",
+      "original_jsdoc_implements_match_complete_commands",
+      "h2_7c_declaration_blocking::declaration_blocking_matches_complete_typescript_observations",
+      "binding_name_map_ranges_matches_complete_typescript_observations",
+      "defineproperty_readonly",
+      "original_defineproperty_readonly_adjacent_match_complete_commands",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 1053.7845930420444,
+    "log": "target/h2-8a-defineproperty-readonly-after-amended.log",
+    "log_sha256": "e8928cfa102bc3fc056e4aadc899c45b54ed019a0ab4a2f59706911507f7177c"
+  },
+  "fresh_complete_commands_eligible": 492,
+  "fresh_exact_twice": [
+    "binding-name-map-ranges/es5/commonjs/js-object-rename-default",
+    "binding-name-map-ranges/es5/commonjs/js-array-elision-rest",
+    "binding-name-map-ranges/es5/commonjs/js-nested-pattern",
+    "binding-name-map-ranges/es5/commonjs/js-computed-string",
+    "binding-name-map-ranges/es5/commonjs/js-computed-identifier",
+    "binding-name-map-ranges/es5/commonjs/js-computed-access",
+    "binding-name-map-ranges/es5/commonjs/js-quoted-numeric-escaped",
+    "binding-name-map-ranges/es5/commonjs/js-descriptor-nested",
+    "binding-name-map-ranges/es5/commonjs/js-actual-setter-object",
+    "binding-name-map-ranges/es5/commonjs/ts-object-rename-default",
+    "binding-name-map-ranges/es5/commonjs/ts-array-elision-rest",
+    "binding-name-map-ranges/es5/commonjs/ts-callback-pattern",
+    "binding-name-map-ranges/es5/esnext/js-object-rename-default",
+    "binding-name-map-ranges/es5/esnext/js-array-elision-rest",
+    "binding-name-map-ranges/es5/esnext/js-nested-pattern",
+    "binding-name-map-ranges/es5/esnext/js-computed-string",
+    "binding-name-map-ranges/es5/esnext/js-computed-identifier",
+    "binding-name-map-ranges/es5/esnext/js-computed-access",
+    "binding-name-map-ranges/es5/esnext/js-quoted-numeric-escaped",
+    "binding-name-map-ranges/es5/esnext/js-descriptor-nested",
+    "binding-name-map-ranges/es5/esnext/js-actual-setter-object",
+    "binding-name-map-ranges/es5/esnext/ts-object-rename-default",
+    "binding-name-map-ranges/es5/esnext/ts-array-elision-rest",
+    "binding-name-map-ranges/es5/esnext/ts-callback-pattern",
+    "binding-name-map-ranges/es2015/commonjs/js-object-rename-default",
+    "binding-name-map-ranges/es2015/commonjs/js-array-elision-rest",
+    "binding-name-map-ranges/es2015/commonjs/js-nested-pattern",
+    "binding-name-map-ranges/es2015/commonjs/js-computed-string",
+    "binding-name-map-ranges/es2015/commonjs/js-computed-identifier",
+    "binding-name-map-ranges/es2015/commonjs/js-computed-access",
+    "binding-name-map-ranges/es2015/commonjs/js-quoted-numeric-escaped",
+    "binding-name-map-ranges/es2015/commonjs/js-descriptor-nested",
+    "binding-name-map-ranges/es2015/commonjs/js-actual-setter-object",
+    "binding-name-map-ranges/es2015/commonjs/ts-object-rename-default",
+    "binding-name-map-ranges/es2015/commonjs/ts-array-elision-rest",
+    "binding-name-map-ranges/es2015/commonjs/ts-callback-pattern",
+    "binding-name-map-ranges/es2015/esnext/js-object-rename-default",
+    "binding-name-map-ranges/es2015/esnext/js-array-elision-rest",
+    "binding-name-map-ranges/es2015/esnext/js-nested-pattern",
+    "binding-name-map-ranges/es2015/esnext/js-computed-string",
+    "binding-name-map-ranges/es2015/esnext/js-computed-identifier",
+    "binding-name-map-ranges/es2015/esnext/js-computed-access",
+    "binding-name-map-ranges/es2015/esnext/js-quoted-numeric-escaped",
+    "binding-name-map-ranges/es2015/esnext/js-descriptor-nested",
+    "binding-name-map-ranges/es2015/esnext/js-actual-setter-object",
+    "binding-name-map-ranges/es2015/esnext/ts-object-rename-default",
+    "binding-name-map-ranges/es2015/esnext/ts-array-elision-rest",
+    "binding-name-map-ranges/es2015/esnext/ts-callback-pattern",
+    "defineproperty-readonly/es5/commonjs/value-absent-writable",
+    "defineproperty-readonly/es5/commonjs/value-false",
+    "defineproperty-readonly/es5/commonjs/value-true",
+    "defineproperty-readonly/es5/commonjs/value-undefined-writable",
+    "defineproperty-readonly/es5/commonjs/value-quoted-false",
+    "defineproperty-readonly/es5/commonjs/value-computed-false",
+    "defineproperty-readonly/es5/commonjs/value-and-set",
+    "defineproperty-readonly/es5/commonjs/identifier-set",
+    "defineproperty-readonly/es5/commonjs/quoted-set",
+    "defineproperty-readonly/es5/commonjs/computed-set",
+    "defineproperty-readonly/es5/commonjs/getter-only",
+    "defineproperty-readonly/es5/commonjs/quoted-getter-only",
+    "defineproperty-readonly/es5/commonjs/getter-and-setter",
+    "defineproperty-readonly/es5/commonjs/set-function-property",
+    "defineproperty-readonly/es5/commonjs/set-undefined-property",
+    "defineproperty-readonly/es5/commonjs/empty-descriptor",
+    "defineproperty-readonly/es5/commonjs/false-const",
+    "defineproperty-readonly/es5/commonjs/true-const",
+    "defineproperty-readonly/es5/commonjs/false-let",
+    "defineproperty-readonly/es5/commonjs/boolean-let",
+    "defineproperty-readonly/es5/commonjs/false-conditional",
+    "defineproperty-readonly/es5/commonjs/boolean-cast",
+    "defineproperty-readonly/es5/commonjs/descriptor-variable-value",
+    "defineproperty-readonly/es5/commonjs/descriptor-variable-false",
+    "defineproperty-readonly/es5/commonjs/descriptor-variable-true",
+    "defineproperty-readonly/es5/commonjs/descriptor-variable-set",
+    "defineproperty-readonly/es5/commonjs/descriptor-call-value",
+    "defineproperty-readonly/es5/commonjs/descriptor-call-set",
+    "defineproperty-readonly/es5/commonjs/repeated-set-then-value",
+    "defineproperty-readonly/es5/commonjs/repeated-value-then-set",
+    "defineproperty-readonly/es5/commonjs/static-value-false",
+    "defineproperty-readonly/es5/commonjs/static-quoted-set",
+    "defineproperty-readonly/es5/commonjs/assignment-false",
+    "defineproperty-readonly/es5/commonjs/assignment-true",
+    "defineproperty-readonly/es5/commonjs/assignment-quoted-set",
+    "defineproperty-readonly/es5/commonjs/assignment-computed-set",
+    "defineproperty-readonly/es5/commonjs/ts-readonly-field",
+    "defineproperty-readonly/es5/commonjs/ts-writable-field",
+    "defineproperty-readonly/es5/commonjs/ts-get-only",
+    "defineproperty-readonly/es5/commonjs/ts-get-and-set",
+    "defineproperty-readonly/es5/commonjs/ts-const-assignment",
+    "defineproperty-readonly/es5/commonjs/ts-enum-assignment",
+    "defineproperty-readonly/es5/commonjs/ts-mapped-readonly",
+    "defineproperty-readonly/es5/commonjs/ts-mapped-strip",
+    "defineproperty-readonly/es5/commonjs/ts-union-readonly",
+    "defineproperty-readonly/es5/commonjs/ts-intersection-readonly",
+    "defineproperty-readonly/es5/commonjs/ts-object-spread",
+    "defineproperty-readonly/es5/commonjs/ts-structural-identity",
+    "defineproperty-readonly/es5/commonjs/descriptor-any",
+    "defineproperty-readonly/es5/commonjs/descriptor-index-signature",
+    "defineproperty-readonly/es5/commonjs/descriptor-union",
+    "defineproperty-readonly/es5/commonjs/descriptor-intersection",
+    "defineproperty-readonly/es5/commonjs/writable-getter",
+    "defineproperty-readonly/es5/commonjs/delete-false",
+    "defineproperty-readonly/es5/commonjs/delete-quoted-set",
+    "defineproperty-readonly/es5/commonjs/value-undefined-and-set",
+    "defineproperty-readonly/es5/esnext/value-absent-writable",
+    "defineproperty-readonly/es5/esnext/value-false",
+    "defineproperty-readonly/es5/esnext/value-true",
+    "defineproperty-readonly/es5/esnext/value-undefined-writable",
+    "defineproperty-readonly/es5/esnext/value-quoted-false",
+    "defineproperty-readonly/es5/esnext/value-computed-false",
+    "defineproperty-readonly/es5/esnext/value-and-set",
+    "defineproperty-readonly/es5/esnext/identifier-set",
+    "defineproperty-readonly/es5/esnext/quoted-set",
+    "defineproperty-readonly/es5/esnext/computed-set",
+    "defineproperty-readonly/es5/esnext/getter-only",
+    "defineproperty-readonly/es5/esnext/quoted-getter-only",
+    "defineproperty-readonly/es5/esnext/getter-and-setter",
+    "defineproperty-readonly/es5/esnext/set-function-property",
+    "defineproperty-readonly/es5/esnext/set-undefined-property",
+    "defineproperty-readonly/es5/esnext/empty-descriptor",
+    "defineproperty-readonly/es5/esnext/false-const",
+    "defineproperty-readonly/es5/esnext/true-const",
+    "defineproperty-readonly/es5/esnext/false-let",
+    "defineproperty-readonly/es5/esnext/boolean-let",
+    "defineproperty-readonly/es5/esnext/false-conditional",
+    "defineproperty-readonly/es5/esnext/boolean-cast",
+    "defineproperty-readonly/es5/esnext/descriptor-variable-value",
+    "defineproperty-readonly/es5/esnext/descriptor-variable-false",
+    "defineproperty-readonly/es5/esnext/descriptor-variable-true",
+    "defineproperty-readonly/es5/esnext/descriptor-variable-set",
+    "defineproperty-readonly/es5/esnext/descriptor-call-value",
+    "defineproperty-readonly/es5/esnext/descriptor-call-set",
+    "defineproperty-readonly/es5/esnext/repeated-set-then-value",
+    "defineproperty-readonly/es5/esnext/repeated-value-then-set",
+    "defineproperty-readonly/es5/esnext/static-value-false",
+    "defineproperty-readonly/es5/esnext/static-quoted-set",
+    "defineproperty-readonly/es5/esnext/assignment-false",
+    "defineproperty-readonly/es5/esnext/assignment-true",
+    "defineproperty-readonly/es5/esnext/assignment-quoted-set",
+    "defineproperty-readonly/es5/esnext/assignment-computed-set",
+    "defineproperty-readonly/es5/esnext/ts-readonly-field",
+    "defineproperty-readonly/es5/esnext/ts-writable-field",
+    "defineproperty-readonly/es5/esnext/ts-get-only",
+    "defineproperty-readonly/es5/esnext/ts-get-and-set",
+    "defineproperty-readonly/es5/esnext/ts-const-assignment",
+    "defineproperty-readonly/es5/esnext/ts-enum-assignment",
+    "defineproperty-readonly/es5/esnext/ts-mapped-readonly",
+    "defineproperty-readonly/es5/esnext/ts-mapped-strip",
+    "defineproperty-readonly/es5/esnext/ts-union-readonly",
+    "defineproperty-readonly/es5/esnext/ts-intersection-readonly",
+    "defineproperty-readonly/es5/esnext/ts-object-spread",
+    "defineproperty-readonly/es5/esnext/ts-structural-identity",
+    "defineproperty-readonly/es5/esnext/descriptor-any",
+    "defineproperty-readonly/es5/esnext/descriptor-index-signature",
+    "defineproperty-readonly/es5/esnext/descriptor-union",
+    "defineproperty-readonly/es5/esnext/descriptor-intersection",
+    "defineproperty-readonly/es5/esnext/writable-getter",
+    "defineproperty-readonly/es5/esnext/delete-false",
+    "defineproperty-readonly/es5/esnext/delete-quoted-set",
+    "defineproperty-readonly/es5/esnext/value-undefined-and-set",
+    "defineproperty-readonly/es2015/commonjs/value-absent-writable",
+    "defineproperty-readonly/es2015/commonjs/value-false",
+    "defineproperty-readonly/es2015/commonjs/value-true",
+    "defineproperty-readonly/es2015/commonjs/value-undefined-writable",
+    "defineproperty-readonly/es2015/commonjs/value-quoted-false",
+    "defineproperty-readonly/es2015/commonjs/value-computed-false",
+    "defineproperty-readonly/es2015/commonjs/value-and-set",
+    "defineproperty-readonly/es2015/commonjs/identifier-set",
+    "defineproperty-readonly/es2015/commonjs/quoted-set",
+    "defineproperty-readonly/es2015/commonjs/computed-set",
+    "defineproperty-readonly/es2015/commonjs/getter-only",
+    "defineproperty-readonly/es2015/commonjs/quoted-getter-only",
+    "defineproperty-readonly/es2015/commonjs/getter-and-setter",
+    "defineproperty-readonly/es2015/commonjs/set-function-property",
+    "defineproperty-readonly/es2015/commonjs/set-undefined-property",
+    "defineproperty-readonly/es2015/commonjs/empty-descriptor",
+    "defineproperty-readonly/es2015/commonjs/false-const",
+    "defineproperty-readonly/es2015/commonjs/true-const",
+    "defineproperty-readonly/es2015/commonjs/false-let",
+    "defineproperty-readonly/es2015/commonjs/boolean-let",
+    "defineproperty-readonly/es2015/commonjs/false-conditional",
+    "defineproperty-readonly/es2015/commonjs/boolean-cast",
+    "defineproperty-readonly/es2015/commonjs/descriptor-variable-value",
+    "defineproperty-readonly/es2015/commonjs/descriptor-variable-false",
+    "defineproperty-readonly/es2015/commonjs/descriptor-variable-true",
+    "defineproperty-readonly/es2015/commonjs/descriptor-variable-set",
+    "defineproperty-readonly/es2015/commonjs/descriptor-call-value",
+    "defineproperty-readonly/es2015/commonjs/descriptor-call-set",
+    "defineproperty-readonly/es2015/commonjs/repeated-set-then-value",
+    "defineproperty-readonly/es2015/commonjs/repeated-value-then-set",
+    "defineproperty-readonly/es2015/commonjs/static-value-false",
+    "defineproperty-readonly/es2015/commonjs/static-quoted-set",
+    "defineproperty-readonly/es2015/commonjs/assignment-false",
+    "defineproperty-readonly/es2015/commonjs/assignment-true",
+    "defineproperty-readonly/es2015/commonjs/assignment-quoted-set",
+    "defineproperty-readonly/es2015/commonjs/assignment-computed-set",
+    "defineproperty-readonly/es2015/commonjs/ts-readonly-field",
+    "defineproperty-readonly/es2015/commonjs/ts-writable-field",
+    "defineproperty-readonly/es2015/commonjs/ts-get-only",
+    "defineproperty-readonly/es2015/commonjs/ts-get-and-set",
+    "defineproperty-readonly/es2015/commonjs/ts-const-assignment",
+    "defineproperty-readonly/es2015/commonjs/ts-enum-assignment",
+    "defineproperty-readonly/es2015/commonjs/ts-mapped-readonly",
+    "defineproperty-readonly/es2015/commonjs/ts-mapped-strip",
+    "defineproperty-readonly/es2015/commonjs/ts-union-readonly",
+    "defineproperty-readonly/es2015/commonjs/ts-intersection-readonly",
+    "defineproperty-readonly/es2015/commonjs/ts-object-spread",
+    "defineproperty-readonly/es2015/commonjs/ts-structural-identity",
+    "defineproperty-readonly/es2015/commonjs/descriptor-any",
+    "defineproperty-readonly/es2015/commonjs/descriptor-index-signature",
+    "defineproperty-readonly/es2015/commonjs/descriptor-union",
+    "defineproperty-readonly/es2015/commonjs/descriptor-intersection",
+    "defineproperty-readonly/es2015/commonjs/writable-getter",
+    "defineproperty-readonly/es2015/commonjs/delete-false",
+    "defineproperty-readonly/es2015/commonjs/delete-quoted-set",
+    "defineproperty-readonly/es2015/commonjs/value-undefined-and-set",
+    "defineproperty-readonly/es2015/esnext/value-absent-writable",
+    "defineproperty-readonly/es2015/esnext/value-false",
+    "defineproperty-readonly/es2015/esnext/value-true",
+    "defineproperty-readonly/es2015/esnext/value-undefined-writable",
+    "defineproperty-readonly/es2015/esnext/value-quoted-false",
+    "defineproperty-readonly/es2015/esnext/value-computed-false",
+    "defineproperty-readonly/es2015/esnext/value-and-set",
+    "defineproperty-readonly/es2015/esnext/identifier-set",
+    "defineproperty-readonly/es2015/esnext/quoted-set",
+    "defineproperty-readonly/es2015/esnext/computed-set",
+    "defineproperty-readonly/es2015/esnext/getter-only",
+    "defineproperty-readonly/es2015/esnext/quoted-getter-only",
+    "defineproperty-readonly/es2015/esnext/getter-and-setter",
+    "defineproperty-readonly/es2015/esnext/set-function-property",
+    "defineproperty-readonly/es2015/esnext/set-undefined-property",
+    "defineproperty-readonly/es2015/esnext/empty-descriptor",
+    "defineproperty-readonly/es2015/esnext/false-const",
+    "defineproperty-readonly/es2015/esnext/true-const",
+    "defineproperty-readonly/es2015/esnext/false-let",
+    "defineproperty-readonly/es2015/esnext/boolean-let",
+    "defineproperty-readonly/es2015/esnext/false-conditional",
+    "defineproperty-readonly/es2015/esnext/boolean-cast",
+    "defineproperty-readonly/es2015/esnext/descriptor-variable-value",
+    "defineproperty-readonly/es2015/esnext/descriptor-variable-false",
+    "defineproperty-readonly/es2015/esnext/descriptor-variable-true",
+    "defineproperty-readonly/es2015/esnext/descriptor-variable-set",
+    "defineproperty-readonly/es2015/esnext/descriptor-call-value",
+    "defineproperty-readonly/es2015/esnext/descriptor-call-set",
+    "defineproperty-readonly/es2015/esnext/repeated-set-then-value",
+    "defineproperty-readonly/es2015/esnext/repeated-value-then-set",
+    "defineproperty-readonly/es2015/esnext/static-value-false",
+    "defineproperty-readonly/es2015/esnext/static-quoted-set",
+    "defineproperty-readonly/es2015/esnext/assignment-false",
+    "defineproperty-readonly/es2015/esnext/assignment-true",
+    "defineproperty-readonly/es2015/esnext/assignment-quoted-set",
+    "defineproperty-readonly/es2015/esnext/assignment-computed-set",
+    "defineproperty-readonly/es2015/esnext/ts-readonly-field",
+    "defineproperty-readonly/es2015/esnext/ts-writable-field",
+    "defineproperty-readonly/es2015/esnext/ts-get-only",
+    "defineproperty-readonly/es2015/esnext/ts-get-and-set",
+    "defineproperty-readonly/es2015/esnext/ts-const-assignment",
+    "defineproperty-readonly/es2015/esnext/ts-enum-assignment",
+    "defineproperty-readonly/es2015/esnext/ts-mapped-readonly",
+    "defineproperty-readonly/es2015/esnext/ts-mapped-strip",
+    "defineproperty-readonly/es2015/esnext/ts-union-readonly",
+    "defineproperty-readonly/es2015/esnext/ts-intersection-readonly",
+    "defineproperty-readonly/es2015/esnext/ts-object-spread",
+    "defineproperty-readonly/es2015/esnext/ts-structural-identity",
+    "defineproperty-readonly/es2015/esnext/descriptor-any",
+    "defineproperty-readonly/es2015/esnext/descriptor-index-signature",
+    "defineproperty-readonly/es2015/esnext/descriptor-union",
+    "defineproperty-readonly/es2015/esnext/descriptor-intersection",
+    "defineproperty-readonly/es2015/esnext/writable-getter",
+    "defineproperty-readonly/es2015/esnext/delete-false",
+    "defineproperty-readonly/es2015/esnext/delete-quoted-set",
+    "defineproperty-readonly/es2015/esnext/value-undefined-and-set",
+    "defineproperty-readonly-exports/es5/commonjs/exports-shorthand-false",
+    "defineproperty-readonly-exports/es5/commonjs/exports-quoted-set",
+    "defineproperty-readonly-exports/es5/commonjs/module-exports-variable-false",
+    "defineproperty-readonly-exports/es5/commonjs/module-exports-computed-set",
+    "defineproperty-readonly-exports/es5/esnext/exports-shorthand-false",
+    "defineproperty-readonly-exports/es5/esnext/exports-quoted-set",
+    "defineproperty-readonly-exports/es5/esnext/module-exports-variable-false",
+    "defineproperty-readonly-exports/es5/esnext/module-exports-computed-set",
+    "defineproperty-readonly-exports/es2015/commonjs/exports-shorthand-false",
+    "defineproperty-readonly-exports/es2015/commonjs/exports-quoted-set",
+    "defineproperty-readonly-exports/es2015/commonjs/module-exports-variable-false",
+    "defineproperty-readonly-exports/es2015/commonjs/module-exports-computed-set",
+    "defineproperty-readonly-exports/es2015/esnext/exports-shorthand-false",
+    "defineproperty-readonly-exports/es2015/esnext/exports-quoted-set",
+    "defineproperty-readonly-exports/es2015/esnext/module-exports-variable-false",
+    "defineproperty-readonly-exports/es2015/esnext/module-exports-computed-set",
+    "setter-annotations/es5/commonjs/multiline-private",
+    "setter-annotations/es5/commonjs/multiline-public",
+    "setter-annotations/es5/commonjs/multiline-descriptor",
+    "setter-annotations/es5/commonjs/ts-private",
+    "setter-annotations/es5/commonjs/js-private-alias",
+    "setter-annotations/es5/esnext/multiline-private",
+    "setter-annotations/es5/esnext/multiline-public",
+    "setter-annotations/es5/esnext/multiline-descriptor",
+    "setter-annotations/es5/esnext/ts-private",
+    "setter-annotations/es5/esnext/js-private-alias",
+    "setter-annotations/es2015/commonjs/multiline-private",
+    "setter-annotations/es2015/commonjs/multiline-public",
+    "setter-annotations/es2015/commonjs/multiline-descriptor",
+    "setter-annotations/es2015/commonjs/ts-private",
+    "setter-annotations/es2015/commonjs/js-private-alias",
+    "setter-annotations/es2015/esnext/multiline-private",
+    "setter-annotations/es2015/esnext/multiline-public",
+    "setter-annotations/es2015/esnext/multiline-descriptor",
+    "setter-annotations/es2015/esnext/ts-private",
+    "setter-annotations/es2015/esnext/js-private-alias",
+    "setter-names/es5/commonjs/descriptor-repeated-call-order",
+    "setter-names/es5/commonjs/descriptor-duplicate-member-order",
+    "setter-names/es5/commonjs/descriptor-variable-argument",
+    "setter-names/es5/commonjs/descriptor-call-argument",
+    "setter-names/es5/commonjs/descriptor-method",
+    "setter-names/es5/commonjs/descriptor-get-set",
+    "setter-names/es5/commonjs/descriptor-rest",
+    "setter-names/es5/commonjs/descriptor-noarg",
+    "setter-names/es5/commonjs/descriptor-object-binding",
+    "setter-names/es5/commonjs/descriptor-array-binding",
+    "setter-names/es5/commonjs/descriptor-quoted-method",
+    "setter-names/es5/commonjs/descriptor-computed-method",
+    "setter-names/es5/commonjs/descriptor-function-property",
+    "setter-names/es5/commonjs/descriptor-arrow-property",
+    "setter-names/es5/commonjs/descriptor-identifier-property",
+    "setter-names/es5/commonjs/descriptor-union-property",
+    "setter-names/es5/commonjs/descriptor-static-method",
+    "setter-names/es5/commonjs/actual-js-setter",
+    "setter-names/es5/commonjs/actual-js-get-set",
+    "setter-names/es5/commonjs/actual-js-private-setter",
+    "setter-names/es5/commonjs/actual-ts-setter",
+    "setter-names/es5/commonjs/anonymous-ts-private-setter",
+    "setter-names/es5/esnext/descriptor-repeated-call-order",
+    "setter-names/es5/esnext/descriptor-duplicate-member-order",
+    "setter-names/es5/esnext/descriptor-variable-argument",
+    "setter-names/es5/esnext/descriptor-call-argument",
+    "setter-names/es5/esnext/descriptor-method",
+    "setter-names/es5/esnext/descriptor-get-set",
+    "setter-names/es5/esnext/descriptor-rest",
+    "setter-names/es5/esnext/descriptor-noarg",
+    "setter-names/es5/esnext/descriptor-object-binding",
+    "setter-names/es5/esnext/descriptor-array-binding",
+    "setter-names/es5/esnext/descriptor-quoted-method",
+    "setter-names/es5/esnext/descriptor-computed-method",
+    "setter-names/es5/esnext/descriptor-function-property",
+    "setter-names/es5/esnext/descriptor-arrow-property",
+    "setter-names/es5/esnext/descriptor-identifier-property",
+    "setter-names/es5/esnext/descriptor-union-property",
+    "setter-names/es5/esnext/descriptor-static-method",
+    "setter-names/es5/esnext/actual-js-setter",
+    "setter-names/es5/esnext/actual-js-get-set",
+    "setter-names/es5/esnext/actual-js-private-setter",
+    "setter-names/es5/esnext/actual-ts-setter",
+    "setter-names/es5/esnext/anonymous-ts-private-setter",
+    "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+    "setter-names/es2015/commonjs/descriptor-duplicate-member-order",
+    "setter-names/es2015/commonjs/descriptor-variable-argument",
+    "setter-names/es2015/commonjs/descriptor-call-argument",
+    "setter-names/es2015/commonjs/descriptor-method",
+    "setter-names/es2015/commonjs/descriptor-get-set",
+    "setter-names/es2015/commonjs/descriptor-rest",
+    "setter-names/es2015/commonjs/descriptor-noarg",
+    "setter-names/es2015/commonjs/descriptor-object-binding",
+    "setter-names/es2015/commonjs/descriptor-array-binding",
+    "setter-names/es2015/commonjs/descriptor-quoted-method",
+    "setter-names/es2015/commonjs/descriptor-computed-method",
+    "setter-names/es2015/commonjs/descriptor-function-property",
+    "setter-names/es2015/commonjs/descriptor-arrow-property",
+    "setter-names/es2015/commonjs/descriptor-identifier-property",
+    "setter-names/es2015/commonjs/descriptor-union-property",
+    "setter-names/es2015/commonjs/descriptor-static-method",
+    "setter-names/es2015/commonjs/actual-js-setter",
+    "setter-names/es2015/commonjs/actual-js-get-set",
+    "setter-names/es2015/commonjs/actual-js-private-setter",
+    "setter-names/es2015/commonjs/actual-ts-setter",
+    "setter-names/es2015/commonjs/anonymous-ts-private-setter",
+    "setter-names/es2015/esnext/descriptor-repeated-call-order",
+    "setter-names/es2015/esnext/descriptor-duplicate-member-order",
+    "setter-names/es2015/esnext/descriptor-variable-argument",
+    "setter-names/es2015/esnext/descriptor-call-argument",
+    "setter-names/es2015/esnext/descriptor-method",
+    "setter-names/es2015/esnext/descriptor-get-set",
+    "setter-names/es2015/esnext/descriptor-rest",
+    "setter-names/es2015/esnext/descriptor-noarg",
+    "setter-names/es2015/esnext/descriptor-object-binding",
+    "setter-names/es2015/esnext/descriptor-array-binding",
+    "setter-names/es2015/esnext/descriptor-quoted-method",
+    "setter-names/es2015/esnext/descriptor-computed-method",
+    "setter-names/es2015/esnext/descriptor-function-property",
+    "setter-names/es2015/esnext/descriptor-arrow-property",
+    "setter-names/es2015/esnext/descriptor-identifier-property",
+    "setter-names/es2015/esnext/descriptor-union-property",
+    "setter-names/es2015/esnext/descriptor-static-method",
+    "setter-names/es2015/esnext/actual-js-setter",
+    "setter-names/es2015/esnext/actual-js-get-set",
+    "setter-names/es2015/esnext/actual-js-private-setter",
+    "setter-names/es2015/esnext/actual-ts-setter",
+    "setter-names/es2015/esnext/anonymous-ts-private-setter",
+    "jsdoc-implements/es5/script/no-implements",
+    "jsdoc-implements/es5/script/class",
+    "jsdoc-implements/es5/script/typedef",
+    "jsdoc-implements/es5/script/multiple",
+    "jsdoc-implements/es5/script/qualified",
+    "jsdoc-implements/es5/script/generic",
+    "jsdoc-implements/es5/script/parenthesized-generic",
+    "jsdoc-implements/es5/script/unknown",
+    "jsdoc-implements/es5/script/empty",
+    "jsdoc-implements/es5/script/partial-unknown",
+    "jsdoc-implements/es5/script/exports-entity",
+    "jsdoc-implements/es5/script/class-expression",
+    "jsdoc-implements/es5/commonjs/no-implements",
+    "jsdoc-implements/es5/commonjs/class",
+    "jsdoc-implements/es5/commonjs/typedef",
+    "jsdoc-implements/es5/commonjs/multiple",
+    "jsdoc-implements/es5/commonjs/qualified",
+    "jsdoc-implements/es5/commonjs/generic",
+    "jsdoc-implements/es5/commonjs/parenthesized-generic",
+    "jsdoc-implements/es5/commonjs/unknown",
+    "jsdoc-implements/es5/commonjs/empty",
+    "jsdoc-implements/es5/commonjs/partial-unknown",
+    "jsdoc-implements/es5/commonjs/exports-entity",
+    "jsdoc-implements/es5/commonjs/class-expression",
+    "jsdoc-implements/es5/esm/no-implements",
+    "jsdoc-implements/es5/esm/class",
+    "jsdoc-implements/es5/esm/typedef",
+    "jsdoc-implements/es5/esm/multiple",
+    "jsdoc-implements/es5/esm/qualified",
+    "jsdoc-implements/es5/esm/generic",
+    "jsdoc-implements/es5/esm/parenthesized-generic",
+    "jsdoc-implements/es5/esm/unknown",
+    "jsdoc-implements/es5/esm/empty",
+    "jsdoc-implements/es5/esm/partial-unknown",
+    "jsdoc-implements/es5/esm/exports-entity",
+    "jsdoc-implements/es5/esm/class-expression",
+    "jsdoc-implements/es2015/script/no-implements",
+    "jsdoc-implements/es2015/script/class",
+    "jsdoc-implements/es2015/script/typedef",
+    "jsdoc-implements/es2015/script/multiple",
+    "jsdoc-implements/es2015/script/qualified",
+    "jsdoc-implements/es2015/script/generic",
+    "jsdoc-implements/es2015/script/parenthesized-generic",
+    "jsdoc-implements/es2015/script/unknown",
+    "jsdoc-implements/es2015/script/empty",
+    "jsdoc-implements/es2015/script/partial-unknown",
+    "jsdoc-implements/es2015/script/exports-entity",
+    "jsdoc-implements/es2015/script/class-expression",
+    "jsdoc-implements/es2015/commonjs/no-implements",
+    "jsdoc-implements/es2015/commonjs/class",
+    "jsdoc-implements/es2015/commonjs/typedef",
+    "jsdoc-implements/es2015/commonjs/multiple",
+    "jsdoc-implements/es2015/commonjs/qualified",
+    "jsdoc-implements/es2015/commonjs/generic",
+    "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+    "jsdoc-implements/es2015/commonjs/unknown",
+    "jsdoc-implements/es2015/commonjs/empty",
+    "jsdoc-implements/es2015/commonjs/partial-unknown",
+    "jsdoc-implements/es2015/commonjs/exports-entity",
+    "jsdoc-implements/es2015/commonjs/class-expression",
+    "jsdoc-implements/es2015/esm/no-implements",
+    "jsdoc-implements/es2015/esm/class",
+    "jsdoc-implements/es2015/esm/typedef",
+    "jsdoc-implements/es2015/esm/multiple",
+    "jsdoc-implements/es2015/esm/qualified",
+    "jsdoc-implements/es2015/esm/generic",
+    "jsdoc-implements/es2015/esm/parenthesized-generic",
+    "jsdoc-implements/es2015/esm/unknown",
+    "jsdoc-implements/es2015/esm/empty",
+    "jsdoc-implements/es2015/esm/partial-unknown",
+    "jsdoc-implements/es2015/esm/exports-entity",
+    "jsdoc-implements/es2015/esm/class-expression",
+    "jsdoc-implements/es5/script/typed-no-implements",
+    "jsdoc-implements/es5/script/typed-simple",
+    "jsdoc-implements/es5/script/typed-multiple",
+    "jsdoc-implements/es5/script/typed-class-expression",
+    "jsdoc-implements/es5/esm/typed-no-implements",
+    "jsdoc-implements/es5/esm/typed-simple",
+    "jsdoc-implements/es5/esm/typed-multiple",
+    "jsdoc-implements/es5/esm/typed-class-expression",
+    "jsdoc-implements/es2015/script/typed-no-implements",
+    "jsdoc-implements/es2015/script/typed-simple",
+    "jsdoc-implements/es2015/script/typed-multiple",
+    "jsdoc-implements/es2015/script/typed-class-expression",
+    "jsdoc-implements/es2015/esm/typed-no-implements",
+    "jsdoc-implements/es2015/esm/typed-simple",
+    "jsdoc-implements/es2015/esm/typed-multiple",
+    "jsdoc-implements/es2015/esm/typed-class-expression",
+    "jsdoc-implements/es5/commonjs/imported-simple",
+    "jsdoc-implements/es5/commonjs/imported-generic",
+    "jsdoc-implements/es5/esm/imported-simple",
+    "jsdoc-implements/es5/esm/imported-generic",
+    "jsdoc-implements/es2015/commonjs/imported-simple",
+    "jsdoc-implements/es2015/commonjs/imported-generic",
+    "jsdoc-implements/es2015/esm/imported-simple",
+    "jsdoc-implements/es2015/esm/imported-generic"
+  ],
+  "completed_fresh_command_executions": 984,
+  "original_command_attempts": 1,
+  "original_completed_commands": 0,
+  "original_second_repetition": "not-run-process-aborted",
+  "original_other_cases_not_run": 9,
+  "original_full_failure_tuples": 0,
+  "original_failure_case": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+  "failure_boundary": "native stack overflow / SIGABRT before complete tuple capture",
+  "selected_checker_units": {
+    "passed": 2,
+    "failed": 0
+  },
+  "adjacent_declaration_blocking": {
+    "cases": 22,
+    "native_emit_executions": 44,
+    "command_reporting": false,
+    "passed": true
+  },
+  "full_checker_after_status": "not-run-yet",
+  "supplemental_executions": 0,
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "7a5f92a0bbd5930abee7274a96a7745934eb554382f074b232f571392baf7673"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "7146e8670b2c6acdb3a51ea3df434f26846592c4620fa30fac091f6f3d56cc4e"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "6ac7927dc7eb5e5b4b6413900c4cc588c94cf281b486a769fff22a74812074e7"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/engine.rs",
+      "sha256": "9715ad017afd9b9f79ae725b1ed09ff6f52f77f765244edd1eabccd89c66253e"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "d8647a5b87b5a773e0f461b97767ab7347bdc081e5fcf4d960bb2dff2b768513"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "sha256": "c994fa4d8e59468d9b035895fac8dbde0dbb1c960df4771251f4b8c6bd43c514"
+    },
+    {
+      "path": "crates/checker/src/indexed.rs",
+      "sha256": "22dd3ba6fec4ade0108db3d075a70f17d5fa4b0a8d8c6853eaeddfad904ccf79"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "4d70f96e599d87b9242741e063189b0796369cc9da3815b85a395a584539f808"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "sha256": "526368a2488bfd0cd590af59a81c4dbe32ae684e5b93afb2bf5f3c131cbbc88a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "0209074e09bbaf56eb92ca5805ac099592eef764cc4d87a9d090700bd5ce8b03"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "7cd6d0018af4b33e8db2a566449089f63097769c4bc12ddf05e0ba86921af801"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "747f784c3fac9f4f184ffa038138a0f0e06519c87d4a267b5fd0d61c70958908"
+    },
+    {
+      "path": "crates/checker/src/state.rs",
+      "sha256": "d74d5d4bbf6c2dccc9bfb380d61117ba64f8cdb08bb4c84ea0f8c378349fcd26"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "f7c1a4247ab563c0ff6fb2705e7cb9a4b2e06b0024c26a76be700c4d778b76ab"
+    },
+    {
+      "path": "crates/checker/src/syntactic_type_node_builder.rs",
+      "sha256": "a543c48150b86f6444bb1bad2d57f6948d40fd9e644247a6d22cb1d86ac65717"
+    },
+    {
+      "path": "crates/checker/tests/unit/inference/tests.rs",
+      "sha256": "c1cf2febe67cb2abf993129c5cea39c4abefb03fad65b1a39f3cffd6a8217972"
+    },
+    {
+      "path": "crates/checker/tests/unit/mapped/tests.rs",
+      "sha256": "ddb95bfcec0c5d7b0297cf843354f2471ece5c28d9df9f1a2fe1f9d61935ff8a"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_chains/tests.rs",
+      "sha256": "bc775dc84b2c02d0ead3910db01dd2ae20d149836055153d05c1b47ccf5cddef"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_core/tests.rs",
+      "sha256": "5eb77e1900be9862ff0800f22a913f5a0d3a1d0cd015bc713c655cd7f8b44fbb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_serialize/tests.rs",
+      "sha256": "fe39246701879a319517c38888cb1f6d096bbeeec81057df5ff2cabb4e047d99"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+      "sha256": "5ae1d6f8be9c41fdafeb77d5f3c6f9c4161b1a30c06720c59ed1d15cc067b393"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_specifier/tests.rs",
+      "sha256": "fa63317df3ef12a172df84f2862e7711f76c31435fae31d03fe9057d664b40db"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_type_nodes/tests.rs",
+      "sha256": "949cc27520efb352936e70b8ffce7c0b4cb99689f2b608823b3f3dfb4706bf92"
+    },
+    {
+      "path": "crates/checker/tests/unit/structural/tests.rs",
+      "sha256": "96458b0fa42b2ae8fe13a23a17718caa2a5d7b089757a02daaeea93bb2dbb8db"
+    },
+    {
+      "path": "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs",
+      "sha256": "2eca77d2f37b4dce2e6216b74acff0bdd0ccc2f7b24936b33b2fcdbbebad0278"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "dbb4f77c549791f38b225c3d93305cc311a9bdb75b8560ead8529149e1b40d37"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "a4609f5d4621f42083b6ffeabf508a7551213b5ad85e2c445628f9431a0e2b06"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/binding-name-map-ranges.json",
+      "sha256": "c04ecf94865c90fc39958e7967b7b10e594065147dd8d982edaf8b917b5e75c5"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/declaration-blocking.json",
+      "sha256": "39cb808ed67ed7dc930ccd4721e43227ce147cc82e188dc9d22a09815f409ab8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly-exports.json",
+      "sha256": "f7e18b168d4127d4a6bd2dbffa2889dd39a9188d36dd1001d02f29330305823a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly.json",
+      "sha256": "114ef087a19f5e1f4f1fa27dc828b17a240a6776ad0b49455616d68dc2584a35"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-annotations.json",
+      "sha256": "e6722af3eec06a7b3b352f03a3f9ccc27a39773860cba1ec216493260cd7d06f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-names.json",
+      "sha256": "17f4edf8d471fa96b09834c488ba0e2fb5de0c268360cc67060091646e1ed57f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+      "sha256": "db61e9adcdec9ba0f7840629d2a927e9eebed919057fc8074ea25c0acd1ed9e1"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "986dfd167f2ca9a49498e56e2fa749e6c55c02fc6e551214ce910ce8f5dd7b6d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_binding_name_map_ranges.rs",
+      "sha256": "0d82d8478b7149f7c55019aff81fdb74f4f6250d924d5789723229a07085fc92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs",
+      "sha256": "afd5b18d70e2fe3ad41ae5efed8148ecd6a0240aaa5e7744f88acf8692a5fbd0"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly_exports.rs",
+      "sha256": "f0939792ba728b540fb73734010ce636a6199d190896e9ec0bedea51cf4c3c59"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_setter_annotations.rs",
+      "sha256": "c4df90b76ab5cdc4447811923f7d483133a805fa558aa2c61d8a2c90a93f92e2"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_setter_names.rs",
+      "sha256": "1a7b8532d00a898d5d0fb3d07576924da98fd7f52d50fac14a45680fb67944ed"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/position.rs",
+      "sha256": "f70397ff2bb756810d2fd6edf912a62cfe938b50ae491337dc9d5676899cb243"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/syntax/src/for_each_child.rs",
+      "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+    },
+    {
+      "path": "crates/types/src/tables.rs",
+      "sha256": "fb40af06e83696e2b750a53de857fe5ff89563c6b7fa2038a2039d6e5396865a"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-binding-name-map-ranges.md",
+      "sha256": "8e2f400c2d5a8a9dc7a88910c30c9c92454b7ed7cd111762fcf5527386c829c9"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-defineproperty-readonly.md",
+      "sha256": "6ef71bdba85f5313a739bbb89f0697ab8adfe64d86c677f987ac86517808b0a7"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-defineproperty-setter-names.md",
+      "sha256": "782f48bf7a36c2437db72cf467bc889755f98d614acf38c8607811c060c9c12b"
+    },
+    {
+      "path": "ratchets/h2-8a-binding-name-map-ranges-before.v1.json",
+      "sha256": "a9e43f0616e97fc8779294b233529c2dce3e3102fd6fc09c95a1eab7267a32fd"
+    },
+    {
+      "path": "ratchets/h2-8a-binding-name-map-ranges-readiness.v1.json",
+      "sha256": "d92fe3f7f19ab6e2cf66a213fff4adbdc4664828229da9d9a8a0a1785cadcbc5"
+    },
+    {
+      "path": "ratchets/h2-8a-binding-name-map-ranges-source-before.v1.json",
+      "sha256": "6472748c245be333a6dacccb59cabdc5085cf9c7e7cbc55589da4edd4757c1e0"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-before-archive-completion.v1.json",
+      "sha256": "77d77d6d675a9f30bcff67b37f99b93e44402d1d86df913915cb49a86ab6e949"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-before.v1.json",
+      "sha256": "421c4f47a5df74e56e89a9612005dfa4c70b60f4652aaa01652ac09e26499e0c"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-checker-before.v1.json",
+      "sha256": "b69d52272ef9617cb97192b88ac85ad9a57b63f6fe9e7cfd96ec23bb526dfe25"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-exports-before.v1.json",
+      "sha256": "73445b7d44bc9598344af421021d54ff11120cf69c0ab514ee8156867f44f4ad"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-first-after-build.v1.json",
+      "sha256": "8f37d6288fa186c2695f2248e7f87b26f7633e98ab380a6ddcbc29f952f76de7"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-readiness.v1.json",
+      "sha256": "553dccbd629fad71814431827ff8883486162c2442a1439811f22ff0981a9eb2"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-annotations-before.v1.json",
+      "sha256": "7b76e601fb8f815aee83ffe5066a967af5ca3eafc0a715aec074a4cc3fcdd5e3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-after.v1.json",
+      "sha256": "89e59a3babfc3e2b39868f9f3d87efe45a1dd736b8e14b53a0e439581008228d"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-before.v1.json",
+      "sha256": "7c9045c6d1e72995845605e60f7686b7ea0a3a3cde36587ac2e128e1074d16b8"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-first-after.v1.json",
+      "sha256": "83da646d49308fe67148e5eae044139610c17ecd08e256c5769606cc3bcca774"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-before.v1.json",
+      "sha256": "ef4ecb28cc6db746bfa38fc780a2c049e5431ac7b7b75d4757d0660542611534"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-first-before.v1.json",
+      "sha256": "e147a3a68e38944c9b1a1a0a9280aa2455c94c27a7eeafed3f42ad23500e685b"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-readiness.v1.json",
+      "sha256": "a021bdf9c79299e231361710160b781d13376971c901216377d84bed58a040ce"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/check-binding-name-map-ranges-readiness.py",
+      "sha256": "365c413bc035d75b9a2b309e7a775d18573d178c398307349b298c2c7e5a13f1"
+    },
+    {
+      "path": "scripts/check-defineproperty-readonly-readiness.py",
+      "sha256": "8ad5c95cc04366574083df2745c3ae242d25d853a9ceb3bbe456567029f0fe06"
+    },
+    {
+      "path": "scripts/check-defineproperty-setter-names-readiness.py",
+      "sha256": "64868131caf0d2e421e439c5233741a0cb969ffdb87a74674c3b7456fbce7e37"
+    },
+    {
+      "path": "scripts/observe-binding-name-map-ranges.mjs",
+      "sha256": "39ff81289e8148b97df197399674decce503e39dc74d4fb57904f6561f1a7f68"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly-exports.mjs",
+      "sha256": "82eaeff9740581870b49774e951f25de66b4c9032e06cda99b8038ab49aa3da2"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly.mjs",
+      "sha256": "eae7c9c632e75973855c615cb47990df74a18b6948aaace6b7e06090ce25647d"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-annotations.mjs",
+      "sha256": "5b26985ce7406353b6d4bfe3c4c92c2bb6cb31860042fae54766a56aa64bddbc"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-names.mjs",
+      "sha256": "52643cdaff5ff137f742d3e6774baf89b51721d65b9e8b1fe918dc888b7ece50"
+    },
+    {
+      "path": "scripts/observe-setter-symbol-invariant.mjs",
+      "sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad"
+    },
+    {
+      "path": "target/freeze-defineproperty-readonly-first-runtime-after.py",
+      "sha256": "da6ae4c1c103a3cbdca2699fc92678f77c7b1a13eef8b24a716c606ed9ec71a8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-amended-exit.json",
+      "sha256": "d894d7fc4feb4df0e96bceb950a10b2c8171ea081c703b9327a50ba1d6a041ad"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-amended-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-amended-prelaunch.json",
+      "sha256": "c76657ea3a021f9adba9e53df7817d7b419e159a1beb1b09f001d91f4f85e0e3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-amended.log",
+      "sha256": "e8928cfa102bc3fc056e4aadc899c45b54ed019a0ab4a2f59706911507f7177c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-exit.json",
+      "sha256": "28892177442ef6810214af485f83b065ad791810f36ca9d62b0acb21453604d3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-after-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-caller-census.json",
+      "sha256": "57a8a9c1b4a6407819fcb75e3d813622cde5ed580ae0fda5e9e24387c2083982"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-caller-ledger-audit.json",
+      "sha256": "4d69cf86d3a7e3f5121d80c13847b24d35eb37864f33ca19bf2ad5d3d5b2f9cb"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-readiness.log",
+      "sha256": "2a279bdfb02015f75c0c86430a7f31d3c4724481a5b31a9b826083eb0f20fdf5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-runtime-caller-audit.json",
+      "sha256": "f79a8988b159d59966ef0e86ead8c0ed3728bc083510fccae0d7a882423635c5"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-readonly-first-runtime-after-bfqtcq6t"
+}

@@ -2021,7 +2021,7 @@ fn homomorphic_mapped_inference_builds_lazy_reverse_members() {
                 state.tables.intrinsics.number
             );
             assert!(state.symbol_flags(b).intersects(SymbolFlags::OPTIONAL));
-            assert!(state.is_readonly_symbol(b));
+            assert!(state.is_readonly_symbol(b).expect("readonly symbol query"));
         },
     );
 }

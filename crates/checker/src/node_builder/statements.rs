@@ -4650,8 +4650,14 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .transpose()?
             .flatten()
         {
-            let same_readonly = self.checker.is_readonly_symbol(base_property)
-                == self.checker.is_readonly_symbol(property);
+            let same_readonly = self
+                .checker
+                .is_readonly_symbol(base_property)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
+                == self
+                    .checker
+                    .is_readonly_symbol(property)
+                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
             let same_optional = self
                 .checker
                 .symbol_flags(base_property)
@@ -4887,14 +4893,17 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .flags
             .intersects(SymbolFlags::PROPERTY | SymbolFlags::VARIABLE | SymbolFlags::ACCESSOR)
         {
-            let modifier_flags = ModifierFlags::from_bits(
-                flag.bits()
-                    | if self.checker.is_readonly_symbol(property) {
-                        ModifierFlags::READONLY.bits()
-                    } else {
-                        0
-                    },
-            );
+            let modifier_flags =
+                ModifierFlags::from_bits(
+                    flag.bits()
+                        | if self.checker.is_readonly_symbol(property).map_err(|abort| {
+                            checker_abort_error(self.checker, self.context, abort)
+                        })? {
+                            ModifierFlags::READONLY.bits()
+                        } else {
+                            0
+                        },
+                );
             let property_type = self
                 .checker
                 .get_write_type_of_symbol(property)
@@ -4987,7 +4996,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             if omit_type {
                 let modifier_flags = ModifierFlags::from_bits(
                     flag.bits()
-                        | if self.checker.is_readonly_symbol(property) {
+                        | if self.checker.is_readonly_symbol(property).map_err(|abort| {
+                            checker_abort_error(self.checker, self.context, abort)
+                        })? {
                             ModifierFlags::READONLY.bits()
                         } else {
                             0

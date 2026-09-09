@@ -10,9 +10,9 @@
 use tsc_binder::SymbolId;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    AccessFlags, CheckFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
-    IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags, ObjectFlags,
-    PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
+    AccessFlags, CheckFlags, CheckMode, ElementFlags, IndexFlags, InferenceFlags,
+    InferencePriority, IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags,
+    ObjectFlags, PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
     TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
@@ -2197,8 +2197,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(Ternary::FALSE);
         }
         if self.relation == RelationKind::StrictSubtype
-            && self.st.is_readonly_symbol(source_prop)
-            && !self.st.is_readonly_symbol(target_prop)
+            && self.st.is_readonly_symbol(source_prop)?
+            && !self.st.is_readonly_symbol(target_prop)?
         {
             return Ok(Ternary::FALSE);
         }
@@ -2942,7 +2942,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             return Ok(Ternary::FALSE);
         }
-        if self.st.is_readonly_symbol(source_prop) != self.st.is_readonly_symbol(target_prop) {
+        if self.st.is_readonly_symbol(source_prop)? != self.st.is_readonly_symbol(target_prop)? {
             return Ok(Ternary::FALSE);
         }
         let source_type = self.st.get_non_missing_type_of_symbol(source_prop)?;
@@ -5260,9 +5260,9 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => {}
                 }
-                if is_union && self.is_readonly_symbol(prop) {
+                if is_union && self.is_readonly_symbol(prop)? {
                     check_flags |= CheckFlags::READONLY.bits();
-                } else if !is_union && !self.is_readonly_symbol(prop) {
+                } else if !is_union && !self.is_readonly_symbol(prop)? {
                     check_flags &= !CheckFlags::READONLY.bits();
                 }
                 // 59148-59152: fold the member's declared modifiers.
@@ -5536,7 +5536,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+        if self.is_readonly_symbol(source_prop)? != self.is_readonly_symbol(target_prop)? {
             return Ok(false);
         }
         let source_type = self.get_non_missing_type_of_symbol(source_prop)?;
@@ -5629,17 +5629,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f4bb3512724bb23e8f837910378f78347824481f39847034aec8d8fdf8cf6f3b
     /// tsc-span: _tsc.js:79253-79255
     ///
-    /// Full port (the M3 property-modifier slice widened at 5.5a with
-    /// its checkIdentifier/delete consumers): readonly check flags,
-    /// readonly properties (through the 5.3e modifier-flags reader),
-    /// const/using variables, get-only accessors, enum members, and
-    /// the syntax-decidable Object.defineProperty assignment faces.
-    pub fn is_readonly_symbol(&self, symbol: SymbolId) -> bool {
+    /// Short-circuit the symbol flags before querying assignment descriptor
+    /// types. Declaration order and the first checker abort are preserved.
+    pub fn is_readonly_symbol(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         if self
             .get_check_flags(symbol)
             .intersects(CheckFlags::READONLY)
         {
-            return true;
+            return Ok(true);
         }
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::PROPERTY)
@@ -5647,91 +5644,82 @@ impl<'a> CheckerState<'a> {
                 .get_declaration_modifier_flags_from_symbol(symbol)
                 .intersects(ModifierFlags::READONLY)
         {
-            return true;
+            return Ok(true);
         }
         if flags.intersects(SymbolFlags::VARIABLE)
             && self.get_declaration_node_flags_from_symbol(symbol)
                 & (tsc_types::NodeFlags::CONST.bits() | tsc_types::NodeFlags::USING.bits())
                 != 0
         {
-            return true;
+            return Ok(true);
         }
         if flags.intersects(SymbolFlags::ACCESSOR) && !flags.intersects(SymbolFlags::SET_ACCESSOR) {
-            return true;
+            return Ok(true);
         }
-        flags.intersects(SymbolFlags::ENUM_MEMBER)
-            || self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| self.is_readonly_assignment_declaration(declaration))
+        if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+            return Ok(true);
+        }
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            if self.is_readonly_assignment_declaration(declaration)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// tsc-port: isReadonlyAssignmentDeclaration @6.0.3
     /// tsc-hash: b24314da6ed2383d7effcd36e7298f7bfc7a28b6ac97beaecf56c41759ef0c4c
     /// tsc-span: _tsc.js:79226-79252
     ///
-    /// The literal-descriptor subset. A `value`
-    /// descriptor is readonly when `writable` is absent or literally
-    /// false; an accessor descriptor is readonly when it has no
-    /// setter. Dynamic `writable` expressions remain conservative
-    /// until their full type query is needed by the corpus.
-    fn is_readonly_assignment_declaration(&self, declaration: NodeId) -> bool {
+    /// Named properties come from the descriptor's type, including nonliteral
+    /// descriptors. A present `value` type (even undefined) selects the data
+    /// branch; only exact fresh/regular false types make `writable` false.
+    fn is_readonly_assignment_declaration(&mut self, declaration: NodeId) -> CheckResult<bool> {
         if self.kind_of(declaration) != SyntaxKind::CallExpression {
-            return false;
+            return Ok(false);
         }
         let source = self.binder.source_of_node(declaration);
-        if !matches!(
-            tsc_binder::get_assignment_declaration_kind(source, declaration),
-            tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
-                | tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
-                | tsc_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
-        ) {
-            return false;
+        if !tsc_binder::assignment::is_bindable_object_define_property_call(source, declaration) {
+            return Ok(false);
         }
         let NodeData::CallExpression(call) = self.data_of(declaration) else {
-            return false;
+            unreachable!("bindable defineProperty call has call data");
         };
-        let Some(descriptor) = call
-            .arguments
-            .and_then(|arguments| self.nodes_of(Some(arguments)).get(2).copied())
-        else {
-            return false;
-        };
-        let NodeData::ObjectLiteralExpression(descriptor) = self.data_of(descriptor) else {
-            return false;
-        };
-        let mut has_value = false;
-        let mut has_set = false;
-        let mut writable = None;
-        for property in self.nodes_of(descriptor.properties) {
-            let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, property)
-            else {
-                continue;
-            };
-            let name = tsc_binder::node_util::declaration_name_to_string(source, Some(name));
-            match name.as_str() {
-                "value" => has_value = true,
-                "set" => has_set = true,
-                "writable" => {
-                    writable = match self.data_of(property) {
-                        NodeData::PropertyAssignment(data) => data
-                            .initializer
-                            .map(|initializer| self.kind_of(initializer)),
-                        _ => Some(SyntaxKind::Unknown),
-                    };
-                }
-                _ => {}
+        let descriptor = self.nodes_of(call.arguments)[2];
+        let descriptor_type = self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
+        if self
+            .get_type_of_property_of_type(descriptor_type, "value")?
+            .is_some()
+        {
+            let writable = self.get_property_of_type_full(descriptor_type, "writable")?;
+            let writable_type = writable
+                .map(|property| self.get_type_of_symbol(property))
+                .transpose()?;
+            if writable_type.is_none()
+                || writable_type == Some(self.tables.intrinsics.false_fresh)
+                || writable_type == Some(self.tables.intrinsics.false_regular)
+            {
+                return Ok(true);
             }
+            if let Some(declaration) =
+                writable.and_then(|property| self.binder.symbol(property).value_declaration)
+            {
+                if let NodeData::PropertyAssignment(data) = self.data_of(declaration) {
+                    let initializer = data.initializer.expect("property assignment initializer");
+                    let raw_type = self.check_expression(initializer, CheckMode::NORMAL)?;
+                    if raw_type == self.tables.intrinsics.false_fresh
+                        || raw_type == self.tables.intrinsics.false_regular
+                    {
+                        return Ok(true);
+                    }
+                }
+            }
+            return Ok(false);
         }
-        if has_value {
-            return match writable {
-                None | Some(SyntaxKind::FalseKeyword) => true,
-                Some(_) => false,
-            };
-        }
-        !has_set
+        Ok(self
+            .get_property_of_type_full(descriptor_type, "set")?
+            .is_none())
     }
 
     /// tsc getDeclarationNodeFlagsFromSymbol (13712): combined node
@@ -6639,7 +6627,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+        if self.is_readonly_symbol(source_prop)? != self.is_readonly_symbol(target_prop)? {
             return Ok(false);
         }
         let source_type = self.get_non_missing_type_of_symbol(source_prop)?;

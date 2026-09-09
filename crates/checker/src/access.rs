@@ -3098,7 +3098,7 @@ impl<'a> CheckerState<'a> {
         if assignment_kind == crate::expr::AssignmentKind::None {
             return Ok(false);
         }
-        if self.is_readonly_symbol(symbol) {
+        if self.is_readonly_symbol(symbol)? {
             if self
                 .binder
                 .symbol(symbol)

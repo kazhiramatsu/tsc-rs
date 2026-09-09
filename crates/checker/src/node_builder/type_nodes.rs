@@ -4464,7 +4464,9 @@ fn add_property_to_element_list(
             .get_properties_of_type_full(property_type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
             .is_empty()
-        && !checker.is_readonly_symbol(property)
+        && !checker
+            .is_readonly_symbol(property)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
     {
         let callable_type = checker.tables.filter_type(property_type, |tables, ty| {
             !tables.flags_of(ty).intersects(TypeFlags::UNDEFINED)
@@ -4537,7 +4539,10 @@ fn add_property_to_element_list(
             SyntaxKind::AnyKeyword,
         )?)
     };
-    let modifiers = if checker.is_readonly_symbol(property) {
+    let modifiers = if checker
+        .is_readonly_symbol(property)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+    {
         add_approximate_length(context, 9);
         Some(vec![create_token(
             arena,

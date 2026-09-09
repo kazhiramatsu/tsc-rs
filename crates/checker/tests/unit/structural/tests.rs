@@ -2204,3 +2204,114 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
         "non-firing siblings remain clean"
     );
 }
+
+#[test]
+fn defineproperty_readonly_queries_the_descriptor_type() {
+    let source = "class Foo {}\nconst descriptor = { value: 1, writable: false };\nObject.defineProperty(Foo.prototype, \"x\", descriptor);";
+    crate::state::test_support::with_program_state(
+        &[("/main.js", source)],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let call = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| {
+                    tsc_binder::assignment::is_bindable_object_define_property_call(
+                        state.binder.source(0),
+                        node,
+                    )
+                })
+                .unwrap();
+            let tsc_syntax::NodeData::CallExpression(call_data) = state.data_of(call) else {
+                unreachable!()
+            };
+            let descriptor = state.nodes_of(call_data.arguments)[2];
+            assert!(state
+                .links
+                .node(descriptor)
+                .resolved_type
+                .resolved()
+                .is_none());
+            let readonly = state
+                .is_readonly_assignment_declaration(call)
+                .expect("readonly descriptor query");
+            assert!(
+                state
+                    .links
+                    .node(descriptor)
+                    .resolved_type
+                    .resolved()
+                    .is_some(),
+                "descriptor type was not queried"
+            );
+            assert!(readonly);
+        },
+    );
+}
+
+#[test]
+fn defineproperty_readonly_call_guards_omit_the_descriptor_query() {
+    for (source, use_descriptor_as_declaration) in [
+        (
+            "class Foo {}\nReflect.defineProperty(Foo.prototype, \"x\", { value: 1 });",
+            false,
+        ),
+        (
+            "class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", { value: 1 }, true);",
+            false,
+        ),
+        (
+            "class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", { value: 1 });",
+            true,
+        ),
+    ] {
+        crate::state::test_support::with_program_state(
+            &[("/main.js", source)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                let call = state
+                    .binder
+                    .source(0)
+                    .arena
+                    .node_ids()
+                    .find(|&node| state.kind_of(node) == tsc_syntax::SyntaxKind::CallExpression)
+                    .unwrap();
+                let tsc_syntax::NodeData::CallExpression(call_data) = state.data_of(call) else {
+                    unreachable!()
+                };
+                let descriptor = state.nodes_of(call_data.arguments)[2];
+                assert!(state
+                    .links
+                    .node(descriptor)
+                    .resolved_type
+                    .resolved()
+                    .is_none());
+                let declaration = if use_descriptor_as_declaration {
+                    descriptor
+                } else {
+                    call
+                };
+                let readonly = state
+                    .is_readonly_assignment_declaration(declaration)
+                    .expect("readonly descriptor query");
+                assert!(!readonly);
+                assert!(state
+                    .links
+                    .node(descriptor)
+                    .resolved_type
+                    .resolved()
+                    .is_none());
+            },
+        );
+    }
+}

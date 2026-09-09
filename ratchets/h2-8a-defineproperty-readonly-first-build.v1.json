@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "status": "native-test-setup-compile-failure-zero-executions",
+  "base": "b89c73fe675da10934c8be78580545c23c383fa2",
+  "error": "two E0308: CompilerOptions.allow_js is bool; new native tests supplied Some(true)",
+  "native_tests_executed": 0,
+  "native_complete_commands_executed": 0,
+  "exit": {
+    "manifest": "target/h2-8a-defineproperty-readonly-before-prelaunch.json",
+    "manifest_sha256": "15a66a1d05a4799638784cd23f8c76d6a7a495126a9c5d8e7f09931a8cb03d42",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-compiler",
+      "-p",
+      "tsc-rs-checker",
+      "--lib",
+      "--test",
+      "contracts",
+      "--test",
+      "h2_8a_original_corpus",
+      "--no-fail-fast",
+      "--",
+      "defineproperty_readonly",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 60.4277179579949,
+    "log": "target/h2-8a-defineproperty-readonly-before.log",
+    "log_sha256": "89607b37768b7677e916d18130105f6701750f8e0950fb53572d012733dda1bb"
+  },
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-readonly-first-build-yoe716sd",
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "ee7aea6a75fcab25644c0b49f3357d9f77cb2467bb4ae5da052b7f69f68b6f24"
+    },
+    {
+      "path": "crates/checker/src/engine.rs",
+      "sha256": "9715ad017afd9b9f79ae725b1ed09ff6f52f77f765244edd1eabccd89c66253e"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "3c4501f03c97c22f02de58b7f7802ed18cd64ba0cd06f2a6a975890ef49f744c"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "sha256": "2512b1419ac689d761a71731d41ce9b870b7810a267023720907316c1dcc6406"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "1e7ec2bf7c4cfe1a9182150e825d67068e5827490be48b89bf1a389772d0f8b0"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "sha256": "199e222546267ad6f1a98d2edc86f9106a7ff1822f7aa8ce4147ecafba24e56c"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "0209074e09bbaf56eb92ca5805ac099592eef764cc4d87a9d090700bd5ce8b03"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "1f5025d1d60c9c87d0e2e8bfba0f4b614da4b245c696c2f9cb80e11c2ec3bbfb"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/tests/unit/structural/tests.rs",
+      "sha256": "cf808c613632c6bd491074b549b5eef54df1ee4913cfeb1d6cc7bd815c41a0cd"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "6fb82ef19a4b1e34d1858cd61eee2370cb9b4014a251c545ec5fcb48e02e2b9a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly.json",
+      "sha256": "114ef087a19f5e1f4f1fa27dc828b17a240a6776ad0b49455616d68dc2584a35"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "986dfd167f2ca9a49498e56e2fa749e6c55c02fc6e551214ce910ce8f5dd7b6d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs",
+      "sha256": "afd5b18d70e2fe3ad41ae5efed8148ecd6a0240aaa5e7744f88acf8692a5fbd0"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-after.v1.json",
+      "sha256": "89e59a3babfc3e2b39868f9f3d87efe45a1dd736b8e14b53a0e439581008228d"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly.mjs",
+      "sha256": "eae7c9c632e75973855c615cb47990df74a18b6948aaace6b7e06090ce25647d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-before-exit.json",
+      "sha256": "6333a6fa4d72a277925c8f43a7da678e84d99b529540b840e066623cfcc7c17a"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-before-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-before-prelaunch.json",
+      "sha256": "15a66a1d05a4799638784cd23f8c76d6a7a495126a9c5d8e7f09931a8cb03d42"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-before.log",
+      "sha256": "89607b37768b7677e916d18130105f6701750f8e0950fb53572d012733dda1bb"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-native-before-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-plan.md",
+      "sha256": "4341eb845428561787ac46aee4b2202db4cdd51d2a8f062be37998cd141f82b4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-before-exit.json",
+      "sha256": "46506c1de0c8e592a04f8baa01c13d51d9a43defff3fd95cb89af21eb5acdab8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-before-prelaunch.json",
+      "sha256": "7e3ca29df829d20400edab5f3285d5b383097ab58432eb2af2bb38dcc3dab5ac"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-before.log",
+      "sha256": "22cc4048ac8c41e7e118a5be5dd7860042b6065aafddde34e29eb37c4de0d4ec"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-branch-audit.json",
+      "sha256": "bee7aac84ed8d25eaafb8fbcbc57d0e1437f39ed88ec91f5d6ce84bbd7f06942"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-check-exit.json",
+      "sha256": "302dfaabf14d9a8c4b7269492996509e6e23f1928af9eb59f28d1bf3dc961de4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-check-prelaunch.json",
+      "sha256": "cd87f61c07931ae617fec6cde407d631534562d958676eeb7a57376c4390a70d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-ts-check.log",
+      "sha256": "22cc4048ac8c41e7e118a5be5dd7860042b6065aafddde34e29eb37c4de0d4ec"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-upstream-owner-research.json",
+      "sha256": "d68051c36ef3912acaaa572aabdc7793e91be8900930817e94c8ab88c221f343"
+    },
+    {
+      "path": "target/prepare-defineproperty-readonly-before.py",
+      "sha256": "aac88185c82727302a0cd0e9f92d41d46534f8627e86ac588f4fe6458ae26d49"
+    },
+    {
+      "path": "target/prepare-defineproperty-readonly-native-controls.py",
+      "sha256": "29b5fddde5c7af5445a23c960b03cbbba9b6809d6f61308294185180dc0c38f4"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ]
+}

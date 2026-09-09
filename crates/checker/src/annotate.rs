@@ -4168,7 +4168,7 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .create_symbol(symbol_flags, source_symbol.escaped_name.clone());
                 let check_flags = CheckFlags::REVERSE_MAPPED
-                    | if readonly_mask && state.is_readonly_symbol(property) {
+                    | if readonly_mask && state.is_readonly_symbol(property)? {
                         CheckFlags::READONLY
                     } else {
                         CheckFlags::NONE

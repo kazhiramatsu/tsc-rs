@@ -290,3 +290,12 @@ fn original_defineproperty_setter_names_match_complete_commands() {
     );
     assert_eq!(exact.len(), 1);
 }
+
+#[test]
+fn original_defineproperty_readonly_adjacent_match_complete_commands() {
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &["typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default"],
+    );
+    assert_eq!(exact.len(), 1);
+}

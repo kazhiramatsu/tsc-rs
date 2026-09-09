@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-26-shared-prerequisite",
+  "base": "b89c73fe675da10934c8be78580545c23c383fa2",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/access.rs",
+    "crates/checker/src/annotate.rs",
+    "crates/checker/src/check.rs",
+    "crates/checker/src/expr.rs",
+    "crates/checker/src/functions.rs",
+    "crates/checker/src/links.rs",
+    "crates/checker/src/literals.rs",
+    "crates/checker/src/mapped.rs",
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/type_nodes.rs",
+    "crates/checker/src/structural.rs"
+  ],
+  "additional_production_path": "crates/checker/src/links.rs",
+  "steps": [
+    "A6-26-4",
+    "A6-26-5"
+  ],
+  "owners": [
+    {
+      "owner": "isReadonlyAssignmentDeclaration",
+      "start": 79226,
+      "end": 79252,
+      "sha256": "b24314da6ed2383d7effcd36e7298f7bfc7a28b6ac97beaecf56c41759ef0c4c"
+    },
+    {
+      "owner": "isReadonlySymbol",
+      "start": 79253,
+      "end": 79255,
+      "sha256": "f4bb3512724bb23e8f837910378f78347824481f39847034aec8d8fdf8cf6f3b"
+    },
+    {
+      "owner": "isBindableObjectDefinePropertyCall",
+      "start": 15059,
+      "end": 15065,
+      "sha256": "11b59e7edd8f66683d81b05c7488aa75a2404cf5328472fffb75d1a94f2cb2a9"
+    },
+    {
+      "owner": "getTypeOfPropertyOfType",
+      "start": 55803,
+      "end": 55806,
+      "sha256": "ddd47344f8b1b3d0de20c2241560a370790f21248f978ea95d10914e91566057"
+    },
+    {
+      "owner": "getPropertyOfType",
+      "start": 59348,
+      "end": 59389,
+      "sha256": "39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a"
+    },
+    {
+      "owner": "getTypeOfSymbol",
+      "start": 56945,
+      "end": 56975,
+      "sha256": "36123c37428ab9dcfb6c89ba1c42dbf1a5461becdfdade097ed545e21b50bfd7"
+    },
+    {
+      "owner": "checkExpressionCached",
+      "start": 80580,
+      "end": 80595,
+      "sha256": "d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178"
+    },
+    {
+      "owner": "checkExpression",
+      "start": 80960,
+      "end": 80974,
+      "sha256": "b56997759c77785af8c96e94324267893636cd83bfdc656d059ef139e4cd71ac"
+    },
+    {
+      "owner": "getCheckFlags",
+      "start": 17433,
+      "end": 17435,
+      "sha256": "a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4"
+    },
+    {
+      "owner": "getDeclarationModifierFlagsFromSymbol",
+      "start": 17436,
+      "end": 17452,
+      "sha256": "640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d"
+    },
+    {
+      "owner": "getDeclarationNodeFlagsFromSymbol",
+      "start": 74859,
+      "end": 74861,
+      "sha256": "a19a53639783b499d7b4b2741669b1b24e90e46a22e849eb4edf43b60c79042b"
+    },
+    {
+      "owner": "isAssignmentToReadonlyEntity",
+      "start": 79256,
+      "end": 79290,
+      "sha256": "2381c469899908deddba8fbd4bbc7ce0898d86865a1e6f19062ef7f8166720de"
+    },
+    {
+      "owner": "resolveReverseMappedTypeMembers",
+      "start": 58423,
+      "end": 58455,
+      "sha256": "9c2b1ea3f2113f2c77230deba94d6bda93f3a13f722929468e52407b4525146c"
+    },
+    {
+      "owner": "getSpreadSymbol",
+      "start": 63044,
+      "end": 63056,
+      "sha256": "081b8438c5ab6cb37771a452a7f336cc67ee020d921994fcd1e6cc09100e97f9"
+    },
+    {
+      "owner": "addPropertyToElementList",
+      "start": 52241,
+      "end": 52397,
+      "sha256": "6c6b916aa8ce07acd5ac0ba435bbb827fea9ee957fdaf3e2843643414cba7580"
+    },
+    {
+      "owner": "isConstantReference",
+      "start": 70374,
+      "end": 70393,
+      "sha256": "63298ed7776bb8e07259b2d8bb0051c1ce8c9e2f1e4be5517b1c15c6eca65e81"
+    },
+    {
+      "owner": "propertyRelatedTo",
+      "start": 66663,
+      "end": 66707,
+      "sha256": "19d5c6a584328bf185f97857552fb6e2d018cee9a73a975a40b8decf71d676da"
+    },
+    {
+      "owner": "compareProperties",
+      "start": 67536,
+      "end": 67558,
+      "sha256": "42f04303574ccb64448bdeda07e716852dbca284333cf3f172159a566c991bb9"
+    },
+    {
+      "owner": "createUnionOrIntersectionProperty",
+      "start": 59101,
+      "end": 59245,
+      "sha256": "21791f74b0558b599db3de8950d26bd93152bbb62c3e250727503334167bf713"
+    },
+    {
+      "owner": "isPropertyIdenticalTo",
+      "start": 67533,
+      "end": 67535,
+      "sha256": "e5bc0670b1b176c446db71d2ecbd36ba6cdc4903be20e3bb2ac807ec25c89652"
+    },
+    {
+      "owner": "addMemberForKeyTypeWorker",
+      "start": 58539,
+      "end": 58575,
+      "sha256": "cffc0b4ecb403dd48564a65c1fdcfaa1388a7fd5b8a78ef6b82daeb1c648a6ac"
+    },
+    {
+      "owner": "checkIdentifier",
+      "start": 72126,
+      "end": 72213,
+      "sha256": "9fe9fcc0b033367436dd525613db28f5705a42f8428a97215ce75bef6e985875"
+    },
+    {
+      "owner": "checkDeleteExpression",
+      "start": 79303,
+      "end": 79323,
+      "sha256": "098796e01bc1bebf86af1a1f3845547ec8ed79951a6b573798b6fbaae6ac96e9"
+    },
+    {
+      "owner": "makeSerializePropertySymbol",
+      "start": 55099,
+      "end": 55229,
+      "sha256": "fab03df95bee26e871b1bc817932eb99b58a9c262f37009266cc1a5291f817a7"
+    },
+    {
+      "owner": "reportNonexistentProperty",
+      "start": 75416,
+      "end": 75470,
+      "sha256": "307d53095640744e1815787c33792c951a7a0c7fc169193870ec78298aca5f7c"
+    },
+    {
+      "owner": "typeToString",
+      "start": 50717,
+      "end": 50747,
+      "sha256": "4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ENTRY",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CONTEXT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-POSITIONS",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "crates/checker/tests/unit/speculate/tests.rs",
+      "sha256": "f6a0c8ee12b78da0d3b13d1fc06547e769c3e5fcaa251db871593011d2375527"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-nonexistent-property-cache.md",
+      "sha256": "9a2f4eae05de980b1772433e5fd5272484d2e58aa7fc7c07d327b709d72c8842"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-checker-first-after.v1.json",
+      "sha256": "e462eb73160be22def5d622f53c93752db081a24f53835a563f1f2066b050ef3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-first-runtime-after.v1.json",
+      "sha256": "a5959c084a32486a917ba83ef3c1f6c09642fa5c866985a9d4a6aeaccae4b331"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-readiness.v1.json",
+      "sha256": "2dff56f25eac3dca349e19adffeb06c8372d9735bf97f752117d425853cc5f78"
+    },
+    {
+      "path": "ratchets/h2-8a-nonexistent-property-cache-native-before.v1.json",
+      "sha256": "f938b867e9a955c611412b899696beae8bc8ecaa5ab03385159897f245acdad5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-cycle-stack.json",
+      "sha256": "6cbf71a7f14bef015aa1ab125c848fbf7f5c1375f47de1111b917eb4cfa2d1ae"
+    },
+    {
+      "path": "target/h2-8a-nonexistent-property-cache-source-audit.json",
+      "sha256": "53747f905474b508d3da0d3feeb00e750b77e4876fc81b18b8b66512e0ec8534"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/speculate.rs",
+      "sha256": "bb8047b7e134103260e376c79dcd776c372efcd9a1b4e73fadd809086fe7a260"
+    }
+  ],
+  "initial_runtime_snapshot": [
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "7a5f92a0bbd5930abee7274a96a7745934eb554382f074b232f571392baf7673"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "7146e8670b2c6acdb3a51ea3df434f26846592c4620fa30fac091f6f3d56cc4e"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "6ac7927dc7eb5e5b4b6413900c4cc588c94cf281b486a769fff22a74812074e7"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "d8647a5b87b5a773e0f461b97767ab7347bdc081e5fcf4d960bb2dff2b768513"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "sha256": "c994fa4d8e59468d9b035895fac8dbde0dbb1c960df4771251f4b8c6bd43c514"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "4d70f96e599d87b9242741e063189b0796369cc9da3815b85a395a584539f808"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "sha256": "526368a2488bfd0cd590af59a81c4dbe32ae684e5b93afb2bf5f3c131cbbc88a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "7cd6d0018af4b33e8db2a566449089f63097769c4bc12ddf05e0ba86921af801"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "747f784c3fac9f4f184ffa038138a0f0e06519c87d4a267b5fd0d61c70958908"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "f7c1a4247ab563c0ff6fb2705e7cb9a4b2e06b0024c26a76be700c4d778b76ab"
+    }
+  ],
+  "native_before_tests": 2,
+  "required_full_checker_tests": 1720,
+  "required_final_complete_commands": 502,
+  "required_owned_and_positive_exact_twice": 501,
+  "optional_unchanged_outside_case": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+  "probe_required_before_full_replay": true,
+  "journal_restored_on": [
+    "Commit",
+    "Rollback",
+    "Reject",
+    "CheckAbort"
+  ],
+  "native_rollback_policy": "New diagnostic keys are visible within each candidate and restored at every boundary; never remove preexisting outer/global keys."
+}

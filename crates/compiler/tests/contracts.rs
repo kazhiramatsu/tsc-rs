@@ -201,6 +201,10 @@ mod h2_8a_module_transformer_selection;
 
 #[path = "integration/h2_8a_binding_name_map_ranges.rs"]
 mod h2_8a_binding_name_map_ranges;
+#[path = "integration/h2_8a_defineproperty_readonly.rs"]
+mod h2_8a_defineproperty_readonly;
+#[path = "integration/h2_8a_defineproperty_readonly_exports.rs"]
+mod h2_8a_defineproperty_readonly_exports;
 #[path = "integration/h2_8a_defineproperty_setter_annotations.rs"]
 mod h2_8a_defineproperty_setter_annotations;
 #[path = "integration/h2_8a_defineproperty_setter_names.rs"]
