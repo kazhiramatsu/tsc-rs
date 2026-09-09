@@ -1062,56 +1062,6 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         Ok(())
     }
 
-    /// tsc-port: moveRangePastModifiers @6.0.3
-    /// tsc-hash: 73817b5909d5365c19c1e4a239cd76eb22760d3d4e3670127916de190d11df7a
-    /// tsc-span: _tsc.js:17311-17318
-    fn source_map_range_past_original_modifiers(
-        &self,
-        node: TransformNode,
-    ) -> Result<SourceMapRange, TransformError> {
-        let original = self.context.arena().get_original_node(node);
-        let record = self.context.arena().node(original)?;
-        let (name, modifiers) = match &record.data {
-            NodeData::PropertyDeclaration(data) => (data.name, data.modifiers),
-            NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
-            NodeData::GetAccessor(data) => (None, data.modifiers),
-            NodeData::SetAccessor(data) => (None, data.modifiers),
-            NodeData::ClassDeclaration(data) => (None, data.modifiers),
-            NodeData::ClassExpression(data) => (None, data.modifiers),
-            _ => (None, None),
-        };
-        let start = if matches!(
-            record.kind,
-            SyntaxKind::PropertyDeclaration | SyntaxKind::MethodDeclaration
-        ) {
-            name.and_then(|name| self.context.arena().node_ref(original.source(), name))
-                .map(|name| self.context.arena().node(name).map(|record| record.pos))
-                .transpose()?
-                .unwrap_or(record.pos)
-        } else {
-            self.array_nodes(modifiers)?
-                .last()
-                .map(|modifier| {
-                    self.context
-                        .arena()
-                        .node(*modifier)
-                        .map(|record| record.end)
-                })
-                .transpose()?
-                .filter(|end| *end != u32::MAX)
-                .unwrap_or(record.pos)
-        };
-        let source = self.context.arena().source(original.source())?.syntax();
-        let range =
-            SourceRange::from_raw(start, record.end, source.positions()).map_err(|error| {
-                TransformError::InvalidSourceRange {
-                    node: original,
-                    error,
-                }
-            })?;
-        Ok(SourceMapRange::new(original.source(), range))
-    }
-
     fn set_comment_range_from(
         &mut self,
         node: TransformNode,
@@ -5416,21 +5366,6 @@ impl Es2015Visitor<'_, '_, '_> {
             HierarchyFacts::NONE,
             HierarchyFacts::NONE,
         );
-        if is_type_script_class_wrapper {
-            if let Some(updated) = updated {
-                let original = self.context.arena().get_original_node(node);
-                if matches!(
-                    self.context.arena().node(original)?.kind,
-                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                ) {
-                    let range = self.source_map_range_past_original_modifiers(original)?;
-                    self.context
-                        .arena_mut()?
-                        .metadata_mut(updated)
-                        .set_source_map_range(range);
-                }
-            }
-        }
         Ok(updated)
     }
 
@@ -8436,6 +8371,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 close_brace_start,
                 close_brace_start.wrapping_add(1),
             )?;
+            self.set_comment_range_raw(created, u32::MAX, close_brace_start.wrapping_add(1))?;
             created
         };
         // setTextRangeEnd(outer, closingBraceLocation.end) — an END-only
@@ -8451,6 +8387,7 @@ impl Es2015Visitor<'_, '_, '_> {
             close_brace_start,
             close_brace_start.wrapping_add(1),
         )?;
+        self.set_comment_range_raw(return_statement, close_brace_start, u32::MAX)?;
         // setTextRangePos(statement, closingBraceLocation.pos) — a
         // POS-only range upstream (end stays -1): the trailing map side
         // is suppressed.
@@ -8555,6 +8492,30 @@ impl Es2015Visitor<'_, '_, '_> {
                 .factory()?
                 .set_text_range_from_source_range(node, self.source, range)?;
         }
+        Ok(())
+    }
+
+    /// Preserve the comment positions independently of the paired raw encoding
+    /// used for source maps on generated class wrappers and return statements.
+    ///
+    /// tsc-port: transformClassBody @6.0.3
+    /// tsc-hash: 9850847f0d39924ad08a7fd966626be67f88fa17b9f4d723c340dace16e67454
+    /// tsc-span: _tsc.js:105221-105249
+    fn set_comment_range_raw(
+        &mut self,
+        node: TransformNode,
+        start: u32,
+        end: u32,
+    ) -> Result<(), TransformError> {
+        let range = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            CommentRange::from_raw(self.source, start, end, source.positions())
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(range);
         Ok(())
     }
 
@@ -8982,6 +8943,9 @@ enum PartiallyEmittedPosition {
 }
 
 impl Es2015Visitor<'_, '_, '_> {
+    /// tsc-port: transformClassLikeDeclarationToExpression @6.0.3
+    /// tsc-hash: 73df944ac57dd513d2f9038860b0430ee225c3058023329eb4563f96d4fb7595
+    /// tsc-span: _tsc.js:105178-105220
     fn create_partially_emitted_expression_positioned(
         &mut self,
         expression: TransformNode,
@@ -9011,6 +8975,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 // flag (h2-6a-m-2 §4, review F4: upstream skips a Before
                 // record for pos < 0).
                 self.set_range_raw(created, node_end, node_end)?;
+                self.set_comment_range_raw(created, u32::MAX, node_end)?;
                 self.context
                     .arena_mut()?
                     .metadata_mut(created)
@@ -9025,6 +8990,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 // draft's trailing-side pairing).
                 let skipped = skip_trivia_bytes(&self.current_text, node_pos);
                 self.set_range_raw(created, skipped, skipped)?;
+                self.set_comment_range_raw(created, u32::MAX, skipped)?;
                 self.context
                     .arena_mut()?
                     .metadata_mut(created)

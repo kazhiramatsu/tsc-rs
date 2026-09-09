@@ -455,6 +455,91 @@ use super::comment_cursor::{CommentCursor, CommentEmissionScope};
 use super::{CommentRange, SourceBytePosition, SourceByteRange, SourceRange};
 use tsc_syntax::SourceFile;
 
+#[test]
+fn comment_ranges_validate_independent_endpoints_and_preserve_source_identity() {
+    use crate::{CommentSourceRange, SourcePositionError};
+
+    let text = "/* 注 */ const café = '😀';\n";
+    let first = parse_source_file("first.ts", text, Default::default(), None);
+    let second = parse_source_file("second.ts", text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let first_id = arena.add_source(&first, None);
+    let second_id = arena.add_source(&second, None);
+    let positions = first.positions();
+    let end = positions.byte_len();
+    let token_start = text.find("const").unwrap() as u32;
+    let end_only = CommentRange::from_raw(first_id, u32::MAX, end, positions).unwrap();
+    let other = CommentRange::from_raw(second_id, u32::MAX, end, positions).unwrap();
+    assert_eq!(end_only.range(), other.range());
+    assert_ne!(end_only, other);
+    assert_eq!(end_only.source(), first_id);
+    assert_eq!(other.source(), second_id);
+    assert_eq!(end_only.range().start(), None);
+    assert_eq!(end_only.range().end().unwrap().value(), end);
+    assert!(end_only.range().has_nonempty_extent());
+    assert_eq!(
+        end_only
+            .range()
+            .leading_trivia_end(text, positions)
+            .unwrap(),
+        None
+    );
+
+    let start_only = CommentRange::from_raw(first_id, 0, u32::MAX, positions).unwrap();
+    assert_eq!(start_only.range().end(), None);
+    assert_eq!(
+        start_only
+            .range()
+            .leading_trivia_end(text, positions)
+            .unwrap()
+            .unwrap()
+            .value(),
+        token_start
+    );
+    assert!(!start_only.range().has_nonempty_extent());
+    let empty = CommentRange::from_raw(first_id, 0, 0, positions).unwrap();
+    assert_eq!(
+        empty
+            .range()
+            .leading_trivia_end(text, positions)
+            .unwrap()
+            .unwrap()
+            .value(),
+        0
+    );
+    assert!(!empty.range().has_nonempty_extent());
+    let paired = CommentRange::new(
+        first_id,
+        SourceRange::Original(SourceByteRange::new(0, end, positions).unwrap()),
+    );
+    assert!(matches!(paired.range(), CommentSourceRange::Original(_)));
+    assert!(paired.range().has_nonempty_extent());
+    let synthetic = CommentRange::from_raw(first_id, u32::MAX, u32::MAX, positions).unwrap();
+    assert_eq!(synthetic.range(), CommentSourceRange::Synthesized);
+
+    let inside_scalar = text.find('注').unwrap() as u32 + 1;
+    for (start, finish) in [(inside_scalar, u32::MAX), (u32::MAX, inside_scalar)] {
+        assert!(matches!(
+            CommentRange::from_raw(first_id, start, finish, positions),
+            Err(SourcePositionError::NotUnicodeScalarBoundary { .. })
+        ));
+    }
+    for (start, finish) in [(end + 1, u32::MAX), (u32::MAX, end + 1)] {
+        assert!(matches!(
+            CommentRange::from_raw(first_id, start, finish, positions),
+            Err(SourcePositionError::OutOfBounds { .. })
+        ));
+    }
+    assert!(matches!(
+        CommentRange::from_raw(first_id, end, token_start, positions),
+        Err(SourcePositionError::InvertedRange { .. })
+    ));
+    assert!(matches!(
+        SourceRange::from_raw(u32::MAX, end, positions),
+        Err(SourcePositionError::MixedSyntheticRange { .. })
+    ));
+}
+
 struct ScopeFixture {
     parsed: SourceFile,
     source: TransformSourceId,

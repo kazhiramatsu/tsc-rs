@@ -1,4 +1,4 @@
-use crate::{CommentRange, SourceBytePosition, SourceRange, TransformSourceId};
+use crate::{CommentRange, SourceBytePosition, TransformSourceId};
 
 /// A validated source position whose meaning is comment ownership progress.
 ///
@@ -154,24 +154,24 @@ impl CommentEmissionScope {
     /// guard (`pos !== containerPos`). Ranges the claim gate rejects have
     /// no position: tsc would never have claimed them.
     pub(crate) fn container_pos_of(container: CommentRange) -> Option<CommentCursor> {
-        match container.range() {
-            SourceRange::Original(range) if range.start() != range.end() => {
-                Some(CommentCursor::new(container.source(), range.start()))
-            }
-            _ => None,
-        }
+        let range = container.range();
+        range
+            .has_nonempty_extent()
+            .then(|| range.start())
+            .flatten()
+            .map(|start| CommentCursor::new(container.source(), start))
     }
 
     /// The `containerEnd` view of one container range, shared between the
     /// ambient guard and the per-side claim producer so they cannot drift
     /// apart.
     pub(crate) fn container_end_of(container: CommentRange) -> Option<CommentCursor> {
-        match container.range() {
-            SourceRange::Original(range) if range.start() != range.end() => {
-                Some(CommentCursor::new(container.source(), range.end()))
-            }
-            _ => None,
-        }
+        let range = container.range();
+        range
+            .has_nonempty_extent()
+            .then(|| range.end())
+            .flatten()
+            .map(|end| CommentCursor::new(container.source(), end))
     }
 
     /// The active `containerPos`, for the leading guard.

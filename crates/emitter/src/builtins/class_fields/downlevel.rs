@@ -17,11 +17,10 @@ use tsc_syntax::{
 use tsc_types::{NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName,
-    metadata::{ClassExpressionDeclarationOrigin, RelocatedTrailingCommentOwner},
-    CommentRange, EmitFlags, EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags,
-    LexicalEnvironmentFlags, SourceMapRange, SourceRange, TransformArena, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
+    factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
+    EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags, LexicalEnvironmentFlags,
+    SourceMapRange, SourceRange, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformSourceId, TransformationContext,
 };
 
 use super::super::{
@@ -326,8 +325,19 @@ impl PrivateEnvironment {
 #[derive(Clone)]
 struct StaticBindings {
     receiver: StaticReceiver,
+    this_substitution: StaticThisSubstitution,
     super_alias: Option<ClassBinding>,
     super_policy: StaticSuperPolicy,
+}
+
+/// Class-fields substitutes bound block receivers while visiting, but field
+/// receivers during emission. Only the latter clones the actual `this`
+/// location. This carries that position policy; ES5 lexical-capture phase
+/// composition remains owned by its separate transform boundary.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum StaticThisSubstitution {
+    Early,
+    Emit,
 }
 
 /// One resolved `super.name`/`super[key]` evaluation in a relocated static
@@ -1095,9 +1105,16 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 if let Some(bindings) = self.static_binding_frames.active() {
                     Some(match bindings.receiver {
                         StaticReceiver::Bound(binding) => {
-                            self.create_binding_identifier(&binding)?.node()
+                            let identifier = self.create_binding_identifier(&binding)?;
+                            if bindings.this_substitution == StaticThisSubstitution::Emit {
+                                self.set_original_and_range(identifier, original)?;
+                            }
+                            identifier.node()
                         }
-                        StaticReceiver::InvalidLegacyDecorated => self.create_void_zero()?.node(),
+                        StaticReceiver::InvalidLegacyDecorated => {
+                            let value = self.create_void_zero()?;
+                            self.create_parenthesized(value)?.node()
+                        }
                     })
                 } else {
                     Some(id)
@@ -1797,6 +1814,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassDeclarationData,
     ) -> Result<NodeId, TransformError> {
+        // Earlier passes can name an anonymous default class. Preserve that
+        // generated fallback separately from an explicit input identifier.
+        let original_class = self.context.arena().get_original_node(original);
+        let export_name = match &self.context.arena().node(original_class)?.data {
+            NodeData::ClassDeclaration(source) if source.name.is_some() => {
+                data.name.map(|name| self.node(name))
+            }
+            _ => None,
+        };
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
@@ -1927,7 +1953,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             parent: SyntaxKind::ClassDeclaration,
                             field: "default-export class local name",
                         })?;
-                trailing.push(self.create_export_default(local_name)?);
+                trailing.push(self.create_export_default(local_name, export_name)?);
             }
             self.expanded_statements.insert(
                 class.node(),
@@ -2744,6 +2770,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(None)
     }
 
+    /// tsc-port: visitClassExpressionInNewClassLexicalEnvironment @6.0.3
+    /// tsc-hash: 5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319
+    /// tsc-span: _tsc.js:97049-97129
     fn inline_class_expression(
         &mut self,
         expressions: Vec<TransformNode>,
@@ -2763,10 +2792,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let expression = self.inline_expressions(expressions)?;
         if self.inline_sequence_placement(original)? == InlineSequencePlacement::ExistingListContext
         {
-            self.set_original_and_range(expression, original)
+            Ok(expression)
         } else {
-            let parenthesized = self.create_parenthesized(expression)?;
-            self.set_original_and_range(parenthesized, original)
+            self.create_parenthesized(expression)
         }
     }
 
@@ -3818,10 +3846,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(facts)
     }
 
-    fn static_bindings(&self) -> Option<StaticBindings> {
+    fn static_bindings(&self, this_substitution: StaticThisSubstitution) -> Option<StaticBindings> {
         let environment = self.private_environments.last()?;
         Some(StaticBindings {
             receiver: environment.static_receiver.clone()?,
+            this_substitution,
             super_alias: environment.super_alias.clone(),
             super_policy: environment.static_super_policy,
         })
@@ -3848,6 +3877,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .expect("downlevel static auto-accessor owns a class constructor binding");
         StaticBindings {
             receiver: StaticReceiver::Bound(class_alias),
+            this_substitution: StaticThisSubstitution::Early,
             super_alias: environment.super_alias.clone(),
             super_policy: environment.static_super_policy,
         }
@@ -5533,12 +5563,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                                 field: "named-evaluation expression",
                             },
                         )?;
-                        let expression = self.visit_static_node(expression)?.ok_or(
-                            TransformError::RequiredChildRemoved {
+                        let expression = self
+                            .visit_static_node(expression, StaticThisSubstitution::Early)?
+                            .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ExpressionStatement,
                                 field: "visited named-evaluation expression",
-                            },
-                        )?;
+                            })?;
                         operations.static_.push(StaticOperation::NamedEvaluation {
                             original: Some(member),
                             expression,
@@ -5547,7 +5577,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     }
                     let (visited, bindings) = self.with_new_generated_scope(
                         GeneratedBindingOwner::StaticEvaluation,
-                        |visitor| visitor.visit_static_node(body.node()),
+                        |visitor| {
+                            visitor.visit_static_node(body.node(), StaticThisSubstitution::Early)
+                        },
                     )?;
                     let visited = visited.ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::ClassStaticBlockDeclaration,
@@ -6077,8 +6109,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 StaticOperation::Block { original, body } => {
                     let body = self.context.factory()?.set_multi_line(body, true)?;
                     let arrow = self.create_arrow_function(Vec::new(), body)?;
+                    // tsc-port: transformClassStaticBlockDeclaration @6.0.3
+                    // tsc-hash: 4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240
+                    // tsc-span: _tsc.js:96649-96682
+                    self.context
+                        .arena_mut()?
+                        .set_original_node(arrow, Some(original))?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(arrow)
+                        .add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
                     let arrow = self.create_parenthesized(arrow)?;
                     let call = self.create_call(arrow, Vec::new())?;
+                    self.set_original_and_range(call, original)?;
                     let statement = self.create_expression_statement(call)?;
                     self.set_original_and_range(statement, original)?;
                     statement
@@ -6613,13 +6656,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?)?,
         };
         let initializer = self.materialize_field_value(&operation.value)?;
-        if operation.value.has_runtime_value() {
-            self.context
-                .arena_mut()?
-                .metadata_mut(initializer)
-                .relocated_trailing_comment_owner =
-                Some(RelocatedTrailingCommentOwner::ClassFieldOperation);
-        }
         let expression = match self.mode {
             PublicFieldMode::Assignment => {
                 let target = self.create_member_access(receiver, operation.name)?;
@@ -8448,8 +8484,29 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )
     }
 
-    fn create_export_default(&mut self, local_name: &str) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(local_name)?;
+    /// The split default export uses getLocalName(false, true).
+    ///
+    /// tsc-port: getName @6.0.3
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-span: _tsc.js:24788-24799
+    fn create_export_default(
+        &mut self,
+        local_name: &str,
+        declaration_name: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let name = if let Some(declaration_name) = declaration_name {
+            let name = self.context.factory()?.clone_node(declaration_name)?;
+            self.context
+                .factory()?
+                .set_text_range(name, declaration_name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(name)
+                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME);
+            name
+        } else {
+            self.create_identifier(local_name)?
+        };
         self.context.factory()?.create_node(
             self.source,
             NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
@@ -8579,14 +8636,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         node: Option<NodeId>,
     ) -> Result<Option<NodeId>, TransformError> {
-        node.map(|node| self.visit_static_node(node))
+        node.map(|node| self.visit_static_node(node, StaticThisSubstitution::Emit))
             .transpose()
             .map(Option::flatten)
             .map(|node| node.map(TransformNode::node))
     }
 
-    fn visit_static_node(&mut self, node: NodeId) -> Result<Option<TransformNode>, TransformError> {
-        let bindings = self.static_bindings();
+    /// tsc-port: visitThisExpression @6.0.3
+    /// tsc-hash: c6695f5f1c6414e8dbafb40ca6167e734b4989333e5f63f499c80b486f3d6447
+    /// tsc-span: _tsc.js:97136-97142
+    /// tsc-port: substituteThisExpression @6.0.3
+    /// tsc-hash: fe580d6ad40d937b029554021a83349f0de8c2320c6c1b061068e8e1aad1d78c
+    /// tsc-span: _tsc.js:97999-98017
+    fn visit_static_node(
+        &mut self,
+        node: NodeId,
+        this_substitution: StaticThisSubstitution,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let bindings = self.static_bindings(this_substitution);
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::StaticEvaluation(bindings));

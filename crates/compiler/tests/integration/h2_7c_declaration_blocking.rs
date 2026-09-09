@@ -141,6 +141,9 @@ pub(super) fn assert_cases_with_inspection(
                         options.allow_synthetic_default_imports = value.as_bool()
                     }
                     "esModuleInterop" => options.es_module_interop = value.as_bool(),
+                    "experimentalDecorators" => {
+                        options.experimental_decorators = value.as_bool().unwrap()
+                    }
                     "useDefineForClassFields" => {
                         options.use_define_for_class_fields = value.as_bool()
                     }

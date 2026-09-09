@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
+use tsc_diagnostics::PositionIndex;
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    transform::GeneratedBindingId, SourceRange, TransformNode, TransformNodeArray,
-    TransformSourceId,
+    transform::GeneratedBindingId, SourceBytePosition, SourceByteRange, SourcePositionError,
+    SourceRange, TransformNode, TransformNodeArray, TransformSourceId,
 };
 
 /// Emitter-only node flags. They live in a sparse session table and never
@@ -131,7 +132,81 @@ pub struct SourceMapRange {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CommentRange {
     source: TransformSourceId,
-    range: SourceRange,
+    range: CommentSourceRange,
+}
+
+/// Comment ownership can carry either source endpoint independently.
+///
+/// These positions do not describe a source slice or a source-map range.
+/// Generated class wrappers use one real endpoint and one synthesized endpoint
+/// while still participating in the corresponding comment-container claim.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum CommentSourceRange {
+    Synthesized,
+    Original(SourceByteRange),
+    StartOnly(SourceBytePosition),
+    EndOnly(SourceBytePosition),
+}
+
+impl CommentSourceRange {
+    pub fn from_raw(
+        start: u32,
+        end: u32,
+        positions: &PositionIndex,
+    ) -> Result<Self, SourcePositionError> {
+        match (start == u32::MAX, end == u32::MAX) {
+            (true, true) => Ok(Self::Synthesized),
+            (false, true) => SourceBytePosition::new(start, positions).map(Self::StartOnly),
+            (true, false) => SourceBytePosition::new(end, positions).map(Self::EndOnly),
+            (false, false) => SourceByteRange::new(start, end, positions).map(Self::Original),
+        }
+    }
+
+    pub const fn start(self) -> Option<SourceBytePosition> {
+        match self {
+            Self::Original(range) => Some(range.start()),
+            Self::StartOnly(start) => Some(start),
+            Self::Synthesized | Self::EndOnly(_) => None,
+        }
+    }
+
+    pub const fn end(self) -> Option<SourceBytePosition> {
+        match self {
+            Self::Original(range) => Some(range.end()),
+            Self::EndOnly(end) => Some(end),
+            Self::Synthesized | Self::StartOnly(_) => None,
+        }
+    }
+
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    pub const fn has_nonempty_extent(self) -> bool {
+        match self {
+            Self::Original(range) => range.start().value() != range.end().value(),
+            Self::StartOnly(position) | Self::EndOnly(position) => position.value() > 0,
+            Self::Synthesized => false,
+        }
+    }
+
+    /// A source lookup bound does not create an ownership end. Paired
+    /// recovery ranges keep their existing, tighter trivia scan bound.
+    pub(crate) fn leading_trivia_end(
+        self,
+        source: &str,
+        positions: &PositionIndex,
+    ) -> Result<Option<SourceBytePosition>, SourcePositionError> {
+        let lookup = match self {
+            Self::Original(range) => range,
+            Self::StartOnly(start) => {
+                SourceByteRange::new(start.value(), positions.byte_len(), positions)?
+            }
+            Self::Synthesized | Self::EndOnly(_) => return Ok(None),
+        };
+        Ok(Some(
+            lookup.without_leading_trivia(source, positions)?.start(),
+        ))
+    }
 }
 
 /// Original statement-list provenance retained by a synthetic block after
@@ -158,14 +233,32 @@ impl RelocatedStatementListComments {
 
 impl CommentRange {
     pub const fn new(source: TransformSourceId, range: SourceRange) -> Self {
-        Self { source, range }
+        Self {
+            source,
+            range: match range {
+                SourceRange::Original(range) => CommentSourceRange::Original(range),
+                SourceRange::Synthesized => CommentSourceRange::Synthesized,
+            },
+        }
+    }
+
+    pub fn from_raw(
+        source: TransformSourceId,
+        start: u32,
+        end: u32,
+        positions: &PositionIndex,
+    ) -> Result<Self, SourcePositionError> {
+        Ok(Self {
+            source,
+            range: CommentSourceRange::from_raw(start, end, positions)?,
+        })
     }
 
     pub const fn source(self) -> TransformSourceId {
         self.source
     }
 
-    pub const fn range(self) -> SourceRange {
+    pub const fn range(self) -> CommentSourceRange {
         self.range
     }
 }
@@ -304,14 +397,6 @@ pub(crate) enum ClassExpressionDeclarationOrigin {
     LegacyDecorated { declaration: TransformNode },
 }
 
-/// A source expression whose same-line trailing trivia moved to a generated
-/// class-field operation. The operation (statement for declarations, comma
-/// expression for class expressions) is the sole owner of that boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RelocatedTrailingCommentOwner {
-    ClassFieldOperation,
-}
-
 impl EmitEnumMemberValue {
     pub const fn new(
         value: Option<EmitConstantValue>,
@@ -359,7 +444,6 @@ pub struct EmitMetadata {
     pub(crate) class_this: Option<TransformNode>,
     pub(crate) assigned_name: Option<TransformNode>,
     pub(crate) class_expression_declaration_origin: Option<ClassExpressionDeclarationOrigin>,
-    pub(crate) relocated_trailing_comment_owner: Option<RelocatedTrailingCommentOwner>,
     /// Erased TypeScript type annotation whose trailing source boundary still
     /// belongs to this declaration name. The JavaScript printer uses it to
     /// retain comments on either side of the removed annotation without
@@ -742,9 +826,6 @@ impl EmitMetadata {
         }
         if source.class_expression_declaration_origin.is_some() {
             self.class_expression_declaration_origin = source.class_expression_declaration_origin;
-        }
-        if source.relocated_trailing_comment_owner.is_some() {
-            self.relocated_trailing_comment_owner = source.relocated_trailing_comment_owner;
         }
         if source.type_node.is_some() {
             self.type_node = source.type_node;

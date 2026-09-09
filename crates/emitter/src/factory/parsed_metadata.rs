@@ -72,13 +72,6 @@ impl TransformArena {
             // An explicit whitelist ensures new fields and synthetic identity
             // channels cannot quietly disappear at this boundary.
             let mut remainder = metadata.clone();
-            // This Rust-only protocol marks the JavaScript operation which
-            // now owns a moved field initializer's trailing comments. It is
-            // not a TS emitNode mutation and has no declaration-lane owner.
-            remainder.relocated_trailing_comment_owner = None;
-            if remainder == EmitMetadata::default() {
-                continue;
-            }
             remainder.flags = EmitFlags::NONE;
             remainder.type_node = None;
             remainder.constant_value = None;
@@ -384,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn parsed_constants_preserve_bits_and_code_units_without_javascript_comment_ownership() {
+    fn parsed_constants_preserve_number_bits_and_string_code_units() {
         let host = Host::new();
         let (mut javascript, [a, b]) = host.mount(false);
         let number =
@@ -398,8 +391,6 @@ mod tests {
         javascript
             .metadata_mut(b)
             .set_constant_value(string.clone());
-        javascript.metadata_mut(a).relocated_trailing_comment_owner =
-            Some(crate::metadata::RelocatedTrailingCommentOwner::ClassFieldOperation);
         let snapshot = javascript.snapshot_parsed_emit_metadata(&host).unwrap();
         let (mut declaration, [a, b]) = host.mount(true);
         declaration
@@ -412,13 +403,6 @@ mod tests {
         assert_eq!(
             declaration.metadata(b).unwrap().constant_value(),
             Some(&string)
-        );
-        assert_eq!(
-            declaration
-                .metadata(a)
-                .unwrap()
-                .relocated_trailing_comment_owner,
-            None
         );
     }
 }

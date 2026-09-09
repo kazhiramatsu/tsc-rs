@@ -11776,7 +11776,7 @@ fn standard_decorator_named_declaration_has_one_outer_leading_comment_owner() {
                 .metadata(outer)
                 .and_then(|metadata| metadata.comment_range())
                 .map(|range| range.range()),
-            Some(SourceRange::Original(_))
+            Some(tsc_emitter::CommentSourceRange::Original(_))
         ));
 
         let NodeData::VariableStatement(variable_statement) = &outer_record.data else {

@@ -7744,7 +7744,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for export in exports {
             let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
-            self.set_original_and_range(expression, original)?;
+            // createExportExpression ranges the new wrapper without copying
+            // the visited inner assignment's emit metadata onto it.
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
         }
         Ok(expression)
     }
@@ -14669,11 +14673,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// `languageVersion < ES2015` wraps a class declaration carrying static
     /// initialized properties in the `TypeScriptClassWrapper` arrow IIFE the
     /// ES2015 owner's wrapper surgery consumes
-    /// (`visitTypeScriptClassWrapper`). The exported, namespace-nested, and
-    /// decorated promote lanes stay typed fail-closed seams: the
-    /// plain-script static lane is the only byte-evidenced configuration
-    /// (the B-5 witness gate and focused projections); the H2.5h
-    /// corpus-adoption slice owns the remaining lanes' oracle evidence.
+    /// (`visitTypeScriptClassWrapper`). The wrapper owns the original
+    /// class's comments and its range past decorators; moved exports own
+    /// their separate declaration-name ranges.
     fn promote_class_declaration_to_iife(
         &mut self,
         original: TransformNode,
@@ -14690,6 +14692,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // modifiers (`modifierElidingVisitor`); the export binding is
         // re-created AFTER the wrapper by the caller's lane split
         // (`_tsc.js:94451-94452`, `94515-94546`).
+        let original_modifiers = data.modifiers;
         let mut data = data;
         data.modifiers = self.elide_moved_class_modifiers(data.modifiers)?;
         // `createTokenRange(skipTrivia(currentSourceFile.text, node.members.end),
@@ -14736,6 +14739,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 TransformFlags::NONE,
             )?;
             self.set_close_brace_token_range(created, close_brace_start)?;
+            self.set_comment_range_raw(created, u32::MAX, close_brace_start.wrapping_add(1))?;
             created
         };
         self.context
@@ -14750,6 +14754,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             TransformFlags::NONE,
         )?;
         self.set_close_brace_token_range(return_statement, close_brace_start)?;
+        self.set_comment_range_raw(return_statement, close_brace_start, u32::MAX)?;
         self.context
             .arena_mut()?
             .metadata_mut(return_statement)
@@ -14825,16 +14830,33 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .set_original_node(variable_statement, Some(original))?;
-        let statement_range = {
+        let (statement_range, map_range) = {
             let record = self.context.arena().node(original)?;
+            let mut map_start = record.pos;
+            for modifier in node_array_nodes(self.context.arena(), self.source, original_modifiers)?
+                .into_iter()
+                .rev()
+            {
+                let modifier = self.context.arena().node(modifier)?;
+                if modifier.kind == SyntaxKind::Decorator {
+                    if modifier.end != u32::MAX {
+                        map_start = modifier.end;
+                    }
+                    break;
+                }
+            }
             let source = self.context.arena().source(self.source)?.syntax();
-            SourceRange::from_raw(record.pos, record.end, source.positions())
+            (
+                SourceRange::from_raw(record.pos, record.end, source.positions()),
+                SourceRange::from_raw(map_start, record.end, source.positions()),
+            )
         };
         if let Ok(range) = statement_range {
             let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
             metadata.set_comment_range(CommentRange::new(original.source(), range));
-            // `moveRangePastDecorators(node)` — the refused decorator lanes
-            // make this the plain node range.
+        }
+        if let Ok(range) = map_range {
+            let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
             metadata.set_source_map_range(SourceMapRange::new(original.source(), range));
         }
         self.context
@@ -14844,9 +14866,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(variable_statement.node())
     }
 
-    /// `modifierElidingVisitor` over a promoted class's modifier list: every
-    /// modifier is dropped (decorator entries never reach the promoted lane;
-    /// that lane still refuses).
+    /// `modifierElidingVisitor` preserves decorators for their later
+    /// transformer and drops the modifiers moved outside the wrapper.
     fn elide_moved_class_modifiers(
         &mut self,
         modifiers: Option<NodeArrayId>,
@@ -14883,14 +14904,15 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &mut self,
         statement: NodeId,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let (has_export, has_default) = {
+        let (has_export, has_default, declaration_name) = {
             let record = self.context.arena().node(self.node(statement))?;
             match &record.data {
                 NodeData::ClassDeclaration(data) => (
                     self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?,
                     self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?,
+                    data.name,
                 ),
-                _ => (false, false),
+                _ => (false, false, None),
             }
         };
         let Some(visited) = self.visit(statement)? else {
@@ -14924,9 +14946,28 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             })?;
             self.identifier_text(name)?.to_owned()
         };
+        // getDeclarationName/getLocalName(false, true) retain an explicit
+        // input name's spelling, original identity and raw source range.
+        let local = if let Some(name) = declaration_name {
+            let original_name = self.node(name);
+            let local = self.context.factory()?.clone_node(original_name)?;
+            self.context
+                .factory()?
+                .set_text_range(local, original_name)?;
+            let mut flags = EmitFlags::NO_COMMENTS;
+            if has_default {
+                flags |= EmitFlags::LOCAL_NAME;
+            }
+            self.context
+                .arena_mut()?
+                .metadata_mut(local)
+                .add_flags(flags);
+            local
+        } else {
+            self.create_identifier(&name_text)?
+        };
         let export_statement = if has_default {
             // `factory.createExportDefault(localName)`
-            let local = self.create_identifier(&name_text)?;
             self.context.factory()?.create_node(
                 self.source,
                 NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
@@ -14939,7 +14980,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         } else {
             // `factory.createExternalModuleExport(declarationName)` —
             // `export { X };`
-            let local = self.create_identifier(&name_text)?;
             let specifier = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
@@ -14975,6 +15015,30 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )?
         };
         Ok(vec![visited, export_statement])
+    }
+
+    /// The class return expression owns only the closing-brace end; its return
+    /// statement owns only the start. Source maps retain their paired encoding.
+    ///
+    /// tsc-port: visitClassDeclaration @6.0.3
+    /// tsc-hash: b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59
+    /// tsc-span: _tsc.js:94434-94548
+    fn set_comment_range_raw(
+        &mut self,
+        node: TransformNode,
+        start: u32,
+        end: u32,
+    ) -> Result<(), TransformError> {
+        let range = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            CommentRange::from_raw(self.source, start, end, source.positions())
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(range);
+        Ok(())
     }
 
     /// The one-byte close-brace token range shared by the wrapper's

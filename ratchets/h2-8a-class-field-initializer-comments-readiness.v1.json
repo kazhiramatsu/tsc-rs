@@ -1,0 +1,2129 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-28-5",
+  "kind": "runtime",
+  "base": "dc868373612af16ad299ed08bdec4ece437325dc",
+  "trusted_base": "10748f6ee19ec083ce5748224930c5dcfbbd86df",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "steps": [
+    "A6-28-5a",
+    "A6-28-5b",
+    "A6-28-5c"
+  ],
+  "runtime_paths": [
+    "crates/emitter/src/builtins/class_fields/downlevel.rs",
+    "crates/emitter/src/metadata.rs",
+    "crates/emitter/src/printer.rs",
+    "crates/emitter/src/factory/parsed_metadata.rs"
+  ],
+  "baseline_record": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "6be54cfa724b5c4ed7acb13635f357972ea53df0027c62023b51077326ea6844"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "764965519a4b8f2114c8c11e5089890c75cd4b19e3183c24a2b301e045bd4848"
+    },
+    {
+      "path": "crates/emitter/src/factory/parsed_metadata.rs",
+      "sha256": "9a8ba207b713125515d8b63cb1615650f0a70977b9269c9737684bd356d13903"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
+      "sha256": "5d6857331fe90d1559adcb6d4afea4040218738255f09a08f8906069e2356207"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-initializer-comments.json",
+      "sha256": "21b016586cce29537e88e6e8efc9880ca64c5944cde75f14bc34df465641aaba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
+      "sha256": "a3b26f42503b655c7ce3af9b7a7fb23d0533c20e5b6ec1e1e43fe30e1e83ef9e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_initializer_comments.rs",
+      "sha256": "bebefd062e96bb14de8639adc0de4f540341340df90f890316fc65260a314d57"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "sha256": "f45b79cfb28218b8adc23a7984bdc82776dbb46947d6a35d3c3e79386a979b4a"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "sha256": "3e925d359c916efbb5a1f6a54ef61ac0533f16cf3ddac83d841dda33c46c8f53"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "sha256": "b3dd7f6e2d02018a5f651559e8cc56ad5ad92800f7d665fcbb0cce90383f31d6"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-amended-before.v1.json",
+      "sha256": "41c37b08bcf13c37fe28080bc3325e0e39a39befdaf0009e73d7411152bf4bb2"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-before.v1.json",
+      "sha256": "a97d895abac02a94f1868539582ad14fd6190aeccbe2547658e12027de3319b9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-after.v1.json",
+      "sha256": "6084cbfb3498bddaaabf91cb4911222ca476d41ec90427d9ef226768defa1f51"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-before.v1.json",
+      "sha256": "eb88c8a84adfd2795f26b8e9f55172ddd65ad2ba76d27e8eaa2e0cc9e96acd33"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-regressions.v1.json",
+      "sha256": "80b1da356bef5cad20eb1ccd3b152a1d178b9a16483c1dd7c54d16344b4b3d50"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "sha256": "4d844c9ddcd07ee3a3e05f4f2bcc9b012263239f5b28ccf19751b759a7c6ced6"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
+      "sha256": "4dbb5056a45c34cd83fe5c9057f9af77be050f0df5aff6c349c1b7e0551c68a9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-first-before.v1.json",
+      "sha256": "84d4020acfc6d1ac0098d57c240128b620e36b84647316491c8df7a659a4c2cd"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-after.v1.json",
+      "sha256": "180834ca76543245948a282e7729e5eefb991bccb3069e1a1d938411036749fe"
+    },
+    {
+      "path": "scripts/observe-class-field-alias-map-positions.mjs",
+      "sha256": "cecb2aef351d5a9e6705e8523d314e12305ba93db457b6841486b5c5f4a9fa4a"
+    },
+    {
+      "path": "scripts/observe-class-field-initializer-comments.mjs",
+      "sha256": "706d4b11475409c10239769ba6fe33bb0a2d35e3eb836d343058d107bc83e95d"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-first-after-owner-findings.md",
+      "sha256": "a54c2f21e2a89a35d01318889e2a71e7c3c7249b44b4335c3607aaf2ba48185a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-es2015-phase-scope-correction.md",
+      "sha256": "2d9270578590849c0358600ecdd5cd5b98ee9b674cf67d291b22a05d1de799ec"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v5.json",
+      "sha256": "7938ecb6b0c744dc0fc1c09125e5751361f839e27c185e6094769f8921809d99"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comment-source-audit.json",
+      "sha256": "ae6b07cd04e1fd9a5cffe3703e574afb292e6f47c23d0e2873f163e829f31f7e"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-source-plan.md",
+      "sha256": "76af2b31bf38a20632c674f93705c972605c31eb9a749f9457448b7859769f04"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v5.mjs",
+      "sha256": "cab6f8c043bad8b7395778a3f5d93d0e25393a75b155d8331bf3bfe502839a08"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "authority_refresh": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "178e3224c78d3adc3743bcac77c3b6c24af5a7e91d149eaa7c50bc96f54865dd",
+      "sha256": "d99747869ff51342a069b6410fe9bb1f67ce4318f1af5b11fefde18bffe738d0",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-field-alias-first-regressions-rrdmwr9o/crates/compiler/tests/contracts.rs",
+      "reason": "Add only64-case complete initializer-comment test registration after frozen first regressions"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19",
+      "sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-pre-edit-px_7xkf7/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 current inventory retirement; historical qualification/source retained; no initial A28 target or A1 semantics change"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "cc962254688293aea9d4f7bb9a01c4cebe6cfa202b254d15a99de6d775aada2d",
+      "sha256": "277c057812005a858f367388a411bdc4965eb85059548e55ab4a630b16332dd1",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-pre-edit-px_7xkf7/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-5 current inventory retirement; historical qualification/source retained; no initial A28 target or A1 semantics change"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "ef24b90effc5762ba2fe449e143fa9b041b6e28822efc4aff4b500ca7bccfb60",
+      "sha256": "ce2117d950ad6735835c50129fd02b74041e6387127ad3069d249813d89b3ea7",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/slices/README.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "old_sha256": "440032b168308ef60a23dc80a5216f653c37889eb5a79ef1937e3529637bbbbc",
+      "sha256": "be41ed8e3922d3d60609a8bd643749e3652e1d42a9af2c6c5d7fcc63fe80394c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "old_sha256": "b7ab3ba99c200e91f958495197119fd715676fab8d5c98f6d2d61a92acdaf726",
+      "sha256": "a8679e90a67a81387a8e04f23b9c154221ebb5d5363d108290164e69d373d650",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "277c057812005a858f367388a411bdc4965eb85059548e55ab4a630b16332dd1",
+      "sha256": "8b6909b61e031665f93a5513a65f11a16401996c52c87506b51af7c4e0ae0f06",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "d99747869ff51342a069b6410fe9bb1f67ce4318f1af5b11fefde18bffe738d0",
+      "sha256": "54a78ce8660b74f3be5b0082af4ce7e3f79fd06c005a592fc8eb6bc499539076",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/crates/compiler/tests/contracts.rs",
+      "reason": "A6-28-6 explicit144-case registration and indexed four-producer readiness; old qualified authority bytes retained"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "ce2117d950ad6735835c50129fd02b74041e6387127ad3069d249813d89b3ea7",
+      "sha256": "a66bdca0246b00ac945c4aee1827f4fca842a49ebd50dab151bf2aa3f6f51443",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-pre-readiness-lzrm0bwo/docs/design/greenfield/slices/README.md",
+      "reason": "A6-28-6 explicit144-case registration and indexed four-producer readiness; old qualified authority bytes retained"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "8b6909b61e031665f93a5513a65f11a16401996c52c87506b51af7c4e0ae0f06",
+      "sha256": "edf0daf07778f1152501c970de06df31fabe07f4fb80505df9493afc392c3a83",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-pre-readiness-lzrm0bwo/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-6 explicit144-case registration and indexed four-producer readiness; old qualified authority bytes retained"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "a66bdca0246b00ac945c4aee1827f4fca842a49ebd50dab151bf2aa3f6f51443",
+      "sha256": "42fba6deda248c04e80f6cedc73732f84c3d8c61a46f412cd5798c536b735751",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/slices/README.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "old_sha256": "be41ed8e3922d3d60609a8bd643749e3652e1d42a9af2c6c5d7fcc63fe80394c",
+      "sha256": "26b20c03da29482a2ad505c11cf9d836af3631514491d0d9cbb3ddf6a3f3889c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "old_sha256": "a8679e90a67a81387a8e04f23b9c154221ebb5d5363d108290164e69d373d650",
+      "sha256": "1457c845a6601ff0658ecfb98d7be2506bec6c96c1dc0c2269b94d1b564137de",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "edf0daf07778f1152501c970de06df31fabe07f4fb80505df9493afc392c3a83",
+      "sha256": "61121a8bf4161b8e1b89744cab6851eab62fde04ef69abe67eabaf2d57e06fdb",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "54a78ce8660b74f3be5b0082af4ce7e3f79fd06c005a592fc8eb6bc499539076",
+      "sha256": "281232487e2343b1081fc60e97e056b3b0f17e21e313f8f53ed755ff67cbd747",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/crates/compiler/tests/contracts.rs",
+      "reason": "A6-28-7 explicit128-case registration and six-file comment endpoint readiness; old qualified authorities retained"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "42fba6deda248c04e80f6cedc73732f84c3d8c61a46f412cd5798c536b735751",
+      "sha256": "60b2dd0a698cd5d38d3111aaaa17b4b030036fa1f6f23eb541a61913bbc9e079",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-pre-readiness-qct5zbh0/docs/design/greenfield/slices/README.md",
+      "reason": "A6-28-7 explicit128-case registration and six-file comment endpoint readiness; old qualified authorities retained"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "61121a8bf4161b8e1b89744cab6851eab62fde04ef69abe67eabaf2d57e06fdb",
+      "sha256": "957da0fada63f24afa85606b3c5f032ab5ee429118a925a9060ca0185bb86b65",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-pre-readiness-qct5zbh0/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-7 explicit128-case registration and six-file comment endpoint readiness; old qualified authorities retained"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-architecture-fo3m_il9/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 candidate type inventory; three comment rows explicitly unqualified until exact output/regression evidence"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "957da0fada63f24afa85606b3c5f032ab5ee429118a925a9060ca0185bb86b65",
+      "sha256": "a48015775bce797d757841b5e613beaa1452292262dc782312af083f0175f2da",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-architecture-fo3m_il9/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-7 candidate type inventory; three comment rows explicitly unqualified until exact output/regression evidence"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "60b2dd0a698cd5d38d3111aaaa17b4b030036fa1f6f23eb541a61913bbc9e079",
+      "sha256": "f45b79cfb28218b8adc23a7984bdc82776dbb46947d6a35d3c3e79386a979b4a",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/slices/README.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "old_sha256": "26b20c03da29482a2ad505c11cf9d836af3631514491d0d9cbb3ddf6a3f3889c",
+      "sha256": "3e925d359c916efbb5a1f6a54ef61ac0533f16cf3ddac83d841dda33c46c8f53",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "old_sha256": "1457c845a6601ff0658ecfb98d7be2506bec6c96c1dc0c2269b94d1b564137de",
+      "sha256": "b3dd7f6e2d02018a5f651559e8cc56ad5ad92800f7d665fcbb0cce90383f31d6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "a48015775bce797d757841b5e613beaa1452292262dc782312af083f0175f2da",
+      "sha256": "4d844c9ddcd07ee3a3e05f4f2bcc9b012263239f5b28ccf19751b759a7c6ced6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "isGeneratedIdentifier",
+      "declaration_name": "isGeneratedIdentifier",
+      "start": 11932,
+      "end": 11935,
+      "sha256": "906256d7068a095cb3ebfc51672f5d00f2dcb0dda810d29d90f975f6503f8dfd",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "isGeneratedPrivateIdentifier",
+      "declaration_name": "isGeneratedPrivateIdentifier",
+      "start": 11936,
+      "end": 11939,
+      "sha256": "204411300bd17b1f9348db8b5ec7bbb64b776abae5b7f401e5e41347d3c7e542",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "getEmitFlags",
+      "declaration_name": "getEmitFlags",
+      "start": 13054,
+      "end": 13057,
+      "sha256": "6d8c5eece414332d11f366f7ae016d6d3253477e31519ee07e143b4263b35933",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "baseFactory.createBaseNode",
+      "declaration_name": "createBaseNode",
+      "start": 20259,
+      "end": 20267,
+      "sha256": "018b457de5b9342d35cede9ba2e16012e1f6b27f61e6fc0ca96bcecb118f2a59",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "parenthesizeLeftSideOfAccess",
+      "declaration_name": "parenthesizeLeftSideOfAccess",
+      "start": 20466,
+      "end": 20472,
+      "sha256": "5779eaca28429b17aa2fca92163485f10b65976211bf549e60fe915fa5ac39f5",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "parenthesizeExpressionForDisallowedComma",
+      "declaration_name": "parenthesizeExpressionForDisallowedComma",
+      "start": 20483,
+      "end": 20488,
+      "sha256": "0a7087ac86e0e05adcb2a09a875ee73ad9e77636dc29e663dd7d03ea3e38e786",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "nodeFactory.createBaseNode",
+      "declaration_name": "createBaseNode",
+      "start": 21493,
+      "end": 21495,
+      "sha256": "7433854e57fffe23505d1c769cdfb1ae57c85c3abb04a137d74d2e7324ab328c",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createBaseDeclaration",
+      "declaration_name": "createBaseDeclaration",
+      "start": 21496,
+      "end": 21501,
+      "sha256": "706ecefbb63870e1c4e8536c58722454434c64a8c24e7e5535d0e5e12d65f831",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createToken",
+      "declaration_name": "createToken",
+      "start": 21710,
+      "end": 21766,
+      "sha256": "c78e317d4226871f44d628bcae0862e3c7c7a3b4d67c798042153e85455dc041",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createThis",
+      "declaration_name": "createThis",
+      "start": 21770,
+      "end": 21772,
+      "sha256": "3c7be1e99f18d18ea397365814dea1c89b23fc224c03301e8b7bdfb9662013d7",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createBaseCallExpression",
+      "declaration_name": "createBaseCallExpression",
+      "start": 22564,
+      "end": 22578,
+      "sha256": "5ab1f0285726fba0e7d941b773ba79b88dd4c049a00e517e0ef674c5423b0bed",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createCallExpression",
+      "declaration_name": "createCallExpression",
+      "start": 22579,
+      "end": 22595,
+      "sha256": "3682a7a912cb2341d1b1bbdb88f04d6da75b94cd21eee384fb701cdff903393a",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createParenthesizedExpression",
+      "declaration_name": "createParenthesizedExpression",
+      "start": 22666,
+      "end": 22672,
+      "sha256": "c494facc930d0662148647c038d1e3b6476a6aa0d3346ae85022e6a802e0cbf2",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createArrowFunction",
+      "declaration_name": "createArrowFunction",
+      "start": 22701,
+      "end": 22719,
+      "sha256": "86ab9adbb9da5a28bf8a8dad687363b83f315bfa06def479590c1f305a367d72",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createVoidExpression",
+      "declaration_name": "createVoidExpression",
+      "start": 22741,
+      "end": 22746,
+      "sha256": "d01b50bb92fd60a48b1897a06c5702b8a8af42c1bc9335f86ede81feab6fe073",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createBinaryExpression",
+      "declaration_name": "createBinaryExpression",
+      "start": 22785,
+      "end": 22811,
+      "sha256": "cb3f974e1006db9345bc4a2144f1ee6daae9ac0241cb0f6bffd6e476b3db09cb",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createBlock",
+      "declaration_name": "createBlock",
+      "start": 23045,
+      "end": 23054,
+      "sha256": "12cf5a3050294763b1f08142e9138d0026f0d83ef4f1b7c09a1a2779adc2d669",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createVariableDeclaration",
+      "declaration_name": "createVariableDeclaration",
+      "start": 23274,
+      "end": 23283,
+      "sha256": "e7a99e0266a5aaa1df362340c2e43f545213bb1011f2b8c5af8bba3accab1ec3",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "updateVariableDeclaration",
+      "declaration_name": "updateVariableDeclaration",
+      "start": 23284,
+      "end": 23286,
+      "sha256": "358c095739f3d61b27920e79d77d32db503831a16900ebbd8c316453ebd4319a",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createCommaListExpression",
+      "declaration_name": "createCommaListExpression",
+      "start": 24382,
+      "end": 24387,
+      "sha256": "08247cc9ca3c65db60e9698476edc91537e88ecd451b678d6198e38d1d30b57a",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "cloneGeneratedIdentifier",
+      "declaration_name": "cloneGeneratedIdentifier",
+      "start": 24401,
+      "end": 24408,
+      "sha256": "621bdedf1c274b63a5b44f8323f3b37202b560399484751c7026321b4196fbb6",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "cloneIdentifier",
+      "declaration_name": "cloneIdentifier",
+      "start": 24409,
+      "end": 24420,
+      "sha256": "b729fe83c6ce62f3cf78a13d2c471e9dc52f28fe3208053800128aaa701b51cc",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "cloneNode",
+      "declaration_name": "cloneNode",
+      "start": 24436,
+      "end": 24466,
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createImmediatelyInvokedArrowFunction",
+      "declaration_name": "createImmediatelyInvokedArrowFunction",
+      "start": 24494,
+      "end": 24518,
+      "sha256": "96765f34b8ba5cd4aab23caf7095c68e0b060904a62211a58b51ef05a2645fa6",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createVoidZero",
+      "declaration_name": "createVoidZero",
+      "start": 24519,
+      "end": 24521,
+      "sha256": "8f40312b543225114e49b3109e0710eb2643e7bc912909e16d13966311a0ff50",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "inlineExpressions",
+      "declaration_name": "inlineExpressions",
+      "start": 24785,
+      "end": 24787,
+      "sha256": "0b804e265fda3151c49457cd1f8ca94580b01c04d161eed6103baadbec28db8a",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "asInitializer",
+      "declaration_name": "asInitializer",
+      "start": 24972,
+      "end": 24974,
+      "sha256": "21091c79c4e5b3cb1ff082d63fd39557dbdacb98386a562b627a68cc18aa34d0",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "propagateChildFlags",
+      "declaration_name": "propagateChildFlags",
+      "start": 25110,
+      "end": 25114,
+      "sha256": "8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "getTransformFlagsSubtreeExclusions",
+      "declaration_name": "getTransformFlagsSubtreeExclusions",
+      "start": 25125,
+      "end": 25194,
+      "sha256": "2d364dcf4298f054e648486f6e466f4b82d973fc80597df00ed06d9c612aa913",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "setOriginalNode",
+      "declaration_name": "setOriginalNode",
+      "start": 25208,
+      "end": 25217,
+      "sha256": "8ef5d40b9635be7af9ec133e0cb89a40498944062d5e9570facb5c3468121129",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "mergeEmitNode",
+      "declaration_name": "mergeEmitNode",
+      "start": 25218,
+      "end": 25277,
+      "sha256": "6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "getSourceMapRange",
+      "declaration_name": "getSourceMapRange",
+      "start": 25336,
+      "end": 25339,
+      "sha256": "7b45f9797ce3582eccac7e1a3469e63d81994d1aa38d604e7e28f671ece9329e",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "getCommentRange",
+      "declaration_name": "getCommentRange",
+      "start": 25358,
+      "end": 25361,
+      "sha256": "84e06c1d1498906aa5765dfc0bdfd9dd4ca9d1c75367b90067f24dbc57936cd2",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createSetFunctionNameHelper",
+      "declaration_name": "createSetFunctionNameHelper",
+      "start": 25888,
+      "end": 25896,
+      "sha256": "f628f803f1a9486851bd94d5c2359bfffd46b39fea9fa92a68e75615c0b2633d",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "isIdentifier",
+      "declaration_name": "isIdentifier",
+      "start": 26619,
+      "end": 26621,
+      "sha256": "752e0739b571759c23b5f96ef85bda830a99b1ba90e86237ae3e52433e51a244",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "setTextRange",
+      "declaration_name": "setTextRange",
+      "start": 28256,
+      "end": 28258,
+      "sha256": "b4484231223d27d5a3bd94103656b0f7ee336d397d3f1af742f67f893bd1cc08",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "createClassNamedEvaluationHelperBlock",
+      "declaration_name": "createClassNamedEvaluationHelperBlock",
+      "start": 93789,
+      "end": 93801,
+      "sha256": "41d82968d3870dceb005fcdfd6d02604cb70eac34c8efcc1796fc6e87552d393",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "injectClassNamedEvaluationHelperBlockIfMissing",
+      "declaration_name": "injectClassNamedEvaluationHelperBlockIfMissing",
+      "start": 93817,
+      "end": 93848,
+      "sha256": "b03473ab123921c9f097de56c74fdc8b4029ad4fa2fb436831de6d25d5cbb82a",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "finishTransformNamedEvaluation",
+      "declaration_name": "finishTransformNamedEvaluation",
+      "start": 93849,
+      "end": 93857,
+      "sha256": "182fb988f5f27296ca1a1c9a10627a2ba3956b9d675c5405f1652534025399b6",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformNamedEvaluationOfVariableDeclaration",
+      "declaration_name": "transformNamedEvaluationOfVariableDeclaration",
+      "start": 93878,
+      "end": 93889,
+      "sha256": "b4dbd523f0acccb4d5da916b5afe6cc712d962421e8d399a90ec2d7e7bf2142e",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformNamedEvaluation",
+      "declaration_name": "transformNamedEvaluation",
+      "start": 93950,
+      "end": 93969,
+      "sha256": "4905f4877c75efec8f7fe63f1af877ce78f94230501940c198feff3e6e818272",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "setCurrentClassElementAnd",
+      "declaration_name": "setCurrentClassElementAnd",
+      "start": 96226,
+      "end": 96235,
+      "sha256": "b3cfc829afeb7e4c7dfd17fa2e1341dd09c717f5e3a4814769e161dfe7a368b7",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformAutoAccessor",
+      "declaration_name": "transformAutoAccessor",
+      "start": 96256,
+      "end": 96293,
+      "sha256": "a8969b222237989c5f38ef91d11e8b2e9aa56e3a4dc377647b7d8d176d152b61",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformClassStaticBlockDeclaration",
+      "declaration_name": "transformClassStaticBlockDeclaration",
+      "start": 96649,
+      "end": 96682,
+      "sha256": "4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "getClassFacts",
+      "declaration_name": "getClassFacts",
+      "start": 96844,
+      "end": 96898,
+      "sha256": "18ea59522a3e87f378c8b5682c5eb2172be55cba02380fc3b240acbf0f4dd388",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitInNewClassLexicalEnvironment",
+      "declaration_name": "visitInNewClassLexicalEnvironment",
+      "start": 96921,
+      "end": 96967,
+      "sha256": "64423c7c89a2026a572faea7911cf786beb6725c7245d013d484fc7bbc4a7de2",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitClassDeclaration",
+      "declaration_name": "visitClassDeclaration",
+      "start": 96968,
+      "end": 96970,
+      "sha256": "9d28c6970fc5922a84dd8c44c0dd9a2abeef882b4f8821f6d2b0446be7df098e",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitClassDeclarationInNewClassLexicalEnvironment",
+      "declaration_name": "visitClassDeclarationInNewClassLexicalEnvironment",
+      "start": 96971,
+      "end": 97045,
+      "sha256": "07a4943badefc9b5d6d774a2d04dac4f3803e24852f8410d2bb735feef6fd6d7",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitClassExpression",
+      "declaration_name": "visitClassExpression",
+      "start": 97046,
+      "end": 97048,
+      "sha256": "6397bc711e73da9e2ec7d561e753eef95e5967bc08c063ba2f19678aac743ac1",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitClassExpressionInNewClassLexicalEnvironment",
+      "declaration_name": "visitClassExpressionInNewClassLexicalEnvironment",
+      "start": 97049,
+      "end": 97129,
+      "sha256": "5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitThisExpression",
+      "declaration_name": "visitThisExpression",
+      "start": 97136,
+      "end": 97142,
+      "sha256": "c6695f5f1c6414e8dbafb40ca6167e734b4989333e5f63f499c80b486f3d6447",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformPropertyOrClassStaticBlock",
+      "declaration_name": "transformPropertyOrClassStaticBlock",
+      "start": 97444,
+      "end": 97466,
+      "sha256": "8135b6934f2b7c206c3f7558ad7e3907192380c5dc3236aeb83e1904f5252714",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "generateInitializedPropertyExpressionsOrClassStaticBlock",
+      "declaration_name": "generateInitializedPropertyExpressionsOrClassStaticBlock",
+      "start": 97467,
+      "end": 97487,
+      "sha256": "51a63f66258bcc0bd61a995b8952a78602998b82f909f47f8d12c24fc75761cb",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformProperty",
+      "declaration_name": "transformProperty",
+      "start": 97488,
+      "end": 97500,
+      "sha256": "c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformPropertyWorker",
+      "declaration_name": "transformPropertyWorker",
+      "start": 97501,
+      "end": 97575,
+      "sha256": "fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "enableSubstitutionForClassStaticThisOrSuperReference",
+      "declaration_name": "enableSubstitutionForClassStaticThisOrSuperReference",
+      "start": 97583,
+      "end": 97596,
+      "sha256": "93c1b09343b2ae9dcd91cbcea8972a0ce53e0ef88f573cfcc97efb007335bfbd",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "onEmitNode",
+      "declaration_name": "onEmitNode",
+      "start": 97932,
+      "end": 97982,
+      "sha256": "1161b16e8b4442cc1c614d88088cfc2bfa85c76753108d296f9a1572bba4328d",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "onSubstituteNode",
+      "declaration_name": "onSubstituteNode",
+      "start": 97983,
+      "end": 97989,
+      "sha256": "95db4fbcaba10e96d12184b62ac54dd102ddb3c2a854723902e633ab92aa8693",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "substituteExpression",
+      "declaration_name": "substituteExpression",
+      "start": 97990,
+      "end": 97998,
+      "sha256": "c030072cb86c8ea6d5e2a07bd42a25527221b040d6ba0f041ab24033ac317cd2",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "substituteThisExpression",
+      "declaration_name": "substituteThisExpression",
+      "start": 97999,
+      "end": 98017,
+      "sha256": "fe580d6ad40d937b029554021a83349f0de8c2320c6c1b061068e8e1aad1d78c",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "visitArrowFunction",
+      "declaration_name": "visitArrowFunction",
+      "start": 106151,
+      "end": 106178,
+      "sha256": "5aa1e3a6520e9abf96f800b0657391f09b4616fe55362903ac71d6a676f2de0e",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "transformFunctionBody",
+      "declaration_name": "transformFunctionBody",
+      "start": 106255,
+      "end": 106329,
+      "sha256": "3a3d99baf53b7ade96d462610aefdbf6855671e31375e93c5e5078e71d80d750",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "requestEmitHelper",
+      "declaration_name": "requestEmitHelper",
+      "start": 116243,
+      "end": 116253,
+      "sha256": "b7be03513b5e9ae4afe98bcc84eca856f320172e5b8ce42367b6304b227dacd2",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitParenthesizedExpression",
+      "declaration_name": "emitParenthesizedExpression",
+      "start": 118320,
+      "end": 118331,
+      "sha256": "0011b217778ef8adc807517c94bb39c40aef9e2128bc7ee64f903349116c782c",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitClassDeclarationOrExpression",
+      "declaration_name": "emitClassDeclarationOrExpression",
+      "start": 119062,
+      "end": 119090,
+      "sha256": "7f38f7abe1799deb70b1601157c52ddc1b4d9d44c83c871ecdee9dea01859c48",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "generateNames",
+      "declaration_name": "generateNames",
+      "start": 120515,
+      "end": 120599,
+      "sha256": "d8f85515528b33d4f544998d474f766975c709f643f6bdf73ca4af830e77a608",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "generateNameIfNeeded",
+      "declaration_name": "generateNameIfNeeded",
+      "start": 120615,
+      "end": 120623,
+      "sha256": "de8554d7896912a89a31819d777cf68c5e4f0ffa983f290b59ced9bfbe423340",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "generateName",
+      "declaration_name": "generateName",
+      "start": 120624,
+      "end": 120632,
+      "sha256": "5418a174d1ef0e409435e86d45f5ce273fcf55d5a1ae8895463b7d5e56e14330",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "pipelineEmitWithComments",
+      "declaration_name": "pipelineEmitWithComments",
+      "start": 120978,
+      "end": 120986,
+      "sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitLeadingCommentsOfNode",
+      "declaration_name": "emitLeadingCommentsOfNode",
+      "start": 121007,
+      "end": 121032,
+      "sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitTrailingCommentsOfNode",
+      "declaration_name": "emitTrailingCommentsOfNode",
+      "start": 121033,
+      "end": 121046,
+      "sha256": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitTrailingComments",
+      "declaration_name": "emitTrailingComments",
+      "start": 121176,
+      "end": 121178,
+      "sha256": "de3cf762696470a95f312618ffc50f62fe76b80a96420d707543b4b257729fb5",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "forEachTrailingCommentToEmit",
+      "declaration_name": "forEachTrailingCommentToEmit",
+      "start": 121234,
+      "end": 121238,
+      "sha256": "bd6612ac9040b10e756e1b9666a34daebcc0fe66a227dfda01db103bfd3f27a7",
+      "step": "A6-28-5a",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "pipelineEmitWithSourceMaps",
+      "declaration_name": "pipelineEmitWithSourceMaps",
+      "start": 121277,
+      "end": 121282,
+      "sha256": "0c57cdceae760b1c5e0c2fca17706537034621460cc030cb1800d55c8c1e3efe",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitSourceMapsBeforeNode",
+      "declaration_name": "emitSourceMapsBeforeNode",
+      "start": 121283,
+      "end": 121293,
+      "sha256": "ac346b41706c68dd97ca01be4df11b5db57df063dfb4a1b84ee9b5ac1efa2517",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    },
+    {
+      "owner": "emitSourceMapsAfterNode",
+      "declaration_name": "emitSourceMapsAfterNode",
+      "start": 121294,
+      "end": 121303,
+      "sha256": "6ca767d42995b2ea08ceccbb1261345452b6f976a0665d60a80c68fa14e0aeb6",
+      "step": "A6-28-5c",
+      "test": "556 complete comparisons and all490/451 emitter regression"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PRINTER-BASE",
+      "row_sha256": "6ced222697e4556ad486723cdf09804d4743e59495c09fadb4a11d562f1b48ab",
+      "disposition": "modified-requalify",
+      "rust_symbol": "Printer::emit_transformed_node_worker/emit_node_with_hint",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged shared printer; current source and full emitter regression required",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-POSITIONS",
+      "row_sha256": "cb11a74840d3fe403450e0f9b9e2c4226b34fd6e8bc14d0779a82bd4bd75f9f9",
+      "disposition": "modified-requalify",
+      "rust_symbol": "DownlevelClassVisitor::set_original_and_range -> NodeFactory::set_text_range -> typed Printer source maps",
+      "visibility": "private/public domains",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": false,
+      "lifecycle": "candidate consumer unqualified until final after evidence",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-COMMENTS-G",
+      "row_sha256": "9aa9c160b1460e4523b543d86f688dea6d30a0e83ea9a4ef26f344121d32a6ea",
+      "disposition": "modified-requalify",
+      "rust_symbol": "Printer node comment workers; CommentEmissionScope",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "candidate consumer unqualified until final after evidence",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-COMMENT-SCOPE-H",
+      "row_sha256": "e8a5cb0389faaa721edfa214d35199430571e52fd9c4a67e109268d68b25dced",
+      "disposition": "modified-requalify",
+      "rust_symbol": "EmitContext::for_child and source comment scopes",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "candidate consumer unqualified until final after evidence",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "row_sha256": "c49fe6f747d32438abe077dd0524ec92f754a3ce45784606bfda214bc118d9ba",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "ClassConstructorReferencePlan; class_definition_binding; EmitResolver",
+      "visibility": "private visitors/public trait",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged semantic queries; current source and complete controls required",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-ARENA",
+      "row_sha256": "408e806262efc3b66804b3654aa73826eadfa1ec53d8605386184fe14904c352",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "TransformArena/NodeFactory",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row_sha256": "5f32e161f3fbdb5520788a5fdb2a0e95b72c76a66658eb29a24c91a7231f2387",
+      "disposition": "modified-requalify",
+      "rust_symbol": "DownlevelClassVisitor::inline_class_expression/visit/materialize_static_operations; StaticBindings -> TransformArena raw ranges/original",
+      "visibility": "private visitor/public arena",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": false,
+      "lifecycle": "candidate consumer unqualified until final after evidence",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-CONTEXT",
+      "row_sha256": "159d0e3a6cc7d379030f658a516e21498ab6c901c96bc5a96fc48bb68be31f70",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "TransformationResult/TransformationContext",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-ENTRY",
+      "row_sha256": "688dc79124384ac35c41ed8e80d86cd41e552aed6ceb9f369d735987179c7237",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "ProgramSession emit/run",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "row_sha256": "7107f22958050e97c0f9a68e9ef12f0642360d497f47f5a15b16639e60f415be",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "EmitHost/EmitResolver/OutputSink",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-ORDER-G",
+      "row_sha256": "8e6b859976374c389353df2740324c646845dcc9c331730ce031ed1709c49832",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "get_script_transformers_with_optional_host",
+      "visibility": "private",
+      "validation_ref": "0653e10d +A24 d12abe61",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-ORDER-H",
+      "row_sha256": "a7215ecbc9226498c759de8e20c7c0c4418418fd8c537a70a8f797f490557006",
+      "disposition": "modified-requalify",
+      "rust_symbol": "eager class-fields this phase; ES2015 assigned_name and retained hook composition",
+      "visibility": "private",
+      "validation_ref": "ad62e4a5 +B5 actual source audit; no inherited qualified premise",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded composition consumer requires current complete controls",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-MAPS",
+      "row_sha256": "eb4f271d6b9948d29ae80c0255c9801f646d01c670693c5e6cead46ee55e352e",
+      "disposition": "modified-requalify",
+      "rust_symbol": "SourceMapGenerator/TextWriter/Printer map workers",
+      "visibility": "public generator/private workers",
+      "validation_ref": "dated dormant row research-only; fresh A22/A28 complete maps and current490/451 regression; no inherited qualification",
+      "inherited_qualified_premise": false,
+      "lifecycle": "candidate consumer unqualified until final after evidence",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "row_sha256": "d1f1d2b6dad26702c9dad1663b5d69896159e8a6c0c67bac2de3852c054622ac",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "collect_binding_name_events/finalize_generated_binding_names; GeneratedBindingId",
+      "visibility": "private/pub(super)/pub(crate)",
+      "validation_ref": "0653e10d; A22 current names; eight typed outside failures explicitly retained",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged current source; named unqualified branches are not inherited",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-NAMES-CLASS-G",
+      "row_sha256": "ada5fa5d31a8006b773b0f32006f0e4610fe56aba2cb77b1cee36e7bf127883b",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "ClassBinding/ClassTempPlan/ClassConstructorReferencePlan and lexical binding scopes",
+      "visibility": "pub(super)/private",
+      "validation_ref": "0653e10d plus current A22 assigned-name evidence",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged current source; named unqualified branches are not inherited",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-NAMES-H",
+      "row_sha256": "7266d5b2a042ed2a15d33408fff97452f6f35a47eadee61365c9fe62f73ccbef",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "GeneratedBindingScopes scoped/node-keyed allocation",
+      "visibility": "private",
+      "validation_ref": "ad62e4a5 and B5, current source only; no inherited qualification",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged current source; named unqualified branches are not inherited",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-HELPERS-BASE",
+      "row_sha256": "0631d41079f66c241d72246bb7274e63e8f319db1410ca6cb23e9c86a78470bb",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "TransformationContext::request_emit_helper",
+      "visibility": "public",
+      "validation_ref": "0653e10d; sixteen outside request-order cases retained",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged current source; named unqualified branches are not inherited",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-HELPERS-PROVENANCE-G",
+      "row_sha256": "70bd4f0c79f85aafdfd1bacc1e4b5df04633b10608741564489777c509156680",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "NodeFactory::create_unscoped_helper_identifier",
+      "visibility": "pub(crate)",
+      "validation_ref": "0653e10d; unchanged helper reference identity",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged current source; named unqualified branches are not inherited",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename",
+      "step": "A6-28-5c"
+    },
+    {
+      "id": "E-METADATA-G",
+      "row_sha256": "b64346799b4f08ed180e8ee7b9713c802489672a65c9759d587f7cf5cee6eff3",
+      "disposition": "modified-requalify",
+      "rust_symbol": "EmitMetadata without the retired initializer marker; existing range/flag fields -> Printer",
+      "visibility": "public struct/private fields; pub(crate) enum",
+      "validation_ref": "0653e10d dated qualified topology; current marker path failing32 new plus8 prior cases",
+      "inherited_qualified_premise": false,
+      "lifecycle": "retire sole private producer, merge transport, snapshot exception and all suppression consumers",
+      "step": "A6-28-5c",
+      "evidence": "Repeated before64; frozen first492; after minimum434/556 and full490/451 with one unit rename"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/declaration-instance-semicolon",
+      "row_sha256": "ef5698401ea0fe95f4da281b01f3c596cb7bb1d36bbff1010d4aa8468ba00014",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/declaration-instance-asi",
+      "row_sha256": "265625ca7770ea4905bd70f212f90feb11f11b81194fd44c8c1d245ccc9b0d48",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/declaration-static-semicolon",
+      "row_sha256": "26aa2d9cb6a44808e4637d06398db626002f6ad191993f0a7c6439e15b8f77ad",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/declaration-static-asi",
+      "row_sha256": "6b3a53ab89b1d0c980260ff144e5a55ff4a0c17d5392cb42868edd0ee180bff6",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-instance-semicolon",
+      "row_sha256": "a870c06b065e6bd8aed0e2b2bb34fbd516657440b5252b3d446abd2dbf31f657",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-instance-asi",
+      "row_sha256": "763a971a85c16bd7d528dfedf81f844db219e21b9dc74ba08d3115d29d8de579",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-static-semicolon",
+      "row_sha256": "bf41feddff6e5e43abb82698b4eb60b2ccc2bf28136307f991356cb2a6e1d352",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/set/expression-static-asi",
+      "row_sha256": "407ea997d995a6c47ea1a8a0b98a178f0929ae5e1ea5cbc21dd77f67271df86a",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/declaration-instance-semicolon",
+      "row_sha256": "bbffa6642cf7d0e74d18d114c6025b6c6c72dfc8637f05738ae55ef3d0dfc6d6",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/declaration-instance-asi",
+      "row_sha256": "a60016e9e747eb7837c1e7cf672b2a2f2db8f40ecb668505a5f0996b1ca1121a",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/declaration-static-semicolon",
+      "row_sha256": "7d2cb0741475fcdc4ce0d2d0fbf0c5cd25344d82358947ae91d6bba8f4180fcd",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/declaration-static-asi",
+      "row_sha256": "1323cc99752cbb9a32694df5d296b732923878ebd78706c82da12b1d6702b03f",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-instance-semicolon",
+      "row_sha256": "6fd6985170031932ccb760cded59aaeaee300f69b8b0562737da99d6d768196a",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-instance-asi",
+      "row_sha256": "0402dd08b40be720eebc9f8471c449f0dc96877b154b5cd568f02d57bbb27ba2",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-static-semicolon",
+      "row_sha256": "2fa3f675146a3f9fc9621d734ac1ee0d1ae70ce9355ff48e254c2d1d7989d202",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/commonjs/define/expression-static-asi",
+      "row_sha256": "3b8634feb93e986aab97a79fea5d98a08a728555ec6bbe1f26560f18ed125a48",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/declaration-instance-semicolon",
+      "row_sha256": "51bd45c0a6d4cb22e92e9e45aa5509f837b0c24d7a139f1e3877d81401f1aecd",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/declaration-instance-asi",
+      "row_sha256": "7ba0953349c55a15726c1b905f59f72af2aa667f588e3ff1b5459b5f6c47da50",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/declaration-static-semicolon",
+      "row_sha256": "58c2060876bca334c4a85334a65b2e3002ea76ebb54bf5c903fdcba32c4261ea",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/declaration-static-asi",
+      "row_sha256": "e6b014068a1a5bcd421fd8626ef827be7d942df0f62608703a132b0b3e05edcf",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-instance-semicolon",
+      "row_sha256": "29064d25a6d646c87d4fe977ebff73c0f5e2c2782fdcdf05db990be0a1f4385c",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-instance-asi",
+      "row_sha256": "0d3bf72288e26c4e9d18fd8376ecfbb12f5d4058cb44c2b654234e6345bfa530",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-static-semicolon",
+      "row_sha256": "462ce00f8abfa12eb687ca352a1388a7d9662d426a3c8cad1c174cb9ab3994f9",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/set/expression-static-asi",
+      "row_sha256": "5138f35326e9117714a95abcfc8056df9b29da50f919ef3da065482c26cc2363",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/declaration-instance-semicolon",
+      "row_sha256": "0e39481d73a2178c932a9a7bf33680fda2c05d130e71f838ff0121c392161431",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/declaration-instance-asi",
+      "row_sha256": "b3d62f7c4ecfbcad60f4a1d16d671ee31d44654c0150ff1bec0bc6b4eb08edf1",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/declaration-static-semicolon",
+      "row_sha256": "c5e23580ec4ff75d56b7a24a50865ad935ce03b309f6361f2bb751075005024b",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/declaration-static-asi",
+      "row_sha256": "15a7c90fbf15f2853e7fe4a9968ba8e9da31622e6fceb290208848ad3ed44572",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-instance-semicolon",
+      "row_sha256": "7feb518aa812b00f362075a67e4e3f53acca3cfe2cc6a0348cdb279ef299282b",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-instance-asi",
+      "row_sha256": "585d95cb8714ab53b5bbcc19af6b515cd326b9661d3b245ab96f18cc0cad136f",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-static-semicolon",
+      "row_sha256": "b9aab235fd85a5453e0eae76763cc4aeb7488c9af75ac18c3a8adc7d9ce322bb",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es5/esnext/define/expression-static-asi",
+      "row_sha256": "2959c30073936cd7dcf58a4df2a44fbbff0206d1c6c4c522d7ba11ff43f9db0a",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/declaration-instance-semicolon",
+      "row_sha256": "c9acc83139a8376dfbbff2b9ce3695564062f452d734ed5552cf2defd6639019",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/declaration-instance-asi",
+      "row_sha256": "5390b08587791e1ab57275e7c5dadff964638de1c0be6f8db28690546b61d3a5",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/declaration-static-semicolon",
+      "row_sha256": "c89eb237343fcc8d5dd3eb1c578e53a1d378e725776bfd2dad00294c1a92befd",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/declaration-static-asi",
+      "row_sha256": "23fb1db407dc89148a7cc556a4a23de0eefd7796c6d0814884672b217194aab5",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/expression-instance-semicolon",
+      "row_sha256": "7ed0b0f93216230b7388e6445f820096a99278e88d85faa104117bcf9d0f3063",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/expression-instance-asi",
+      "row_sha256": "4e23106233ff5c14272c0c30432c478ebb96855d1c13d641273026b7b64f33b7",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/expression-static-semicolon",
+      "row_sha256": "4b50b22a48b74c95efeb183837c97d2e509e741cb1889fe838c9c60f375f3765",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/set/expression-static-asi",
+      "row_sha256": "60cac6b3f52ce3a8d7d8fc435999be91d6923b22b5f306fa3bbf6bf987e8f075",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/declaration-instance-semicolon",
+      "row_sha256": "6c2fa7813279167492460018bbaac749744e614a17a985f7c2cd1ddea0cbb9e5",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/declaration-instance-asi",
+      "row_sha256": "7b30b38b71e6fb7e880f4f65050211072c5a90715c1e22e99df32d78bce6ff3a",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/declaration-static-semicolon",
+      "row_sha256": "f09c79cc5172ecaaae52507076c2aac4789c1aaed455799edb11ba2e7a112f4f",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/declaration-static-asi",
+      "row_sha256": "f062bcd7204302777d9d2d6520a244442bb1f23f4cd2ba60b2430055e9f18435",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/expression-instance-semicolon",
+      "row_sha256": "2ef31807076e852a8797fe42a6a8556110c72d68cbbed2f5cbed7bf519dafc0c",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/expression-instance-asi",
+      "row_sha256": "a575ef067ca2a668889b0470d3d0a01fa24bc7012888ecccfece16920b7281d5",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/expression-static-semicolon",
+      "row_sha256": "384557eef30e2b1f945da917524c3e1843d3f83f7111316993405867e4d5d46f",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/commonjs/define/expression-static-asi",
+      "row_sha256": "16a3397b27237b035586872f2c38c077c98ae976e620e681cfb1300b3b351a29",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/declaration-instance-semicolon",
+      "row_sha256": "bd19069278256e4382208ecd9a9f3f7bd026eb63a17e5e44c41422a7aa345fba",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/declaration-instance-asi",
+      "row_sha256": "2680b41d3af260317d206763cde45c51743b754d1e4c17dafb11c181985d1bce",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/declaration-static-semicolon",
+      "row_sha256": "a437e3600e9bb7160ba209119d429a2a8a7f4367f32d0e10299aa89ee7825cfd",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/declaration-static-asi",
+      "row_sha256": "20a07d6d487b33435244ba2fba987f9f151b27e89a39d62da9031a0b80127fa9",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/expression-instance-semicolon",
+      "row_sha256": "784d2c522dd1aedcdfb8704ec33a82b253730a85d2595136cfe389798769c0af",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/expression-instance-asi",
+      "row_sha256": "b16883e1176929f6be52761af8bb53d3d67df820623985441bbd1331045c99e2",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/expression-static-semicolon",
+      "row_sha256": "c618bc125700f67bbd629906e0388d5ebbe9c23e3e539355e4bb8515fbd16713",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/set/expression-static-asi",
+      "row_sha256": "8a8cd991d57a609fd00d15a7fbb7dbca2144403f027fa9344e9feb8f7831ac38",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/declaration-instance-semicolon",
+      "row_sha256": "8a9720e1a44ca5ad1e7266ec3686bd3bfef778786fab94d4d41d178eb3a50faa",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/declaration-instance-asi",
+      "row_sha256": "7e2f5a662b44f187dddd305c1544aac82d604639cddad356618d8d6ee9391df5",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/declaration-static-semicolon",
+      "row_sha256": "aee83bf4cd71c1e90fc92f9441a33bb98794c1f80a6803c6b445c52e06c653ad",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/declaration-static-asi",
+      "row_sha256": "dc8931786508193f368c50d414ca431369bf5718f33d7283c8dc23542894a9f0",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/expression-instance-semicolon",
+      "row_sha256": "d6370cab462341cdcc1f6e729e97546a9f89adc0110aef327bfbbbe7a8894a60",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/expression-instance-asi",
+      "row_sha256": "732c42766ea16a9f859c662bcbd1144523bb909a938ef7103e2de6b2cf514699",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/expression-static-semicolon",
+      "row_sha256": "3dec1e8b2341e26fa6932f51bfb0ae8a9df49fd9de4c1e187e205b8e8d398f42",
+      "status": "owned-initializer-trailing-comment-suppression",
+      "step": "A6-28-5c"
+    },
+    {
+      "case_id": "class-field-initializer-comments/es2015/esnext/define/expression-static-asi",
+      "row_sha256": "32116ef08bfee7cd0a513d90283c5662bca6aacba9266021d4f79200537d5e49",
+      "status": "adjacent-exact",
+      "step": "A6-28-5c"
+    }
+  ],
+  "prior_repair_case_ids": [
+    "class-field-alias-map-positions/es5/commonjs/set/field-comments",
+    "class-field-alias-map-positions/es5/commonjs/define/field-comments",
+    "class-field-alias-map-positions/es5/esnext/set/field-comments",
+    "class-field-alias-map-positions/es5/esnext/define/field-comments",
+    "class-field-alias-map-positions/es2015/commonjs/set/field-comments",
+    "class-field-alias-map-positions/es2015/commonjs/define/field-comments",
+    "class-field-alias-map-positions/es2015/esnext/set/field-comments",
+    "class-field-alias-map-positions/es2015/esnext/define/field-comments"
+  ],
+  "prior_exact_case_ids": [
+    "class-field-alias-map-positions/es5/commonjs/set/anonymous-field",
+    "class-field-alias-map-positions/es5/commonjs/set/named-field",
+    "class-field-alias-map-positions/es5/commonjs/set/field-function",
+    "class-field-alias-map-positions/es5/commonjs/set/static-block",
+    "class-field-alias-map-positions/es5/commonjs/set/static-block-function",
+    "class-field-alias-map-positions/es5/commonjs/set/mixed-field-block",
+    "class-field-alias-map-positions/es5/commonjs/set/existing-parentheses",
+    "class-field-alias-map-positions/es5/commonjs/set/return-class",
+    "class-field-alias-map-positions/es5/commonjs/set/assignment-class",
+    "class-field-alias-map-positions/es5/commonjs/set/comma-class",
+    "class-field-alias-map-positions/es5/commonjs/set/call-argument",
+    "class-field-alias-map-positions/es5/commonjs/set/conditional-class",
+    "class-field-alias-map-positions/es5/commonjs/set/object-property",
+    "class-field-alias-map-positions/es5/commonjs/set/array-element",
+    "class-field-alias-map-positions/es5/commonjs/set/many-inline-operands",
+    "class-field-alias-map-positions/es5/commonjs/set/plain-field-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/set/instance-this-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/set/method-this-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/set/nested-class-field",
+    "class-field-alias-map-positions/es5/commonjs/set/no-map-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/define/anonymous-field",
+    "class-field-alias-map-positions/es5/commonjs/define/named-field",
+    "class-field-alias-map-positions/es5/commonjs/define/field-function",
+    "class-field-alias-map-positions/es5/commonjs/define/static-block",
+    "class-field-alias-map-positions/es5/commonjs/define/static-block-function",
+    "class-field-alias-map-positions/es5/commonjs/define/mixed-field-block",
+    "class-field-alias-map-positions/es5/commonjs/define/existing-parentheses",
+    "class-field-alias-map-positions/es5/commonjs/define/return-class",
+    "class-field-alias-map-positions/es5/commonjs/define/assignment-class",
+    "class-field-alias-map-positions/es5/commonjs/define/comma-class",
+    "class-field-alias-map-positions/es5/commonjs/define/call-argument",
+    "class-field-alias-map-positions/es5/commonjs/define/conditional-class",
+    "class-field-alias-map-positions/es5/commonjs/define/object-property",
+    "class-field-alias-map-positions/es5/commonjs/define/array-element",
+    "class-field-alias-map-positions/es5/commonjs/define/many-inline-operands",
+    "class-field-alias-map-positions/es5/commonjs/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/define/method-this-adjacent",
+    "class-field-alias-map-positions/es5/commonjs/define/nested-class-field",
+    "class-field-alias-map-positions/es5/commonjs/define/no-map-adjacent",
+    "class-field-alias-map-positions/es5/esnext/set/anonymous-field",
+    "class-field-alias-map-positions/es5/esnext/set/named-field",
+    "class-field-alias-map-positions/es5/esnext/set/field-function",
+    "class-field-alias-map-positions/es5/esnext/set/static-block",
+    "class-field-alias-map-positions/es5/esnext/set/static-block-function",
+    "class-field-alias-map-positions/es5/esnext/set/mixed-field-block",
+    "class-field-alias-map-positions/es5/esnext/set/existing-parentheses",
+    "class-field-alias-map-positions/es5/esnext/set/return-class",
+    "class-field-alias-map-positions/es5/esnext/set/assignment-class",
+    "class-field-alias-map-positions/es5/esnext/set/comma-class",
+    "class-field-alias-map-positions/es5/esnext/set/call-argument",
+    "class-field-alias-map-positions/es5/esnext/set/conditional-class",
+    "class-field-alias-map-positions/es5/esnext/set/object-property",
+    "class-field-alias-map-positions/es5/esnext/set/array-element",
+    "class-field-alias-map-positions/es5/esnext/set/many-inline-operands",
+    "class-field-alias-map-positions/es5/esnext/set/plain-field-adjacent",
+    "class-field-alias-map-positions/es5/esnext/set/instance-this-adjacent",
+    "class-field-alias-map-positions/es5/esnext/set/method-this-adjacent",
+    "class-field-alias-map-positions/es5/esnext/set/nested-class-field",
+    "class-field-alias-map-positions/es5/esnext/set/no-map-adjacent",
+    "class-field-alias-map-positions/es5/esnext/define/anonymous-field",
+    "class-field-alias-map-positions/es5/esnext/define/named-field",
+    "class-field-alias-map-positions/es5/esnext/define/field-function",
+    "class-field-alias-map-positions/es5/esnext/define/static-block",
+    "class-field-alias-map-positions/es5/esnext/define/static-block-function",
+    "class-field-alias-map-positions/es5/esnext/define/mixed-field-block",
+    "class-field-alias-map-positions/es5/esnext/define/existing-parentheses",
+    "class-field-alias-map-positions/es5/esnext/define/return-class",
+    "class-field-alias-map-positions/es5/esnext/define/assignment-class",
+    "class-field-alias-map-positions/es5/esnext/define/comma-class",
+    "class-field-alias-map-positions/es5/esnext/define/call-argument",
+    "class-field-alias-map-positions/es5/esnext/define/conditional-class",
+    "class-field-alias-map-positions/es5/esnext/define/object-property",
+    "class-field-alias-map-positions/es5/esnext/define/array-element",
+    "class-field-alias-map-positions/es5/esnext/define/many-inline-operands",
+    "class-field-alias-map-positions/es5/esnext/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es5/esnext/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es5/esnext/define/method-this-adjacent",
+    "class-field-alias-map-positions/es5/esnext/define/nested-class-field",
+    "class-field-alias-map-positions/es5/esnext/define/no-map-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/set/anonymous-field",
+    "class-field-alias-map-positions/es2015/commonjs/set/named-field",
+    "class-field-alias-map-positions/es2015/commonjs/set/declaration-field",
+    "class-field-alias-map-positions/es2015/commonjs/set/field-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/set/field-function",
+    "class-field-alias-map-positions/es2015/commonjs/set/static-block",
+    "class-field-alias-map-positions/es2015/commonjs/set/static-block-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/set/static-block-function",
+    "class-field-alias-map-positions/es2015/commonjs/set/mixed-field-block",
+    "class-field-alias-map-positions/es2015/commonjs/set/existing-parentheses",
+    "class-field-alias-map-positions/es2015/commonjs/set/return-class",
+    "class-field-alias-map-positions/es2015/commonjs/set/concise-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/set/assignment-class",
+    "class-field-alias-map-positions/es2015/commonjs/set/comma-class",
+    "class-field-alias-map-positions/es2015/commonjs/set/call-argument",
+    "class-field-alias-map-positions/es2015/commonjs/set/conditional-class",
+    "class-field-alias-map-positions/es2015/commonjs/set/object-property",
+    "class-field-alias-map-positions/es2015/commonjs/set/array-element",
+    "class-field-alias-map-positions/es2015/commonjs/set/wrapper-comments",
+    "class-field-alias-map-positions/es2015/commonjs/set/many-inline-operands",
+    "class-field-alias-map-positions/es2015/commonjs/set/plain-field-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/set/instance-this-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/set/method-this-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/set/nested-class-field",
+    "class-field-alias-map-positions/es2015/commonjs/set/no-map-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/set/legacy-bound-this",
+    "class-field-alias-map-positions/es2015/commonjs/define/anonymous-field",
+    "class-field-alias-map-positions/es2015/commonjs/define/named-field",
+    "class-field-alias-map-positions/es2015/commonjs/define/declaration-field",
+    "class-field-alias-map-positions/es2015/commonjs/define/field-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/define/field-function",
+    "class-field-alias-map-positions/es2015/commonjs/define/static-block",
+    "class-field-alias-map-positions/es2015/commonjs/define/static-block-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/define/static-block-function",
+    "class-field-alias-map-positions/es2015/commonjs/define/mixed-field-block",
+    "class-field-alias-map-positions/es2015/commonjs/define/existing-parentheses",
+    "class-field-alias-map-positions/es2015/commonjs/define/return-class",
+    "class-field-alias-map-positions/es2015/commonjs/define/concise-arrow",
+    "class-field-alias-map-positions/es2015/commonjs/define/assignment-class",
+    "class-field-alias-map-positions/es2015/commonjs/define/comma-class",
+    "class-field-alias-map-positions/es2015/commonjs/define/call-argument",
+    "class-field-alias-map-positions/es2015/commonjs/define/conditional-class",
+    "class-field-alias-map-positions/es2015/commonjs/define/object-property",
+    "class-field-alias-map-positions/es2015/commonjs/define/array-element",
+    "class-field-alias-map-positions/es2015/commonjs/define/wrapper-comments",
+    "class-field-alias-map-positions/es2015/commonjs/define/many-inline-operands",
+    "class-field-alias-map-positions/es2015/commonjs/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/define/method-this-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/define/nested-class-field",
+    "class-field-alias-map-positions/es2015/commonjs/define/no-map-adjacent",
+    "class-field-alias-map-positions/es2015/commonjs/define/legacy-bound-this",
+    "class-field-alias-map-positions/es2015/esnext/set/anonymous-field",
+    "class-field-alias-map-positions/es2015/esnext/set/named-field",
+    "class-field-alias-map-positions/es2015/esnext/set/declaration-field",
+    "class-field-alias-map-positions/es2015/esnext/set/field-arrow",
+    "class-field-alias-map-positions/es2015/esnext/set/field-function",
+    "class-field-alias-map-positions/es2015/esnext/set/static-block",
+    "class-field-alias-map-positions/es2015/esnext/set/static-block-arrow",
+    "class-field-alias-map-positions/es2015/esnext/set/static-block-function",
+    "class-field-alias-map-positions/es2015/esnext/set/mixed-field-block",
+    "class-field-alias-map-positions/es2015/esnext/set/existing-parentheses",
+    "class-field-alias-map-positions/es2015/esnext/set/return-class",
+    "class-field-alias-map-positions/es2015/esnext/set/concise-arrow",
+    "class-field-alias-map-positions/es2015/esnext/set/assignment-class",
+    "class-field-alias-map-positions/es2015/esnext/set/comma-class",
+    "class-field-alias-map-positions/es2015/esnext/set/call-argument",
+    "class-field-alias-map-positions/es2015/esnext/set/conditional-class",
+    "class-field-alias-map-positions/es2015/esnext/set/object-property",
+    "class-field-alias-map-positions/es2015/esnext/set/array-element",
+    "class-field-alias-map-positions/es2015/esnext/set/wrapper-comments",
+    "class-field-alias-map-positions/es2015/esnext/set/many-inline-operands",
+    "class-field-alias-map-positions/es2015/esnext/set/plain-field-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/set/instance-this-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/set/method-this-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/set/nested-class-field",
+    "class-field-alias-map-positions/es2015/esnext/set/no-map-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/set/legacy-bound-this",
+    "class-field-alias-map-positions/es2015/esnext/define/anonymous-field",
+    "class-field-alias-map-positions/es2015/esnext/define/named-field",
+    "class-field-alias-map-positions/es2015/esnext/define/declaration-field",
+    "class-field-alias-map-positions/es2015/esnext/define/field-arrow",
+    "class-field-alias-map-positions/es2015/esnext/define/field-function",
+    "class-field-alias-map-positions/es2015/esnext/define/static-block",
+    "class-field-alias-map-positions/es2015/esnext/define/static-block-arrow",
+    "class-field-alias-map-positions/es2015/esnext/define/static-block-function",
+    "class-field-alias-map-positions/es2015/esnext/define/mixed-field-block",
+    "class-field-alias-map-positions/es2015/esnext/define/existing-parentheses",
+    "class-field-alias-map-positions/es2015/esnext/define/return-class",
+    "class-field-alias-map-positions/es2015/esnext/define/concise-arrow",
+    "class-field-alias-map-positions/es2015/esnext/define/assignment-class",
+    "class-field-alias-map-positions/es2015/esnext/define/comma-class",
+    "class-field-alias-map-positions/es2015/esnext/define/call-argument",
+    "class-field-alias-map-positions/es2015/esnext/define/conditional-class",
+    "class-field-alias-map-positions/es2015/esnext/define/object-property",
+    "class-field-alias-map-positions/es2015/esnext/define/array-element",
+    "class-field-alias-map-positions/es2015/esnext/define/wrapper-comments",
+    "class-field-alias-map-positions/es2015/esnext/define/many-inline-operands",
+    "class-field-alias-map-positions/es2015/esnext/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/define/method-this-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/define/nested-class-field",
+    "class-field-alias-map-positions/es2015/esnext/define/no-map-adjacent",
+    "class-field-alias-map-positions/es2015/esnext/define/legacy-bound-this",
+    "class-field-alias-map-positions/es2022/commonjs/set/private-field",
+    "class-field-alias-map-positions/es2022/commonjs/set/static-block",
+    "class-field-alias-map-positions/es2022/commonjs/set/static-block-arrow",
+    "class-field-alias-map-positions/es2022/commonjs/set/static-block-function",
+    "class-field-alias-map-positions/es2022/commonjs/set/method-this-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/set/no-map-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/define/anonymous-field",
+    "class-field-alias-map-positions/es2022/commonjs/define/named-field",
+    "class-field-alias-map-positions/es2022/commonjs/define/declaration-field",
+    "class-field-alias-map-positions/es2022/commonjs/define/field-arrow",
+    "class-field-alias-map-positions/es2022/commonjs/define/field-function",
+    "class-field-alias-map-positions/es2022/commonjs/define/private-field",
+    "class-field-alias-map-positions/es2022/commonjs/define/static-block",
+    "class-field-alias-map-positions/es2022/commonjs/define/static-block-arrow",
+    "class-field-alias-map-positions/es2022/commonjs/define/static-block-function",
+    "class-field-alias-map-positions/es2022/commonjs/define/mixed-field-block",
+    "class-field-alias-map-positions/es2022/commonjs/define/existing-parentheses",
+    "class-field-alias-map-positions/es2022/commonjs/define/return-class",
+    "class-field-alias-map-positions/es2022/commonjs/define/concise-arrow",
+    "class-field-alias-map-positions/es2022/commonjs/define/assignment-class",
+    "class-field-alias-map-positions/es2022/commonjs/define/comma-class",
+    "class-field-alias-map-positions/es2022/commonjs/define/call-argument",
+    "class-field-alias-map-positions/es2022/commonjs/define/conditional-class",
+    "class-field-alias-map-positions/es2022/commonjs/define/object-property",
+    "class-field-alias-map-positions/es2022/commonjs/define/array-element",
+    "class-field-alias-map-positions/es2022/commonjs/define/wrapper-comments",
+    "class-field-alias-map-positions/es2022/commonjs/define/field-comments",
+    "class-field-alias-map-positions/es2022/commonjs/define/many-inline-operands",
+    "class-field-alias-map-positions/es2022/commonjs/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/define/method-this-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/define/nested-class-field",
+    "class-field-alias-map-positions/es2022/commonjs/define/nested-computed-name",
+    "class-field-alias-map-positions/es2022/commonjs/define/no-map-adjacent",
+    "class-field-alias-map-positions/es2022/commonjs/define/legacy-bound-this",
+    "class-field-alias-map-positions/es2022/esnext/set/private-field",
+    "class-field-alias-map-positions/es2022/esnext/set/static-block",
+    "class-field-alias-map-positions/es2022/esnext/set/static-block-arrow",
+    "class-field-alias-map-positions/es2022/esnext/set/static-block-function",
+    "class-field-alias-map-positions/es2022/esnext/set/method-this-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/set/no-map-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/define/anonymous-field",
+    "class-field-alias-map-positions/es2022/esnext/define/named-field",
+    "class-field-alias-map-positions/es2022/esnext/define/declaration-field",
+    "class-field-alias-map-positions/es2022/esnext/define/field-arrow",
+    "class-field-alias-map-positions/es2022/esnext/define/field-function",
+    "class-field-alias-map-positions/es2022/esnext/define/private-field",
+    "class-field-alias-map-positions/es2022/esnext/define/static-block",
+    "class-field-alias-map-positions/es2022/esnext/define/static-block-arrow",
+    "class-field-alias-map-positions/es2022/esnext/define/static-block-function",
+    "class-field-alias-map-positions/es2022/esnext/define/mixed-field-block",
+    "class-field-alias-map-positions/es2022/esnext/define/existing-parentheses",
+    "class-field-alias-map-positions/es2022/esnext/define/return-class",
+    "class-field-alias-map-positions/es2022/esnext/define/concise-arrow",
+    "class-field-alias-map-positions/es2022/esnext/define/assignment-class",
+    "class-field-alias-map-positions/es2022/esnext/define/comma-class",
+    "class-field-alias-map-positions/es2022/esnext/define/call-argument",
+    "class-field-alias-map-positions/es2022/esnext/define/conditional-class",
+    "class-field-alias-map-positions/es2022/esnext/define/object-property",
+    "class-field-alias-map-positions/es2022/esnext/define/array-element",
+    "class-field-alias-map-positions/es2022/esnext/define/wrapper-comments",
+    "class-field-alias-map-positions/es2022/esnext/define/field-comments",
+    "class-field-alias-map-positions/es2022/esnext/define/many-inline-operands",
+    "class-field-alias-map-positions/es2022/esnext/define/plain-field-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/define/instance-this-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/define/method-this-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/define/nested-class-field",
+    "class-field-alias-map-positions/es2022/esnext/define/nested-computed-name",
+    "class-field-alias-map-positions/es2022/esnext/define/no-map-adjacent",
+    "class-field-alias-map-positions/es2022/esnext/define/legacy-bound-this",
+    "class-assigned-name/es5/commonjs/variable/plain",
+    "class-assigned-name/es5/commonjs/property/plain",
+    "class-assigned-name/es5/commonjs/assignment/plain",
+    "class-assigned-name/es5/commonjs/binding/plain",
+    "class-assigned-name/es5/commonjs/parenthesized/plain",
+    "class-assigned-name/es5/commonjs/variable/implements",
+    "class-assigned-name/es5/commonjs/property/implements",
+    "class-assigned-name/es5/commonjs/assignment/implements",
+    "class-assigned-name/es5/commonjs/binding/implements",
+    "class-assigned-name/es5/commonjs/parenthesized/implements",
+    "class-assigned-name/es5/commonjs/variable/generic",
+    "class-assigned-name/es5/commonjs/property/generic",
+    "class-assigned-name/es5/commonjs/assignment/generic",
+    "class-assigned-name/es5/commonjs/binding/generic",
+    "class-assigned-name/es5/commonjs/parenthesized/generic",
+    "class-assigned-name/es5/commonjs/variable/annotated-member",
+    "class-assigned-name/es5/commonjs/property/annotated-member",
+    "class-assigned-name/es5/commonjs/assignment/annotated-member",
+    "class-assigned-name/es5/commonjs/binding/annotated-member",
+    "class-assigned-name/es5/commonjs/parenthesized/annotated-member",
+    "class-assigned-name/es5/commonjs/plain-function",
+    "class-assigned-name/es5/commonjs/typed-function",
+    "class-assigned-name/es5/commonjs/plain-function-new-target",
+    "class-assigned-name/es5/commonjs/typed-function-new-target",
+    "class-assigned-name/es5/commonjs/typed-arrow",
+    "class-assigned-name/es5/commonjs/named-class",
+    "class-assigned-name/es5/commonjs/class-fields-alias",
+    "class-assigned-name/es5/esnext/variable/plain",
+    "class-assigned-name/es5/esnext/property/plain",
+    "class-assigned-name/es5/esnext/assignment/plain",
+    "class-assigned-name/es5/esnext/binding/plain",
+    "class-assigned-name/es5/esnext/parenthesized/plain",
+    "class-assigned-name/es5/esnext/variable/implements",
+    "class-assigned-name/es5/esnext/property/implements",
+    "class-assigned-name/es5/esnext/assignment/implements",
+    "class-assigned-name/es5/esnext/binding/implements",
+    "class-assigned-name/es5/esnext/parenthesized/implements",
+    "class-assigned-name/es5/esnext/variable/generic",
+    "class-assigned-name/es5/esnext/property/generic",
+    "class-assigned-name/es5/esnext/assignment/generic",
+    "class-assigned-name/es5/esnext/binding/generic",
+    "class-assigned-name/es5/esnext/parenthesized/generic",
+    "class-assigned-name/es5/esnext/variable/annotated-member",
+    "class-assigned-name/es5/esnext/property/annotated-member",
+    "class-assigned-name/es5/esnext/assignment/annotated-member",
+    "class-assigned-name/es5/esnext/binding/annotated-member",
+    "class-assigned-name/es5/esnext/parenthesized/annotated-member",
+    "class-assigned-name/es5/esnext/plain-function",
+    "class-assigned-name/es5/esnext/typed-function",
+    "class-assigned-name/es5/esnext/plain-function-new-target",
+    "class-assigned-name/es5/esnext/typed-function-new-target",
+    "class-assigned-name/es5/esnext/typed-arrow",
+    "class-assigned-name/es5/esnext/named-class",
+    "class-assigned-name/es5/esnext/class-fields-alias",
+    "class-assigned-name/es2015/commonjs/variable/plain",
+    "class-assigned-name/es2015/commonjs/property/plain",
+    "class-assigned-name/es2015/commonjs/assignment/plain",
+    "class-assigned-name/es2015/commonjs/binding/plain",
+    "class-assigned-name/es2015/commonjs/parenthesized/plain",
+    "class-assigned-name/es2015/commonjs/variable/implements",
+    "class-assigned-name/es2015/commonjs/property/implements",
+    "class-assigned-name/es2015/commonjs/assignment/implements",
+    "class-assigned-name/es2015/commonjs/binding/implements",
+    "class-assigned-name/es2015/commonjs/parenthesized/implements",
+    "class-assigned-name/es2015/commonjs/variable/generic",
+    "class-assigned-name/es2015/commonjs/property/generic",
+    "class-assigned-name/es2015/commonjs/assignment/generic",
+    "class-assigned-name/es2015/commonjs/binding/generic",
+    "class-assigned-name/es2015/commonjs/parenthesized/generic",
+    "class-assigned-name/es2015/commonjs/variable/annotated-member",
+    "class-assigned-name/es2015/commonjs/property/annotated-member",
+    "class-assigned-name/es2015/commonjs/assignment/annotated-member",
+    "class-assigned-name/es2015/commonjs/binding/annotated-member",
+    "class-assigned-name/es2015/commonjs/parenthesized/annotated-member",
+    "class-assigned-name/es2015/commonjs/plain-function",
+    "class-assigned-name/es2015/commonjs/typed-function",
+    "class-assigned-name/es2015/commonjs/plain-function-new-target",
+    "class-assigned-name/es2015/commonjs/typed-function-new-target",
+    "class-assigned-name/es2015/commonjs/typed-arrow",
+    "class-assigned-name/es2015/commonjs/named-class",
+    "class-assigned-name/es2015/commonjs/class-fields-alias",
+    "class-assigned-name/es2015/esnext/variable/plain",
+    "class-assigned-name/es2015/esnext/property/plain",
+    "class-assigned-name/es2015/esnext/assignment/plain",
+    "class-assigned-name/es2015/esnext/binding/plain",
+    "class-assigned-name/es2015/esnext/parenthesized/plain",
+    "class-assigned-name/es2015/esnext/variable/implements",
+    "class-assigned-name/es2015/esnext/property/implements",
+    "class-assigned-name/es2015/esnext/assignment/implements",
+    "class-assigned-name/es2015/esnext/binding/implements",
+    "class-assigned-name/es2015/esnext/parenthesized/implements",
+    "class-assigned-name/es2015/esnext/variable/generic",
+    "class-assigned-name/es2015/esnext/property/generic",
+    "class-assigned-name/es2015/esnext/assignment/generic",
+    "class-assigned-name/es2015/esnext/binding/generic",
+    "class-assigned-name/es2015/esnext/parenthesized/generic",
+    "class-assigned-name/es2015/esnext/variable/annotated-member",
+    "class-assigned-name/es2015/esnext/property/annotated-member",
+    "class-assigned-name/es2015/esnext/assignment/annotated-member",
+    "class-assigned-name/es2015/esnext/binding/annotated-member",
+    "class-assigned-name/es2015/esnext/parenthesized/annotated-member",
+    "class-assigned-name/es2015/esnext/plain-function",
+    "class-assigned-name/es2015/esnext/typed-function",
+    "class-assigned-name/es2015/esnext/plain-function-new-target",
+    "class-assigned-name/es2015/esnext/typed-function-new-target",
+    "class-assigned-name/es2015/esnext/typed-arrow",
+    "class-assigned-name/es2015/esnext/named-class",
+    "class-assigned-name/es2015/esnext/class-fields-alias"
+  ],
+  "after_required_complete_commands": 556,
+  "after_target_exact_twice": 434,
+  "original_A28_target_exact_twice": 390,
+  "original_A28_other_owned_cases": [
+    "class-field-alias-map-positions/es5/commonjs/set/declaration-field",
+    "class-field-alias-map-positions/es5/commonjs/set/wrapper-comments",
+    "class-field-alias-map-positions/es5/commonjs/set/legacy-invalid-this",
+    "class-field-alias-map-positions/es5/commonjs/define/declaration-field",
+    "class-field-alias-map-positions/es5/commonjs/define/wrapper-comments",
+    "class-field-alias-map-positions/es5/commonjs/define/legacy-invalid-this",
+    "class-field-alias-map-positions/es5/esnext/set/declaration-field",
+    "class-field-alias-map-positions/es5/esnext/set/wrapper-comments",
+    "class-field-alias-map-positions/es5/esnext/set/legacy-invalid-this",
+    "class-field-alias-map-positions/es5/esnext/define/declaration-field",
+    "class-field-alias-map-positions/es5/esnext/define/wrapper-comments",
+    "class-field-alias-map-positions/es5/esnext/define/legacy-invalid-this",
+    "class-field-alias-map-positions/es2015/commonjs/set/legacy-invalid-this",
+    "class-field-alias-map-positions/es2015/commonjs/set/legacy-static-block",
+    "class-field-alias-map-positions/es2015/commonjs/define/legacy-invalid-this",
+    "class-field-alias-map-positions/es2015/commonjs/define/legacy-static-block",
+    "class-field-alias-map-positions/es2015/esnext/set/legacy-invalid-this",
+    "class-field-alias-map-positions/es2015/esnext/set/legacy-static-block",
+    "class-field-alias-map-positions/es2015/esnext/define/legacy-invalid-this",
+    "class-field-alias-map-positions/es2015/esnext/define/legacy-static-block"
+  ],
+  "emitter_tests_required": {
+    "lib": 490,
+    "contracts": 451
+  },
+  "unit_test_id_replacement": {
+    "old": "factory::parsed_metadata::tests::parsed_constants_preserve_bits_and_code_units_without_javascript_comment_ownership",
+    "new": "factory::parsed_metadata::tests::parsed_constants_preserve_number_bits_and_string_code_units"
+  },
+  "rust_map": [
+    {
+      "value": "initializer marker",
+      "producer": "materialize_field_operation",
+      "consumer": "EmitMetadata/Printer",
+      "lifetime": "retired end-to-end",
+      "step": "A6-28-5a"
+    },
+    {
+      "value": "merge transport",
+      "producer": "EmitMetadata::merge_from",
+      "consumer": "clones/updates",
+      "lifetime": "retire only marker field",
+      "step": "A6-28-5a"
+    },
+    {
+      "value": "parsed snapshot",
+      "producer": "snapshot_parsed_emit_metadata",
+      "consumer": "declaration arena restore",
+      "lifetime": "retire marker-only exception; live whitelist/source identity unchanged",
+      "step": "A6-28-5b"
+    },
+    {
+      "value": "comment ranges",
+      "producer": "existing field/initializer raw ranges",
+      "consumer": "existing comment scope and trailing workers",
+      "lifetime": "per tree/source; container saves/restores unchanged",
+      "step": "A6-28-5a"
+    },
+    {
+      "value": "constant values",
+      "producer": "EmitConstantValue",
+      "consumer": "ParsedNodeMetadata restore",
+      "lifetime": "snapshot lifetime; numeric bits/UTF16 assertions unchanged",
+      "step": "A6-28-5b"
+    }
+  ],
+  "qualification": {
+    "record": "ratchets/h2-8a-class-field-initializer-comments-shared-regressions.v1.json",
+    "sha256": "c697d75483659361c1829bf860440b954855d23042b6ca50226082b35b40c631",
+    "eligible": 556,
+    "exact_twice": 434,
+    "original_A28_owned_still_open": 20,
+    "scope": "initializer comment retirement only; original A28 target390 remains"
+  },
+  "following_endpoint_qualification": {
+    "record": "ratchets/h2-8a-one-sided-class-comments-regressions.v1.json",
+    "sha256": "9fcdeea204915353b11296781058db45516b3c1fdaec20e76a161690689f3c2d",
+    "eligible": 996,
+    "exact_twice": 896,
+    "original_A28_exact_twice": 396,
+    "original_A28_owned_still_open": 0,
+    "original_A28_outside_still_open": 96,
+    "global_matrix_claim": false,
+    "source_disposition_review": {
+      "path": "target/h2-8a-one-sided-class-comments-after-disposition-review.json",
+      "sha256": "9733207f9c41bebbfc6cebb1d8c67f9e67f3ad18025e357bca7d0dfc9a221087"
+    }
+  }
+}

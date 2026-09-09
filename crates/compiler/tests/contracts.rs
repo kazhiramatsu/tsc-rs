@@ -212,3 +212,15 @@ mod h2_8a_defineproperty_setter_names;
 
 #[path = "integration/h2_8a_meta_property_token_maps.rs"]
 mod h2_8a_meta_property_token_maps;
+
+#[path = "integration/h2_8a_class_field_alias_map_positions.rs"]
+mod h2_8a_class_field_alias_map_positions;
+
+#[path = "integration/h2_8a_class_field_initializer_comments.rs"]
+mod h2_8a_class_field_initializer_comments;
+
+#[path = "integration/h2_8a_promoted_class_export_maps.rs"]
+mod h2_8a_promoted_class_export_maps;
+
+#[path = "integration/h2_8a_one_sided_class_comments.rs"]
+mod h2_8a_one_sided_class_comments;

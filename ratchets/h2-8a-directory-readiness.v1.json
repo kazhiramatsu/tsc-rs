@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/typescript.js",
@@ -134,6 +134,43 @@
     {
       "id": "E-NAMES-BASE",
       "disposition": "modified-requalify"
+    }
+  ],
+  "authority_amendments": [
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19",
+      "sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-pre-edit-px_7xkf7/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 current inventory retirement; historical qualification/source retained; no initial A28 target or A1 semantics change"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-architecture-fo3m_il9/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 candidate type inventory; three comment rows explicitly unqualified until exact output/regression evidence"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
     }
   ]
 }

@@ -135,7 +135,6 @@ struct ExpressionCommentPhaseOwner {
     range: CommentRange,
     flags: EmitFlags,
     kind: SyntaxKind,
-    relocated_trailing: bool,
 }
 
 /// Records whether this expression invocation actually ran an ordinary
@@ -7648,9 +7647,8 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         if active_scope.container_end().is_some() {
             let child_range = self.comment_range_for_node(transformation, child)?;
-            if let SourceRange::Original(range) = child_range.range() {
-                return Ok(!active_scope
-                    .retains_end(CommentCursor::new(child_range.source(), range.end())));
+            if let Some(end) = child_range.range().end() {
+                return Ok(!active_scope.retains_end(CommentCursor::new(child_range.source(), end)));
             }
         }
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
@@ -7684,10 +7682,7 @@ impl Printer {
         if transformation
             .arena()
             .metadata(child)
-            .is_some_and(|metadata| {
-                metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                    || metadata.relocated_trailing_comment_owner.is_some()
-            })
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
         {
             return Ok(());
         }
@@ -10729,11 +10724,12 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        if let SourceRange::Original(range) = owner.range.range() {
-            let start = range.start().value() as usize;
+        let range = owner.range.range();
+        if let Some(start) = range.start() {
+            let start = start.value() as usize;
             let code_start = range
-                .without_leading_trivia(source.text(), source.positions())?
-                .start()
+                .leading_trivia_end(source.text(), source.positions())?
+                .expect("comment range has a source start")
                 .value() as usize;
             if start < code_start {
                 let before = writer.text().len();
@@ -10760,13 +10756,14 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let SourceRange::Original(range) = owner.range.range() else {
+        let range = owner.range.range();
+        let Some(start) = range.start() else {
             return Ok(false);
         };
-        let start = range.start().value() as usize;
+        let start = start.value() as usize;
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         let mut previous_end = start;
         if start < code_start {
@@ -13566,10 +13563,11 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(range_start) = range.start() else {
             return Ok(None);
         };
-        let start = range.start().value() as usize;
+        let start = range_start.value() as usize;
         let comments = collect_source_comment_ranges(source.text(), start, true);
         let Some(last_comment) = comments.last().copied() else {
             return Ok(None);
@@ -13594,14 +13592,14 @@ impl Printer {
             emit_source_intervening_comments_of_position(source.text(), start, writer);
         }
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         let position = SourceBytePosition::new(
             u32::try_from(last_comment.end.min(code_start)).unwrap_or(u32::MAX),
             source.positions(),
         )?;
-        let owner_start = CommentCursor::new(comment_range.source(), range.start());
+        let owner_start = CommentCursor::new(comment_range.source(), range_start);
         let next = CommentCursor::new(comment_range.source(), position);
         Ok(Some(
             CommentResume::new(owner_start, next).map_err(Self::comment_resume_error)?,
@@ -13638,7 +13636,8 @@ impl Printer {
         let Some((cursor_source, _)) = emission.cursor().source_position() else {
             return Ok(None);
         };
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_start) = owner_range.start() else {
             return Ok(None);
         };
         let owner_source = owner.range.source();
@@ -13648,14 +13647,14 @@ impl Printer {
         // That is a fresh comments phase, not a malformed continuation.
         if cursor_source != owner_source
             || token_owner.source() != owner_source
-            || token_owner.position() != owner_range.start()
+            || token_owner.position() != owner_start
         {
             return Ok(None);
         }
         let source = transformation.arena().source(owner_source)?.syntax();
         let code_start = owner_range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start();
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start");
         let next = SourceBytePosition::new(
             token_resume
                 .next()
@@ -13666,7 +13665,7 @@ impl Printer {
         )?;
         Ok(Some(
             CommentResume::new(
-                CommentCursor::new(owner_source, owner_range.start()),
+                CommentCursor::new(owner_source, owner_start),
                 CommentCursor::new(owner_source, next),
             )
             .map_err(Self::comment_resume_error)?,
@@ -13680,7 +13679,8 @@ impl Printer {
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentResume>, PrinterError> {
         let source_id = owner.range.source();
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_start) = owner_range.start() else {
             return Ok(None);
         };
         // tsc's leading guard: source trivia at `pos` belongs to the
@@ -13689,16 +13689,16 @@ impl Printer {
         //
         // tsc-port: forEachLeadingCommentToEmit @6.0.3
         // tsc-span: _tsc.js:121219-121233
-        if container_pos != Some(CommentCursor::new(source_id, owner_range.start())) {
+        if container_pos != Some(CommentCursor::new(source_id, owner_start)) {
             return Ok(None);
         }
         let source = transformation.arena().source(source_id)?.syntax();
         let next = owner_range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start();
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start");
         Ok(Some(
             CommentResume::new(
-                CommentCursor::new(source_id, owner_range.start()),
+                CommentCursor::new(source_id, owner_start),
                 CommentCursor::new(source_id, next),
             )
             .map_err(Self::comment_resume_error)?,
@@ -13754,15 +13754,15 @@ impl Printer {
         };
         if self.options.remove_comments
             || owner.flags.intersects(EmitFlags::NO_TRAILING_COMMENTS)
-            || owner.relocated_trailing
             || owner.kind == SyntaxKind::NotEmittedStatement
         {
             return Ok(Some(TrailingSourceCommentOwnership::Suppressed));
         }
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_end) = owner_range.end() else {
             return Ok(Some(TrailingSourceCommentOwnership::NoSourceRange));
         };
-        if owner_range.start() == owner_range.end() {
+        if !owner_range.has_nonempty_extent() {
             return Ok(Some(TrailingSourceCommentOwnership::EmptySourceRange));
         }
         if deferred
@@ -13770,7 +13770,7 @@ impl Printer {
             .map(|container| self.deferred_container_scope(transformation, container))
             .transpose()?
             .is_some_and(|scope| {
-                scope.retains_end(CommentCursor::new(owner.range.source(), owner_range.end()))
+                scope.retains_end(CommentCursor::new(owner.range.source(), owner_end))
             })
         {
             return Ok(Some(TrailingSourceCommentOwnership::RetainedByParent));
@@ -13779,7 +13779,7 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let boundary = owner_range.end().value() as usize;
+        let boundary = owner_end.value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
             self.options.only_print_js_doc_style,
@@ -13787,11 +13787,11 @@ impl Printer {
         )
         .map(|end| SourceBytePosition::new(end as u32, source.positions()))
         .transpose()?;
-        let cursor = TokenCursor::source(owner.range.source(), owner_range.end());
+        let cursor = TokenCursor::source(owner.range.source(), owner_end);
         let resume = emitted_through
             .map(|next| {
                 CommentResume::new(
-                    CommentCursor::new(owner.range.source(), owner_range.end()),
+                    CommentCursor::new(owner.range.source(), owner_end),
                     CommentCursor::new(owner.range.source(), next),
                 )
                 .map_err(Self::comment_resume_error)
@@ -13895,16 +13895,17 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let SourceRange::Original(range) = owner.range.range() else {
+        let range = owner.range.range();
+        let Some(range_start) = range.start() else {
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         }
-        let start = range.start().value() as usize;
+        let start = range_start.value() as usize;
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         // A NotEmittedStatement is a range/ownership anchor, not an emitted
         // statement. tsc suppresses its ordinary comments, but its special
@@ -13929,10 +13930,10 @@ impl Printer {
                         owner: owner.range.source(),
                     });
                 }
-                if owner_start.position() != range.start() {
+                if owner_start.position() != range_start {
                     return Err(PrinterError::CommentResumeOwnerMismatch {
                         source: owner.range.source(),
-                        left_start: range.start().value(),
+                        left_start: range_start.value(),
                         right_start: owner_start.position().value(),
                     });
                 }
@@ -13985,10 +13986,10 @@ impl Printer {
     ) -> Result<Option<DetachedCommentPrefix>, PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let comment_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(start) = comment_range.range().start() else {
             return Ok(None);
         };
-        self.detached_comment_prefix_at(transformation, comment_source, range.start())
+        self.detached_comment_prefix_at(transformation, comment_source, start)
     }
 
     /// The detached-comment boundary belongs to the container range, rather
@@ -14177,10 +14178,10 @@ impl Printer {
     ) -> Result<Option<CommentResume>, PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let comment_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(start) = comment_range.range().start() else {
             return Ok(None);
         };
-        Ok(pending.take_for(CommentCursor::new(comment_source, range.start())))
+        Ok(pending.take_for(CommentCursor::new(comment_source, start)))
     }
 
     fn emit_trailing_comments_for_node(
@@ -14195,7 +14196,6 @@ impl Printer {
                 .metadata(node)
                 .is_some_and(|metadata| {
                     metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                        || metadata.relocated_trailing_comment_owner.is_some()
                 })
         {
             return Ok(());
@@ -14208,14 +14208,15 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(end) = range.end() else {
             return Ok(());
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(());
         }
         emit_same_line_trailing_comments(
-            SourceTrivia::from_start(source.text(), range.end().value() as usize),
+            SourceTrivia::from_start(source.text(), end.value() as usize),
             self.options.only_print_js_doc_style,
             writer,
         );
@@ -14237,8 +14238,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
-        if let SourceRange::Original(range) = comment_range.range() {
-            if active_scope.retains_end(CommentCursor::new(comment_range.source(), range.end())) {
+        if let Some(end) = comment_range.range().end() {
+            if active_scope.retains_end(CommentCursor::new(comment_range.source(), end)) {
                 return Ok(());
             }
         }
@@ -14340,7 +14341,6 @@ impl Printer {
                 .metadata(node)
                 .is_some_and(|metadata| {
                     metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                        || metadata.relocated_trailing_comment_owner.is_some()
                 })
             || transformation.arena().node(node)?.kind == SyntaxKind::NotEmittedStatement
         {
@@ -14351,13 +14351,14 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(end) = range.end() else {
             return Ok(cursor.into());
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(cursor.into());
         }
-        let boundary = range.end().value() as usize;
+        let boundary = end.value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
             self.options.only_print_js_doc_style,
@@ -14491,14 +14492,10 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(end) = comment_range.range().end() else {
             return Ok(());
         };
-        emit_source_trailing_comments_of_position(
-            source.text(),
-            range.end().value() as usize,
-            writer,
-        );
+        emit_source_trailing_comments_of_position(source.text(), end.value() as usize, writer);
         Ok(())
     }
 
@@ -14632,8 +14629,6 @@ impl Printer {
             range: self.comment_range_for_node(transformation, node)?,
             flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
             kind: transformation.arena().node(node)?.kind,
-            relocated_trailing: metadata
-                .is_some_and(|metadata| metadata.relocated_trailing_comment_owner.is_some()),
         })
     }
 
@@ -14654,14 +14649,13 @@ impl Printer {
             ),
             flags: EmitFlags::NONE,
             kind: SyntaxKind::ParenthesizedExpression,
-            relocated_trailing: false,
         })
     }
 
     /// Comment owner of the virtual no-ASI parenthesis created with both
     /// `setOriginalNode` and `setTextRange`. Explicit wrapper comment ranges
     /// win; otherwise the parsed parenthesis donates its token/text range.
-    /// Emit flags and relocated ownership still come from the wrapper's
+    /// Emit flags still come from the wrapper's
     /// metadata, matching the split ownership of the tsc factory node.
     fn parsed_no_asi_comment_phase_owner(
         &self,
@@ -14687,26 +14681,16 @@ impl Printer {
             range,
             flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
             kind: SyntaxKind::ParenthesizedExpression,
-            relocated_trailing: metadata
-                .is_some_and(|metadata| metadata.relocated_trailing_comment_owner.is_some()),
         })
     }
 
-    /// The statement-family claim: the full range pair when the owner has
-    /// a nonempty original range, flags not consulted. This is the H2.5g
-    /// paired projection those routes stay on until their own migration
-    /// packet lands the per-side producer there.
     /// tsc's per-side claim conditions over one comment-phase owner.
     ///
-    /// For a range this representation can express, a side goes unclaimed
-    /// only for `JsxText` without that side's suppression flag — a
-    /// suppression flag claims while suppressing the emission itself —
-    /// and a synthesized or zero-width range claims nothing at all, so
-    /// the enclosing scope stays active. The `pos < 0` arms of the
-    /// upstream predicate are unreachable here: `SourceRange` is either
-    /// `Original` with both positions or `Synthesized`, and the outer
-    /// `(pos > 0 || end > 0)` gate is always satisfied by a nonempty
-    /// original range through its end.
+    /// Each source endpoint is independent. Missing sides remain inherited,
+    /// even when their suppression flag is set. A present side goes unclaimed
+    /// for `JsxText` without that side's flag; a suppression flag otherwise
+    /// claims while suppressing emission. Synthesized, paired-empty and sole
+    /// zero endpoints fail the upstream extent gate and claim neither side.
     ///
     /// tsc-port: emitLeadingCommentsOfNode @6.0.3
     /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
@@ -14774,12 +14758,12 @@ impl Printer {
         node: TransformNode,
     ) -> Result<TokenCursor, PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
-        Ok(match comment_range.range() {
-            SourceRange::Original(range) => {
-                TokenCursor::source(comment_range.source(), range.end())
-            }
-            SourceRange::Synthesized => TokenCursor::Synthetic,
-        })
+        Ok(comment_range
+            .range()
+            .end()
+            .map_or(TokenCursor::Synthetic, |end| {
+                TokenCursor::source(comment_range.source(), end)
+            }))
     }
 
     /// A label's trailing trivia belongs before an explicit source
@@ -15848,10 +15832,10 @@ impl Printer {
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let comment_source = comment_range.source();
         let source = transformation.arena().source(comment_source)?.syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(end) = comment_range.range().end() else {
             return Ok(None);
         };
-        let element_end = range.end().value() as usize;
+        let element_end = end.value() as usize;
         let delimiter = skip_trivia(source.text(), element_end);
         if source.text().as_bytes().get(delimiter) != Some(&b',') {
             return Ok(None);
@@ -15894,11 +15878,10 @@ impl Printer {
         };
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let range_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(start) = comment_range.range().start() else {
             return Ok(None);
         };
-        if resume.owner_start().source() == range_source
-            && resume.owner_start().position() == range.start()
+        if resume.owner_start().source() == range_source && resume.owner_start().position() == start
         {
             Ok(Some(resume))
         } else {

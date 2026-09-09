@@ -743,9 +743,25 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
 
         if has_constructor_decoration {
             let decorators = self.materialize_class_decorators(class_decoration)?;
+            // tsc-port: generateConstructorDecorationExpression @6.0.3
+            // tsc-hash: 0a501b9618c8b1f817440a0553fd2ca86675abe92c08c2fd60e04fc661623041
+            // tsc-span: _tsc.js:98827-98856
+            let name_flags = expression_name.map(|_| {
+                let mut flags = EmitFlags::NO_COMMENTS;
+                if self.target < ScriptTarget::ES2015 {
+                    flags |= EmitFlags::LOCAL_NAME | EmitFlags::INTERNAL_NAME;
+                }
+                flags
+            });
             let class_name = self.create_identifier(&name_text)?;
             if let Some(explicit_name) = explicit_name {
                 self.set_original_and_range(class_name, self.node(explicit_name))?;
+            }
+            if let Some(flags) = name_flags {
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(class_name)
+                    .add_flags(flags);
             }
             let mut decorate = self.create_decorate_call(decorators, class_name, None, None)?;
             if let Some(alias) = class_alias.as_ref() {
@@ -756,17 +772,21 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             if let Some(explicit_name) = explicit_name {
                 self.set_original_and_range(class_name, self.node(explicit_name))?;
             }
-            // This is tsc's `getDeclarationName`, not `getLocalName`: the
-            // module transformer must still relate the assignment target to
-            // the original exported class and wrap it in `exports.name =`.
-            // The variable declaration above owns the local binding.
+            if let Some(flags) = name_flags {
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(class_name)
+                    .add_flags(flags);
+            }
+            // ES5 uses an internal name local to the class wrapper. ES2015
+            // uses a declaration name so the module can publish this update.
             let assignment = self.create_assignment(class_name, decorate)?;
             let statement = self.create_class_decoration_statement(assignment, current)?;
             statements.push(statement);
         }
         if has_constructor_decoration && is_export {
             statements.push(if is_default {
-                self.create_export_default(&name_text)?
+                self.create_export_default(&name_text, expression_name.map(|name| self.node(name)))?
             } else {
                 let declaration_name = explicit_name.map(|name| self.node(name)).ok_or(
                     TransformError::RequiredChildRemoved {
@@ -774,7 +794,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         field: "name",
                     },
                 )?;
-                self.create_named_export(&name_text, declaration_name)?
+                self.create_named_export(declaration_name)?
             });
         }
 
@@ -3483,18 +3503,26 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .update_node(root, NodeData::SourceFile(data), flags)
     }
 
+    /// tsc-port: getName @6.0.3 (getDeclarationName with omitted allow flags)
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-span: _tsc.js:24788-24799
     fn create_named_export(
         &mut self,
-        name: &str,
         declaration_name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(name)?;
+        let name = self.context.factory()?.clone_node(declaration_name)?;
         // tsc passes `factory.getDeclarationName(node)` to
         // `createExternalModuleExport`. Preserve that declaration identity:
         // collectExternalModuleInfo asks the resolver for the value
         // declaration behind this synthetic specifier, and the later module
         // substitution uses the resulting exported-binding relation.
-        self.set_original_and_range(name, declaration_name)?;
+        self.context
+            .factory()?
+            .set_text_range(name, declaration_name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
         let specifier = self.context.factory()?.create_node(
             self.source,
             NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
@@ -3528,8 +3556,33 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_export_default(&mut self, name: &str) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(name)?;
+    /// The default export reuses the explicit declName's getName policy.
+    ///
+    /// tsc-port: getName @6.0.3
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-span: _tsc.js:24788-24799
+    fn create_export_default(
+        &mut self,
+        name: &str,
+        declaration_name: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let name = if let Some(declaration_name) = declaration_name {
+            let name = self.context.factory()?.clone_node(declaration_name)?;
+            self.context
+                .factory()?
+                .set_text_range(name, declaration_name)?;
+            let mut flags = EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME;
+            if self.target < ScriptTarget::ES2015 {
+                flags |= EmitFlags::INTERNAL_NAME;
+            }
+            self.context
+                .arena_mut()?
+                .metadata_mut(name)
+                .add_flags(flags);
+            name
+        } else {
+            self.create_identifier(name)?
+        };
         self.context.factory()?.create_node(
             self.source,
             NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
