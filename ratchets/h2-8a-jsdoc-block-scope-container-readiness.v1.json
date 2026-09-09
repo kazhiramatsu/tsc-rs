@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d"
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
@@ -58,11 +58,11 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5"
+      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
-      "sha256": "685b0b2647f65e003a1065f1caa02bb83d89173839ae190aad72240a9c64e2ac"
+      "sha256": "7ffe03ab6ecffda8dc42c42ffcac5fc3d0ea89673fed65e8355213a778346c9c"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_jsdoc_block_scope_container.rs",
@@ -1482,6 +1482,27 @@
       "sha256": "2530fc50f4c28b386adcdd890f5e6bfbfcecf49609f0481bd63aa7fa8074ce13",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-packet-links-before-o10uvxq1/docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
       "reason": "Resolve copied architecture-row links relative to the slice packet; exact source-row hash and semantics unchanged"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "65c01ff3f075541f1c73f47807ca54512a7aaac3e0e080e641375f0a875c36d5",
+      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-registration-before-cn0u39ul/crates/compiler/tests/contracts.rs",
+      "reason": "Only append the A6-31 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "old_sha256": "685b0b2647f65e003a1065f1caa02bb83d89173839ae190aad72240a9c64e2ac",
+      "sha256": "7ffe03ab6ecffda8dc42c42ffcac5fc3d0ea89673fed65e8355213a778346c9c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-registration-before-cn0u39ul/crates/compiler/tests/h2_8a_original_corpus.rs",
+      "reason": "Only append the A6-31 complete comparator registration/original selector, proven against exact HEAD preimage; all prior tests unchanged"
     }
   ],
   "qualification": {

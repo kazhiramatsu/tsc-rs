@@ -1,0 +1,1375 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-31",
+  "base": "ed6ad88f6b9ed6203e5065b439f332ca7fe5d210",
+  "runtime_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "steps": [
+    "A6-31-1",
+    "A6-31-2",
+    "A6-31-3"
+  ],
+  "authorities": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "b99f67907838a2d5d2bcb7d0b6e296d49d7f28a670b643e7a0607acbd49dafb0"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/checker-foundations.md",
+      "sha256": "099df1b88bfc2b2da51f00d8a7357de14c82f57a9e32bb26cdaba99d66ec01d9"
+    },
+    {
+      "path": "docs/design/syntax-and-binder.md",
+      "sha256": "b964a6de2a726aa02e6dd1186283a106654d011efe04636925afb1249f6877d2"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
+      "sha256": "2dbb74af951a217323c43afd4fd59fc13fc40c74bd04439855f3e7f504e354d6"
+    },
+    {
+      "path": "ratchets/h2-8a-export-star-declaration-producer-before.v1.json",
+      "sha256": "b324d55262ffc7475715cf8ee0b8a87e679a75213fb9a9cec4a028c5cc951db2"
+    },
+    {
+      "path": "scripts/observe-export-star-declaration-producer.mjs",
+      "sha256": "f11c384af77697b8c8657a4c1495ca639169d7c66a58c3a8d124bf871c4a1e72"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/export-star-declaration-producer.json",
+      "sha256": "cf93331ed36b1806811c58f9666b0d03cc28d8931946438485e54299649d9239"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "2c8787022cb856a648117f6edf38042bc35277c366ed887ae042469efb0aa6d0"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "7ffe03ab6ecffda8dc42c42ffcac5fc3d0ea89673fed65e8355213a778346c9c"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_export_star_declaration_producer.rs",
+      "sha256": "d36cc23a4c75c2d93254f981b509e7c1b24c085aab2016bd240b4639cc5f7200"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "a47b59b0a81270c30fe69b1d29fb3a6e47c6032536b85c1c623b9b6dcfeb00e4"
+    },
+    {
+      "path": "crates/checker/src/declaration_emit.rs",
+      "sha256": "ab6204992cb296811931a4b6e49180c8f4371aec0eef42ac4e4ba89b805f811b"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "526ef82cbe944cbd119d786a9c2db217497ed3f05cb5607d7ba42422d6c1a0fe"
+    },
+    {
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "sha256": "259b03b0d6a124915ef9f4559552243a59a9869b818e208d9944b16f7d3718f8"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "7cd6d0018af4b33e8db2a566449089f63097769c4bc12ddf05e0ba86921af801"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "747f784c3fac9f4f184ffa038138a0f0e06519c87d4a267b5fd0d61c70958908"
+    },
+    {
+      "path": "crates/emitter/src/declarations/root.rs",
+      "sha256": "8666284f08848ff4f83534abca8d97819f89847bf509e6c683784e05b6b07d06"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "createBaseStringLiteral",
+      "declaration_name": "createBaseStringLiteral",
+      "start": 21523,
+      "end": 21528,
+      "sha256": "357b18f0aef43dcbeef52147b7edacf70b26ce42101d0fba479a4a69694fc535",
+      "rust_path": "crates/emitter/src/factory.rs",
+      "rust_symbol": "NodeFactory::create_string_literal",
+      "invariant": "fresh cooked value with no parsed text source",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "createStringLiteral",
+      "declaration_name": "createStringLiteral",
+      "start": 21529,
+      "end": 21534,
+      "sha256": "2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e",
+      "rust_path": "crates/checker/src/node_builder/statements.rs",
+      "rust_symbol": "create_string_literal",
+      "invariant": "typed factory call, default double-quote provenance",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "createExportDeclaration",
+      "declaration_name": "createExportDeclaration",
+      "start": 23624,
+      "end": 23635,
+      "sha256": "9a0b5dd2decaa4205a68486280acf4778c851fb338a6c64fd464c3fba40d3174",
+      "rust_path": "crates/checker/src/node_builder/type_nodes.rs",
+      "rust_symbol": "create_factory_node ExportDeclaration arm",
+      "invariant": "dedicated NodeFactory call owns child flags and synthetic positions",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "bindExportDeclaration",
+      "declaration_name": "bindExportDeclaration",
+      "start": 44574,
+      "end": 44583,
+      "sha256": "d6d358b0a0eb6ef482febcef992fb422846a31fb14ac856ff0239d0594b01f48",
+      "rust_path": "crates/binder/src/bind.rs",
+      "rust_symbol": "bind_export_declaration",
+      "invariant": "EXPORT_STAR retains original ExportDeclaration IDs; namespace exports are ALIAS",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "resolveExternalModuleName",
+      "declaration_name": "resolveExternalModuleName",
+      "start": 49465,
+      "end": 49469,
+      "sha256": "9d35733bd4ecb68f5802ad505327c208fc59e122e00cbc2633f50e1f3c3d4f9a",
+      "rust_path": "crates/checker/src/modules.rs",
+      "rust_symbol": "resolve_external_module_name",
+      "invariant": "resolve original declaration module with errors enabled; preserve CheckAbort",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "resolveExternalModuleNameWorker",
+      "declaration_name": "resolveExternalModuleNameWorker",
+      "start": 49470,
+      "end": 49472,
+      "sha256": "06af42ad3f426366f3ce8859410e119e7d429da0ed86b7094aac49115437af9a",
+      "rust_path": "crates/checker/src/modules.rs",
+      "rust_symbol": "resolve_external_module_name_worker",
+      "invariant": "string-literal-like admission; absent module skips",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "getSpecifierForModuleSymbol",
+      "declaration_name": "getSpecifierForModuleSymbol",
+      "start": 53060,
+      "end": 53109,
+      "sha256": "cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463",
+      "rust_path": "crates/checker/src/node_builder/specifier.rs",
+      "rust_symbol": "get_specifier_for_module_symbol",
+      "invariant": "reuse current module-symbol/context/mode cache and bundle specifier owner",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "serializeSymbol",
+      "declaration_name": "serializeSymbol",
+      "start": 53976,
+      "end": 53991,
+      "sha256": "89a62d997aa6147fdb69cb375b6f5a5e4a24830189c28093f5d59dfefacc0647",
+      "rust_path": "crates/checker/src/node_builder/statements.rs",
+      "rust_symbol": "serialize_symbol",
+      "invariant": "visited symbol identity, scope membership, context/tracker cleanup on captured Result",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "serializeSymbolWorker",
+      "declaration_name": "serializeSymbolWorker",
+      "start": 53992,
+      "end": 54179,
+      "sha256": "dc9bf6e639d95e72cefd3e99de392150843321b4b1f785340d52751bbe4bbc38",
+      "rust_path": "crates/checker/src/node_builder/statements.rs",
+      "rust_symbol": "serialize_symbol_worker EXPORT_STAR branch",
+      "invariant": "resolve each declaration in order, skip absent module, create fresh declaration",
+      "gap": "partial-or-stale",
+      "step": "A6-31-2",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "addResult",
+      "declaration_name": "addResult",
+      "start": 54190,
+      "end": 54210,
+      "sha256": "1d5bbaa5bc6714a9dcb56eb0347501e0ebd1c79db08073b2b679e32987b7bee1",
+      "rust_path": "crates/checker/src/node_builder/statements.rs",
+      "rust_symbol": "add_result",
+      "invariant": "existing modifiers/ambient/length accounting and ordered append",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "transformDeclarationsForJS",
+      "declaration_name": "transformDeclarationsForJS",
+      "start": 114431,
+      "end": 114440,
+      "sha256": "fe83d798e4e7ba53668936902ed8d8c0c15191b6138123cc72989e365c67168d",
+      "rust_path": "crates/emitter/src/declarations/root.rs",
+      "rust_symbol": "transform_declarations_for_js",
+      "invariant": "existing JS-only declaration route and resolver/tracker diagnostic restoration",
+      "gap": "shared-prerequisite",
+      "step": "A6-31-1",
+      "test": "export_star_declaration_producer_matches_complete_typescript_observations"
+    }
+  ],
+  "declarations": [
+    {
+      "status": "whole property-arrow source identity, read as existing gateway; no runtime qualification",
+      "owner": "getDeclarationStatementsForSourceFile",
+      "declaration_kind": "property-assignment-arrow",
+      "start": 88612,
+      "end": 88621,
+      "sha256": "517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc",
+      "rust": "crates/checker/src/declaration_emit.rs::emit_get_declaration_statements_for_source_file",
+      "invariant": "source-node validation, locals versus symbol exports table, module symbol resolution, existing borrowed node-builder context"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-ENTRY",
+      "row": "| `E-ENTRY` | No-emit and emit are distinct typed entries; no-emit constructs no emitter-only component. | `tsc_compiler::ProgramSession::{run,emit}`; `tsc_emitter::emit_files_with_activity` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | frozen H2.5g profile (`0653e10d`); H0/H1 no-emit canaries |",
+      "row_sha256": "688dc79124384ac35c41ed8e80d86cd41e552aed6ceb9f369d735987179c7237",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "row": "| `E-PROTOCOL` | Read host, semantic resolver, artifact, sink, and outcome have separate ownership; planning cannot observe syntax, checked syntax exists only within the live checker/resolver scope, and sink errors become diagnostics at the write boundary. | `tsc_emitter::{EmitHost,EmitResolver,EmitArtifact,OutputSink,EmitOutcome}` (public); private `tsc_compiler::{PreparedEmitHost,CheckedEmitHost}`; `tsc_checker::emit::CheckerSession` implementation in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile; every output slice preserves this boundary |",
+      "row_sha256": "7107f22958050e97c0f9a68e9ef12f0642360d497f47f5a15b16639e60f415be",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "row": "| `E-RESOLVER-BASE` | Semantic facts cross a borrowing consumer-owned resolver; unavailable methods return typed errors. | `tsc_emitter::{EmitResolver,EmitResolverMethod,EmitResolverError}` (public); `tsc_checker::emit::CheckerSession` impl in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and resolver controls |",
+      "row_sha256": "c49fe6f747d32438abe077dd0524ec92f754a3ce45784606bfda214bc118d9ba",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-ARENA",
+      "row": "| `E-ARENA` | Parsed trees remain immutable; the detached arena appends synthetic nodes and tracks the mounted parsed interval. | `tsc_emitter::{TransformArena,TransformSource,TransformSourceId,TransformNode,TransformNodeArray,NodeFactory}` (public) Existing `NodeFactory::modifier_flags` is now `pub(crate)`; downlevel auto-accessor setters use fresh factory modifiers while getters retain source tokens. | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; every later transform packet maps provenance explicitly |",
+      "row_sha256": "8d9acb66fc4ede78903efbb5ca9c41cba0818e263a6d459f6778650de742ced6",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row": "| `E-METADATA-BASE` | Transform flags and `emitNode`-equivalent facts are sparse session side tables; there is no standalone Rust `EmitNode` syntax object. Original/map/comment/value identities are separate. CommentRange carries independent source start/end states through CommentSourceRange; paired source slices and source-map ranges keep their existing domains. | Public `tsc_emitter::TransformArena::{transform_flags,set_transform_flags,array_transform_flags,set_array_transform_flags,metadata,metadata_mut,clear_session_metadata,get_original_node,set_original_node}` over private storage in `crates/emitter/src/factory.rs`; public `tsc_emitter::{EmitMetadata,SourceMapRange,CommentRange,CommentSourceRange,JavaScriptString}` defined in `crates/emitter/src/metadata.rs` (`EmitMetadata` storage fields remain `pub(crate)`, with its cross-crate operations exposed by public methods) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. A6-29 candidate uses existing `EmitMetadata::set_flags` to replace inherited flags on the ES5 accessor receiver clone, retaining its original/text/map ownership. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; H2.5h/H2.6 extend rather than infer from text |",
+      "row_sha256": "c8f2b0aff8f1d2b108325e49379e5c09616a7d131ee284c3b1a876631ff8086c",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-CONTEXT",
+      "row": "| `E-CONTEXT` | One per-unit context owns lexical/block environments, hoists, helpers, diagnostics, hooks, initialization, and reverse disposal. | `tsc_emitter::{TransformationContext,Transformer,TransformationResult,transform_nodes}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | H2.5g profile and transform lifecycle controls |",
+      "row_sha256": "159d0e3a6cc7d379030f658a516e21498ab6c901c96bc5a96fc48bb68be31f70",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-POSITIONS",
+      "row": "| `E-POSITIONS` | Source bytes, source/generated UTF-16, synthetic ranges, and source switches remain typed domains. | Public `tsc_emitter` position/writer/hook types; definitions in private `position`, `writer`, `metadata`, and `printer` modules | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H1/H2.5f protect predecessor behavior. | H2.5g profile and H1 Unicode/newline controls |",
+      "row_sha256": "cb11a74840d3fe403450e0f9b9e2c4226b34fd6e8bc14d0779a82bd4bd75f9f9",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-STRINGS",
+      "row": "| `E-STRINGS` | JavaScript string values preserve UTF-16 code units; lexical spelling and synthesized cooked values have distinct provenance. | Public `tsc_emitter::JavaScriptString` and `EmitMetadata` accessors/setters; `pub(crate)` metadata fields for cooked value, quote choice, and text-source identity; private printer quote routines | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and literal/JSX/module controls |",
+      "row_sha256": "b46c28d7741f60b23a3bdd5268cf75d12d0b717a5f6cf11109f6c1925db5f776",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/value-single",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/2592357801e41b0f8fdfa901b263854650a5ba9a0332f3ea9c6ab983aabf2007-0.json",
+          "sha256": "94deaab4bba20d80f8725ea2ea0f58c1c76114afa7fbf2b14390a8fe70eb1347"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "d413830f41f2c54a12d4870ebc1540dd3c9918581f6a291dce288a200b0ac161",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/type-single",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/0c8ccc08e4d5786c9642ca93a0523422ede924ffd06ff49265de0e559fa2d310-0.json",
+          "sha256": "bf9269996bf32c11298960859790d5f5d5263a3fe9423ca6813ebf4a38b455ec"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "44bb18c79833f5eaf3e5ef53b6ee94ccacd33ce73e43f9fcae2c62eda38302e1",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/value-double",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/32dfc609adf08eb968324b16840421e5f7eb1ce610fcb356f86e06b89f763d69-0.json",
+          "sha256": "b5da2b44013d0b22667600ecfd28baa9c678e3705a2620cf2f2da1fb762a64ce"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        }
+      ],
+      "row_sha256": "8cb3cb8b1fc76a0045ecd2b855e10162f78c3459cb9e6678d46906d31b7aa336",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/value-comments",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "fresh-declaration-comment-provenance"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/d05dbe51cc1882d570f867cf5a7817bb338fcce1887605ad100668ee91ed1696-0.json",
+          "sha256": "c63907fb9626e7d33b0d036bf14d870106fc330291632d317d298b46f0350741"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "41e4f58a666af19d7872de8cfe5fec1c8d98adef0bf6218fa711f0c566da814c",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/value-escaped",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "cooked-module-specifier-value"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/2adf2fd02f156bff4bce8e043bde37a6d299c0b48431a32e05091e9d43c3d658-0.json",
+          "sha256": "e18a59ba740f9e82317912896737f76b8a9241495c72a11269696a1296e44aa9"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "4bf96ce7b33320aaf92b1c4981c636d4ca9ed899d4c00d96d04eac881d21b7b6",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/repeated-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/7335c3a035d80f767013d7963677a53d5a9a8a8d92909e9e3be21279c10adeba-0.json",
+          "sha256": "6276da823e49efd67bfe02519bc7ebeb5812286f04eccee8d5a21495b6af18c1"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "dd5a4ad5a0f096625fd3324f05c775d4a01beeb676137428a7e5d3c4d19490e9",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/mixed-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/1db0c2427e7e914bd14677b8a38f214b323722b090f77da6cc5bff13238dba49-0.json",
+          "sha256": "391099431e193437ea4685c8e7329d19b8eb3787554448328aa3983d9e81cd13"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "c83b65439ee097ccfca82497a114350deae75a121a9a4e8389384d885bd967f6",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/missing-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "skip-unresolved-module-declarations"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/0fb4da90e507de9e4b3ae98d34b5994cbe8afd61346c0e0141937ffbd1e46c9f-0.json",
+          "sha256": "185a1227461169a327bae2998646c53e6fca5eafd2d5bf2d0394667801c0eb45"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "c57fcd4e485a11ce98874ce59991da4435842ab2c812d56c2911a4d360b56c98",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/missing-then-valid-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "skip-unresolved-module-declarations"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/0d4e62c88b6954921f5805b951be5ac3d0044312e632bd3981039fea7e606e3a-0.json",
+          "sha256": "d7df9835927faaca8aa5e10c3ecb70f904aeff0c9e52becf8f72f87668f0a082"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "4841d9b7c899bef11318a80e74c4cc283e21031de2904d3b8e2e85d40cb72140",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/index-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/15899702d24cbc4941f702d40b924e80fa9c3c9ed3917b8a10681bb72887ac12-0.json",
+          "sha256": "e000fa7c290da24fe3d899777c3641b8cb544001ce2c4d8c0ada6320653ab6b3"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "0abcf32a88fa5b89c894b850ccf5f0731c621a4126f956b92a3e1fb8d2963695",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/named-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "aee5dfc86214ebe097e1010b2d8c35e28fcc4196870bb7d6aa7e8370e7ef8e58",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/namespace-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "926405c61c9c020cde739abfe193e83320b94ad2be8e61b521e300014a8716b5",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/commonjs/attributes-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "fresh-declaration-omits-attributes"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/ff791b8e8cd0cec5eeaf9b08e89aede77f265d437f5000df04e096f0c3053ceb-0.json",
+          "sha256": "b1e143c897d9146f137fc88d990faae3084cdde9fc43b70ed766314551a9fda6"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "78ba07129ebe717c27cd2fbae216516f7528ac0270df5f81eb1627c4b8a33c21",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/value-single",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/3e87a51f8be0f69aa613748f0f05269459fe547921706af11a67d5283addef34-0.json",
+          "sha256": "edbfec704fbe582815e6e9b694e4bb6b6f4130e7041297e8fe473bb26b721c12"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "4e7777409e42a7759916e77afbc1181a52c430c98daa826f4eafffa048a1fcbc",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/type-single",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/6efe097dd923402e60c06d2e04705542cfaca9af0ff6717ab54b3fc4d45a2869-0.json",
+          "sha256": "65798d5b0f9b4062ecc1070160c11e579d204e71c7bf06c562dcf382473eb587"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "84dfd55132b687349ce10d8d7f79bcd9ae0b5f3ece99f141a8d74232129ab17c",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/value-double",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/76c2968feb424008ef3ca93428a92ee7059d162e9e8f1554f30d7979343be3ab-0.json",
+          "sha256": "0f95f5322b2e5cd2ebf88596fde9836b03449402056d967ebd00caecbc572843"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        }
+      ],
+      "row_sha256": "cbdfa64ca154f932fc7824513feaf5c24435f7772bed5ed5999cbbd61d24f7f1",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/value-comments",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "fresh-declaration-comment-provenance"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/5700321e818ce03b3bf5cb9b4bd398eb4810ef1fd0247a43e3a8e5125f6b815b-0.json",
+          "sha256": "14e213bfdda6f0d80e8e9e1ae83f6485d226ff6b34c7fca70565dd2275ab92bb"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "f50ab48302fbae1d427eefff4cd0597b2c6a8db6201c3673f26de45d11b15a2c",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/value-escaped",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "cooked-module-specifier-value"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/401a6d786f4a9bc2d12cd1d3321b0f352d3f3a8b629e39c940790daf1810ab18-0.json",
+          "sha256": "a0115f8bae01f1703532ac7a486f442adf88101b23c7055e508ac5d597fb0920"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "59a7ad205606a6426a6dc77eac721677021efb884807e556280ea79222fff071",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/repeated-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/da5ed7a3255202c6da30d99797c390c3bf2176a9ef5d7efecbfb7364baff30b8-0.json",
+          "sha256": "93838dce448146bcde0ebb0ba580558eaab539b7ef70b47913ba24fd900cf272"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "aff642798e14f0ce2e4e0e0f5f6876c3affff40516db031def269db0a3264dd1",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/mixed-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/48381bac1772c88a93d8e4a83853056062cf97d0a119f3923b5f8b596362e887-0.json",
+          "sha256": "0e6b73e63da7de0c45787cf6b20b07fc315f1006e664946edc75499bf2a3a9a6"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "085d44c9cd04b4bb612fc2f27460d1868475c4396a58e5305e862d90fe97550d",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/missing-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "skip-unresolved-module-declarations"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/6beb66d28bdf5d4516105f595fa84f68938f7fe2408772a6232102cc3f57114d-0.json",
+          "sha256": "91beb702f2dd6792b41fe57ad978ae70f0e9289bacdf79127f44fcf24250478e"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "a605e2177e384be54a188292075fdb650b1bbebfd251813b7144df3b98ce75b2",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/missing-then-valid-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "skip-unresolved-module-declarations"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/a8f5bf83ebb6af1b4c3cb9e315382e81c5717c1e85edaab37f1bfe1b741074cb-0.json",
+          "sha256": "e0ec08ec1f22563faacb415e9b33d2cbdc0d5fe3bb23d9d8ccfcb6061fcae4ac"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "5f580693fb01568b723ae0bee088ec1b5cf90855f52048f9ec3a179e439c5207",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/index-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/5eda7fc3539933c44a91a37cd4e1f0821a6dd9194b6a54bbc0efec6a4036eba9-0.json",
+          "sha256": "a3fc81778f7a76e2d4bd9609c811deeb6c425ead3c900d9bd0fc25bed8d5adcb"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "a19b85fa78cf69ad2986de3a5227b41b4955a64b650b5a2f8bf7eef7a24137e5",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/named-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "f9adaac2fae4e2e6f2cfa5dffa639bb156c131a1bf216c4efae80ef46786f874",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/namespace-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "08e2cdec7a3e4282021c3485938d0d0a55d8f178a64fa07c90a70cf901b1b38c",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/esnext/attributes-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "fresh-module-literal-spelling",
+        "fresh-declaration-omits-attributes"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/025133c349d5746fb145d0d9da40939f9290fc4514965b9db662e2d322a6c463-0.json",
+          "sha256": "29af9cddee7b974021da8f1226207c093c36fdf017f0cc138bc9f124537093b0"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/main.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "030ea0705ab07b78802f94f4365e17b0f826ed4bc24d94b111259d2a02a27e4f",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/value-single",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "a378e31f2d418250c320184636d6c0dcb19b23ead29b4a1a84f93bbed7a9708e",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/type-single",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "160a2f42cb5ab7b10b139b9062c2e0990961e4759667d69260b0d6ebc89697cd",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/value-double",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "e9b084c6a6b9abe80eb550b164bd5c0834961366187763f700140928159fedff",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/value-comments",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "6a29248b6267c9e04c48dcf18cdff508e8578a8ede72f72445f1825796283afc",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/value-escaped",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "30234c203cb7304ce880c76617b6beeeecec38058268887e1ea2bf492c9d3dcc",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/repeated-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "163653198e68e131029554f0c87cfc31d533bc464804b9f26f12ac77c5707807",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/mixed-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "88e08bb0839d8e6c48f7d6048ce3f7dd9d3b216e32093ba4506ce7961d1e0a3d",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/missing-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "a889d39546f70b8595aac86992c22f46d584438ff625cef3349792df92fc137c",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/missing-then-valid-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "e26b55668ed218effac114e9738c424f01820781bef020f351ef73263d945116",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/index-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "80c1b1ee57402a640c9112033abd24835e83cd5d3a5e13c08bad7097d6b73710",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/named-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "226c9cfe2f618e019e45f612b6282fd6202156e0aaa438572c6152f0044b629a",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/namespace-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "3722d991171e2e220753ef0f95f7911f96270efe5d74ab2a5db152724928bb8e",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/commonjs/attributes-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "ce9a40bb850491d42b3f0a5078985361ef49a1c189c5fca12190c6118dfbbcd1",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/value-single",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "3a4d9475d09443c741962c9ceff96848677dd50986ec372f7e96c4222e695188",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/type-single",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "45f47adb0c3fcffff6be531cdf6680a9504eb87d67e41907056ed3603e9c9273",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/value-double",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "c11c564c46a8bffa2ab3ce28567ecbf272c0c710da3b1cc32fb721f06478025e",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/value-comments",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "b89b7052ccaf4a315d9dd2d65402683abab56bcbbf568d6db7ebdf7597967404",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/value-escaped",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "24e6ca229fa0b5a88ec62fc52a1860da79025931f99cbc5deb2c4dd0bd6ca453",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/repeated-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "027185a014d57e932f8a996f64d043277f2ad3627a1884d508f1a2ea46f421e6",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/mixed-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "6c677e478bcc78f0506e0f6ac2550f0d5b0c0485b9b3cab073019da5416b0bd0",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/missing-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "f13a7e038ee6a150981d5439760bf88799a867027779d74cecffc419f1b082f7",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/missing-then-valid-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "60db8ae52fcf1f8de02e4f5cf52e2ff44989eb040cf451492f326b0516aa3922",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/index-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "c22541295997a8a20f119b772f7bcedb73dbd80eee70e3535e1d32b1b9fcf0f5",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/named-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "c7bd068bd634425a9a0b8a4873c999e48de6476afe7fff2bfc424496bc356f61",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/namespace-adjacent",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "397fdd7d8998b6f8a780940257b32b7a337b905423382daa2089002caa31341d",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/esnext/attributes-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "00bb8077b3f9b2b3578155b21406df1e5d80bd5feb99b20b3eb44617e7e58505",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/amd-bundle/value-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "resolved-bundle-module-specifier"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/74e8c4ede5716649465eb011cd70022dd3369051726e4fa2172f616c775372e1-0.json",
+          "sha256": "958b5b8c2900c00fc74667eb52bcbe50406da9c98f9faaa082b9210973b7c51c"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/bundle.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/bundle.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "e4a496d4253633ce93d47fb70314e042f684c76aca16ba23a7743c3c0a2d131d",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/js/amd-bundle/type-star",
+      "disposition": "owned-export-star-declaration-producer",
+      "owner": "StatementSerializer::serialize_symbol_worker EXPORT_STAR branch",
+      "production_path": "crates/checker/src/node_builder/statements.rs",
+      "first_boundary": "exact source-map result",
+      "causes": [
+        "fresh-declaration-map-provenance",
+        "resolved-bundle-module-specifier"
+      ],
+      "captures": [
+        {
+          "path": "target/h2-8a-export-star-before-capture-czkc2994/e019ae9a7b520dc3cab81f4a1f96f80b3f1d5cb70394540a94f8c6f38e3b8e1c-0.json",
+          "sha256": "c513e7f5ef2ba144875f1a27991ef2f953fa149dcd8d8c31898a9816564a23f0"
+        }
+      ],
+      "supplemental_kind": "artifact bytes only; not full failed tuple qualification",
+      "differing_outputs": [
+        {
+          "path": "/project/out/bundle.d.ts.map",
+          "kind": "DeclarationMap"
+        },
+        {
+          "path": "/project/out/bundle.d.ts",
+          "kind": "Declaration"
+        }
+      ],
+      "row_sha256": "b4de868db4a86f00d32e9898f4f06dfcd119af0bb911518561ed869838db48f6",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/amd-bundle/value-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "6e78dd11b3c4045cf4d2d19094511d13f886e7459b0f1d7c70a42a264142c7fb",
+      "step": "A6-31-3"
+    },
+    {
+      "case_id": "export-star-declaration-producer/ts/amd-bundle/type-star",
+      "disposition": "adjacent-exact",
+      "source_branch": "typed source declaration syntax or existing named/namespace alias producer",
+      "row_sha256": "24dc69bf460c85c1a2711c0686f7194ca444b5b73ab3a1050d9ed353cdd85808",
+      "step": "A6-31-3"
+    }
+  ],
+  "unit_sources": [
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_chains/tests.rs",
+      "sha256": "bc775dc84b2c02d0ead3910db01dd2ae20d149836055153d05c1b47ccf5cddef"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_specifier/tests.rs",
+      "sha256": "fa63317df3ef12a172df84f2862e7711f76c31435fae31d03fe9057d664b40db"
+    }
+  ],
+  "original": {
+    "record": "ratchets/h2-8a-export-star-declaration-producer-original-before.v1.json",
+    "sha256": "7cb3b2ca4e0f2750fedb8ca0ad2da6dc94edecba252b0348a8e60a54ea2e7f8d",
+    "eligible": 4,
+    "exact_twice": [
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliases.ts#target%3Des2015",
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+      "typescript-6.0.3/conformance/salsa/reExportJsFromTs.ts#default"
+    ],
+    "failed_twice": [
+      "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default"
+    ],
+    "captures": [
+      {
+        "path": "target/h2-8a-export-star-original-before-8pflx3d8/ab70afe0adce8e123c239391418134fab7e55c9607b5bfcbc842dda0652f8c57-0.json",
+        "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+        "repetition": 0,
+        "sha256": "da353eb2f28bfb9b4a1a54a9b78064692b5d5e6e299314d93616eadfe262e570"
+      },
+      {
+        "path": "target/h2-8a-export-star-original-before-8pflx3d8/ab70afe0adce8e123c239391418134fab7e55c9607b5bfcbc842dda0652f8c57-1.json",
+        "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+        "repetition": 1,
+        "sha256": "7ca9eec064bbacf8d94bdec82a43077a27c0ac7b62efffa9c51d39ea5efd942d"
+      }
+    ],
+    "exit": {
+      "manifest": "target/h2-8a-export-star-declaration-producer-original-before-prelaunch.json",
+      "manifest_sha256": "ce5da5f1cc1937c9e08a5e0ab41c08aeeec73a50d4647d4eb44a392bf8728fdc",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "h2_8a_original_corpus",
+        "--",
+        "original_export_star_declaration_producer_commands",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "wall_seconds": 80.06775816698791,
+      "log": "target/h2-8a-export-star-declaration-producer-original-before.log",
+      "log_sha256": "761db526b775159f265c83d8211171d9df7bceb4da9ea2de4c9c4062f1e6e043"
+    }
+  },
+  "after_required_exact_twice": 60,
+  "checker_units_required": 28,
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authority_amendments": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
+      "old_sha256": "d9c71e1eba744d765c5df6246b9b836ac677c2fca8febf3014014e7990469ec1",
+      "sha256": "2dbb74af951a217323c43afd4fd59fc13fc40c74bd04439855f3e7f504e354d6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8a-export-star-declaration-producer.md",
+      "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    }
+  ],
+  "qualification": {
+    "record": "ratchets/h2-8a-export-star-declaration-producer-after.v1.json",
+    "sha256": "d0533e03b4b374dcf289b7d35f1d03c1e377750d533ed2093f0d2c9f55996346",
+    "exact_twice": 60,
+    "checker_units": 28,
+    "global_matrix_claim": false
+  }
+}

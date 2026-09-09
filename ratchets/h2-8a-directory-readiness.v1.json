@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d"
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
@@ -192,6 +192,13 @@
       "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/docs/design/greenfield/slices/h2-8.md",
       "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
     }
   ]
 }

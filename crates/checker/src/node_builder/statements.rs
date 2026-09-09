@@ -1837,10 +1837,36 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         if symbol_data.flags.intersects(SymbolFlags::EXPORT_STAR) {
             for declaration in symbol_data.declarations {
-                let statement = declaration_ancestor(self.checker, declaration);
-                if self.checker.kind_of(statement) == SyntaxKind::ExportDeclaration {
-                    self.add_cloned_parse_statement(statement)?;
-                }
+                let NodeData::ExportDeclaration(data) = self.checker.data_of(declaration) else {
+                    continue;
+                };
+                let Some(module_specifier) = data.module_specifier else {
+                    continue;
+                };
+                let is_type_only = data.is_type_only;
+                let Some(resolved_module) = self
+                    .checker
+                    .resolve_external_module_name(declaration, module_specifier, false)
+                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
+                else {
+                    continue;
+                };
+                let specifier =
+                    specifier_for_module_symbol(self.checker, self.context, resolved_module, None)?;
+                add_approximate_length(self.context, 17 + specifier.encode_utf16().count());
+                let module = create_string_literal(self.arena, self.target, specifier)?;
+                let export = create_node(
+                    self.arena,
+                    self.target,
+                    NodeData::ExportDeclaration(ExportDeclarationData {
+                        modifiers: None,
+                        is_type_only,
+                        export_clause: None,
+                        module_specifier: Some(module.node()),
+                        attributes: None,
+                    }),
+                )?;
+                self.add_result(export, ModifierFlags::NONE)?;
             }
         }
         if needs_post_export_default {

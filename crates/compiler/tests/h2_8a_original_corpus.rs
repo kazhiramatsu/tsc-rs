@@ -314,3 +314,18 @@ fn original_jsdoc_block_scope_container_commands() {
     );
     assert_eq!(exact.len(), 4);
 }
+
+#[test]
+fn original_export_star_declaration_producer_commands() {
+    let names = [
+        "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliases.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+        "typescript-6.0.3/conformance/salsa/reExportJsFromTs.ts#default",
+    ];
+    let exact = h2_7d_original_corpus_shared::assert_output_matrix_projection(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        &names,
+    );
+    assert_eq!(exact.len(), 4);
+}
