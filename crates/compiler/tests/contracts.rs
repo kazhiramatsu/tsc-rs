@@ -236,3 +236,6 @@ mod h2_8a_export_star_declaration_producer;
 
 #[path = "integration/h2_8a_class_optional_name.rs"]
 mod h2_8a_class_optional_name;
+
+#[path = "integration/h2_8a_class_header_token.rs"]
+mod h2_8a_class_header_token;

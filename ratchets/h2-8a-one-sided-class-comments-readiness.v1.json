@@ -59,7 +59,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff"
+      "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -127,7 +127,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "7cb80c4561c736d48b6d3dab40b0f30baa55d04e54087f53bebfb626bfa9fc07"
+      "sha256": "2eb5d8316d4f33fd39095bc57a05be72d6122e86c2b79ad9aecd50d8e76e8403"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -167,7 +167,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "0fe1613bb04496701d874ceb34bbfcae5e9ec4c89eb37789fa53181894acab08"
+      "sha256": "646d3190086cb83ada13b3fce3e33067fe3918162de57f676f73c4e156180625"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -179,7 +179,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "c73cb3941d469e7050b06428ff60c57bc96942c5723b60334c308399e1c7a8ad"
+      "sha256": "8c52f613a2a83a62f54733980b84a7763ad0a677e8f4774bf8fe46bb7e6647bf"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
-      "sha256": "a92e7d975616a42bf68fe06cd2425faf6a6ab31d1d126d10273e19ecac3717ec"
+      "sha256": "ac2f9b5bb0dcb9b5090d7a281398f1bfd92946dcd75c1d3af1e3e37a596b05d8"
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-shared-after.v1.json",
@@ -743,6 +743,46 @@
           "sha256": "a92e7d975616a42bf68fe06cd2425faf6a6ab31d1d126d10273e19ecac3717ec",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
           "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff",
+          "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-registration-before-ed8zfz3m/crates/compiler/tests/contracts.rs",
+          "reason": "Only append A6-33 complete comparator registration, proven against exact HEAD preimage; all prior tests unchanged"
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "7cb80c4561c736d48b6d3dab40b0f30baa55d04e54087f53bebfb626bfa9fc07",
+          "sha256": "2eb5d8316d4f33fd39095bc57a05be72d6122e86c2b79ad9aecd50d8e76e8403",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/docs/design/greenfield/slices/README.md",
+          "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "0fe1613bb04496701d874ceb34bbfcae5e9ec4c89eb37789fa53181894acab08",
+          "sha256": "646d3190086cb83ada13b3fce3e33067fe3918162de57f676f73c4e156180625",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "c73cb3941d469e7050b06428ff60c57bc96942c5723b60334c308399e1c7a8ad",
+          "sha256": "8c52f613a2a83a62f54733980b84a7763ad0a677e8f4774bf8fe46bb7e6647bf",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "a92e7d975616a42bf68fe06cd2425faf6a6ab31d1d126d10273e19ecac3717ec",
+          "sha256": "ac2f9b5bb0dcb9b5090d7a281398f1bfd92946dcd75c1d3af1e3e37a596b05d8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
         }
       ]
     }

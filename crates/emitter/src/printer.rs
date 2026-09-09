@@ -8553,7 +8553,19 @@ impl Printer {
         )? {
             writer.write_space(" ");
         }
-        writer.write_keyword("class");
+        let keyword_cursor = self.class_keyword_cursor(transformation, class_node, modifiers)?;
+        if expression_context.nested_comments_suppressed() {
+            writer.write_keyword("class");
+        } else {
+            self.emit_token_with_comments(
+                transformation,
+                class_node,
+                FixedToken::keyword(SyntaxKind::ClassKeyword),
+                keyword_cursor,
+                false,
+                writer,
+            )?;
+        }
         if let Some(name) = name {
             writer.write_space(" ");
             self.emit_identifier_name_with_context(
@@ -8573,13 +8585,15 @@ impl Printer {
             // `class C /* extends Error */ {}`) remain between the name and
             // the opening brace instead of disappearing with the type-only
             // syntax.
-            self.emit_comments_at_cursor(
-                transformation,
-                self.original_node_end_cursor(transformation, name)?,
-                None,
-                false,
-                writer,
-            )?;
+            if !expression_context.nested_comments_suppressed() {
+                self.emit_comments_at_cursor(
+                    transformation,
+                    self.original_node_end_cursor(transformation, name)?,
+                    None,
+                    false,
+                    writer,
+                )?;
+            }
         }
         if self.options.declaration_syntax {
             self.emit_type_parameters(
@@ -8666,6 +8680,60 @@ impl Printer {
             writer.decrease_indent();
         }
         Ok(())
+    }
+
+    /// Class keywords start after the last current modifier, falling back to
+    /// the last decorator and then the current class start. Each endpoint is
+    /// independent: neither the modifier array's end nor an original node's
+    /// paired range determines this point.
+    ///
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: 9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d
+    /// tsc-span: _tsc.js:17311-17317
+    /// tsc-port: moveRangePastDecorators @6.0.3
+    /// tsc-hash: 27d3b9fba1576ed2d7269a9fe1b694ac1e16e977da92c9935f13359611222a93
+    /// tsc-span: _tsc.js:17307-17310
+    fn class_keyword_cursor(
+        &self,
+        transformation: &TransformationResult<'_>,
+        class_node: TransformNode,
+        modifiers: Option<tsc_syntax::NodeArrayId>,
+    ) -> Result<TokenCursor, PrinterError> {
+        let arena = transformation.arena();
+        let source = class_node.source();
+        let mut position = arena.node(class_node)?.pos;
+        if let Some(modifiers) = modifiers.and_then(|id| arena.node_array_ref(source, id)) {
+            let modifiers = arena.node_array(modifiers)?;
+            if let Some(last) = modifiers.nodes.last() {
+                let last = arena
+                    .node_ref(source, *last)
+                    .ok_or(PrinterError::UnknownStatement(last.0))?;
+                let last = arena.node(last)?;
+                if last.end != u32::MAX {
+                    position = last.end;
+                } else {
+                    for modifier in modifiers.nodes.iter().rev() {
+                        let modifier = arena
+                            .node_ref(source, *modifier)
+                            .ok_or(PrinterError::UnknownStatement(modifier.0))?;
+                        let modifier = arena.node(modifier)?;
+                        if modifier.kind == SyntaxKind::Decorator {
+                            if modifier.end != u32::MAX {
+                                position = modifier.end;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if position == u32::MAX {
+            return Ok(TokenCursor::Synthetic);
+        }
+        Ok(TokenCursor::source(
+            source,
+            SourceBytePosition::new(position, arena.source(source)?.syntax().positions())?,
+        ))
     }
 
     /// Whether a transformed list starts after the parsed list's first item.

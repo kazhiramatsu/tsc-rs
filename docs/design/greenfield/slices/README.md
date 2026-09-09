@@ -17,6 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a class header comments](h2-8a-class-header-token.md) | A6-33 class keyword and header suppression qualified on the H2.8 train | 144/152 ordinary commands exact twice, all64 repairs/80 prior positives;32/32 direct metadata and451 unchanged emitter contracts pass. Eight composition controls and original recovery remain open, as does H2.8. |
 | [H2.8a optional class name](h2-8a-class-optional-name.md) | A6-32 optional-name branch qualified on the H2.8 train | 58/64 fresh complete commands exact twice, all 18 repairs and 40 prior positives; 38 unchanged printer contracts pass. Remaining comments/recovery and H2.8 remain open. |
 | [H2.8a export-star declaration producer](h2-8a-export-star-declaration-producer.md) | A6-31 qualified on the H2.8 train | 60/60 complete commands exact twice, all 25 repairs and 35 prior positives; 28 unchanged checker units pass. H2.8 remains open. |
 | [H2.8a JSDoc declaration container](h2-8a-jsdoc-block-scope-container.md) | A6-30 qualified on the H2.8 train | 64/64 complete commands exact twice, all 30 repairs and 34 prior positives; 71 binder units and 108 checker JSDoc tests pass. H2.8 remains open. |
