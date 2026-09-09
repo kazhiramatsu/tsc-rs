@@ -239,3 +239,6 @@ mod h2_8a_class_optional_name;
 
 #[path = "integration/h2_8a_class_header_token.rs"]
 mod h2_8a_class_header_token;
+
+#[path = "integration/h2_8a_const_modifier_erasure.rs"]
+mod h2_8a_const_modifier_erasure;

@@ -43,7 +43,7 @@
   "authorities": [
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2"
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea"
     },
     {
       "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
@@ -59,7 +59,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
-      "sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5"
+      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb"
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
@@ -87,7 +87,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "2eb5d8316d4f33fd39095bc57a05be72d6122e86c2b79ad9aecd50d8e76e8403"
+      "sha256": "b46a0d8233bda9c83f898d938bc7a2b89113049aa337629ad668f7b704a838c6"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -119,7 +119,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "646d3190086cb83ada13b3fce3e33067fe3918162de57f676f73c4e156180625"
+      "sha256": "84445e50a423d3842a8ddbd74c6197031090d5376de1010a16391dc0efe78d78"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -503,6 +503,34 @@
       "sha256": "646d3190086cb83ada13b3fce3e33067fe3918162de57f676f73c4e156180625",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
       "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-registration-before-k4273ijg/crates/compiler/tests/contracts.rs",
+      "reason": "Exact append of A6-34 complete comparator registration; all prior test bytes unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "old_sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5",
+      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-adapter-before-v_vzqav5/crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "reason": "Exact one-line test-adapter mapping to existing preserve_const_enums; complete80 before and144 after measured with corrected reader"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "old_sha256": "2eb5d8316d4f33fd39095bc57a05be72d6122e86c2b79ad9aecd50d8e76e8403",
+      "sha256": "b46a0d8233bda9c83f898d938bc7a2b89113049aa337629ad668f7b704a838c6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/docs/design/greenfield/slices/README.md",
+      "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "old_sha256": "646d3190086cb83ada13b3fce3e33067fe3918162de57f676f73c4e156180625",
+      "sha256": "84445e50a423d3842a8ddbd74c6197031090d5376de1010a16391dc0efe78d78",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
     }
   ],
   "owners": [

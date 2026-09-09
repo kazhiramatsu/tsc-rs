@@ -50,11 +50,11 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
-      "sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5"
+      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb"
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2"
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea"
     },
     {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
@@ -4718,6 +4718,20 @@
       "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-registration-before-ed8zfz3m/crates/compiler/tests/contracts.rs",
       "reason": "Only append A6-33 complete comparator registration, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "old_sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5",
+      "sha256": "b6b27e6ff21b4f1e473295e6e8d44b523c9c2922dd1c359a05056a0fc270c2eb",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-adapter-before-v_vzqav5/crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "reason": "Exact one-line test-adapter mapping to existing preserve_const_enums; complete80 before and144 after measured with corrected reader"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-registration-before-k4273ijg/crates/compiler/tests/contracts.rs",
+      "reason": "Exact append of A6-34 complete comparator registration; all prior test bytes unchanged"
     }
   ],
   "qualification": {

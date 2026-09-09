@@ -15619,6 +15619,11 @@ const fn is_type_node(kind: SyntaxKind) -> bool {
         && kind as u16 <= SyntaxKind::LastTypeNode as u16
 }
 
+/// Type-only modifier tokens are erased by the TypeScript visitor.
+///
+/// tsc-port: transformTypeScript/visitTypeScript @6.0.3
+/// tsc-hash: bce515282739cfd7721a4be04b7f91e3b05015cc09fbc1ef5a1cb58d578cc510
+/// tsc-span: _tsc.js:94274-94389
 const fn is_typescript_modifier(kind: SyntaxKind) -> bool {
     matches!(
         kind,
@@ -15627,6 +15632,7 @@ const fn is_typescript_modifier(kind: SyntaxKind) -> bool {
             | SyntaxKind::ProtectedKeyword
             | SyntaxKind::AbstractKeyword
             | SyntaxKind::OverrideKeyword
+            | SyntaxKind::ConstKeyword
             | SyntaxKind::DeclareKeyword
             | SyntaxKind::ReadonlyKeyword
     )

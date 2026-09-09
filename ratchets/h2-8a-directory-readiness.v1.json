@@ -7,7 +7,7 @@
   "authorities": [
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "54687cc1f676d117af0482a44497e0322d75837a8f252226a6a0b8354c34418e"
+      "sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7"
     },
     {
       "path": "scripts/observe-output-directories.mjs",
@@ -213,6 +213,13 @@
       "sha256": "54687cc1f676d117af0482a44497e0322d75837a8f252226a6a0b8354c34418e",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/docs/design/greenfield/slices/h2-8.md",
       "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "54687cc1f676d117af0482a44497e0322d75837a8f252226a6a0b8354c34418e",
+      "sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
     }
   ]
 }

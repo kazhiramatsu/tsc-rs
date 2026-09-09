@@ -607,7 +607,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2"
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea"
     },
     {
       "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
@@ -672,6 +672,13 @@
       "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
       "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-registration-before-ed8zfz3m/crates/compiler/tests/contracts.rs",
       "reason": "Only append A6-33 complete comparator registration, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-registration-before-k4273ijg/crates/compiler/tests/contracts.rs",
+      "reason": "Exact append of A6-34 complete comparator registration; all prior test bytes unchanged"
     }
   ],
   "qualification": {

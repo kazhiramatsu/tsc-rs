@@ -135,6 +135,7 @@ pub(super) fn assert_cases_with_inspection(
                     "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
                     "emitBOM" => options.emit_bom = value.as_bool(),
                     "removeComments" => options.remove_comments = value.as_bool(),
+                    "preserveConstEnums" => options.preserve_const_enums = value.as_bool(),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
                     "strict" => options.strict = value.as_bool(),
                     "allowSyntheticDefaultImports" => {
