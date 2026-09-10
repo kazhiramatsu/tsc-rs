@@ -1667,7 +1667,183 @@ sixteen previous source-observer checks and new template-provenance check
 also passed. Full530 still requires a fresh execution against full42; direct,
 adjacent, and full populations are distinct and cannot be added together.
 
-The new state is owned by a writer/PrintedText, never global or stored in
+Full53 on v14 completed with477/530 exact twice and53 failures, actual exit101
+in1121.6144953750772s. Every complete tuple, including errors and partial writes,
+is unchanged from full42:477 prior positives and all80 required repairs were
+preserved, with zero regressions, new typed failures or changed tuples.
+`ratchets/h2-8a-utf16-writer-design-experiment.v1.json`, SHA-256
+72bead2204a6091714650a6a2b0065a8b3439aea8840cd07cb432a4f9dd20f31,
+is now the strongest completed full predecessor. Both analyzer and freezer
+ran once; the actual128248224-byte compiler contract binary is retained with
+SHA-2567d20c03afce286912fe108b5c860ad11996d7c780e36c655fe0ca3e7f4c4d742.
+These53 remain decorator receiver/static-element producer work; the UTF16
+direct repairs do not reduce that separate population.
+
+### Literal property provenance: source observations and native-before setup
+
+Raw-template preservation also exposes a distinction between node properties
+and emit metadata. `createTemplateLiteralLikeNode` is actually
+`_tsc.js:22885-22890`, SHA-256
+4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b.
+The current Rust annotation at factory.rs:1951 names an incorrect older span
+and hash; it is a local gap, not an authority premise. This worker does not
+call `checkTemplateLiteralLikeNode`: it stores the supplied cooked/raw values
+directly. Named createTemplateHead/Middle/Tail/NoSubstitution helpers do call
+the checker (`22843-22861`, SHA-256
+9603d422336731c448450113e36065ed0c16bc73e505d1932814d0d2fb41253a).
+Their checking behavior must not be silently added to the lower-level worker.
+
+`node scripts/observe-template-raw-provenance.mjs --check` freezes480 controls
+(four kinds x10 raw inputs x4 creation/original/clone operations x3 escaping
+policies). Both cooked and raw values of origin, created and selected nodes
+are retained, along with identity edges, flags and the complete printed value.
+The source factory accepts raw text independently of its cooked value, including
+empty, unpaired units and invalid escape spellings. Fixture SHA-256:
+58570e115dad9b68761f94ed744d595387ce1222fb18b49ec6a6b4299820515d.
+`node scripts/observe-string-property-provenance.mjs --check` adds60 controls
+for cooked values, opposing quote choices and differing Identifier text sources
+across the same operations/policies. Fixture SHA-256:
+7484870d43fa7dd41aa84d7fce9d1a6c832813474bada1555b5ff288e0cc0925.
+All540 were observed twice before changing native value ownership.
+
+Source cloneNode (`24436-24466`, SHA-256
+d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6)
+copies own node properties after setting original provenance. setOriginalNode
+(`25208-25217`, SHA-256
+8ef5d40b9635be7af9ec133e0cb89a40498944062d5e9570facb5c3468121129)
+merges only the source emitNode fields enumerated by mergeEmitNode
+(`25218-25277`, SHA-256
+6d9f4af1f1fa79b494c5ef7b570972925000f7939cd16ffe520855a67583f375).
+Cooked text, rawText, singleQuote and textSourceNode are not in that enumeration.
+The current Rust merge copies the cooked value, quote and text source; the
+current raw factory projects unpaired raw units to a String without retaining
+their original value. The new controls measure these gaps independently.
+
+Before54 keeps v14 value behavior. Its read-only observation patch
+`h2-8a-literal-property-observation.candidate.patch`, SHA-256
+51d1a3bec8b8c7c517d376dbb8a2e32f0a24d21a62e3aa25143ac95e794fddef,
+only exposes the existing string_literal_text_source getter to the integration
+observer; its body and all field transitions remain unchanged. It is applied
+only in the isolated workspace, with root metadata.rs pinned to SHA-256
+7f73ec168773329fbaff08795de32b4504833c3d6dd8583badced16016a29933.
+The separate test patch `h2-8a-utf16-writer-tests.candidate-v2.patch`, SHA-256
+5f1de2132d9440a7e348b31122d6ab120c99431ff7b909d4b913ea57d7c206d5,
+preserves v1 and adds literal_value_provenance_contract.rs. Its540 source rows
+join the existing1615 for2155 controls/4310 repetitions in ten binaries and
+thirteen test functions. This is a planned before measurement, not a result.
+The native raw observation reads actual current storage, without reconstructing
+raw units from the source expectation. Root has neither generated test file.
+
+Attempt54 terminated with actual exit101 before any test binary ran. The new
+observer incorrectly supplied lifetime arguments to the owned TransformArena
+type; both E0107 errors are retained in
+`ratchets/h2-8a-literal-property-compile-attempt.v1.json`. It earns no native
+control credit. Test-patch v3 changes only those two type annotations; the
+source fixtures, observation getter and candidate value behavior are unchanged.
+Attempt55 is the corrected native-before execution.
+
+Before55 executed all2155 controls twice:1645 exact and510 failing, actual
+exit101 in14.684514624997973s. All1615 previous rows and fixture hashes are
+unchanged. Of the new60 string rows,30 are exact; the30 failures exercise
+setOriginalNode. All480 template rows fail their complete node-state comparison
+because their origin contains unpaired raw units;264 selected printed values
+and positions nonetheless agree. String selected output/positions agree in36
+rows. These output-only agreements receive no full-control credit. Receipt
+`ratchets/h2-8a-literal-property-direct-before.v1.json`, SHA-256
+4f109e74e82134b8d5fbcf9dc751285cd6b853ae47414465f9cac72fe20c37cf,
+retains all observations and the exact executed analyzer. No54 runtime credit
+is inferred from this later run.
+
+The v15 isolated candidate owns LiteralNodeProperties in a separate
+TransformArena BTreeMap keyed by TransformNode. The type lives in metadata.rs
+and is publicly reexported, but is not contained in EmitMetadata. It owns cooked
+UTF16, optional raw-template UTF16, quote preference and text-source identity.
+The arena map survives clear_session_metadata and TransformationResult disposal:
+these are node properties, not emission annotations. The previous proposed
+metadata-contained prototype was not implemented and is superseded here.
+
+Upstream disposeEmitNodes, _tsc.js:25302–25310, SHA-256
+0f82231ff0268dcb94304e298c18c37ff2504cd1877a006042e1c1a4b2898599, clears annotated
+nodes' emitNode only; it leaves text/rawText/singleQuote/textSourceNode intact.
+Arena clone copies the property table and arena equality compares it. No global
+state or metadata merge owns these values. literal_properties_mut validates the
+node handle and returns Result; invalid handles create no table entry. The
+UTF8 NodeData fields remain syntax projections of the lossless supplied units.
+
+Allowed isolated candidate files are metadata.rs, factory.rs, lib.rs, the v14
+printer and bundle drafts, all existing literal-property callers in builtins.rs,
+builtins/{jsx,es2018,flatten_destructuring,generators}.rs,
+builtins/class_fields/downlevel.rs, and checker
+{syntactic_type_node_builder,node_builder/chains}.rs. Their getter/setter
+migration is required by the changed owner; flags/comments/maps remain in
+EmitMetadata. Existing native tests migrate in the candidate-only test patch.
+No root production or native test API is changed by this design experiment.
+
+The mechanical sequence is:
+
+1. Move the three literal properties, accessors and setters out of EmitMetadata
+   into LiteralNodeProperties; add optional raw-template units. Remove these
+   properties from merge_from and migrate every compiled consumer. Preserve
+   the enumerated emit flag/comment/map/helper merge behavior.
+2. After setOriginalNode, both clone_node and CrossSourceReuseClone::clone_node
+   copy the table entry explicitly from the node they clone. Copy text-source
+   handles unchanged: child relocation does not remap this non-child identity.
+   set_original_node and finish_update retain freshly created node properties.
+3. create_template_literal_like_from_code_units retains supplied raw units,
+   distinguishing absent and empty, and corrects its source annotation. The
+   lower createTemplateLiteralLikeNode worker remains unchecked; named checked
+   factory semantics are a separate open row.
+4. emit_template_literal_token prefers actual raw unit properties, then UTF8
+   raw syntax values, then cooked escaping. Write raw units through v14's
+   lossless writer. The native adapter reads actual arena properties; frozen
+   expected units, properties and outputs are unchanged. Run all2155 controls
+   and compare every510 complete before failure with its same-ID after result.
+5. Add a native ownership/lifecycle control for arena clones, cross-source
+   clones (same text-source identity), and TransformationResult.dispose. This
+   is not added to the TypeScript observation population. Run focused direct,
+   72 neighboring controls, emitter core and full530 against strongest full53.
+
+Whole production readiness remains open. Generic update_node currently clones
+then replaces NodeData; changes to literal projections can retain stale cooked
+or raw overlays. Equality of lossy projections cannot identify arbitrary UTF16
+value changes. This requires source-aware typed updates, not guessed equality.
+Tagged-template lowering consumes String cooked/raw values and infers invalid
+escapes from raw text; source templateFlags and all downstream cooked/raw
+consumers require further disposition. These are unresolved A40 rows, not API1
+deferrals. This candidate cannot activate production or qualify whole A40.
+
+Attempt56 executed the v15 candidate (ce0c560e7c8567cdca3f95c8e2f711b4f13735659a680458c316d28f0f43cc4d)
+with testpatchv4 (a6b26210edc32ad194959038a028b913a48c9b7e2f164a669a514ba30bac71fc).
+Actual exit0 in143.3407503750641s;10 binaries/13 testfunctions,2155/2155
+complete observations exact twice,4310 executions,508 factory states,
+1528 tree states and94 event streams exact. All1645 before55 positives are
+preserved and all510 failures repaired, with identical540 new and1615 old
+source inputs/expected fixture hashes. The executed analyzer and binaries are
+retained in the attempt archive. Durable receipt
+`ratchets/h2-8a-literal-property-direct-after.v1.json`, SHA-256
+5fb1cda632908c0e7ca2ee57a60cf1181aa3d04310813949df9793330d6aed19. Core lifecycle and full530 effects
+are not inferred from this direct-only run; both require their own execution.
+
+Attempt57 separately passed all72 neighboring identifier-text-source controls
+twice, actual exit0 in9.294265582924709s. Receipt
+`ratchets/h2-8a-literal-property-neighbor-checks.v1.json`, SHA-256
+44e2f6fb55d4cf3e3d04f4fdc00fb9875f91ca8e6c6901ee4b337a3786c41ce9.
+Attempt58 separately passed494 library and452 contracts, including the new
+literal_properties_survive_cloning_and_emit_disposal control, all1350 existing
+declaration reprints and8 source-derived template-provenance comparisons twice.
+Actual exit0 in166.2391432909062s, root/copies unchanged,2 retained binaries.
+Receipt `ratchets/h2-8a-literal-property-emitter-checks.v1.json`, SHA-256
+df8e265614e58b709e66b888bb456d4a183c5c00ce50d1a635397e56b4093c59.
+All19 applicable source observation scripts freshly passed --check with
+unchanged expected fixtures; commands/script hashes/outputs are retained in
+`ratchets/h2-8a-literal-property-source-checks.v1.json`, SHA-256
+7dd5f26223ab2604c11d7f330606de96caa7df3d4a4fd3d6d63b380e56ea9d88.
+No full530 or whole A40 qualification is inferred from these focused results.
+The next full comparison pins the strongest completed full53, not an older
+baseline. The remaining53 independent-review handoff is
+[h2-8a-decorator-remaining53-review.md](h2-8a-decorator-remaining53-review.md).
+
+The v14 generated-output state is owned by a writer/PrintedText, never global or stored in
 node metadata. E-STRINGS and writer/printed-output boundaries are
 modified-requalify; mounted arenas and cooked JavaScriptString are unchanged
 representations. The executor and declaration sinks already request a UTF8

@@ -1,0 +1,550 @@
+--- a/crates/emitter/tests/literal_parent_provenance_contract.rs
++++ b/crates/emitter/tests/literal_parent_provenance_contract.rs
+@@ -124,7 +124,7 @@
+                     None,
+                 )
+                 .unwrap();
+-                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text().encode_utf16().collect::<Vec<_>>(),"utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
++                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text_utf16().as_ref(),"utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
+                     "end_utf16":{"position":printed.end().position().value(),"line":printed.end().line(),"column":printed.end().column()}});
+                 assert_eq!(
+                     actual, case["typescript_observation"],
+--- a/crates/emitter/tests/utf16_literal_escaping_contract.rs
++++ b/crates/emitter/tests/utf16_literal_escaping_contract.rs
+@@ -79,7 +79,7 @@
+                     None,
+                 )
+                 .unwrap();
+-                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text().encode_utf16().collect::<Vec<_>>(),
++                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text_utf16().as_ref(),
+                     "utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
+                     "end_utf16":{"position":printed.end().position().value(),"line":printed.end().line(),"column":printed.end().column()}});
+                 assert_eq!(
+--- /dev/null
++++ b/crates/emitter/tests/utf16_writer_contract.rs
+@@ -0,0 +1,153 @@
++use serde_json::{json, Value};
++use tsc_emitter::{base64_encode, create_text_writer, NewLineKind, TextWriter};
++
++fn writer(mode: &str) -> TextWriter {
++    match mode {
++        "lf" => create_text_writer(NewLineKind::LineFeed),
++        "crlf" => create_text_writer(NewLineKind::CarriageReturnLineFeed),
++        "single" => TextWriter::single_line(),
++        _ => panic!("unknown source writer mode: {mode}"),
++    }
++}
++
++fn capture(writer: &TextWriter) -> Value {
++    json!({
++        "text_utf16": writer.text_utf16().as_ref(),
++        "utf8_base64": base64_encode(writer.text().as_bytes()),
++        "utf8_bytes": writer.text().len(),
++        "end_utf16": {"position": writer.text_position().value(), "line": writer.line(), "column": writer.column()},
++        "indent": writer.indent(), "at_line_start": writer.is_at_start_of_line(),
++        "trailing_comment": writer.has_trailing_comment(),
++        "trailing_whitespace": writer.has_trailing_whitespace(),
++    })
++}
++
++fn apply(writer: &mut TextWriter, action: &Value, prefer_utf8: bool) {
++    let op = action["op"].as_str().unwrap();
++    if let Some(units) = action["units"].as_array() {
++        let units = units
++            .iter()
++            .map(|u| u16::try_from(u.as_u64().unwrap()).unwrap())
++            .collect::<Vec<_>>();
++        if let Ok(text) = String::from_utf16(&units) {
++            if prefer_utf8 {
++                match op {
++                    "write" => writer.write(&text),
++                    "rawWrite" => writer.raw_write(&text),
++                    "writeLiteral" => writer.write_literal(&text),
++                    "writeComment" => writer.write_comment(&text),
++                    "writeKeyword" => writer.write_keyword(&text),
++                    "writeOperator" => writer.write_operator(&text),
++                    "writeParameter" => writer.write_parameter(&text),
++                    "writeProperty" => writer.write_property(&text),
++                    "writePunctuation" => writer.write_punctuation(&text),
++                    "writeSpace" => writer.write_space(&text),
++                    "writeStringLiteral" => writer.write_string_literal(&text),
++                    "writeSymbol" => writer.write_symbol(&text),
++                    "writeTrailingSemicolon" => writer.write_trailing_semicolon(&text),
++                    _ => panic!("unknown source writer operation: {op}"),
++                }
++                return;
++            }
++        }
++        match op {
++            // These are aliases of the same `write` function in both pinned
++            // source constructors. Their UTF16 route shares write_utf16.
++            "write"
++            | "writeKeyword"
++            | "writeOperator"
++            | "writeParameter"
++            | "writeProperty"
++            | "writePunctuation"
++            | "writeSpace"
++            | "writeSymbol"
++            | "writeTrailingSemicolon" => writer.write_utf16(&units),
++            "rawWrite" => writer.raw_write_utf16(&units),
++            "writeLiteral" => writer.write_literal_utf16(&units),
++            "writeComment" => writer.write_comment_utf16(&units),
++            "writeStringLiteral" => writer.write_string_literal_utf16(&units),
++            _ => panic!("unknown source writer operation: {op}"),
++        }
++    } else {
++        match op {
++            "writeLine" => writer.write_line(action["force"].as_bool().unwrap()),
++            "increaseIndent" => writer.increase_indent(),
++            "decreaseIndent" => writer.decrease_indent(),
++            "clear" => writer.clear(),
++            _ => panic!("unknown source writer operation: {op}"),
++        }
++    }
++}
++
++#[test]
++fn utf16_writer_matches_typescript() {
++    let artifact: Value =
++        serde_json::from_slice(include_bytes!("fixtures/utf16-writer.json")).unwrap();
++    assert_eq!(artifact["typescript"], "6.0.3");
++    assert_eq!(artifact["repetitions"], 2);
++    let cases = artifact["cases"].as_array().unwrap();
++    assert_eq!(cases.len(), 48);
++    let mut failures = Vec::new();
++    for case in cases {
++        let id = case["case_id"].as_str().unwrap();
++        for repetition in 0..2 {
++            let result = std::panic::catch_unwind(|| {
++                let mode = case["mode"].as_str().unwrap();
++                let mut direct = writer(mode);
++                let mut mixed = writer(mode);
++                let mut steps = vec![capture(&direct)];
++                for action in case["actions"].as_array().unwrap() {
++                    apply(&mut direct, action, false);
++                    apply(&mut mixed, action, true);
++                    assert_eq!(
++                        capture(&mixed),
++                        capture(&direct),
++                        "{id}: UTF8/UTF16 input routes"
++                    );
++                    let mut fork = direct.clone();
++                    assert_eq!(fork, direct);
++                    fork.clear();
++                    assert_eq!(
++                        capture(&mixed),
++                        capture(&direct),
++                        "{id}: clearing a clone changed its source"
++                    );
++                    steps.push(capture(&direct));
++                }
++                let actual = json!({"steps": steps});
++                assert_eq!(
++                    actual, case["typescript_observation"],
++                    "{id} repetition {repetition}"
++                );
++            });
++            if result.is_err() {
++                failures.push(format!("{id} repetition {repetition}"));
++            }
++        }
++    }
++    assert!(failures.is_empty(), "utf16 writer failures: {failures:?}");
++}
++
++#[test]
++fn writer_value_equality_survives_chunking_and_clone_clear() {
++    for mode in ["lf", "crlf", "single"] {
++        let mut together = writer(mode);
++        together.write_utf16(&[0xd83d, 0xde00]);
++        let mut separate = writer(mode);
++        separate.write_utf16(&[0xd83d]);
++        separate.write_utf16(&[]);
++        separate.write_utf16(&[0xde00]);
++        assert_eq!(together, separate);
++        let fork = separate.clone();
++        separate.clear();
++        assert_eq!(together, fork);
++        assert_ne!(fork, separate);
++
++        let mut unpaired = writer(mode);
++        unpaired.write_utf16(&[0xd800]);
++        let mut replacement = writer(mode);
++        replacement.write(unpaired.text());
++        assert_eq!(unpaired.text(), replacement.text());
++        assert_ne!(unpaired, replacement);
++    }
++}
+--- a/crates/emitter/tests/integration/declaration_printer_reprint_contract.rs
++++ b/crates/emitter/tests/integration/declaration_printer_reprint_contract.rs
+@@ -662,11 +662,11 @@
+     (result, nodes)
+ }
+ 
+-fn print_standalone(
++fn print_standalone_value(
+     result: &mut TransformationResult<'_>,
+     node: TransformNode,
+     never_ascii_escape: bool,
+-) -> String {
++) -> tsc_emitter::PrintedText {
+     create_printer(
+         PrinterOptions::new(NewLineKind::LineFeed)
+             .with_declaration_syntax(true)
+@@ -681,11 +681,19 @@
+         None,
+     )
+     .expect("standalone node prints")
+-    .text()
+-    .to_owned()
+-}
+-
+-fn print_parsed_template_fragment(kind: SyntaxKind, source_text: &str) -> String {
++}
++
++fn print_standalone(
++    result: &mut TransformationResult<'_>,
++    node: TransformNode,
++    never_ascii_escape: bool,
++) -> String {
++    print_standalone_value(result, node, never_ascii_escape)
++        .text()
++        .to_owned()
++}
++
++fn print_parsed_template_fragment(kind: SyntaxKind, source_text: &str) -> tsc_emitter::PrintedText {
+     let parsed = parse_source_file(
+         "parsed-template.ts",
+         source_text,
+@@ -718,50 +726,69 @@
+         true,
+     )
+     .expect("identity transform parsed template");
+-    print_standalone(&mut result, fragment, false)
++    print_standalone_value(&mut result, fragment, false)
+ }
+ 
+ #[test]
+-fn synthesized_template_fragments_escape_paired_and_lone_surrogates_like_parsed_tokens() {
+-    let (mut result, nodes) = synthetic_printer_nodes();
+-    let templates = nodes.borrow().templates.clone();
+-    let fixtures = [
+-        (
+-            SyntaxKind::NoSubstitutionTemplateLiteral,
+-            "const value = `\\uD83D\\uDE00\\uD800`;",
+-            "const value = `😀\\uD800`;",
+-        ),
+-        (
+-            SyntaxKind::TemplateHead,
+-            "const value = `\\uD83D\\uDE00\\uD800${expression}`;",
+-            "const value = `😀\\uD800${expression}`;",
+-        ),
+-        (
+-            SyntaxKind::TemplateMiddle,
+-            "const value = `${left}\\uD83D\\uDE00\\uD800${right}`;",
+-            "const value = `${left}😀\\uD800${right}`;",
+-        ),
+-        (
+-            SyntaxKind::TemplateTail,
+-            "const value = `${left}\\uD83D\\uDE00\\uD800`;",
+-            "const value = `${left}😀\\uD800`;",
+-        ),
+-    ];
+-    for (kind, default_source, never_ascii_source) in fixtures {
+-        let node = templates
+-            .iter()
+-            .find_map(|(candidate, node)| (*candidate == kind).then_some(*node))
+-            .unwrap_or_else(|| panic!("synthetic fixture contains {kind:?}"));
+-        assert_eq!(
+-            print_standalone(&mut result, node, false),
+-            print_parsed_template_fragment(kind, default_source),
+-            "default escaping for {kind:?}"
+-        );
+-        assert_eq!(
+-            print_standalone(&mut result, node, true),
+-            print_parsed_template_fragment(kind, never_ascii_source),
+-            "neverAsciiEscape for {kind:?}"
+-        );
++fn synthesized_template_fragments_match_typescript_literal_provenance() {
++    let artifact: Value = serde_json::from_slice(include_bytes!(
++        "../fixtures/template-fragment-provenance.json"
++    ))
++    .unwrap();
++    assert_eq!(artifact["typescript"], "6.0.3");
++    assert_eq!(artifact["repetitions"], 2);
++    let cases = artifact["cases"].as_array().unwrap();
++    assert_eq!(cases.len(), 8);
++    let capture = |printed: &tsc_emitter::PrintedText| {
++        serde_json::json!({
++            "text_utf16": printed.text_utf16().as_ref(),
++            "utf8_base64": tsc_emitter::base64_encode(printed.text().as_bytes()),
++            "utf8_bytes": printed.text().len(),
++            "end_utf16": {"position": printed.end().position().value(), "line": printed.end().line(), "column": printed.end().column()},
++        })
++    };
++    for case in cases {
++        let id = case["case_id"].as_str().unwrap();
++        for repetition in 0..2 {
++            let (mut result, nodes) = synthetic_printer_nodes();
++            let kind = match case["kind"].as_str().unwrap() {
++                "NoSubstitutionTemplateLiteral" => SyntaxKind::NoSubstitutionTemplateLiteral,
++                "TemplateHead" => SyntaxKind::TemplateHead,
++                "TemplateMiddle" => SyntaxKind::TemplateMiddle,
++                "TemplateTail" => SyntaxKind::TemplateTail,
++                other => panic!("unknown source fixture kind: {other}"),
++            };
++            let node = nodes
++                .borrow()
++                .templates
++                .iter()
++                .find_map(|(candidate, node)| (*candidate == kind).then_some(*node))
++                .unwrap();
++            assert_eq!(
++                serde_json::json!(result
++                    .arena()
++                    .metadata(node)
++                    .unwrap()
++                    .javascript_string_value()
++                    .unwrap()
++                    .code_units()),
++                case["units"]
++            );
++            let synthetic = print_standalone_value(
++                &mut result,
++                node,
++                case["never_ascii_escape"].as_bool().unwrap(),
++            );
++            let parsed =
++                print_parsed_template_fragment(kind, case["parsed_source"].as_str().unwrap());
++            let actual = serde_json::json!({"synthetic": capture(&synthetic), "parsed": capture(&parsed),
++                "equal_utf16": synthetic.text_utf16() == parsed.text_utf16()});
++            assert_eq!(
++                actual, case["typescript_observation"],
++                "{id} repetition {repetition}"
++            );
++        }
++        println!("Template fragment provenance EXACT x2 {id}");
+     }
+ }
+ 
+--- /dev/null
++++ b/crates/emitter/tests/literal_value_provenance_contract.rs
+@@ -0,0 +1,217 @@
++use serde_json::{json, Value};
++use tsc_emitter::{
++    base64_encode, create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest,
++    PrinterOptions, StandaloneWriter, TransformArena, TransformNode, TransformRoot,
++    TransformSourceId,
++};
++use tsc_syntax::{parse_source_file, NodeData, SyntaxKind};
++
++#[derive(Clone, Copy)]
++enum LiteralKind {
++    String,
++    Template,
++}
++
++fn units(value: &Value) -> Vec<u16> {
++    value
++        .as_array()
++        .unwrap()
++        .iter()
++        .map(|u| u16::try_from(u.as_u64().unwrap()).unwrap())
++        .collect()
++}
++
++fn make_literal(
++    arena: &mut TransformArena<'_>,
++    source: TransformSourceId,
++    case: &Value,
++    kind: LiteralKind,
++    original: bool,
++) -> TransformNode {
++    let text = units(&case[if original { "origin_units" } else { "units" }]);
++    match kind {
++        LiteralKind::String => arena
++            .factory()
++            .create_string_literal_from_code_units(
++                source,
++                &text,
++                case[if original {
++                    "origin_single_quote"
++                } else {
++                    "single_quote"
++                }]
++                .as_bool()
++                .unwrap(),
++            )
++            .unwrap(),
++        LiteralKind::Template => {
++            let kind = match case["kind"].as_str().unwrap() {
++                "NoSubstitutionTemplateLiteral" => SyntaxKind::NoSubstitutionTemplateLiteral,
++                "TemplateHead" => SyntaxKind::TemplateHead,
++                "TemplateMiddle" => SyntaxKind::TemplateMiddle,
++                "TemplateTail" => SyntaxKind::TemplateTail,
++                other => panic!("unknown fixture template kind: {other}"),
++            };
++            let raw = &case[if original {
++                "origin_raw_units"
++            } else {
++                "raw_units"
++            }];
++            let raw = (!raw.is_null()).then(|| units(raw));
++            arena
++                .factory()
++                .create_template_literal_like_from_code_units(source, kind, &text, raw.as_deref())
++                .unwrap()
++        }
++    }
++}
++
++fn state(
++    arena: &TransformArena<'_>,
++    node: TransformNode,
++    origin: TransformNode,
++    created: TransformNode,
++    kind: LiteralKind,
++) -> Value {
++    let record = arena.node(node).unwrap();
++    let metadata = arena.metadata(node).unwrap();
++    assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
++    let original = metadata.original().map(|node| {
++        if node == origin {
++            "origin"
++        } else if node == created {
++            "created"
++        } else {
++            panic!("unexpected original identity")
++        }
++    });
++    let mut state = json!({"kind": record.kind as u16, "pos": -1, "end": -1, "flags": record.flags,
++        "transform_flags": arena.transform_flags(node).bits(), "emit_flags": metadata.flags().bits(),
++        "text_utf16": metadata.javascript_string_value().unwrap().code_units(), "original": original});
++    match kind {
++        LiteralKind::String => {
++            let text_source = metadata.string_literal_text_source().map(|node| {
++                let NodeData::Identifier(data) = &arena.node(node).unwrap().data else {
++                    panic!("identifier text source")
++                };
++                data.text.clone()
++            });
++            state["single_quote"] = json!(metadata.string_literal_single_quote().unwrap());
++            state["text_source"] = json!(text_source);
++        }
++        LiteralKind::Template => {
++            let raw = match &record.data {
++                NodeData::NoSubstitutionTemplateLiteral(data) => data.raw_text.as_deref(),
++                NodeData::TemplateHead(data) => data.raw_text.as_deref(),
++                NodeData::TemplateMiddle(data) => data.raw_text.as_deref(),
++                NodeData::TemplateTail(data) => data.raw_text.as_deref(),
++                _ => panic!("template fragment"),
++            };
++            state["raw_text_utf16"] =
++                json!(raw.map(|value| value.encode_utf16().collect::<Vec<_>>()));
++        }
++    }
++    state
++}
++
++fn check_fixture(bytes: &[u8], count: usize, kind: LiteralKind, description: &str) {
++    let artifact: Value = serde_json::from_slice(bytes).unwrap();
++    assert_eq!(artifact["typescript"], "6.0.3");
++    assert_eq!(artifact["repetitions"], 2);
++    let cases = artifact["cases"].as_array().unwrap();
++    assert_eq!(cases.len(), count);
++    let mut failures = Vec::new();
++    for case in cases {
++        let id = case["case_id"].as_str().unwrap();
++        for repetition in 0..2 {
++            let result = std::panic::catch_unwind(|| {
++                let parsed = parse_source_file("main.ts", "", Default::default(), None);
++                let mut arena = TransformArena::new();
++                let source = arena.add_source(&parsed, None);
++                let origin = make_literal(&mut arena, source, case, kind, true);
++                let created = make_literal(&mut arena, source, case, kind, false);
++                if let LiteralKind::String = kind {
++                    for (literal, property) in
++                        [(origin, "origin_text_source"), (created, "text_source")]
++                    {
++                        if let Some(text) = case[property].as_str() {
++                            let node = arena.factory().create_identifier(source, text).unwrap();
++                            arena
++                                .metadata_mut(literal)
++                                .set_string_literal_text_source(node);
++                        }
++                    }
++                }
++                let policy = case["policy"].as_str().unwrap();
++                if policy == "node-no-ascii" {
++                    arena
++                        .metadata_mut(created)
++                        .add_flags(EmitFlags::NO_ASCII_ESCAPING);
++                }
++                let operation = case["operation"].as_str().unwrap();
++                if matches!(operation, "set-original" | "set-original-then-clone") {
++                    arena.set_original_node(created, Some(origin)).unwrap();
++                }
++                let selected = if matches!(operation, "clone" | "set-original-then-clone") {
++                    arena.factory().clone_node(created).unwrap()
++                } else {
++                    created
++                };
++                let tree_state = json!({"origin": state(&arena, origin, origin, created, kind),
++                    "created": state(&arena, created, origin, created, kind),
++                    "selected": state(&arena, selected, origin, created, kind)});
++                let mut transformation = transform_nodes(
++                    arena,
++                    vec![TransformRoot::SourceFile(source)],
++                    Vec::new(),
++                    false,
++                )
++                .unwrap();
++                let printed = create_printer(
++                    PrinterOptions::new(NewLineKind::LineFeed)
++                        .with_never_ascii_escape(policy == "printer-no-ascii"),
++                )
++                .print(
++                    &mut transformation,
++                    PrintRequest::StandaloneNode {
++                        node: selected,
++                        writer: StandaloneWriter::MultiLine,
++                    },
++                    None,
++                )
++                .unwrap();
++                let actual = json!({"tree_state": tree_state, "text_utf16": printed.text_utf16().as_ref(),
++                    "utf8_base64": base64_encode(printed.text().as_bytes()), "utf8_bytes": printed.text().len(),
++                    "end_utf16": {"position": printed.end().position().value(), "line": printed.end().line(), "column": printed.end().column()}});
++                assert_eq!(
++                    actual, case["typescript_observation"],
++                    "{id} repetition {repetition}"
++                );
++            });
++            if result.is_err() {
++                failures.push(format!("{id} repetition {repetition}"));
++            }
++        }
++    }
++    assert!(failures.is_empty(), "{description} failures: {failures:?}");
++}
++
++#[test]
++fn template_raw_provenance_matches_typescript() {
++    check_fixture(
++        include_bytes!("fixtures/template-raw-provenance.json"),
++        480,
++        LiteralKind::Template,
++        "template raw provenance",
++    );
++}
++
++#[test]
++fn string_property_provenance_matches_typescript() {
++    check_fixture(
++        include_bytes!("fixtures/string-property-provenance.json"),
++        60,
++        LiteralKind::String,
++        "string property provenance",
++    );
++}

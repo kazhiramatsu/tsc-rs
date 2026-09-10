@@ -1,0 +1,4990 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "route": "direct-factory-and-printer",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "89c6496be299d090cae1f47739a6a13d777f45c1012984b9f49a27918a0df6f3",
+  "cases": [
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/create/ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "create",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/create/printer-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "create",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/create/node-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "create",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/clone/ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/clone/printer-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/clone/node-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original/ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original/printer-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original/node-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original-then-clone/ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original-then-clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original-then-clone/printer-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original-then-clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-double-quote/set-original-then-clone/node-no-ascii",
+      "name": "value-and-double-quote",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "operation": "set-original-then-clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/create/ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "create",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          39
+        ],
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/create/printer-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "create",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/create/node-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "create",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/clone/ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          39
+        ],
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/clone/printer-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/clone/node-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original/ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          39
+        ],
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original/printer-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original/node-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original-then-clone/ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original-then-clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          39
+        ],
+        "utf8_base64": "J3hcdUQ4MDAn",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original-then-clone/printer-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original-then-clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/value-and-single-quote/set-original-then-clone/node-no-ascii",
+      "name": "value-and-single-quote",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "operation": "set-original-then-clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          39,
+          120,
+          55296,
+          39
+        ],
+        "utf8_base64": "J3jvv70n",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/create/ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "create",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/create/printer-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "create",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/create/node-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "create",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/clone/ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/clone/printer-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/clone/node-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original/ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original/printer-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original/node-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original-then-clone/ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original-then-clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ],
+        "utf8_base64": "InhcdUQ4MDAi",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 0,
+          "column": 9
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original-then-clone/printer-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original-then-clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/origin-text-source/set-original-then-clone/node-no-ascii",
+      "name": "origin-text-source",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "operation": "set-original-then-clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          120,
+          55296,
+          34
+        ],
+        "utf8_base64": "Injvv70i",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 4,
+          "line": 0,
+          "column": 4
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/create/ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/create/printer-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/create/node-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/clone/ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/clone/printer-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/clone/node-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original/ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original/printer-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original/node-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original-then-clone/ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original-then-clone/printer-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/target-text-source/set-original-then-clone/node-no-ascii",
+      "name": "target-text-source",
+      "origin_single_quote": false,
+      "single_quote": true,
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": false,
+            "text_source": null,
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": true,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/create/ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/create/printer-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/create/node-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "create",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/clone/ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/clone/printer-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/clone/node-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": null
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original/ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original/printer-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original/node-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original-then-clone/ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original-then-clone/printer-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "printer-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    },
+    {
+      "case_id": "string-property-provenance/both-text-sources/set-original-then-clone/node-no-ascii",
+      "name": "both-text-sources",
+      "origin_single_quote": true,
+      "single_quote": false,
+      "origin_text_source": "originName",
+      "text_source": "targetName",
+      "operation": "set-original-then-clone",
+      "policy": "node-no-ascii",
+      "units": [
+        120,
+        55296
+      ],
+      "origin_units": [
+        111,
+        56320
+      ],
+      "typescript_observation": {
+        "tree_state": {
+          "origin": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 0,
+            "text_utf16": [
+              111,
+              56320
+            ],
+            "single_quote": true,
+            "text_source": "originName",
+            "original": null
+          },
+          "created": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "origin"
+          },
+          "selected": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "transform_flags": 0,
+            "emit_flags": 16777216,
+            "text_utf16": [
+              120,
+              55296
+            ],
+            "single_quote": false,
+            "text_source": "targetName",
+            "original": "created"
+          }
+        },
+        "text_utf16": [
+          34,
+          116,
+          97,
+          114,
+          103,
+          101,
+          116,
+          78,
+          97,
+          109,
+          101,
+          34
+        ],
+        "utf8_base64": "InRhcmdldE5hbWUi",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 0,
+          "column": 12
+        }
+      }
+    }
+  ]
+}

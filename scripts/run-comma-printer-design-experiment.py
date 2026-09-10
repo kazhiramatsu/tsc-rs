@@ -31,17 +31,22 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v14.patch')
-LIST_OWNER_PATCH_SHA = '42eb23af16878692f1b99802e3318520a9c5f99196b231cbcbeb0e05f3409863'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v15.patch')
+LIST_OWNER_PATCH_SHA = 'ce0c560e7c8567cdca3f95c8e2f711b4f13735659a680458c316d28f0f43cc4d'
 WRITER = Path('crates/emitter/src/writer.rs')
 WRITER_SHA = '0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6'
 BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
 BUNDLE_PRINTER_SHA = 'b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12'
 
-UTF16_TEST_PATCH = Path('docs/design/greenfield/slices/h2-8a-utf16-writer-tests.candidate.patch')
-UTF16_TEST_PATCH_SHA = '549a3817b6ac55d62c40b9faf302c904e15aef1cfd30f36f6e929a1d9139c46b'
-UTF16_TEST_BASES = {'crates/emitter/tests/literal_parent_provenance_contract.rs': '1146af1be6cdaac6fe1003200091f5763c17e28c1594df4fc4667fe4ad1c26cd', 'crates/emitter/tests/utf16_literal_escaping_contract.rs': '00254a6e7b6ca7b8422c2e9b53c25e2d1b9367f2bbdfb58909a9a5f6ef76ecf7', 'crates/emitter/tests/integration/declaration_printer_reprint_contract.rs': '9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b'}
-UTF16_TEST_ADDITIONS = [Path('crates/emitter/tests/utf16_writer_contract.rs')]
+UTF16_TEST_PATCH = Path('docs/design/greenfield/slices/h2-8a-utf16-writer-tests.candidate-v4.patch')
+UTF16_TEST_PATCH_SHA = 'a6b26210edc32ad194959038a028b913a48c9b7e2f164a669a514ba30bac71fc'
+UTF16_TEST_BASES = {'crates/emitter/tests/integration/declaration_printer_reprint_contract.rs': '9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b', 'crates/emitter/tests/integration/factory_transform_contract.rs': '250671479a6fa24fdbeb6a49afcefa0a7e2624fbe415d933d74fc5ebd3820e33', 'crates/emitter/tests/literal_parent_provenance_contract.rs': '1146af1be6cdaac6fe1003200091f5763c17e28c1594df4fc4667fe4ad1c26cd', 'crates/emitter/tests/string_literal_identifier_source_contract.rs': '52566df0e08fd206cd16a3d874c1e6e053d455b1175d4ca2e6fbb30574da2ca9', 'crates/emitter/tests/unit/factory_seams/tests.rs': '4e8219824921f059ed16cedb1dc740a56ea6f1c98250c5d426ec1636cb10cd66', 'crates/emitter/tests/utf16_literal_escaping_contract.rs': '00254a6e7b6ca7b8422c2e9b53c25e2d1b9367f2bbdfb58909a9a5f6ef76ecf7'}
+UTF16_TEST_ADDITIONS = [Path('crates/emitter/tests/utf16_writer_contract.rs'), Path('crates/emitter/tests/literal_value_provenance_contract.rs')]
+
+METADATA = Path('crates/emitter/src/metadata.rs')
+METADATA_SHA = '7f73ec168773329fbaff08795de32b4504833c3d6dd8583badced16016a29933'
+LITERAL_OBSERVATION_PATCH = Path('docs/design/greenfield/slices/h2-8a-literal-property-observation.candidate.patch')
+LITERAL_OBSERVATION_PATCH_SHA = '51d1a3bec8b8c7c517d376dbb8a2e32f0a24d21a62e3aa25143ac95e794fddef'
 
 
 def sha(path):
@@ -80,6 +85,8 @@ def main():
         assert sha(ROOT / LIST_OWNER_PATCH) == LIST_OWNER_PATCH_SHA
         assert sha(ROOT / BUNDLE_PRINTER) == BUNDLE_PRINTER_SHA
         assert sha(ROOT / WRITER) == WRITER_SHA
+        assert sha(ROOT / METADATA) == METADATA_SHA
+        assert sha(ROOT / LITERAL_OBSERVATION_PATCH) == LITERAL_OBSERVATION_PATCH_SHA
         assert sha(ROOT / UTF16_TEST_PATCH) == UTF16_TEST_PATCH_SHA
         for path, expected in UTF16_TEST_BASES.items():
             assert sha(ROOT / path) == expected
@@ -120,6 +127,8 @@ def main():
         subprocess.run(['git', 'apply', '--check', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
     if with_list_owner:
+        subprocess.run(['git', 'apply', '--check', str(ROOT / LITERAL_OBSERVATION_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', str(ROOT / LITERAL_OBSERVATION_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', '--check', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
         # Remove only the declared generated test left by an earlier isolated
@@ -149,6 +158,7 @@ def main():
         if with_list_owner:
             tar.add(ROOT / LIST_OWNER_PATCH, arcname=str(LIST_OWNER_PATCH))
             tar.add(ROOT / UTF16_TEST_PATCH, arcname=str(UTF16_TEST_PATCH))
+            tar.add(ROOT / LITERAL_OBSERVATION_PATCH, arcname=str(LITERAL_OBSERVATION_PATCH))
     target = ROOT / 'target/h2-8a-retained-lexical-design-artifacts'
     command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                'cargo', 'test', '--offline', '-p', 'tsc-rs-compiler', '--test', 'contracts', '--',
@@ -163,7 +173,7 @@ def main():
                 '--test', 'comma_argument_factory_contract', '--test', 'mapped_type_members_contract',
                 '--test', 'list_format_flags_contract', '--test', 'import_type_attributes_contract',
                 '--test', 'emit_pipeline_phases_contract', '--test', 'literal_parent_provenance_contract',
-                '--test', 'utf16_literal_escaping_contract', '--test', 'utf16_writer_contract']
+                '--test', 'utf16_literal_escaping_contract', '--test', 'utf16_writer_contract', '--test', 'literal_value_provenance_contract']
     elif selection == 'literal-neighbors':
         command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                    'cargo', 'test', '--offline', '-p', 'tsc-rs-emitter',
@@ -189,6 +199,10 @@ def main():
                              'base_sha256': FACTORY_SHA} if with_factory else None,
            'list_owner_patch': {'path': str(LIST_OWNER_PATCH), 'sha256': LIST_OWNER_PATCH_SHA,
                                 'writer_base_sha256': WRITER_SHA} if with_list_owner else None,
+           'literal_property_observation_patch': {'path': str(LITERAL_OBSERVATION_PATCH),
+                                                  'sha256': LITERAL_OBSERVATION_PATCH_SHA,
+                                                  'root_base_sha256': METADATA_SHA,
+                                                  'purpose': 'read-only getter visibility; no field or transition changes'} if with_list_owner else None,
            'utf16_test_patch': {'path': str(UTF16_TEST_PATCH), 'sha256': UTF16_TEST_PATCH_SHA,
                                 'root_bases': UTF16_TEST_BASES,
                                 'root_absent': [str(p) for p in UTF16_TEST_ADDITIONS]} if with_list_owner else None,
