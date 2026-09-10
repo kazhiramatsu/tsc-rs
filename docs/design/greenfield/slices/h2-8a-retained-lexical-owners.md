@@ -697,6 +697,94 @@ and hosted acceptance remain required. The full comparator's `--list-owner`
 route now uses the stronger factory/printer477 predecessor receipt, verifies
 all1060 old captures, and reports every complete tuple change or regression.
 
+Attempt15 of v3 completed in1019.422 seconds, exit101, at **477/530 exact
+twice and53 failures**. Its
+[full receipt](../../../../ratchets/h2-8a-list-intervening-design-experiment.v1.json)
+proves all530 tuples unchanged from the stronger predecessor, all80 required
+repairs and all477 positives preserved, zero typed failures and zero
+regressions. The actual128194112-byte binary,990 copied inputs,109 vendor
+inputs and all primary/supplemental observations are retained.
+
+### Ordinary item comments and the final comma
+
+The new104 source controls in `list-trailing-token-owners.json` cover parsed,
+cloned, range-only and comment-only final identifiers; NoTrailingComments,
+source-ranged/synthetic arrays, present/absent trailing commas, inline/line/
+file-prefix comments, and adjacent onlyPrintJsDocStyle controls. The
+`observe-list-trailing-token-owners.mjs --check` command observes TS twice.
+Attempt16 against unchanged v3 is260/294 complete controls exact twice:
+all prior190 preserved,70/104 new rows exact, **34 new output differences**,
+and all244 applicable factory-state observations exact. No expectation is
+changed. The native fixture uses update_node_array on two parsed children
+to produce one fresh child array with the source trailing comma, then copies
+only the requested array range; it never mutates a parsed array for setup.
+
+These failures establish `A40-F-LIST-TRAILING-TOKEN-OWNER`: source
+emitNodeListItems120129-120150 checks the final child's own NoTrailingComments
+and raw end, applies emitTokenWithComment only when allowed, and guards the
+closing leading-comment phase by parent/raw-child end equality. A CommentRange
+override affects ordinary node comments, not those raw token/list predicates.
+The old array-end helper ignores those guards and JSDoc filtering, while the
+old item-end helper substitutes raw endpoints for ordinary CommentRange ends.
+writeTokenText120222-120226 preserves a negative position rather than adding
+one; the cloned file-prefix controls confirm that the synthetic token cursor
+must remain synthetic.
+
+The next isolated printer patch (v4) changes the five consumers of
+emit_delimited_expression_list: array/object literals, array/object bindings,
+and import attributes. Its explicit item hint is Expression for array literal
+elements and Unspecified for the other four source emitList callers. Add a
+trailing-comma policy to DelimitedListFormat: literals and bindings allow it;
+ImportAttributes526226 does not. These are source format fields, not token or
+fixture spelling tests.
+
+Replace manual item-leading/item-end comment reconstruction in that worker
+with separate positional intervening comments and the existing complete
+emit_optional_ordinary_child pipeline. That pipeline retains substitution,
+parenthesizer, hook and source-map order, with the inherited comment scope;
+ordinary child comments use CommentRange and list phases use raw endpoints.
+No synthetic parent-container claim or trailing-only shortcut is introduced.
+Before each sibling comma use the source-leading raw-end phase. At the final
+comma, reuse emit_source_leading_token_with_context with a cursor built from
+the raw final end independently; absent synthetic end stays TokenCursor::Synthetic.
+The final leading phase chooses the raw array end only when the trailing comma
+is emitted and that raw end is nonzero, otherwise the final child's raw end.
+Parent/raw-child equality, NoTrailingComments, inherited commentsDisabled and
+containerPos suppression all guard it. Do not follow original for positions;
+the existing fixed-token helper owns getParseTreeNode/similar-kind checks.
+
+Preserve the current first/closing-line controller pending its separate full
+source disposition. Restore list and temporary sibling indentation on every
+Result path. Freeze the v4 patch, rerun all294 direct controls, then existing
+emitter suites and full530 against the frozen v3 predecessor. Other list
+workers and detached-prefix/format/fault obligations remain open; this is
+still an isolated design experiment, not whole A40 readiness or activation.
+
+The v4 candidate also removes the old multiline-only leading helper and its
+private context branch: its sole former caller was this replaced expression
+list body, as verified across `crates/emitter/src`. The complete ordinary
+pipeline now owns that phase. An initial unexecuted render is retained only
+in target; the actual v4 patch is
+[candidate-v4.patch](h2-8a-list-intervening-printer.candidate-v4.patch), SHA-256
+`37d3637aa327c87a3ed7529d88a0c63ad9c374342a49af554917a80bb4fb78a3`.
+The [19-owner source supplement](../../../../ratchets/h2-8a-list-tail-sources.v1.json)
+pins the exact ordinary-comment and final-token owners, including printer
+emit117145 and emitExpression117158; other same-named compiler/generator
+functions are excluded by those pinned declaration positions.
+
+The [direct before](../../../../ratchets/h2-8a-list-trailing-token-direct-before.v1.json)
+retains attempt16 and all34 failed tuples. Attempt17 of v4 is **294/294 exact
+twice**, with all244 factory states exact, exit0 in24.331 seconds. Its
+[direct after](../../../../ratchets/h2-8a-list-trailing-token-direct-after.v1.json)
+retains both executed binaries and complete source pins. Attempt18 is
+**494 units /451 contracts /1350 declaration reprint rows passing**, exit0
+in39.533 seconds without warnings; see the
+[adjacent emitter receipt](../../../../ratchets/h2-8a-list-trailing-token-emitter-checks.v1.json).
+The unchanged11 declaration exclusions remain excluded. All root production
+bytes remain unchanged. The full comparator now pins the complete v3
+477-positive receipt as the strongest predecessor for v4, rejects unrecognized
+candidate patch identities, and checks all1060 predecessor captures.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,

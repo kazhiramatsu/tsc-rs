@@ -138,8 +138,18 @@ def main():
                'successor_changed_from_before': len(successor_ids & set(changed_from_before)),
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
     if pre.get('list_owner_patch') is not None:
-        predecessor_path = ROOT / 'ratchets/h2-8a-comma-argument-factory-design-experiment.v1.json'
-        predecessor_sha = '56ce6ff67fa17c9d5992f480d3e32adbe6c88ff35d79913208c83960080d9043'
+        predecessors = {
+            'e0b8c978b40d1dc19e834f25403681a35ebd8d0de11bea4d1f2caca119d1446d': (
+                'ratchets/h2-8a-comma-argument-factory-design-experiment.v1.json',
+                '56ce6ff67fa17c9d5992f480d3e32adbe6c88ff35d79913208c83960080d9043'),
+            '37d3637aa327c87a3ed7529d88a0c63ad9c374342a49af554917a80bb4fb78a3': (
+                'ratchets/h2-8a-list-intervening-design-experiment.v1.json',
+                'bd8b77e5d69ab95b1869de03f514640074530e6c25bf7bc7fea426c3b9f8ed0f'),
+        }
+        candidate_patch = pre['list_owner_patch']['sha256']
+        assert candidate_patch in predecessors, 'pin the strongest completed predecessor for this new patch'
+        predecessor_relative, predecessor_sha = predecessors[candidate_patch]
+        predecessor_path = ROOT / predecessor_relative
     elif pre.get('factory_patch') is not None:
         predecessor_path = ROOT / 'ratchets/h2-8a-comma-printer-design-experiment.v1.json'
         predecessor_sha = 'b2f8e916afecc13a66c81e96faef3073c879ba92f1feefbdf81b70170f87839d'

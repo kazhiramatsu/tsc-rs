@@ -30,8 +30,15 @@ fn comma_argument_factory_matches_typescript() {
     assert_eq!(additional["repetitions"], 2);
     let additional_cases = additional["cases"].as_array().unwrap();
     assert_eq!(additional_cases.len(), 96);
+    let trailing: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/list-trailing-token-owners.json")).unwrap();
+    assert_eq!(trailing["typescript"], "6.0.3");
+    assert_eq!(trailing["route"], "direct-factory-and-printer");
+    assert_eq!(trailing["repetitions"], 2);
+    let trailing_cases = trailing["cases"].as_array().unwrap();
+    assert_eq!(trailing_cases.len(), 104);
     let mut failures = Vec::new();
-    for case in cases.iter().chain(additional_cases) {
+    for case in cases.iter().chain(additional_cases).chain(trailing_cases) {
         let id = case["case_id"].as_str().unwrap();
         for repetition in 0..2 {
             let outcome = std::panic::catch_unwind(|| {
@@ -76,6 +83,69 @@ fn comma_argument_factory_matches_typescript() {
                     .map(|id| arena.node_ref(source, *id).unwrap())
                     .collect::<Vec<_>>();
                 let supplied = match case["list_mode"].as_str().unwrap() {
+                    "trailing-token" => {
+                        assert_eq!(original.len(), 2);
+                        assert!(original_record.has_trailing_comma);
+                        let last = match case["last_provenance"].as_str().unwrap() {
+                            "parsed" => original[1],
+                            "clone" => arena.factory().clone_node(original[1]).unwrap(),
+                            "range-only" | "comment-only" => {
+                                let last = arena
+                                    .factory()
+                                    .create_identifier(source, "generated")
+                                    .unwrap();
+                                let record = arena.node(original[1]).unwrap();
+                                let range = SourceRange::from_raw(
+                                    record.pos,
+                                    record.end,
+                                    parsed.positions(),
+                                )
+                                .unwrap();
+                                if case["last_provenance"] == "range-only" {
+                                    arena
+                                        .factory()
+                                        .set_text_range_from_source_range(last, source, range)
+                                        .unwrap();
+                                } else {
+                                    arena
+                                        .metadata_mut(last)
+                                        .set_comment_range(CommentRange::new(source, range));
+                                }
+                                last
+                            }
+                            other => panic!("unknown last provenance {other}"),
+                        };
+                        let flags = EmitFlags::from_bits(
+                            u32::try_from(case["flags"].as_u64().unwrap()).unwrap(),
+                        );
+                        if !flags.is_empty() {
+                            arena.metadata_mut(last).set_flags(flags);
+                        }
+                        // Updating two parsed children to one always creates a
+                        // fresh array and carries the parsed trailing comma.
+                        // No parsed array is mutated to manufacture this state.
+                        let array = if case["has_trailing_comma"].as_bool().unwrap() {
+                            arena
+                                .factory()
+                                .update_node_array(original_array, vec![last])
+                                .unwrap()
+                        } else {
+                            arena
+                                .factory()
+                                .create_node_array(source, vec![last])
+                                .unwrap()
+                        };
+                        let (pos, end) = if case["ranged_list"].as_bool().unwrap() {
+                            (original_record.pos, original_record.end)
+                        } else {
+                            (u32::MAX, u32::MAX)
+                        };
+                        arena
+                            .factory()
+                            .set_node_array_text_range(array, pos, end)
+                            .unwrap();
+                        Some(array)
+                    }
                     "selection" => {
                         let mut elements = Vec::new();
                         for entry in case["recipe"].as_array().unwrap() {
@@ -304,7 +374,10 @@ fn comma_argument_factory_matches_typescript() {
                 .unwrap();
                 let printed = create_printer(
                     PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
-                        .with_source_file_text_mode(SourceFileTextMode::Canonical),
+                        .with_source_file_text_mode(SourceFileTextMode::Canonical)
+                        .with_only_print_js_doc_style(
+                            case["only_print_js_doc_style"].as_bool().unwrap_or(false),
+                        ),
                 )
                 .print(&mut transformation, PrintRequest::SourceFile(source), None)
                 .unwrap();

@@ -31,8 +31,8 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v3.patch')
-LIST_OWNER_PATCH_SHA = 'e0b8c978b40d1dc19e834f25403681a35ebd8d0de11bea4d1f2caca119d1446d'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v4.patch')
+LIST_OWNER_PATCH_SHA = '37d3637aa327c87a3ed7529d88a0c63ad9c374342a49af554917a80bb4fb78a3'
 
 
 def sha(path):

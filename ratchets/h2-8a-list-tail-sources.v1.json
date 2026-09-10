@@ -1,0 +1,1040 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source supplement; no whole A40 readiness or production activation",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "observer": {
+    "path": "scripts/observe-list-tail-sources.mjs",
+    "sha256": "d1c86f4bc827d151a4378df008318e1a8b2347ea8e236fa071d194e8742fd955"
+  },
+  "owners": [
+    {
+      "name": "emitNodeListItems",
+      "start": 120068,
+      "end": 120155,
+      "sha256": "f7da864479c04d23c6e375b40a09c19a7776552e5d60d6582bb24d6aa1529fc3",
+      "body": "function emitNodeListItems(emit2, parentNode, children, format, parenthesizerRule, start, count, hasTrailingComma, childrenTextRange) {\n    const mayEmitInterveningComments = (format & 262144 /* NoInterveningComments */) === 0;\n    let shouldEmitInterveningComments = mayEmitInterveningComments;\n    const leadingLineTerminatorCount = getLeadingLineTerminatorCount(parentNode, children[start], format);\n    if (leadingLineTerminatorCount) {\n      writeLine(leadingLineTerminatorCount);\n      shouldEmitInterveningComments = false;\n    } else if (format & 256 /* SpaceBetweenBraces */) {\n      writeSpace();\n    }\n    if (format & 128 /* Indented */) {\n      increaseIndent();\n    }\n    const emitListItem = getEmitListItem(emit2, parenthesizerRule);\n    let previousSibling;\n    let shouldDecreaseIndentAfterEmit = false;\n    for (let i = 0; i < count; i++) {\n      const child = children[start + i];\n      if (format & 32 /* AsteriskDelimited */) {\n        writeLine();\n        writeDelimiter(format);\n      } else if (previousSibling) {\n        if (format & 60 /* DelimitersMask */ && previousSibling.end !== (parentNode ? parentNode.end : -1)) {\n          const previousSiblingEmitFlags = getEmitFlags(previousSibling);\n          if (!(previousSiblingEmitFlags & 2048 /* NoTrailingComments */)) {\n            emitLeadingCommentsOfPosition(previousSibling.end);\n          }\n        }\n        writeDelimiter(format);\n        const separatingLineTerminatorCount = getSeparatingLineTerminatorCount(previousSibling, child, format);\n        if (separatingLineTerminatorCount > 0) {\n          if ((format & (3 /* LinesMask */ | 128 /* Indented */)) === 0 /* SingleLine */) {\n            increaseIndent();\n            shouldDecreaseIndentAfterEmit = true;\n          }\n          if (shouldEmitInterveningComments && format & 60 /* DelimitersMask */ && !positionIsSynthesized(child.pos)) {\n            const commentRange = getCommentRange(child);\n            emitTrailingCommentsOfPosition(\n              commentRange.pos,\n              /*prefixSpace*/\n              !!(format & 512 /* SpaceBetweenSiblings */),\n              /*forceNoNewline*/\n              true\n            );\n          }\n          writeLine(separatingLineTerminatorCount);\n          shouldEmitInterveningComments = false;\n        } else if (previousSibling && format & 512 /* SpaceBetweenSiblings */) {\n          writeSpace();\n        }\n      }\n      if (shouldEmitInterveningComments) {\n        const commentRange = getCommentRange(child);\n        emitTrailingCommentsOfPosition(commentRange.pos);\n      } else {\n        shouldEmitInterveningComments = mayEmitInterveningComments;\n      }\n      nextListElementPos = child.pos;\n      emitListItem(child, emit2, parenthesizerRule, i);\n      if (shouldDecreaseIndentAfterEmit) {\n        decreaseIndent();\n        shouldDecreaseIndentAfterEmit = false;\n      }\n      previousSibling = child;\n    }\n    const emitFlags = previousSibling ? getEmitFlags(previousSibling) : 0;\n    const skipTrailingComments = commentsDisabled || !!(emitFlags & 2048 /* NoTrailingComments */);\n    const emitTrailingComma = hasTrailingComma && format & 64 /* AllowTrailingComma */ && format & 16 /* CommaDelimited */;\n    if (emitTrailingComma) {\n      if (previousSibling && !skipTrailingComments) {\n        emitTokenWithComment(28 /* CommaToken */, previousSibling.end, writePunctuation, previousSibling);\n      } else {\n        writePunctuation(\",\");\n      }\n    }\n    if (previousSibling && (parentNode ? parentNode.end : -1) !== previousSibling.end && format & 60 /* DelimitersMask */ && !skipTrailingComments) {\n      emitLeadingCommentsOfPosition(emitTrailingComma && (childrenTextRange == null ? void 0 : childrenTextRange.end) ? childrenTextRange.end : previousSibling.end);\n    }\n    if (format & 128 /* Indented */) {\n      decreaseIndent();\n    }\n    const closingLineTerminatorCount = getClosingLineTerminatorCount(parentNode, children[start + count - 1], format, childrenTextRange);\n    if (closingLineTerminatorCount) {\n      writeLine(closingLineTerminatorCount);\n    } else if (format & (2097152 /* SpaceAfterList */ | 256 /* SpaceBetweenBraces */)) {\n      writeSpace();\n    }\n  }",
+      "calls": [
+        {
+          "start": 120071,
+          "end": 120071,
+          "sha256": "adaf695f7c18e37744213cf722dd71d225e42665967c8117c63e8d7cfbeac283",
+          "text": "getLeadingLineTerminatorCount(parentNode, children[start], format)"
+        },
+        {
+          "start": 120073,
+          "end": 120073,
+          "sha256": "ff48865107e15f7f5f5d5daaaefea37f658229e5d354cfbd26a0ff79e6084d02",
+          "text": "writeLine(leadingLineTerminatorCount)"
+        },
+        {
+          "start": 120076,
+          "end": 120076,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        },
+        {
+          "start": 120079,
+          "end": 120079,
+          "sha256": "af65e4782534bc7d37c9a4a5719965b3ee06c1bdee58271a522b04688cc592fc",
+          "text": "increaseIndent()"
+        },
+        {
+          "start": 120081,
+          "end": 120081,
+          "sha256": "8a41d62a5f9140757a241cb86e013bfc1f035e9347197aca1173550765acb6fc",
+          "text": "getEmitListItem(emit2, parenthesizerRule)"
+        },
+        {
+          "start": 120087,
+          "end": 120087,
+          "sha256": "ef173f6524b8bae798bf18ca410cee84f8be378c920f2b872d17ad31b9a53cb8",
+          "text": "writeLine()"
+        },
+        {
+          "start": 120088,
+          "end": 120088,
+          "sha256": "06e7f4b38e55cba62c9e5b005d21c8fb7b916219cd7598c97d864bfbd3e7454e",
+          "text": "writeDelimiter(format)"
+        },
+        {
+          "start": 120091,
+          "end": 120091,
+          "sha256": "08abbc34a327d2a335d9c8cb1007f4e525f2c6812d881de259bf82cd7561e163",
+          "text": "getEmitFlags(previousSibling)"
+        },
+        {
+          "start": 120093,
+          "end": 120093,
+          "sha256": "09e4b38383700ea355b59a5f3d89c2ba03756d611bd8d9a2adad8c6e4639bcba",
+          "text": "emitLeadingCommentsOfPosition(previousSibling.end)"
+        },
+        {
+          "start": 120096,
+          "end": 120096,
+          "sha256": "06e7f4b38e55cba62c9e5b005d21c8fb7b916219cd7598c97d864bfbd3e7454e",
+          "text": "writeDelimiter(format)"
+        },
+        {
+          "start": 120097,
+          "end": 120097,
+          "sha256": "a59e6c1cdd52d191b066dda72ae8639b8a34bbe4786fd3d4f34a94aead945f22",
+          "text": "getSeparatingLineTerminatorCount(previousSibling, child, format)"
+        },
+        {
+          "start": 120100,
+          "end": 120100,
+          "sha256": "af65e4782534bc7d37c9a4a5719965b3ee06c1bdee58271a522b04688cc592fc",
+          "text": "increaseIndent()"
+        },
+        {
+          "start": 120103,
+          "end": 120103,
+          "sha256": "c2efbff749c953c4ff2d26a66617e65985b1f299667f71fa9ba0bf7b3ab7e380",
+          "text": "positionIsSynthesized(child.pos)"
+        },
+        {
+          "start": 120104,
+          "end": 120104,
+          "sha256": "c6e25778b9f1dbb4c92ce0f25fc526e1339863ca974a6f69462307c9d5b7aac4",
+          "text": "getCommentRange(child)"
+        },
+        {
+          "start": 120105,
+          "end": 120111,
+          "sha256": "08beab641bc04e1f8f932bceed1b6e7a2a6761695717c3c564d85de1a90e410e",
+          "text": "emitTrailingCommentsOfPosition(\n              commentRange.pos,\n              /*prefixSpace*/\n              !!(format & 512 /* SpaceBetweenSiblings */),\n              /*forceNoNewline*/\n              true\n            )"
+        },
+        {
+          "start": 120113,
+          "end": 120113,
+          "sha256": "7d94a81af4827aca860c415ce159bffdb04c42270ad5f655694063b91af77680",
+          "text": "writeLine(separatingLineTerminatorCount)"
+        },
+        {
+          "start": 120116,
+          "end": 120116,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        },
+        {
+          "start": 120120,
+          "end": 120120,
+          "sha256": "c6e25778b9f1dbb4c92ce0f25fc526e1339863ca974a6f69462307c9d5b7aac4",
+          "text": "getCommentRange(child)"
+        },
+        {
+          "start": 120121,
+          "end": 120121,
+          "sha256": "004ee28de7d5823f55125213503b4df6e6a8b46133091f8e669afa9dc25ebbb1",
+          "text": "emitTrailingCommentsOfPosition(commentRange.pos)"
+        },
+        {
+          "start": 120126,
+          "end": 120126,
+          "sha256": "ad19299123346afeb22bae0e34faa424615343545936350bb6ec93def5eb66fa",
+          "text": "emitListItem(child, emit2, parenthesizerRule, i)"
+        },
+        {
+          "start": 120128,
+          "end": 120128,
+          "sha256": "360fda34f828beb6ae0d85f033c70063525e5944a1422174aaf5acf72255903d",
+          "text": "decreaseIndent()"
+        },
+        {
+          "start": 120133,
+          "end": 120133,
+          "sha256": "08abbc34a327d2a335d9c8cb1007f4e525f2c6812d881de259bf82cd7561e163",
+          "text": "getEmitFlags(previousSibling)"
+        },
+        {
+          "start": 120138,
+          "end": 120138,
+          "sha256": "a07746f6898bc212206010460236d69a515dad77a15a7886d8fa862519660888",
+          "text": "emitTokenWithComment(28 /* CommaToken */, previousSibling.end, writePunctuation, previousSibling)"
+        },
+        {
+          "start": 120140,
+          "end": 120140,
+          "sha256": "11c249d79837affaebd24e76dbeb5b3fd60fc1428f65dd19c259d746fe774bf5",
+          "text": "writePunctuation(\",\")"
+        },
+        {
+          "start": 120144,
+          "end": 120144,
+          "sha256": "796c4c7ea7ac734d175125c0798fcf94fb6dfe97b9dc0ebb1a43dc21e3e248cb",
+          "text": "emitLeadingCommentsOfPosition(emitTrailingComma && (childrenTextRange == null ? void 0 : childrenTextRange.end) ? childrenTextRange.end : previousSibling.end)"
+        },
+        {
+          "start": 120147,
+          "end": 120147,
+          "sha256": "360fda34f828beb6ae0d85f033c70063525e5944a1422174aaf5acf72255903d",
+          "text": "decreaseIndent()"
+        },
+        {
+          "start": 120149,
+          "end": 120149,
+          "sha256": "d4bae7d4e4708f4d32b723885f3065a185e0747bc4ab5ef4a3817a9317dc1947",
+          "text": "getClosingLineTerminatorCount(parentNode, children[start + count - 1], format, childrenTextRange)"
+        },
+        {
+          "start": 120151,
+          "end": 120151,
+          "sha256": "1eee3be0f7ac937e1ab63e1a736412b414d90ed0cd08681f71151fc6defcf7a9",
+          "text": "writeLine(closingLineTerminatorCount)"
+        },
+        {
+          "start": 120153,
+          "end": 120153,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 120072,
+          "end": 120072,
+          "sha256": "ab02df9c337a7aad89b671e598c58543a8b129f1145753c0be5eae4b24d5f889",
+          "text": "leadingLineTerminatorCount"
+        },
+        {
+          "start": 120075,
+          "end": 120075,
+          "sha256": "31b108a98ca8a8eaf750eaffb29ec1a7b1b18cdb7db7b79fb6be41c6c38fe65f",
+          "text": "format & 256"
+        },
+        {
+          "start": 120078,
+          "end": 120078,
+          "sha256": "7bc00750c78e423cab825532d1d35bac3de245e50adebbe03e654a235252c899",
+          "text": "format & 128"
+        },
+        {
+          "start": 120086,
+          "end": 120086,
+          "sha256": "48045099e16de77d4555116d15bc67d25f85823b072a5235abc029d69cb32c5e",
+          "text": "format & 32"
+        },
+        {
+          "start": 120089,
+          "end": 120089,
+          "sha256": "567050182a410fae95e3daeea48b6ce0d2fd029a45d863045706a09451e35105",
+          "text": "previousSibling"
+        },
+        {
+          "start": 120090,
+          "end": 120090,
+          "sha256": "63b95662432ae7f8489de354c9e86437485e7229fb2e6c65725fc70d3c613b4f",
+          "text": "format & 60 /* DelimitersMask */ && previousSibling.end !== (parentNode ? parentNode.end : -1)"
+        },
+        {
+          "start": 120090,
+          "end": 120090,
+          "sha256": "ad29aa1004d1c10485d740a67522b81db5992f2a8c7c7c3c5cf1fcd04f1f25f7",
+          "text": "parentNode"
+        },
+        {
+          "start": 120092,
+          "end": 120092,
+          "sha256": "750f6de317639a486704b27137d9e673d812420c8aa35ee0663f187e6001fdab",
+          "text": "!(previousSiblingEmitFlags & 2048 /* NoTrailingComments */)"
+        },
+        {
+          "start": 120098,
+          "end": 120098,
+          "sha256": "a4de1c6a23f3cb994b0ec795e1beb7dc457bf916f4b25522318feda86a3c3d96",
+          "text": "separatingLineTerminatorCount > 0"
+        },
+        {
+          "start": 120099,
+          "end": 120099,
+          "sha256": "90404500860b6de73e77590279cad309191a5c64acbd641425d956dbde2682f6",
+          "text": "(format & (3 /* LinesMask */ | 128 /* Indented */)) === 0"
+        },
+        {
+          "start": 120103,
+          "end": 120103,
+          "sha256": "c79454f6201285c9644bcecf9f70f129150e0f0c8362bb7787951ba053d8fe44",
+          "text": "shouldEmitInterveningComments && format & 60 /* DelimitersMask */ && !positionIsSynthesized(child.pos)"
+        },
+        {
+          "start": 120115,
+          "end": 120115,
+          "sha256": "83ea85139921af6fa1c767f0672631ed7dc89f41896980c2fa7e3bf73c7658bb",
+          "text": "previousSibling && format & 512"
+        },
+        {
+          "start": 120119,
+          "end": 120119,
+          "sha256": "e6ed630ba41e6689907fdd3b8827e69e63114dac0ea8ca753d84ce20dbbcc59a",
+          "text": "shouldEmitInterveningComments"
+        },
+        {
+          "start": 120127,
+          "end": 120127,
+          "sha256": "db09087e218de967f42ca353430c31565f0cc2577bec4ab8efc306ef6caf766e",
+          "text": "shouldDecreaseIndentAfterEmit"
+        },
+        {
+          "start": 120133,
+          "end": 120133,
+          "sha256": "567050182a410fae95e3daeea48b6ce0d2fd029a45d863045706a09451e35105",
+          "text": "previousSibling"
+        },
+        {
+          "start": 120136,
+          "end": 120136,
+          "sha256": "56c938a6ce3c5fc23bec8b9e23b67b2182de7ef413713f12bfc43e0d5ae24138",
+          "text": "emitTrailingComma"
+        },
+        {
+          "start": 120137,
+          "end": 120137,
+          "sha256": "004a7fccc2c083ff081cc33c954d03cdd705565ec675e9d35c83354f8da81230",
+          "text": "previousSibling && !skipTrailingComments"
+        },
+        {
+          "start": 120143,
+          "end": 120143,
+          "sha256": "ca40e04921053c47a52b4e07603a6e4efeab6033157b907a7dd191f38bd8558a",
+          "text": "previousSibling && (parentNode ? parentNode.end : -1) !== previousSibling.end && format & 60 /* DelimitersMask */ && !skipTrailingComments"
+        },
+        {
+          "start": 120143,
+          "end": 120143,
+          "sha256": "ad29aa1004d1c10485d740a67522b81db5992f2a8c7c7c3c5cf1fcd04f1f25f7",
+          "text": "parentNode"
+        },
+        {
+          "start": 120144,
+          "end": 120144,
+          "sha256": "d54ec741633520b032815fb6c926aad2b83a11029f21cacee38600d64a8c4057",
+          "text": "emitTrailingComma && (childrenTextRange == null ? void 0 : childrenTextRange.end)"
+        },
+        {
+          "start": 120144,
+          "end": 120144,
+          "sha256": "8b0f897b9d1c9226ef0011bbf9e6c273dfa11ad9c4e58e29ddbf956437166b3d",
+          "text": "childrenTextRange == null"
+        },
+        {
+          "start": 120146,
+          "end": 120146,
+          "sha256": "7bc00750c78e423cab825532d1d35bac3de245e50adebbe03e654a235252c899",
+          "text": "format & 128"
+        },
+        {
+          "start": 120150,
+          "end": 120150,
+          "sha256": "cef18dcf65a296c8f0d14f46e908fc69d2339dbda607baa13c897b2c52194c26",
+          "text": "closingLineTerminatorCount"
+        },
+        {
+          "start": 120152,
+          "end": 120152,
+          "sha256": "3955d62fa26478b8b2e8c36204ecd759e832b3879ab319fc5fc52eb6cf719165",
+          "text": "format & (2097152 /* SpaceAfterList */ | 256 /* SpaceBetweenBraces */)"
+        }
+      ]
+    },
+    {
+      "name": "emitTokenWithComment",
+      "start": 118731,
+      "end": 118764,
+      "sha256": "f9518511a5266007fd3920528e805f5f67e215249e63b85abe593d98cee4f2e7",
+      "body": "function emitTokenWithComment(token, pos, writer2, contextNode, indentLeading) {\n    const node = getParseTreeNode(contextNode);\n    const isSimilarNode = node && node.kind === contextNode.kind;\n    const startPos = pos;\n    if (isSimilarNode && currentSourceFile) {\n      pos = skipTrivia(currentSourceFile.text, pos);\n    }\n    if (isSimilarNode && contextNode.pos !== startPos) {\n      const needsIndent = indentLeading && currentSourceFile && !positionsAreOnSameLine(startPos, pos, currentSourceFile);\n      if (needsIndent) {\n        increaseIndent();\n      }\n      emitLeadingCommentsOfPosition(startPos);\n      if (needsIndent) {\n        decreaseIndent();\n      }\n    }\n    if (!omitBraceSourcePositions && (token === 19 /* OpenBraceToken */ || token === 20 /* CloseBraceToken */)) {\n      pos = writeToken(token, pos, writer2, contextNode);\n    } else {\n      pos = writeTokenText(token, writer2, pos);\n    }\n    if (isSimilarNode && contextNode.end !== pos) {\n      const isJsxExprContext = contextNode.kind === 295 /* JsxExpression */;\n      emitTrailingCommentsOfPosition(\n        pos,\n        /*prefixSpace*/\n        !isJsxExprContext,\n        /*forceNoNewline*/\n        isJsxExprContext\n      );\n    }\n    return pos;\n  }",
+      "calls": [
+        {
+          "start": 118732,
+          "end": 118732,
+          "sha256": "56b2f46c10e99bd38a9d8d50d6af5b8c6eab0ccc1ea8ea40cffcdf15b43d2a93",
+          "text": "getParseTreeNode(contextNode)"
+        },
+        {
+          "start": 118736,
+          "end": 118736,
+          "sha256": "6bac8c8cdfe3ee80a02bf208b2d85021f44f44ddf2d7a52432119b2d6e365186",
+          "text": "skipTrivia(currentSourceFile.text, pos)"
+        },
+        {
+          "start": 118739,
+          "end": 118739,
+          "sha256": "77c389607fcf99df363910177dfbff77d5dd124dc98ad7de394da57859eeefc4",
+          "text": "positionsAreOnSameLine(startPos, pos, currentSourceFile)"
+        },
+        {
+          "start": 118741,
+          "end": 118741,
+          "sha256": "af65e4782534bc7d37c9a4a5719965b3ee06c1bdee58271a522b04688cc592fc",
+          "text": "increaseIndent()"
+        },
+        {
+          "start": 118743,
+          "end": 118743,
+          "sha256": "f3fa3f44faf90a3d96a81a6a63a5c3b0549b590fcdfb0819b4f974bd9a52a869",
+          "text": "emitLeadingCommentsOfPosition(startPos)"
+        },
+        {
+          "start": 118745,
+          "end": 118745,
+          "sha256": "360fda34f828beb6ae0d85f033c70063525e5944a1422174aaf5acf72255903d",
+          "text": "decreaseIndent()"
+        },
+        {
+          "start": 118749,
+          "end": 118749,
+          "sha256": "b179df7fd38d7ec73983756ac621b15004f82d0d4b77e399d159e41bbd84b1b4",
+          "text": "writeToken(token, pos, writer2, contextNode)"
+        },
+        {
+          "start": 118751,
+          "end": 118751,
+          "sha256": "1fe56b2839d2be2c3e1249f8e515c0655fa7fca01b06816df16eed6ec96bd261",
+          "text": "writeTokenText(token, writer2, pos)"
+        },
+        {
+          "start": 118755,
+          "end": 118761,
+          "sha256": "806d1d9c59db1c20420db78ee94b812aac393fb0286510166e48d23a650092ef",
+          "text": "emitTrailingCommentsOfPosition(\n        pos,\n        /*prefixSpace*/\n        !isJsxExprContext,\n        /*forceNoNewline*/\n        isJsxExprContext\n      )"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 118735,
+          "end": 118735,
+          "sha256": "aa52b4f0361c338343cb3362c67fd5142b41a174eca28fc888f9fe42407377fb",
+          "text": "isSimilarNode && currentSourceFile"
+        },
+        {
+          "start": 118738,
+          "end": 118738,
+          "sha256": "6f76a56f55d29ad7ad59fb1d366d00cd042f6a4e26a36890b39a8449157a76e7",
+          "text": "isSimilarNode && contextNode.pos !== startPos"
+        },
+        {
+          "start": 118740,
+          "end": 118740,
+          "sha256": "b3f0386c72c9950fa57ece72a5e1dd47d5f2e6d4fa0900e77e3cb9b5ec470d1f",
+          "text": "needsIndent"
+        },
+        {
+          "start": 118744,
+          "end": 118744,
+          "sha256": "b3f0386c72c9950fa57ece72a5e1dd47d5f2e6d4fa0900e77e3cb9b5ec470d1f",
+          "text": "needsIndent"
+        },
+        {
+          "start": 118748,
+          "end": 118748,
+          "sha256": "13945d8f39de98db92abe7417223f5ef5e2a78d61d6f5dc723f4c2db68952214",
+          "text": "!omitBraceSourcePositions && (token === 19 /* OpenBraceToken */ || token === 20 /* CloseBraceToken */)"
+        },
+        {
+          "start": 118753,
+          "end": 118753,
+          "sha256": "c9d065ec49bfe822076e023b0d7143218a41cd60e996bd108dc8dc8664fa3cc3",
+          "text": "isSimilarNode && contextNode.end !== pos"
+        }
+      ]
+    },
+    {
+      "name": "writeTokenText",
+      "start": 120222,
+      "end": 120226,
+      "sha256": "de1ee063c4c69b9cceaeaf9c2c825869684feae34d2562dd6a7da048eb784d08",
+      "body": "function writeTokenText(token, writer2, pos) {\n    const tokenString = tokenToString(token);\n    writer2(tokenString);\n    return pos < 0 ? pos : pos + tokenString.length;\n  }",
+      "calls": [
+        {
+          "start": 120223,
+          "end": 120223,
+          "sha256": "699dbc9883c3fe85affa77057d27785f8e25b7b57c70b658c7ac94dd719f390a",
+          "text": "tokenToString(token)"
+        },
+        {
+          "start": 120224,
+          "end": 120224,
+          "sha256": "b76b57e015c8114dff646929061a5710a44313b527b1dd110c56f04116edda52",
+          "text": "writer2(tokenString)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 120225,
+          "end": 120225,
+          "sha256": "343fa0d2886c978f39a4f6ff2a66cf43cc858cc1218a0aebf0e00379b0d98ab9",
+          "text": "pos < 0"
+        }
+      ]
+    },
+    {
+      "name": "getParseTreeNode",
+      "start": 11426,
+      "end": 11437,
+      "sha256": "88060e5fdb8f12e4006af67b9b59673798554cdfd2ee15d8b777c362c7aec936",
+      "body": "function getParseTreeNode(node, nodeTest) {\n  if (node === void 0 || isParseTreeNode(node)) {\n    return node;\n  }\n  node = node.original;\n  while (node) {\n    if (isParseTreeNode(node)) {\n      return !nodeTest || nodeTest(node) ? node : void 0;\n    }\n    node = node.original;\n  }\n}",
+      "calls": [
+        {
+          "start": 11427,
+          "end": 11427,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11432,
+          "end": 11432,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11433,
+          "end": 11433,
+          "sha256": "1d550462ef5702607ec83936d77d2e6f653f58e39fd29df182af2e35f32f46e7",
+          "text": "nodeTest(node)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 11427,
+          "end": 11427,
+          "sha256": "27e6555e0bd4d7942432747ad97a64c8376bb79fa17fa3959cc9a9671e8d0214",
+          "text": "node === void 0 || isParseTreeNode(node)"
+        },
+        {
+          "start": 11432,
+          "end": 11432,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11433,
+          "end": 11433,
+          "sha256": "7e2930b9a3248bb0ae6e2cd01042b925e4d0de6c78420601d768aa59bcd31a8a",
+          "text": "!nodeTest || nodeTest(node)"
+        }
+      ]
+    },
+    {
+      "name": "isParseTreeNode",
+      "start": 11423,
+      "end": 11425,
+      "sha256": "0d68440d4be1093a35e2879de1cfd1f646c4cd1869f9422505397f633874cd61",
+      "body": "function isParseTreeNode(node) {\n  return (node.flags & 16 /* Synthesized */) === 0;\n}",
+      "calls": [],
+      "predicates": []
+    },
+    {
+      "name": "emitCommentsBeforeNode",
+      "start": 120987,
+      "end": 120994,
+      "sha256": "f7d6666d60e1f5d1f878cd65f27781b34f16d08b2e61fc940dbf14d8ac09b6fd",
+      "body": "function emitCommentsBeforeNode(node) {\n    const emitFlags = getEmitFlags(node);\n    const commentRange = getCommentRange(node);\n    emitLeadingCommentsOfNode(node, emitFlags, commentRange.pos, commentRange.end);\n    if (emitFlags & 4096 /* NoNestedComments */) {\n      commentsDisabled = true;\n    }\n  }",
+      "calls": [
+        {
+          "start": 120988,
+          "end": 120988,
+          "sha256": "cede4a03ee9e0116d77b3daaea9e2cacbde3e1dc1bca947fab1f09183c901ae6",
+          "text": "getEmitFlags(node)"
+        },
+        {
+          "start": 120989,
+          "end": 120989,
+          "sha256": "d7b7c31348fa7cc4d83e8363e1602464de64ac83ce05e152367821dc5f496b2a",
+          "text": "getCommentRange(node)"
+        },
+        {
+          "start": 120990,
+          "end": 120990,
+          "sha256": "d1970c7e3e57361a12d9811e51cd84a98c478596a81f538d82612135de62eef8",
+          "text": "emitLeadingCommentsOfNode(node, emitFlags, commentRange.pos, commentRange.end)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 120991,
+          "end": 120991,
+          "sha256": "34f3f422497e4efd65ce48945079663ddb238f11a4450d21aea4d8ba01d25ff9",
+          "text": "emitFlags & 4096"
+        }
+      ]
+    },
+    {
+      "name": "emitCommentsAfterNode",
+      "start": 120995,
+      "end": 121006,
+      "sha256": "de9a60239d807e44902bc89618859b60c4ce48cd7f6f6e462174be464a4e5fd1",
+      "body": "function emitCommentsAfterNode(node, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd) {\n    const emitFlags = getEmitFlags(node);\n    const commentRange = getCommentRange(node);\n    if (emitFlags & 4096 /* NoNestedComments */) {\n      commentsDisabled = false;\n    }\n    emitTrailingCommentsOfNode(node, emitFlags, commentRange.pos, commentRange.end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd);\n    const typeNode = getTypeNode(node);\n    if (typeNode) {\n      emitTrailingCommentsOfNode(node, emitFlags, typeNode.pos, typeNode.end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd);\n    }\n  }",
+      "calls": [
+        {
+          "start": 120996,
+          "end": 120996,
+          "sha256": "cede4a03ee9e0116d77b3daaea9e2cacbde3e1dc1bca947fab1f09183c901ae6",
+          "text": "getEmitFlags(node)"
+        },
+        {
+          "start": 120997,
+          "end": 120997,
+          "sha256": "d7b7c31348fa7cc4d83e8363e1602464de64ac83ce05e152367821dc5f496b2a",
+          "text": "getCommentRange(node)"
+        },
+        {
+          "start": 121001,
+          "end": 121001,
+          "sha256": "a7ee9d19875473967bd382969f633750b83e38d102a2746d4d1a479409dfb3f2",
+          "text": "emitTrailingCommentsOfNode(node, emitFlags, commentRange.pos, commentRange.end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd)"
+        },
+        {
+          "start": 121002,
+          "end": 121002,
+          "sha256": "c74aacc6d8432bce83ace5289435bcde03ea18ab86f80a3e4417c512222f0e8b",
+          "text": "getTypeNode(node)"
+        },
+        {
+          "start": 121004,
+          "end": 121004,
+          "sha256": "92207ef85b54a51a3d839bde5253b0e2e7c8719485d74e098cd8f4450a4af0f3",
+          "text": "emitTrailingCommentsOfNode(node, emitFlags, typeNode.pos, typeNode.end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 120998,
+          "end": 120998,
+          "sha256": "34f3f422497e4efd65ce48945079663ddb238f11a4450d21aea4d8ba01d25ff9",
+          "text": "emitFlags & 4096"
+        },
+        {
+          "start": 121003,
+          "end": 121003,
+          "sha256": "41737ce51eb47799e05224e25bb6be2de3dbba32c86336ccdf01b295fd191069",
+          "text": "typeNode"
+        }
+      ]
+    },
+    {
+      "name": "emitTrailingCommentsOfNode",
+      "start": 121033,
+      "end": 121046,
+      "sha256": "25ed59ebac3393b713d601a358e85f06a5b7e29ae85c9df42f55f9691c5f19dc",
+      "body": "function emitTrailingCommentsOfNode(node, emitFlags, pos, end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd) {\n    enterComment();\n    const skipTrailingComments = end < 0 || (emitFlags & 2048 /* NoTrailingComments */) !== 0 || node.kind === 12 /* JsxText */;\n    forEach(getSyntheticTrailingComments(node), emitTrailingSynthesizedComment);\n    if ((pos > 0 || end > 0) && pos !== end) {\n      containerPos = savedContainerPos;\n      containerEnd = savedContainerEnd;\n      declarationListContainerEnd = savedDeclarationListContainerEnd;\n      if (!skipTrailingComments && node.kind !== 354 /* NotEmittedStatement */) {\n        emitTrailingComments(end);\n      }\n    }\n    exitComment();\n  }",
+      "calls": [
+        {
+          "start": 121034,
+          "end": 121034,
+          "sha256": "44b186c12594fa2a8cda7281547d5b10fad0808f718299d1738b87bfae4982f1",
+          "text": "enterComment()"
+        },
+        {
+          "start": 121036,
+          "end": 121036,
+          "sha256": "818127380da731b6cd0b70c5b0b0aee701a4b1fb92c0e9b66a0ba4e9a133a274",
+          "text": "forEach(getSyntheticTrailingComments(node), emitTrailingSynthesizedComment)"
+        },
+        {
+          "start": 121036,
+          "end": 121036,
+          "sha256": "621de93a3430158ee043ac95dfe71d369db3cdaefa16b6322c390ec17d975530",
+          "text": "getSyntheticTrailingComments(node)"
+        },
+        {
+          "start": 121042,
+          "end": 121042,
+          "sha256": "2fb9b2edc28842171701025e4e1b9c505365e50efde5423391ada62085e419fc",
+          "text": "emitTrailingComments(end)"
+        },
+        {
+          "start": 121045,
+          "end": 121045,
+          "sha256": "1903f302e93693be8050be702421e1fdc47b2247be2d3c4833e180e6a32fe179",
+          "text": "exitComment()"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 121037,
+          "end": 121037,
+          "sha256": "7d1c51482d8215fc649357c8ddca853e377eabb6d69d76fb800da4dd4f1396f8",
+          "text": "(pos > 0 || end > 0) && pos !== end"
+        },
+        {
+          "start": 121041,
+          "end": 121041,
+          "sha256": "06782634a52ee38a24355408e0223b9c0821e1087fc34b1615c73b0f2a6af47a",
+          "text": "!skipTrailingComments && node.kind !== 354"
+        }
+      ]
+    },
+    {
+      "name": "emitLeadingCommentsOfNode",
+      "start": 121007,
+      "end": 121032,
+      "sha256": "83808f313f0c33898bc54dc7fef97683fb4a2e335be9f1eaba899c2e64d94bd5",
+      "body": "function emitLeadingCommentsOfNode(node, emitFlags, pos, end) {\n    enterComment();\n    hasWrittenComment = false;\n    const skipLeadingComments = pos < 0 || (emitFlags & 1024 /* NoLeadingComments */) !== 0 || node.kind === 12 /* JsxText */;\n    const skipTrailingComments = end < 0 || (emitFlags & 2048 /* NoTrailingComments */) !== 0 || node.kind === 12 /* JsxText */;\n    if ((pos > 0 || end > 0) && pos !== end) {\n      if (!skipLeadingComments) {\n        emitLeadingComments(\n          pos,\n          /*isEmittedNode*/\n          node.kind !== 354 /* NotEmittedStatement */\n        );\n      }\n      if (!skipLeadingComments || pos >= 0 && (emitFlags & 1024 /* NoLeadingComments */) !== 0) {\n        containerPos = pos;\n      }\n      if (!skipTrailingComments || end >= 0 && (emitFlags & 2048 /* NoTrailingComments */) !== 0) {\n        containerEnd = end;\n        if (node.kind === 262 /* VariableDeclarationList */) {\n          declarationListContainerEnd = end;\n        }\n      }\n    }\n    forEach(getSyntheticLeadingComments(node), emitLeadingSynthesizedComment);\n    exitComment();\n  }",
+      "calls": [
+        {
+          "start": 121008,
+          "end": 121008,
+          "sha256": "44b186c12594fa2a8cda7281547d5b10fad0808f718299d1738b87bfae4982f1",
+          "text": "enterComment()"
+        },
+        {
+          "start": 121014,
+          "end": 121018,
+          "sha256": "e6c0170a15a555c4cd633ddb6b243ace30878532093c28051264a371984531d6",
+          "text": "emitLeadingComments(\n          pos,\n          /*isEmittedNode*/\n          node.kind !== 354 /* NotEmittedStatement */\n        )"
+        },
+        {
+          "start": 121030,
+          "end": 121030,
+          "sha256": "34ff3bb9a3c6ba1641f52645f005bf6dae2f058f3bacdb20e81e60836e91fd22",
+          "text": "forEach(getSyntheticLeadingComments(node), emitLeadingSynthesizedComment)"
+        },
+        {
+          "start": 121030,
+          "end": 121030,
+          "sha256": "c92772a88a0f0d2465db366ef309c914747aad27c06d78d9d9ffb4a929e83017",
+          "text": "getSyntheticLeadingComments(node)"
+        },
+        {
+          "start": 121031,
+          "end": 121031,
+          "sha256": "1903f302e93693be8050be702421e1fdc47b2247be2d3c4833e180e6a32fe179",
+          "text": "exitComment()"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 121012,
+          "end": 121012,
+          "sha256": "7d1c51482d8215fc649357c8ddca853e377eabb6d69d76fb800da4dd4f1396f8",
+          "text": "(pos > 0 || end > 0) && pos !== end"
+        },
+        {
+          "start": 121013,
+          "end": 121013,
+          "sha256": "e19d4b9a47c4e9578c27d0472ba0363ab778a3596df6d5b3040e4dde47e3156d",
+          "text": "!skipLeadingComments"
+        },
+        {
+          "start": 121020,
+          "end": 121020,
+          "sha256": "8b085401f1b8b6dca974144f95ce4da2666b31f67e9f75924a28f87061e53d35",
+          "text": "!skipLeadingComments || pos >= 0 && (emitFlags & 1024 /* NoLeadingComments */) !== 0"
+        },
+        {
+          "start": 121023,
+          "end": 121023,
+          "sha256": "7917b1b311119528574bdaac18fbf8fbb440bbcbe0f13d79de1ae51e00296b2e",
+          "text": "!skipTrailingComments || end >= 0 && (emitFlags & 2048 /* NoTrailingComments */) !== 0"
+        },
+        {
+          "start": 121025,
+          "end": 121025,
+          "sha256": "052d56b3ed6009e57386f8ded81ddfc1a53dab7a3a1096fdda9f73f81920741c",
+          "text": "node.kind === 262"
+        }
+      ]
+    },
+    {
+      "name": "emitTrailingCommentsOfPosition",
+      "start": 121191,
+      "end": 121198,
+      "sha256": "8b6fe8c9b76f830eed72398e07b68359babd63826c696b12d0fa0fa70879d930",
+      "body": "function emitTrailingCommentsOfPosition(pos, prefixSpace, forceNoNewline) {\n    if (commentsDisabled) {\n      return;\n    }\n    enterComment();\n    forEachTrailingCommentToEmit(pos, prefixSpace ? emitTrailingComment : forceNoNewline ? emitTrailingCommentOfPositionNoNewline : emitTrailingCommentOfPosition);\n    exitComment();\n  }",
+      "calls": [
+        {
+          "start": 121195,
+          "end": 121195,
+          "sha256": "44b186c12594fa2a8cda7281547d5b10fad0808f718299d1738b87bfae4982f1",
+          "text": "enterComment()"
+        },
+        {
+          "start": 121196,
+          "end": 121196,
+          "sha256": "77661067811dc95966707aab225249f5218b18f3fd2b7a947570620a610f1e5f",
+          "text": "forEachTrailingCommentToEmit(pos, prefixSpace ? emitTrailingComment : forceNoNewline ? emitTrailingCommentOfPositionNoNewline : emitTrailingCommentOfPosition)"
+        },
+        {
+          "start": 121197,
+          "end": 121197,
+          "sha256": "1903f302e93693be8050be702421e1fdc47b2247be2d3c4833e180e6a32fe179",
+          "text": "exitComment()"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 121192,
+          "end": 121192,
+          "sha256": "edc19fb7e7f873c2ac2b9689482ba318955b423d1db3f2885a7eb6d71e1b1608",
+          "text": "commentsDisabled"
+        },
+        {
+          "start": 121196,
+          "end": 121196,
+          "sha256": "501aa41e4bac1a5bcf1b102f1074534d557384f27fd98f0adb90a4e9a158447a",
+          "text": "prefixSpace"
+        },
+        {
+          "start": 121196,
+          "end": 121196,
+          "sha256": "21181f08ed0bde342bf22b622f650b8d3493707c15c3932a005fc4d3a090e8bb",
+          "text": "forceNoNewline"
+        }
+      ]
+    },
+    {
+      "name": "forEachTrailingCommentToEmit",
+      "start": 121234,
+      "end": 121238,
+      "sha256": "9f0e95b30170bdd290e70139882aebd32cf575be101fe475284ea5328665aaa5",
+      "body": "function forEachTrailingCommentToEmit(end, cb) {\n    if (currentSourceFile && (containerEnd === -1 || end !== containerEnd && end !== declarationListContainerEnd)) {\n      forEachTrailingCommentRange(currentSourceFile.text, end, cb);\n    }\n  }",
+      "calls": [
+        {
+          "start": 121236,
+          "end": 121236,
+          "sha256": "c35fbd98929fd5b2d44e9247aad3ddd0c9858318f44c3ce624b3628ffe57b52d",
+          "text": "forEachTrailingCommentRange(currentSourceFile.text, end, cb)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 121235,
+          "end": 121235,
+          "sha256": "3d516f60eaf3cc186de13fe6601e43fa52161a5eabb758f72942b64fcd485fff",
+          "text": "currentSourceFile && (containerEnd === -1 || end !== containerEnd && end !== declarationListContainerEnd)"
+        }
+      ]
+    },
+    {
+      "name": "forEachLeadingCommentToEmit",
+      "start": 121219,
+      "end": 121233,
+      "sha256": "7c18e2d951032d9991cbeb9393cdd390908c421b3a3b587385bee6cdd596fc41",
+      "body": "function forEachLeadingCommentToEmit(pos, cb) {\n    if (currentSourceFile && (containerPos === -1 || pos !== containerPos)) {\n      if (hasDetachedComments(pos)) {\n        forEachLeadingCommentWithoutDetachedComments(cb);\n      } else {\n        forEachLeadingCommentRange(\n          currentSourceFile.text,\n          pos,\n          cb,\n          /*state*/\n          pos\n        );\n      }\n    }\n  }",
+      "calls": [
+        {
+          "start": 121221,
+          "end": 121221,
+          "sha256": "1ee2d56bdbcdfbc019faade5dfb34b85bd974fdfe01856696e2368faa6b3118d",
+          "text": "hasDetachedComments(pos)"
+        },
+        {
+          "start": 121222,
+          "end": 121222,
+          "sha256": "fd0cd8f4ea83cf2a75fe723db80080e0be325d92da8a7ce8ff88267f19d987ef",
+          "text": "forEachLeadingCommentWithoutDetachedComments(cb)"
+        },
+        {
+          "start": 121224,
+          "end": 121230,
+          "sha256": "92151629b5d7cd53b5ff5c3ab2b3b1881682a226f78749f7d35654ebd04ab183",
+          "text": "forEachLeadingCommentRange(\n          currentSourceFile.text,\n          pos,\n          cb,\n          /*state*/\n          pos\n        )"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 121220,
+          "end": 121220,
+          "sha256": "32ef2fe66048f41c62db700e575ec4828b1648558808fa3b432935b049cf831a",
+          "text": "currentSourceFile && (containerPos === -1 || pos !== containerPos)"
+        },
+        {
+          "start": 121221,
+          "end": 121221,
+          "sha256": "1ee2d56bdbcdfbc019faade5dfb34b85bd974fdfe01856696e2368faa6b3118d",
+          "text": "hasDetachedComments(pos)"
+        }
+      ]
+    },
+    {
+      "name": "emitArrayBindingPattern",
+      "start": 118188,
+      "end": 118192,
+      "sha256": "5b729e8941af022de60bf7cb6043100f80a59921b471fa1f84e0cfedb979701c",
+      "body": "function emitArrayBindingPattern(node) {\n    writePunctuation(\"[\");\n    emitList(node, node.elements, 524880 /* ArrayBindingPatternElements */);\n    writePunctuation(\"]\");\n  }",
+      "calls": [
+        {
+          "start": 118189,
+          "end": 118189,
+          "sha256": "43620fb5790624b9d00b630772e0657cb1f017261329d04c16a0797e1d299c32",
+          "text": "writePunctuation(\"[\")"
+        },
+        {
+          "start": 118190,
+          "end": 118190,
+          "sha256": "3cc3a006983a2dbd257cfc6dcc90b381872a8e1f18d8242305cd4066a3f646b2",
+          "text": "emitList(node, node.elements, 524880 /* ArrayBindingPatternElements */)"
+        },
+        {
+          "start": 118191,
+          "end": 118191,
+          "sha256": "66d42bdca60bdd192ff6ed73849eca5704289457e9346870538f56072b139ab5",
+          "text": "writePunctuation(\"]\")"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitObjectBindingPattern",
+      "start": 118183,
+      "end": 118187,
+      "sha256": "cdddb64a9b52eedc8ac730ab41dcf2c711bc891c71826de175ba428cb2ce3fee",
+      "body": "function emitObjectBindingPattern(node) {\n    writePunctuation(\"{\");\n    emitList(node, node.elements, 525136 /* ObjectBindingPatternElements */);\n    writePunctuation(\"}\");\n  }",
+      "calls": [
+        {
+          "start": 118184,
+          "end": 118184,
+          "sha256": "4b76b4d1c5b5edcc021bc42676357b57176441001d3a54fa7751f6ba17784759",
+          "text": "writePunctuation(\"{\")"
+        },
+        {
+          "start": 118185,
+          "end": 118185,
+          "sha256": "b8e5a4e68e2d979b5c4a4f26c4245db32b3cd9ede075a5a3d4c86cda765bc110",
+          "text": "emitList(node, node.elements, 525136 /* ObjectBindingPatternElements */)"
+        },
+        {
+          "start": 118186,
+          "end": 118186,
+          "sha256": "bb8eb09b5b65dd69ce71de654bb823d72ab632124e5812b6368381bdb373b8f7",
+          "text": "writePunctuation(\"}\")"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitImportAttributes",
+      "start": 119316,
+      "end": 119321,
+      "sha256": "ae74f453530374a74b00d2ab63f628d892d98672b3b71a9ceecc7663207ce4f1",
+      "body": "function emitImportAttributes(node) {\n    emitTokenWithComment(node.token, node.pos, writeKeyword, node);\n    writeSpace();\n    const elements = node.elements;\n    emitList(node, elements, 526226 /* ImportAttributes */);\n  }",
+      "calls": [
+        {
+          "start": 119317,
+          "end": 119317,
+          "sha256": "86916f395d5a48e9c5f42ad6ba03c81d2ab206edc68dc13aad765c8d07b00359",
+          "text": "emitTokenWithComment(node.token, node.pos, writeKeyword, node)"
+        },
+        {
+          "start": 119318,
+          "end": 119318,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        },
+        {
+          "start": 119320,
+          "end": 119320,
+          "sha256": "a7c33879371f5492ac36e345d87b2edeaebaed0cb478bad1e7ba7413263d6ec2",
+          "text": "emitList(node, elements, 526226 /* ImportAttributes */)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emit",
+      "start": 117145,
+      "end": 117148,
+      "sha256": "086da35b8c0cf0bf5d2309978a019078dc447748e9d12585bbd1b0204dd591c5",
+      "body": "function emit(node, parenthesizerRule) {\n    if (node === void 0) return;\n    pipelineEmit(4 /* Unspecified */, node, parenthesizerRule);\n  }",
+      "calls": [
+        {
+          "start": 117147,
+          "end": 117147,
+          "sha256": "68821ceb6d3829cab8e353befdb9176823fd4bc691be7e9b557f7fb0420069e6",
+          "text": "pipelineEmit(4 /* Unspecified */, node, parenthesizerRule)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 117146,
+          "end": 117146,
+          "sha256": "6409ab8dd9d87876f60fc9ab60233d794838ba6d650414cdffa382e3c7418a03",
+          "text": "node === void 0"
+        }
+      ]
+    },
+    {
+      "name": "emitExpression",
+      "start": 117158,
+      "end": 117161,
+      "sha256": "239111d620bcd02a4e233b91dcb6a267659a7533203d31cf26f2589f8c0f774a",
+      "body": "function emitExpression(node, parenthesizerRule) {\n    if (node === void 0) return;\n    pipelineEmit(1 /* Expression */, node, parenthesizerRule);\n  }",
+      "calls": [
+        {
+          "start": 117160,
+          "end": 117160,
+          "sha256": "26e1bc31755f6d5c3d8a14705a688669d1e133bcb380c1da2d072860fef3c2db",
+          "text": "pipelineEmit(1 /* Expression */, node, parenthesizerRule)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 117159,
+          "end": 117159,
+          "sha256": "6409ab8dd9d87876f60fc9ab60233d794838ba6d650414cdffa382e3c7418a03",
+          "text": "node === void 0"
+        }
+      ]
+    },
+    {
+      "name": "pipelineEmitWithComments",
+      "start": 120978,
+      "end": 120986,
+      "sha256": "532b7e96b4c74525c918362b3edfba76bbf6330311891b90af56b11ca6d4efbe",
+      "body": "function pipelineEmitWithComments(hint, node) {\n    const pipelinePhase = getNextPipelinePhase(2 /* Comments */, hint, node);\n    const savedContainerPos = containerPos;\n    const savedContainerEnd = containerEnd;\n    const savedDeclarationListContainerEnd = declarationListContainerEnd;\n    emitCommentsBeforeNode(node);\n    pipelinePhase(hint, node);\n    emitCommentsAfterNode(node, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd);\n  }",
+      "calls": [
+        {
+          "start": 120979,
+          "end": 120979,
+          "sha256": "a251a3384738203f7275bd8838b3ddd1528e416e401f842104940882f7872155",
+          "text": "getNextPipelinePhase(2 /* Comments */, hint, node)"
+        },
+        {
+          "start": 120983,
+          "end": 120983,
+          "sha256": "74832a7cf7ead443b388cbf4285f3721a97398302120c44b8403ef2a4654f361",
+          "text": "emitCommentsBeforeNode(node)"
+        },
+        {
+          "start": 120984,
+          "end": 120984,
+          "sha256": "d2a36c404eacfe11f43a81a633abe7369b94cc3248acce2388dddc58090ce7d6",
+          "text": "pipelinePhase(hint, node)"
+        },
+        {
+          "start": 120985,
+          "end": 120985,
+          "sha256": "a4bad53b0c948398bd962dae7c21dd482743ef931b229d5b6cc6d0e038739ed5",
+          "text": "emitCommentsAfterNode(node, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitNodeWithWriter",
+      "start": 119839,
+      "end": 119845,
+      "sha256": "ac4600c79f5c202523ec14d50f303fa162231923674cf65927eb1ace07ad4efd",
+      "body": "function emitNodeWithWriter(node, writer2) {\n    if (!node) return;\n    const savedWrite = write;\n    write = writer2;\n    emit(node);\n    write = savedWrite;\n  }",
+      "calls": [
+        {
+          "start": 119843,
+          "end": 119843,
+          "sha256": "d6039dee1f7a73c512f82768ed91008f103e8f9d39eb0b0b8cfb098218db06de",
+          "text": "emit(node)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 119840,
+          "end": 119840,
+          "sha256": "e10d47ee3be8fd258a069c3068fb0110993337f3ac313214e380ba0ca3d54d06",
+          "text": "!node"
+        }
+      ]
+    }
+  ]
+}
