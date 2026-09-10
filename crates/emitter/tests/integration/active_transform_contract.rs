@@ -8,8 +8,8 @@ use tsc_emitter::{
     transform_type_script, EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode,
     EmitFlags, EmitHost, EmitResolver, EmitResolverError, EmitResolverNode, EmitSource,
     EmitTypeReferenceSerializationKind, InternalEmitFlags, JavaScriptNumber, JavaScriptString,
-    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, SourceRange, TransformArena,
-    TransformNode, TransformRoot, TransformSourceId, UnavailableEmitResolver,
+    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, TransformArena, TransformNode,
+    TransformRoot, TransformSourceId, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -12183,7 +12183,10 @@ fn es2022_auto_accessor_lowers_while_native_fields_remain_owned() {
     );
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let resolver = UnavailableEmitResolver;
+    // getClassFacts asks ContainsConstructorReference for #native even when
+    // the field remains native. The pinned resolver observation is false.
+    // ratchets/h2-8a-retained-accessor-contract-resolver.v1.json
+    let resolver = NoConstantValueResolver;
     let mut options = bootstrap_options();
     options.target = Some(ScriptTarget::ES2022.bits());
     options.always_strict = Some(false);

@@ -1,0 +1,751 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source supplement; no whole A40 readiness or production activation",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "observer": {
+    "path": "scripts/observe-comma-argument-factory-sources.mjs",
+    "sha256": "bf02bf4abb5030b0cc8ac18f568291ea8bae14c5843699e41b1d675965bad2ba"
+  },
+  "owners": [
+    {
+      "name": "sameMap",
+      "start": 206,
+      "end": 222,
+      "sha256": "6bf5e291c496013b89f17a5d74b35fb154e934bdc9396d8a74fde0c18355d9d8",
+      "body": "function sameMap(array, f) {\n  if (array !== void 0) {\n    for (let i = 0; i < array.length; i++) {\n      const item = array[i];\n      const mapped = f(item, i);\n      if (item !== mapped) {\n        const result = array.slice(0, i);\n        result.push(mapped);\n        for (i++; i < array.length; i++) {\n          result.push(f(array[i], i));\n        }\n        return result;\n      }\n    }\n  }\n  return array;\n}",
+      "calls": [
+        {
+          "start": 210,
+          "end": 210,
+          "sha256": "e593798a5d5fcc89cdde9215e9755fb8d72f7f9df168f3d4437a05ec28814d62",
+          "text": "f(item, i)"
+        },
+        {
+          "start": 212,
+          "end": 212,
+          "sha256": "d2ad875c41590334ec0d32b16db644c9e6a33e12619232824bc4c119d2c92f6f",
+          "text": "array.slice(0, i)"
+        },
+        {
+          "start": 213,
+          "end": 213,
+          "sha256": "bb470b03e60514d9149f9d3b9e525cff8c377282624ac0254f4c5c73332b26d5",
+          "text": "result.push(mapped)"
+        },
+        {
+          "start": 215,
+          "end": 215,
+          "sha256": "2ea2247035f502211d6d89232d9e38219d1094c1beb8ff41fcb2b1fd1d78ecbb",
+          "text": "result.push(f(array[i], i))"
+        },
+        {
+          "start": 215,
+          "end": 215,
+          "sha256": "e58a23edd9d75b55dc7710908210e0741eda92c3f635dd5f202697cfe2d7c205",
+          "text": "f(array[i], i)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 207,
+          "end": 207,
+          "sha256": "3054b3c11a62384f4256f795f18eed5a8fe42a37b9b3d37a8d09d13c90285ce6",
+          "text": "array !== void 0"
+        },
+        {
+          "start": 211,
+          "end": 211,
+          "sha256": "9dad3de5fd225922180147532b695930c529b0d0b6915a27fa99d2fc62753375",
+          "text": "item !== mapped"
+        }
+      ]
+    },
+    {
+      "name": "createNodeArray",
+      "start": 21464,
+      "end": 21492,
+      "sha256": "8054dc0380c52cdec1934fab358880ee7ea8814cf50e3bac3a7d1153d88e9c95",
+      "body": "function createNodeArray(elements, hasTrailingComma) {\n    if (elements === void 0 || elements === emptyArray) {\n      elements = [];\n    } else if (isNodeArray(elements)) {\n      if (hasTrailingComma === void 0 || elements.hasTrailingComma === hasTrailingComma) {\n        if (elements.transformFlags === void 0) {\n          aggregateChildrenFlags(elements);\n        }\n        Debug.attachNodeArrayDebugInfo(elements);\n        return elements;\n      }\n      const array2 = elements.slice();\n      array2.pos = elements.pos;\n      array2.end = elements.end;\n      array2.hasTrailingComma = hasTrailingComma;\n      array2.transformFlags = elements.transformFlags;\n      Debug.attachNodeArrayDebugInfo(array2);\n      return array2;\n    }\n    const length2 = elements.length;\n    const array = length2 >= 1 && length2 <= 4 ? elements.slice() : elements;\n    array.pos = -1;\n    array.end = -1;\n    array.hasTrailingComma = !!hasTrailingComma;\n    array.transformFlags = 0 /* None */;\n    aggregateChildrenFlags(array);\n    Debug.attachNodeArrayDebugInfo(array);\n    return array;\n  }",
+      "calls": [
+        {
+          "start": 21467,
+          "end": 21467,
+          "sha256": "f3b8275b3955b86e6bdde1f21b4cdfc55cd6320c5f9860831f322ee18fd6f3de",
+          "text": "isNodeArray(elements)"
+        },
+        {
+          "start": 21470,
+          "end": 21470,
+          "sha256": "b1fc92a6c85071e25e2c65cbc435bc9b029ce099f450e12f93ae7c36dca12d26",
+          "text": "aggregateChildrenFlags(elements)"
+        },
+        {
+          "start": 21472,
+          "end": 21472,
+          "sha256": "224dd4ce8d1af67ec339f034bbc7e25502c378a92c35cf28ed1cd265b8d08ecb",
+          "text": "Debug.attachNodeArrayDebugInfo(elements)"
+        },
+        {
+          "start": 21475,
+          "end": 21475,
+          "sha256": "d4767c827846e090b5b78b9c99af200cfd92c1e3316503fe582627e5f4f3ef2d",
+          "text": "elements.slice()"
+        },
+        {
+          "start": 21480,
+          "end": 21480,
+          "sha256": "5401961e4207bf10e07b56ef22af9fe8eed10f9ec9fd5c4511238807302d3459",
+          "text": "Debug.attachNodeArrayDebugInfo(array2)"
+        },
+        {
+          "start": 21484,
+          "end": 21484,
+          "sha256": "d4767c827846e090b5b78b9c99af200cfd92c1e3316503fe582627e5f4f3ef2d",
+          "text": "elements.slice()"
+        },
+        {
+          "start": 21489,
+          "end": 21489,
+          "sha256": "2748ea2bf169e2aa1648ad0a242179e8e309f5625ed1ccad7c4ae85cc7c3bfdd",
+          "text": "aggregateChildrenFlags(array)"
+        },
+        {
+          "start": 21490,
+          "end": 21490,
+          "sha256": "dfaa47597f35d7ee22ae37957f5a36120d101102f42d1c2dbf85d173e2f31573",
+          "text": "Debug.attachNodeArrayDebugInfo(array)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 21465,
+          "end": 21465,
+          "sha256": "3101a138f1de4f299413f62d16bc9d6959514714fd95abef0c4271bc8d1ccc78",
+          "text": "elements === void 0 || elements === emptyArray"
+        },
+        {
+          "start": 21467,
+          "end": 21467,
+          "sha256": "f3b8275b3955b86e6bdde1f21b4cdfc55cd6320c5f9860831f322ee18fd6f3de",
+          "text": "isNodeArray(elements)"
+        },
+        {
+          "start": 21468,
+          "end": 21468,
+          "sha256": "dabf295b5e27ba558aa10357259deddb22af53fc0d1a2d870da98841c4d21632",
+          "text": "hasTrailingComma === void 0 || elements.hasTrailingComma === hasTrailingComma"
+        },
+        {
+          "start": 21469,
+          "end": 21469,
+          "sha256": "5022974814ed505f759816a5c45e378700b856e7a121d396307abe9758c30c23",
+          "text": "elements.transformFlags === void 0"
+        },
+        {
+          "start": 21484,
+          "end": 21484,
+          "sha256": "daab31c92dca8e2e4a8b8f4a49532bc5c3ce7357b8278ebd451a8675b5902a30",
+          "text": "length2 >= 1 && length2 <= 4"
+        }
+      ]
+    },
+    {
+      "name": "parenthesizeExpressionsOfCommaDelimitedList",
+      "start": 20479,
+      "end": 20482,
+      "sha256": "a8de41e4ab8394205b3912a7dcab73a5b3c469b5b2f5efd7109eb4b956a7ae2f",
+      "body": "function parenthesizeExpressionsOfCommaDelimitedList(elements) {\n    const result = sameMap(elements, parenthesizeExpressionForDisallowedComma);\n    return setTextRange(factory2.createNodeArray(result, elements.hasTrailingComma), elements);\n  }",
+      "calls": [
+        {
+          "start": 20480,
+          "end": 20480,
+          "sha256": "fad7ed664aef42e34b1f24391b4320d2ff3fe4d857e8c870e17b829ab3e8ccf0",
+          "text": "sameMap(elements, parenthesizeExpressionForDisallowedComma)"
+        },
+        {
+          "start": 20481,
+          "end": 20481,
+          "sha256": "ceeda91f650382ab9ae24ae59e876ffe0d45fcfd65fd79578675820318fa1bf1",
+          "text": "setTextRange(factory2.createNodeArray(result, elements.hasTrailingComma), elements)"
+        },
+        {
+          "start": 20481,
+          "end": 20481,
+          "sha256": "ea15eeb9033743f93372131465ce42141c46784acdbc0a5956512dc3d35d2942",
+          "text": "factory2.createNodeArray(result, elements.hasTrailingComma)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "parenthesizeExpressionForDisallowedComma",
+      "start": 20483,
+      "end": 20488,
+      "sha256": "549c32487d8f64fc9c514d743edefdb370ed5f962a47e5764b82ca92c4855267",
+      "body": "function parenthesizeExpressionForDisallowedComma(expression) {\n    const emittedExpression = skipPartiallyEmittedExpressions(expression);\n    const expressionPrecedence = getExpressionPrecedence(emittedExpression);\n    const commaPrecedence = getOperatorPrecedence(227 /* BinaryExpression */, 28 /* CommaToken */);\n    return expressionPrecedence > commaPrecedence ? expression : setTextRange(factory2.createParenthesizedExpression(expression), expression);\n  }",
+      "calls": [
+        {
+          "start": 20484,
+          "end": 20484,
+          "sha256": "d1c74067f55ce6e27e1b79781af3424083f09a16c9ef81580309e641ad89e978",
+          "text": "skipPartiallyEmittedExpressions(expression)"
+        },
+        {
+          "start": 20485,
+          "end": 20485,
+          "sha256": "7eb85e3ba646fdbe92d0a71fd81f7fe99e177a587ecca09c5d92e316b0eaec6c",
+          "text": "getExpressionPrecedence(emittedExpression)"
+        },
+        {
+          "start": 20486,
+          "end": 20486,
+          "sha256": "1416a24238ffbb4869e41921360c47fd97d77dcafb03c1e2336a9d62254de4f0",
+          "text": "getOperatorPrecedence(227 /* BinaryExpression */, 28 /* CommaToken */)"
+        },
+        {
+          "start": 20487,
+          "end": 20487,
+          "sha256": "b0c1d0a5d118f008bfb6fa9918719908386de1307423107f0f22953555fe80bc",
+          "text": "setTextRange(factory2.createParenthesizedExpression(expression), expression)"
+        },
+        {
+          "start": 20487,
+          "end": 20487,
+          "sha256": "928d8d0ed06ce6840eea5771b67a4b40a51435b42134b93a7dfa9ff7de61f21a",
+          "text": "factory2.createParenthesizedExpression(expression)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 20487,
+          "end": 20487,
+          "sha256": "e8e6fe073e857a9b914a4fc02efbecb26503bd47e5e64c29f3127eb23a2b1dbf",
+          "text": "expressionPrecedence > commaPrecedence"
+        }
+      ]
+    },
+    {
+      "name": "createParenthesizedExpression",
+      "start": 22666,
+      "end": 22672,
+      "sha256": "2222c196a8ccd0a93035b383452cb9f0f0ee4f8247eaa3520b637a6050cf5b3b",
+      "body": "function createParenthesizedExpression(expression) {\n    const node = createBaseNode(218 /* ParenthesizedExpression */);\n    node.expression = expression;\n    node.transformFlags = propagateChildFlags(node.expression);\n    node.jsDoc = void 0;\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22667,
+          "end": 22667,
+          "sha256": "04cca19f80ef574e966379ed14c4895829992d8042b04a7b4a988af0c95f71f7",
+          "text": "createBaseNode(218 /* ParenthesizedExpression */)"
+        },
+        {
+          "start": 22669,
+          "end": 22669,
+          "sha256": "e67698103053bd7d4dca1cd102deec2509d221c1bedbd94cef048a25831bab63",
+          "text": "propagateChildFlags(node.expression)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "createArrayLiteralExpression",
+      "start": 22441,
+      "end": 22449,
+      "sha256": "a73017093bc83c686e68d74cb86ecd674448e7ee137670b592f1c41a44e1b6e0",
+      "body": "function createArrayLiteralExpression(elements, multiLine) {\n    const node = createBaseNode(210 /* ArrayLiteralExpression */);\n    const lastElement = elements && lastOrUndefined(elements);\n    const elementsArray = createNodeArray(elements, lastElement && isOmittedExpression(lastElement) ? true : void 0);\n    node.elements = parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(elementsArray);\n    node.multiLine = multiLine;\n    node.transformFlags |= propagateChildrenFlags(node.elements);\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22442,
+          "end": 22442,
+          "sha256": "00cb8a4066c0f73b17725052c13527b7f367e19853ba3f0a32b5412b99a14875",
+          "text": "createBaseNode(210 /* ArrayLiteralExpression */)"
+        },
+        {
+          "start": 22443,
+          "end": 22443,
+          "sha256": "abf67e0b73232d0c65462513ae62fdf573d803a61083f5f56dcd917ab79df2af",
+          "text": "lastOrUndefined(elements)"
+        },
+        {
+          "start": 22444,
+          "end": 22444,
+          "sha256": "63f707ee76a1de22ead442789a9e373b7fcee9286d8e96d4d40dfc5446e3171b",
+          "text": "createNodeArray(elements, lastElement && isOmittedExpression(lastElement) ? true : void 0)"
+        },
+        {
+          "start": 22444,
+          "end": 22444,
+          "sha256": "4e43b97e4ab5369996f56f32bb50a4927407a982312ccc2a92325210e7576a2e",
+          "text": "isOmittedExpression(lastElement)"
+        },
+        {
+          "start": 22445,
+          "end": 22445,
+          "sha256": "57b49ea9fd51cf7f8567c64e81e196026c18dd439b92ad4c5cbac385e683e4c8",
+          "text": "parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(elementsArray)"
+        },
+        {
+          "start": 22445,
+          "end": 22445,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22447,
+          "end": 22447,
+          "sha256": "47817c090e245218ae8257c61300e84baf9a0103c9557128dfe52c443d33d474",
+          "text": "propagateChildrenFlags(node.elements)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22444,
+          "end": 22444,
+          "sha256": "00e9a47d86635cace0d96600c773227f090f9e31d99046e37185e3b6020807c5",
+          "text": "lastElement && isOmittedExpression(lastElement)"
+        }
+      ]
+    },
+    {
+      "name": "updateArrayLiteralExpression",
+      "start": 22450,
+      "end": 22452,
+      "sha256": "8dd336f43ef4197a381dd39e678b258c437813d4cc04120c9416f7a8df24f8d9",
+      "body": "function updateArrayLiteralExpression(node, elements) {\n    return node.elements !== elements ? update(createArrayLiteralExpression(elements, node.multiLine), node) : node;\n  }",
+      "calls": [
+        {
+          "start": 22451,
+          "end": 22451,
+          "sha256": "fd1e7f572527d39aff4879c0755bec5f2f72fcddfc083cc3eefc4d2e319b61b6",
+          "text": "update(createArrayLiteralExpression(elements, node.multiLine), node)"
+        },
+        {
+          "start": 22451,
+          "end": 22451,
+          "sha256": "54dba0f5c2113f839acddb6a68621628678625968cee317cf3baf39ef48476fe",
+          "text": "createArrayLiteralExpression(elements, node.multiLine)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22451,
+          "end": 22451,
+          "sha256": "b96074c8b325b5ecb2d2083d8878539d14971c24982ee1501625c2bfd6b06654",
+          "text": "node.elements !== elements"
+        }
+      ]
+    },
+    {
+      "name": "createBaseCallExpression",
+      "start": 22564,
+      "end": 22578,
+      "sha256": "0ea189582e2a66a5c95a07a411fe0188a697f73e9318585b0d4bad35237cd634",
+      "body": "function createBaseCallExpression(expression, questionDotToken, typeArguments, argumentsArray) {\n    const node = createBaseDeclaration(214 /* CallExpression */);\n    node.expression = expression;\n    node.questionDotToken = questionDotToken;\n    node.typeArguments = typeArguments;\n    node.arguments = argumentsArray;\n    node.transformFlags |= propagateChildFlags(node.expression) | propagateChildFlags(node.questionDotToken) | propagateChildrenFlags(node.typeArguments) | propagateChildrenFlags(node.arguments);\n    if (node.typeArguments) {\n      node.transformFlags |= 1 /* ContainsTypeScript */;\n    }\n    if (isSuperProperty(node.expression)) {\n      node.transformFlags |= 16384 /* ContainsLexicalThis */;\n    }\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22565,
+          "end": 22565,
+          "sha256": "bbc445a84750cae3e94045a0b1f12e105eab437f3aa6f0cf1885deac6ba5d1bc",
+          "text": "createBaseDeclaration(214 /* CallExpression */)"
+        },
+        {
+          "start": 22570,
+          "end": 22570,
+          "sha256": "e67698103053bd7d4dca1cd102deec2509d221c1bedbd94cef048a25831bab63",
+          "text": "propagateChildFlags(node.expression)"
+        },
+        {
+          "start": 22570,
+          "end": 22570,
+          "sha256": "ae7b042f8b39a338372751376ab830724f5aafa15ccbe1a509f1e12b4d4b48fd",
+          "text": "propagateChildFlags(node.questionDotToken)"
+        },
+        {
+          "start": 22570,
+          "end": 22570,
+          "sha256": "89fad0658f0b730a6879484f5517e2a7bd3613b82d1d59fd5f6b66cb8a5af2d2",
+          "text": "propagateChildrenFlags(node.typeArguments)"
+        },
+        {
+          "start": 22570,
+          "end": 22570,
+          "sha256": "5227c4a15e87138ab52b519b56308a8fa3c380844a428b64fac9b38ce2a32ea2",
+          "text": "propagateChildrenFlags(node.arguments)"
+        },
+        {
+          "start": 22574,
+          "end": 22574,
+          "sha256": "2249e7eeb0f4e8fb99d1c745d11aced65245fee55985cbed25864cd7a12f0d9a",
+          "text": "isSuperProperty(node.expression)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22571,
+          "end": 22571,
+          "sha256": "d72ce22c61a2e9ec3e1712e71f0e820c68acc770ed1a381e7ab1d00d89cd13dc",
+          "text": "node.typeArguments"
+        },
+        {
+          "start": 22574,
+          "end": 22574,
+          "sha256": "2249e7eeb0f4e8fb99d1c745d11aced65245fee55985cbed25864cd7a12f0d9a",
+          "text": "isSuperProperty(node.expression)"
+        }
+      ]
+    },
+    {
+      "name": "createCallExpression",
+      "start": 22579,
+      "end": 22595,
+      "sha256": "0bc0af688b928e4d2ddb30ce1056b0558c4f966f73448cf653f952fa0c8e8257",
+      "body": "function createCallExpression(expression, typeArguments, argumentsArray) {\n    const node = createBaseCallExpression(\n      parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        false\n      ),\n      /*questionDotToken*/\n      void 0,\n      asNodeArray(typeArguments),\n      parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))\n    );\n    if (isImportKeyword(node.expression)) {\n      node.transformFlags |= 8388608 /* ContainsDynamicImport */;\n    }\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22580,
+          "end": 22590,
+          "sha256": "efa032f4a6e398e55cefdaf637b509e72dc6c400a8ab0701d617baadee67d2fc",
+          "text": "createBaseCallExpression(\n      parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        false\n      ),\n      /*questionDotToken*/\n      void 0,\n      asNodeArray(typeArguments),\n      parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))\n    )"
+        },
+        {
+          "start": 22581,
+          "end": 22585,
+          "sha256": "324db7f50cbd6ad6bb2df465ef975d829d3090fcd6ddf62bd65cd867606eca3e",
+          "text": "parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        false\n      )"
+        },
+        {
+          "start": 22581,
+          "end": 22581,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22588,
+          "end": 22588,
+          "sha256": "eff9bd1426f0b90466c8f0ac469c234a1354c9905248d656a22107a2936b43ed",
+          "text": "asNodeArray(typeArguments)"
+        },
+        {
+          "start": 22589,
+          "end": 22589,
+          "sha256": "13a8fc42bb7587b0cf31e21c284d288e39046c745b010946c684b39d272e2cb3",
+          "text": "parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))"
+        },
+        {
+          "start": 22589,
+          "end": 22589,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22589,
+          "end": 22589,
+          "sha256": "67e62d7df66fec5ec7df7ef43311c7d01a25c2454e8fd70d9b708ebfd931fe2e",
+          "text": "createNodeArray(argumentsArray)"
+        },
+        {
+          "start": 22591,
+          "end": 22591,
+          "sha256": "6740ced2731cc60fa96789c1e5e063721c7c9b1185af79090ec72bf1acddb841",
+          "text": "isImportKeyword(node.expression)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22591,
+          "end": 22591,
+          "sha256": "6740ced2731cc60fa96789c1e5e063721c7c9b1185af79090ec72bf1acddb841",
+          "text": "isImportKeyword(node.expression)"
+        }
+      ]
+    },
+    {
+      "name": "updateCallExpression",
+      "start": 22596,
+      "end": 22601,
+      "sha256": "29c06b1e2f03d1234aa2212cf24d141e2060fdd15fc672e4600491984830073b",
+      "body": "function updateCallExpression(node, expression, typeArguments, argumentsArray) {\n    if (isCallChain(node)) {\n      return updateCallChain(node, expression, node.questionDotToken, typeArguments, argumentsArray);\n    }\n    return node.expression !== expression || node.typeArguments !== typeArguments || node.arguments !== argumentsArray ? update(createCallExpression(expression, typeArguments, argumentsArray), node) : node;\n  }",
+      "calls": [
+        {
+          "start": 22597,
+          "end": 22597,
+          "sha256": "27831383daa32357a5d0e4f6e6ed4d31755cc2397d249c62d13373e5f41f30f9",
+          "text": "isCallChain(node)"
+        },
+        {
+          "start": 22598,
+          "end": 22598,
+          "sha256": "a51cae6a67e846911ab347191815c69535eed9bc06267486cf516ba057ea74f6",
+          "text": "updateCallChain(node, expression, node.questionDotToken, typeArguments, argumentsArray)"
+        },
+        {
+          "start": 22600,
+          "end": 22600,
+          "sha256": "9b1c7fb558d147016869cdddbff5fa74977cb74411573b897fb883568041c91d",
+          "text": "update(createCallExpression(expression, typeArguments, argumentsArray), node)"
+        },
+        {
+          "start": 22600,
+          "end": 22600,
+          "sha256": "c5d0d46753e4e318f9b6699e4887a91421a087c35377ab9d5347532eafe116c1",
+          "text": "createCallExpression(expression, typeArguments, argumentsArray)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22597,
+          "end": 22597,
+          "sha256": "27831383daa32357a5d0e4f6e6ed4d31755cc2397d249c62d13373e5f41f30f9",
+          "text": "isCallChain(node)"
+        },
+        {
+          "start": 22600,
+          "end": 22600,
+          "sha256": "3cd1d0e31201cfb1e383ed2f0b2b3bfc763918117e52db1875b1a1f963c23fe3",
+          "text": "node.expression !== expression || node.typeArguments !== typeArguments || node.arguments !== argumentsArray"
+        }
+      ]
+    },
+    {
+      "name": "createCallChain",
+      "start": 22602,
+      "end": 22616,
+      "sha256": "a2946c1636f74a2abef80798cd8e6c1fe8ec3b84d25362ee7c22d9bc852f255f",
+      "body": "function createCallChain(expression, questionDotToken, typeArguments, argumentsArray) {\n    const node = createBaseCallExpression(\n      parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        true\n      ),\n      questionDotToken,\n      asNodeArray(typeArguments),\n      parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))\n    );\n    node.flags |= 64 /* OptionalChain */;\n    node.transformFlags |= 32 /* ContainsES2020 */;\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22603,
+          "end": 22612,
+          "sha256": "35cf0e46b2ecbe13868c89eaf21597362590c3921ad152bd1aac0cbb1ea78671",
+          "text": "createBaseCallExpression(\n      parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        true\n      ),\n      questionDotToken,\n      asNodeArray(typeArguments),\n      parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))\n    )"
+        },
+        {
+          "start": 22604,
+          "end": 22608,
+          "sha256": "0726f7f79e6fc892e9479a72fd9332ebee8ea74d1dba82d30fe985c3daed578c",
+          "text": "parenthesizerRules().parenthesizeLeftSideOfAccess(\n        expression,\n        /*optionalChain*/\n        true\n      )"
+        },
+        {
+          "start": 22604,
+          "end": 22604,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22610,
+          "end": 22610,
+          "sha256": "eff9bd1426f0b90466c8f0ac469c234a1354c9905248d656a22107a2936b43ed",
+          "text": "asNodeArray(typeArguments)"
+        },
+        {
+          "start": 22611,
+          "end": 22611,
+          "sha256": "13a8fc42bb7587b0cf31e21c284d288e39046c745b010946c684b39d272e2cb3",
+          "text": "parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(createNodeArray(argumentsArray))"
+        },
+        {
+          "start": 22611,
+          "end": 22611,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22611,
+          "end": 22611,
+          "sha256": "67e62d7df66fec5ec7df7ef43311c7d01a25c2454e8fd70d9b708ebfd931fe2e",
+          "text": "createNodeArray(argumentsArray)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "updateCallChain",
+      "start": 22617,
+      "end": 22620,
+      "sha256": "55d414788b725d112a4fac9b320f03a050e9c7cc2f8ae2db971da2f4515e63d5",
+      "body": "function updateCallChain(node, expression, questionDotToken, typeArguments, argumentsArray) {\n    Debug.assert(!!(node.flags & 64 /* OptionalChain */), \"Cannot update a CallExpression using updateCallChain. Use updateCall instead.\");\n    return node.expression !== expression || node.questionDotToken !== questionDotToken || node.typeArguments !== typeArguments || node.arguments !== argumentsArray ? update(createCallChain(expression, questionDotToken, typeArguments, argumentsArray), node) : node;\n  }",
+      "calls": [
+        {
+          "start": 22618,
+          "end": 22618,
+          "sha256": "34ec016b24689c10b401ecb128310ca90686a5f9e409432923f7396844f1ac1b",
+          "text": "Debug.assert(!!(node.flags & 64 /* OptionalChain */), \"Cannot update a CallExpression using updateCallChain. Use updateCall instead.\")"
+        },
+        {
+          "start": 22619,
+          "end": 22619,
+          "sha256": "9e99481ab3f9fdd70554234352011f1a284bbdcb221c5efc4ee7a7f8606d232b",
+          "text": "update(createCallChain(expression, questionDotToken, typeArguments, argumentsArray), node)"
+        },
+        {
+          "start": 22619,
+          "end": 22619,
+          "sha256": "b53de4dda5f87de84997b53e18261156500b2ac196c1c805d59909d3639b60bc",
+          "text": "createCallChain(expression, questionDotToken, typeArguments, argumentsArray)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22619,
+          "end": 22619,
+          "sha256": "bbdbd946bb0f1e1a27cab0e97391d87fd694e5a8e915bc6b5bd12f0073bafa5f",
+          "text": "node.expression !== expression || node.questionDotToken !== questionDotToken || node.typeArguments !== typeArguments || node.arguments !== argumentsArray"
+        }
+      ]
+    },
+    {
+      "name": "createNewExpression",
+      "start": 22621,
+      "end": 22631,
+      "sha256": "1d60cfbdeec70b72c09fb83561e332d4170761baad80fa1d32014b22197cc408",
+      "body": "function createNewExpression(expression, typeArguments, argumentsArray) {\n    const node = createBaseDeclaration(215 /* NewExpression */);\n    node.expression = parenthesizerRules().parenthesizeExpressionOfNew(expression);\n    node.typeArguments = asNodeArray(typeArguments);\n    node.arguments = argumentsArray ? parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(argumentsArray) : void 0;\n    node.transformFlags |= propagateChildFlags(node.expression) | propagateChildrenFlags(node.typeArguments) | propagateChildrenFlags(node.arguments) | 32 /* ContainsES2020 */;\n    if (node.typeArguments) {\n      node.transformFlags |= 1 /* ContainsTypeScript */;\n    }\n    return node;\n  }",
+      "calls": [
+        {
+          "start": 22622,
+          "end": 22622,
+          "sha256": "2877a8b519ee342322f7df73a71b95e781f60bf6492a108946bfb6b407c39042",
+          "text": "createBaseDeclaration(215 /* NewExpression */)"
+        },
+        {
+          "start": 22623,
+          "end": 22623,
+          "sha256": "2647e28c0c0e94d8d4cb2e76583323edd882374bf7f430e09981a053e9d39791",
+          "text": "parenthesizerRules().parenthesizeExpressionOfNew(expression)"
+        },
+        {
+          "start": 22623,
+          "end": 22623,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22624,
+          "end": 22624,
+          "sha256": "eff9bd1426f0b90466c8f0ac469c234a1354c9905248d656a22107a2936b43ed",
+          "text": "asNodeArray(typeArguments)"
+        },
+        {
+          "start": 22625,
+          "end": 22625,
+          "sha256": "f6453888c93436dfa9024d780db40cf1e2fe3f7669e68c266097e3039d7a74a2",
+          "text": "parenthesizerRules().parenthesizeExpressionsOfCommaDelimitedList(argumentsArray)"
+        },
+        {
+          "start": 22625,
+          "end": 22625,
+          "sha256": "d430dee88023b38507e11f772452b3e87606346c5356abb0dead9f67eb40a0ed",
+          "text": "parenthesizerRules()"
+        },
+        {
+          "start": 22626,
+          "end": 22626,
+          "sha256": "e67698103053bd7d4dca1cd102deec2509d221c1bedbd94cef048a25831bab63",
+          "text": "propagateChildFlags(node.expression)"
+        },
+        {
+          "start": 22626,
+          "end": 22626,
+          "sha256": "89fad0658f0b730a6879484f5517e2a7bd3613b82d1d59fd5f6b66cb8a5af2d2",
+          "text": "propagateChildrenFlags(node.typeArguments)"
+        },
+        {
+          "start": 22626,
+          "end": 22626,
+          "sha256": "5227c4a15e87138ab52b519b56308a8fa3c380844a428b64fac9b38ce2a32ea2",
+          "text": "propagateChildrenFlags(node.arguments)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22625,
+          "end": 22625,
+          "sha256": "d4fde36badef41b2e279e6b9766e3cf915701a17e59b4532adeae4b4ba7d6664",
+          "text": "argumentsArray"
+        },
+        {
+          "start": 22627,
+          "end": 22627,
+          "sha256": "d72ce22c61a2e9ec3e1712e71f0e820c68acc770ed1a381e7ab1d00d89cd13dc",
+          "text": "node.typeArguments"
+        }
+      ]
+    },
+    {
+      "name": "updateNewExpression",
+      "start": 22632,
+      "end": 22634,
+      "sha256": "f7f4f0649f1fedb7be8105be1d96dfa7e71f714bf1caffd2c223a8ae2a9df22c",
+      "body": "function updateNewExpression(node, expression, typeArguments, argumentsArray) {\n    return node.expression !== expression || node.typeArguments !== typeArguments || node.arguments !== argumentsArray ? update(createNewExpression(expression, typeArguments, argumentsArray), node) : node;\n  }",
+      "calls": [
+        {
+          "start": 22633,
+          "end": 22633,
+          "sha256": "24c8e5ef3301a738b3380558c982f39135788d4ebf12446a6a2499ec281143bb",
+          "text": "update(createNewExpression(expression, typeArguments, argumentsArray), node)"
+        },
+        {
+          "start": 22633,
+          "end": 22633,
+          "sha256": "0f67d2a4a3c9e4f517e96b970910f9739a6def07450238d9eabd58df0812c397",
+          "text": "createNewExpression(expression, typeArguments, argumentsArray)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 22633,
+          "end": 22633,
+          "sha256": "3cd1d0e31201cfb1e383ed2f0b2b3bfc763918117e52db1875b1a1f963c23fe3",
+          "text": "node.expression !== expression || node.typeArguments !== typeArguments || node.arguments !== argumentsArray"
+        }
+      ]
+    },
+    {
+      "name": "getExpressionPrecedence",
+      "start": 16044,
+      "end": 16048,
+      "sha256": "1ccc3b59e704de2b84905c151f154a9fbb71189d886eb5fe9f11073cdf545a11",
+      "body": "function getExpressionPrecedence(expression) {\n  const operator = getOperator(expression);\n  const hasArguments = expression.kind === 215 /* NewExpression */ && expression.arguments !== void 0;\n  return getOperatorPrecedence(expression.kind, operator, hasArguments);\n}",
+      "calls": [
+        {
+          "start": 16045,
+          "end": 16045,
+          "sha256": "fd831b2d0000614a9552eaaea3d20392672c4c213ef3f7861d18365367ba6fd4",
+          "text": "getOperator(expression)"
+        },
+        {
+          "start": 16047,
+          "end": 16047,
+          "sha256": "194816b1522679177e8261ec3da67d1c05449c6f823f539c1d84769d22ffc44c",
+          "text": "getOperatorPrecedence(expression.kind, operator, hasArguments)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "getOperatorPrecedence",
+      "start": 16058,
+      "end": 16142,
+      "sha256": "0877d08e2a086098b29704d357b9d1598a89e81bf64d8f78b83e421e019b6a47",
+      "body": "function getOperatorPrecedence(nodeKind, operatorKind, hasArguments) {\n  switch (nodeKind) {\n    case 357 /* CommaListExpression */:\n      return 0 /* Comma */;\n    case 231 /* SpreadElement */:\n      return 1 /* Spread */;\n    case 230 /* YieldExpression */:\n      return 2 /* Yield */;\n    case 228 /* ConditionalExpression */:\n      return 4 /* Conditional */;\n    case 227 /* BinaryExpression */:\n      switch (operatorKind) {\n        case 28 /* CommaToken */:\n          return 0 /* Comma */;\n        case 64 /* EqualsToken */:\n        case 65 /* PlusEqualsToken */:\n        case 66 /* MinusEqualsToken */:\n        case 68 /* AsteriskAsteriskEqualsToken */:\n        case 67 /* AsteriskEqualsToken */:\n        case 69 /* SlashEqualsToken */:\n        case 70 /* PercentEqualsToken */:\n        case 71 /* LessThanLessThanEqualsToken */:\n        case 72 /* GreaterThanGreaterThanEqualsToken */:\n        case 73 /* GreaterThanGreaterThanGreaterThanEqualsToken */:\n        case 74 /* AmpersandEqualsToken */:\n        case 79 /* CaretEqualsToken */:\n        case 75 /* BarEqualsToken */:\n        case 76 /* BarBarEqualsToken */:\n        case 77 /* AmpersandAmpersandEqualsToken */:\n        case 78 /* QuestionQuestionEqualsToken */:\n          return 3 /* Assignment */;\n        default:\n          return getBinaryOperatorPrecedence(operatorKind);\n      }\n    // TODO: Should prefix `++` and `--` be moved to the `Update` precedence?\n    case 217 /* TypeAssertionExpression */:\n    case 236 /* NonNullExpression */:\n    case 225 /* PrefixUnaryExpression */:\n    case 222 /* TypeOfExpression */:\n    case 223 /* VoidExpression */:\n    case 221 /* DeleteExpression */:\n    case 224 /* AwaitExpression */:\n      return 16 /* Unary */;\n    case 226 /* PostfixUnaryExpression */:\n      return 17 /* Update */;\n    case 214 /* CallExpression */:\n      return 18 /* LeftHandSide */;\n    case 215 /* NewExpression */:\n      return hasArguments ? 19 /* Member */ : 18 /* LeftHandSide */;\n    case 216 /* TaggedTemplateExpression */:\n    case 212 /* PropertyAccessExpression */:\n    case 213 /* ElementAccessExpression */:\n    case 237 /* MetaProperty */:\n      return 19 /* Member */;\n    case 235 /* AsExpression */:\n    case 239 /* SatisfiesExpression */:\n      return 11 /* Relational */;\n    case 110 /* ThisKeyword */:\n    case 108 /* SuperKeyword */:\n    case 80 /* Identifier */:\n    case 81 /* PrivateIdentifier */:\n    case 106 /* NullKeyword */:\n    case 112 /* TrueKeyword */:\n    case 97 /* FalseKeyword */:\n    case 9 /* NumericLiteral */:\n    case 10 /* BigIntLiteral */:\n    case 11 /* StringLiteral */:\n    case 210 /* ArrayLiteralExpression */:\n    case 211 /* ObjectLiteralExpression */:\n    case 219 /* FunctionExpression */:\n    case 220 /* ArrowFunction */:\n    case 232 /* ClassExpression */:\n    case 14 /* RegularExpressionLiteral */:\n    case 15 /* NoSubstitutionTemplateLiteral */:\n    case 229 /* TemplateExpression */:\n    case 218 /* ParenthesizedExpression */:\n    case 233 /* OmittedExpression */:\n    case 285 /* JsxElement */:\n    case 286 /* JsxSelfClosingElement */:\n    case 289 /* JsxFragment */:\n      return 20 /* Primary */;\n    default:\n      return -1 /* Invalid */;\n  }\n}",
+      "calls": [
+        {
+          "start": 16090,
+          "end": 16090,
+          "sha256": "39557d2a8e8a71dd50abd09280b175478234014e47b61777d5204df7a22d7f63",
+          "text": "getBinaryOperatorPrecedence(operatorKind)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 16106,
+          "end": 16106,
+          "sha256": "f698b7b591f9433ed4a017dcb76bb702bd58954dcd86416508a0ab0f0baf939b",
+          "text": "hasArguments"
+        }
+      ]
+    }
+  ]
+}

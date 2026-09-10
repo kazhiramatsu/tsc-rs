@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "route": "checker-resolver-facts-and-emit; no native complete-command qualification",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "3169782a52f8c45bbdd1149b6184f5d19e390bb86aabe6393ce5297958537705",
+  "input": {
+    "native_file": "crates/emitter/tests/integration/active_transform_contract.rs",
+    "test_name": "es2022_auto_accessor_lowers_while_native_fields_remain_owned",
+    "file_name": "accessor.ts",
+    "text": "class C { field = 1; accessor item = 3; #native = 4; static accessor total = 5; }\n",
+    "options": {
+      "target": 9,
+      "module": 200,
+      "useDefineForClassFields": true,
+      "alwaysStrict": false,
+      "noLib": true
+    }
+  },
+  "typescript_observation": {
+    "facts": [
+      {
+        "kind": "PropertyDeclaration",
+        "name": "#native",
+        "pos": 39,
+        "end": 52,
+        "flag": 262144,
+        "has_node_check_flag": false
+      }
+    ],
+    "writes": [
+      {
+        "path": "accessor.js",
+        "text": "class C {\n    field = 1;\n    #item_accessor_storage = 3;\n    get item() { return this.#item_accessor_storage; }\n    set item(value) { this.#item_accessor_storage = value; }\n    #native = 4;\n    static #total_accessor_storage = 5;\n    static get total() { return C.#total_accessor_storage; }\n    static set total(value) { C.#total_accessor_storage = value; }\n}\n",
+        "bom": false
+      }
+    ],
+    "emit_skipped": false,
+    "emit_diagnostics": []
+  }
+}

@@ -27,6 +27,10 @@ PRINTER = Path('crates/emitter/src/printer.rs')
 PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-printer.candidate.patch')
 PRINTER_SHA = '8951dc94e07df2cfdca2f41a7b82e4c9ceeae75d6d5ff60ae5dabb752db53398'
 PATCH_SHA = 'f8a30aca24079b013b1396af6ffb769eabe8509af700e4f63f1fdf4f2ce8b90c'
+FACTORY = Path('crates/emitter/src/factory.rs')
+FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
+FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
+FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
 
 
 def sha(path):
@@ -44,7 +48,10 @@ def main():
     attempt = int(sys.argv[1])
     assert attempt > 0
     selection = sys.argv[2]
-    assert selection in ['direct', 'all', 'edges', 'comma-factory']
+    assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory']
+    with_factory = sys.argv[3:] == ['--factory']
+    assert not sys.argv[3:] or with_factory
+    assert selection != 'factory-direct' or with_factory
     prefix = ROOT / f'target/h2-8a-comma-printer-design-experiment-{attempt}'
     pre_path = prefix.with_suffix('.pre.json')
     log_path = prefix.with_suffix('.log')
@@ -55,6 +62,9 @@ def main():
     assert sha(ROOT / BASELINE) == BASELINE_SHA
     assert sha(ROOT / PRINTER) == PRINTER_SHA
     assert sha(ROOT / PATCH) == PATCH_SHA
+    if with_factory:
+        assert sha(ROOT / FACTORY) == FACTORY_SHA
+        assert sha(ROOT / FACTORY_PATCH) == FACTORY_PATCH_SHA
     workspace = ROOT / 'target/h2-8a-retained-lexical-design-workspace'
     assert workspace.is_dir(), 'use the existing isolated typecheck workspace'
     source_paths = sorted(p.relative_to(ROOT) for p in (ROOT / 'crates').rglob('*') if p.is_file())
@@ -83,6 +93,9 @@ def main():
             shutil.copy2(original, destination)
     subprocess.run(['git', 'apply', '--check', str(ROOT / PATCH)], cwd=workspace, check=True)
     subprocess.run(['git', 'apply', str(ROOT / PATCH)], cwd=workspace, check=True)
+    if with_factory:
+        subprocess.run(['git', 'apply', '--check', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
     inputs = [{'path': str(p), 'sha256': sha(workspace / p)} for p in source_paths]
     production_inputs = [{'path': str(p), 'sha256': sha(ROOT / p)} for p in source_paths]
     previous_pre = json.loads((ROOT / 'target/h2-8a-retained-comma-native-before-1-prelaunch.json').read_text())
@@ -98,15 +111,23 @@ def main():
         for path in [CANDIDATE, BASELINE, PATCH, Path(__file__).relative_to(ROOT),
                      Path('docs/design/greenfield/slices/h2-8a-retained-lexical-owners.md')]:
             tar.add(ROOT / path, arcname=str(path))
+        if with_factory:
+            tar.add(ROOT / FACTORY_PATCH, arcname=str(FACTORY_PATCH))
     target = ROOT / 'target/h2-8a-retained-lexical-design-artifacts'
     command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                'cargo', 'test', '--offline', '-p', 'tsc-rs-compiler', '--test', 'contracts', '--',
                'retained_accessor_owners_match_complete_typescript_observations',
                '--nocapture', '--test-threads=1']
-    if selection == 'direct':
+    if selection in ['direct', 'factory-direct']:
         command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
-                   'cargo', 'test', '--offline', '-p', 'tsc-rs-emitter', '--test', 'comma_list_printer_contract',
+                   'cargo', 'test', '--offline', '--no-fail-fast', '-p', 'tsc-rs-emitter', '--test', 'comma_list_printer_contract',
                    '--', '--nocapture', '--test-threads=1']
+        if selection == 'factory-direct':
+            command[command.index('--'):command.index('--')] = ['--test', 'comma_argument_factory_contract']
+    elif selection == 'emitter':
+        command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
+                   'cargo', 'test', '--offline', '--no-fail-fast', '-p', 'tsc-rs-emitter',
+                   '--lib', '--test', 'contracts', '--', '--test-threads=1']
     environment = {'CARGO_BUILD_JOBS': '2', 'CARGO_TARGET_DIR': str(target),
                    'TSC_RS_RETAINED_ACCESSOR_CASE_SET': selection,
                    'TSC_RS_H2_8A_CAPTURE_WRITES_DIR': str(archive / 'captures'),
@@ -119,6 +140,8 @@ def main():
            'production_inputs': production_inputs, 'candidate_sha256': CANDIDATE_SHA,
            'selection': selection, 'printer_patch_sha256': PATCH_SHA,
            'printer_base_sha256': PRINTER_SHA,
+           'factory_patch': {'path': str(FACTORY_PATCH), 'sha256': FACTORY_PATCH_SHA,
+                             'base_sha256': FACTORY_SHA} if with_factory else None,
            'baseline': {'path': str(BASELINE), 'sha256': BASELINE_SHA},
            'source_archive_sha256': sha(archive / 'source-and-inputs.tar.gz')}
     write_json(pre_path, pre)
@@ -132,7 +155,7 @@ def main():
               'production_unchanged': all(sha(ROOT / row['path']) == row['sha256'] for row in production_inputs),
               'copied_inputs_unchanged': all(sha(workspace / row['path']) == row['sha256'] for row in inputs)}
     # Preserve the executed binary before allowing another Cargo job.
-    binaries = re.findall(r'Running tests/[^ ]+ \(([^\)]+)\)', log_path.read_text())
+    binaries = re.findall(r'Running (?:tests/[^ ]+|unittests [^ ]+) \(([^\)]+)\)', log_path.read_text())
     record['binaries'] = []
     for index, spelling in enumerate(binaries):
         binary = Path(spelling)

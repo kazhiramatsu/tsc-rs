@@ -137,8 +137,13 @@ def main():
                'successor_exact': len(successor_ids & set(exact)), 'successor_failed': len(successor_ids & set(failed)),
                'successor_changed_from_before': len(successor_ids & set(changed_from_before)),
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
-    predecessor_path = ROOT / 'ratchets/h2-8a-retained-lexical-design-experiment.v1.json'
-    assert sha(predecessor_path) == '056a3c1d951d59a96458f7128310c37772e18fc54db069924f06ac63b158f215'
+    if pre.get('factory_patch') is not None:
+        predecessor_path = ROOT / 'ratchets/h2-8a-comma-printer-design-experiment.v1.json'
+        predecessor_sha = 'b2f8e916afecc13a66c81e96faef3073c879ba92f1feefbdf81b70170f87839d'
+    else:
+        predecessor_path = ROOT / 'ratchets/h2-8a-retained-lexical-design-experiment.v1.json'
+        predecessor_sha = '056a3c1d951d59a96458f7128310c37772e18fc54db069924f06ac63b158f215'
+    assert sha(predecessor_path) == predecessor_sha
     predecessor = read(predecessor_path)
     predecessor_groups = collections.defaultdict(list)
     predecessor_receipts = []
@@ -180,7 +185,7 @@ def main():
               'predecessor': {'path': str(predecessor_path.relative_to(ROOT)), 'sha256': sha(predecessor_path)},
               'predecessor_capture_receipts': predecessor_receipts,
               'candidate_regressions': sorted(candidate_regressions), 'changed_from_candidate': sorted(candidate_changed),
-              'printer_patch_sha256': pre['printer_patch_sha256'],
+              'printer_patch_sha256': pre['printer_patch_sha256'], 'factory_patch': pre.get('factory_patch'),
               'prelaunch': {'path': str(pre_path), 'sha256': sha(pre_path)}, 'exit': result,
               'baseline': pre['baseline'], 'candidate_sha256': pre['candidate_sha256'], 'archive': str(archive),
               'global_claim': 'The overlapping original769/class1228 populations were not rerun; H2.8a-e and A40 readiness remain open.'}

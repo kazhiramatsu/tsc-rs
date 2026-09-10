@@ -181,9 +181,11 @@ its generated declarations in the wrong function.
 | Constructor fields | Initializers are materialized after generic constructor visitation in the surrounding scope | Materialize source field plans inside the constructor's source-defined lexical phase; preserve the A39 raw-position producers |
 
 The production boundary now also needs `crates/emitter/src/printer.rs`: the
-isolated experiment below found a missing `CommaListExpression` worker. The
+isolated experiment below found a missing `CommaListExpression` worker. Its
+direct controls additionally require `crates/emitter/src/factory.rs` for the
+source-owned parenthesizing of comma-delimited expression arrays. The
 class-field candidate remains confined to
-`crates/emitter/src/builtins/class_fields.rs`. Do not edit either production
+`crates/emitter/src/builtins/class_fields.rs`. Do not edit these production
 file before the amended whole-slice gate passes. Reuse the existing context and generated-binding types where
 their complete semantics match; do not import downlevel extraction or its String
 receiver representation. Any required additional file must be named and gated
@@ -454,6 +456,135 @@ attempt2 uses the same frozen printer patch to measure the original six
 complete-command failures and preserve all471 prior candidate positives.
 After termination, freeze it with
 `python3 scripts/analyze-comma-printer-design-experiment.py 2`.
+
+The next isolated amendment fixes the factory boundary, where upstream creates
+the parentheses before the printer sees a call argument. Add one private
+normalizer to `NodeFactory::apply_parenthesizer_rules` in `factory.rs`; its
+only consumers are `CallExpression` (including optional chains),
+`NewExpression`, and `ArrayLiteralExpression`. These are all four callers of
+`parenthesizeExpressionsOfCommaDelimitedList` in pinned tsc: array22441-22453,
+call22579-22601, chain22602-22620, and new22621-22634. Their existing callee,
+type-argument, optional-chain, and node update owners remain separate.
+
+The exact helper sequence is:
+
+1. Select the typed argument/element field. An absent new-expression argument
+   array stays absent; absent call/array-literal lists become empty arrays.
+   Validate every present source-scoped array and node through the arena.
+2. For an array literal ending in OmittedExpression, apply the upstream
+   `createNodeArray(elements, true)` step before mapping: keep an already
+   trailing-comma array, otherwise clone its nodes/text range and cached
+   transform flags with hasTrailingComma true. Do not change the caller's
+   input array.
+3. Visit each child once, left to right, using the existing private
+   `parenthesize_expression_for_disallowed_comma`. It skips partial wrappers
+   for precedence, preserves the original child when precedence is greater
+   than comma, or creates a real ParenthesizedExpression with propagated
+   child transform flags and the child's raw text range. Emit/comment/map
+   metadata and original links stay with the inner expression.
+4. Preserve the array identity if all children are identical. Otherwise create
+   the mapped array with the input trailing-comma bit, recompute its child
+   transform flags, and copy only the source text range. This is `sameMap` ->
+   `createNodeArray` -> `setTextRange`, not mutation of the input array.
+5. Install the resulting typed array ID in the selected field. Creation and
+   structurally changed updates reach this normalizer; unchanged updates
+   retain the existing identity fast path. Propagate all typed errors.
+
+This makes the wrapper's existing printer/comment owner observable directly.
+Do not patch the call printer to copy or clear the original argument's flags,
+or special-case CommaListExpression output. Stage and typecheck the factory
+patch outside production, then repeat the unchanged50 direct controls and add
+source-produced call/optional/new/array and plain-binary-comma controls. The
+full readiness gate must requalify the changed shared factory/parenthesizer
+premise before any production activation.
+
+Full comma-printer attempt2 has now completed and its
+[immutable receipt](../../../../ratchets/h2-8a-comma-printer-design-experiment.v1.json)
+records **477/530 exact twice**, all80 required repairs, all393 original
+positives and all471 predecessor-candidate positives preserved. Exactly the
+six formerly missing-worker tuples changed; each is now completely equal to
+TypeScript. The other524 tuples are identical to the preceding candidate.
+There are53 predeclared successor failures and zero typed printer failures.
+Actual exit101,899.058 seconds;1060 primary and1060 supplemental executions,
+987 copied inputs,109 vendor inputs, and the executed128177152-byte binary
+are retained. This closes the six-case missing-worker finding as measured
+design evidence, while the direct three-case factory finding and whole A40
+readiness remain open.
+
+The [factory patch](h2-8a-comma-argument-factory.candidate.patch) is65 added
+lines against factory base SHA
+`4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0`.
+Patch SHA `4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039`;
+applied factory SHA
+`05f3fbd51cf98e3a3ec2e43bab4a5463b1d90a69d568234fc14f5681efe261c0`.
+The [factory source supplement](../../../../ratchets/h2-8a-comma-argument-factory-sources.v1.json)
+pins16 whole declarations including all four callers, sameMap, array creation,
+precedence and parenthesis construction. Its reproduction command is
+`node scripts/observe-comma-argument-factory-sources.mjs --check`.
+
+Factory attempt4 (`4 direct --factory`) completed exit0 in7.681 seconds:
+**all50 original direct controls now exact twice**. This resolves the original
+three argument-wrapper comment differences with real source-owned factory
+nodes, without editing the old call printer's flags or expectations.
+The [factory direct receipt](../../../../ratchets/h2-8a-comma-argument-factory-direct.v1.json)
+retains attempts3 and4, both executed binaries,989 copied inputs and109 vendor
+inputs, the188 direct print attempts, and the separate state/output results.
+
+The [additional44 source controls](../../../../crates/emitter/tests/fixtures/comma-argument-factory.json)
+cover call, optional call, new and array construction with both binary and
+CommaList expressions; source-ranged/synthetic operands, NoTrailingComments,
+unchanged arrays, absent arrays and final omitted elements. The observer
+`node scripts/observe-comma-argument-factory.mjs --check` compares two TS
+observations, including array identity/text range/trailing comma, every
+element's kind/raw range/flags/original presence, wrapper-child identity, and
+the complete printed text/UTF-8 bytes/ending UTF-16 location.
+
+Factory attempt3 (`3 factory-direct --factory`) completed exit101 in62.258
+seconds:40/44 complete controls exact twice. The **factory-state fields match
+for all44**, while the four `hole` controls print an extra `/* between */`.
+Cargo stopped after that test target failed, so attempt3 did not execute the
+original50; attempt4 supplies that separate observation. Keep the four source
+expectations unchanged. `emit_delimited_trailing_comments_for_node`16115-16157
+finds a comma after the previous element's end and emits its following source
+comments even when the actual next child is a synthetic omitted element.
+Upstream `emitNodeListItems`120068-120155 consults the **actual next child's
+comment-range start**. Record this as open finding
+`A40-F-LIST-INTERVENING-OWNER`; resolve its shared call/array-list owner or prove
+an explicit scope disposition before qualification. Do not special-case holes.
+
+Factory attempt5 (`5 all --factory`) completed exit101 in897.169 seconds.
+Its [immutable receipt](../../../../ratchets/h2-8a-comma-argument-factory-design-experiment.v1.json)
+freezes **477/530 exact twice**, all80 required repairs and all477 predecessor
+positives preserved. **All530 complete tuples are unchanged** from the
+printer-only candidate, including the53 successor failures. The128177440-byte
+executed binary,989 copied inputs,109 vendor inputs, and1060 primary plus1060
+supplemental executions are retained. No qualified-after or production
+activation follows from these experiments.
+
+Attempt6 (`6 emitter --factory`) ran the existing emitter library units and
+`contracts` target against the same three staged sources. The runner now
+archives both library and integration binaries and uses `--no-fail-fast` for
+multiple emitter targets. The separate additional44 direct controls retain
+their four known output failures; no test or expectation is skipped or
+reclassified as passing.
+
+The [adjacent emitter receipt](../../../../ratchets/h2-8a-comma-argument-factory-emitter-checks.v1.json)
+now freezes attempt8 at **494 units /451 contracts /1350 declaration reprints
+passing**, exit0 in19.170 seconds, with no warnings and both binaries retained.
+Attempt6 had494/494 units and450/451 contracts: the retained-field contract
+provided UnavailableEmitResolver, but source `getClassFacts`96844-96888 queries
+ContainsConstructorReference on its retained private `#native` field. The
+[fresh checker observation](../../../../ratchets/h2-8a-retained-accessor-contract-resolver.v1.json)
+records that exact fixture's real TypeScript result as false, twice, together
+with its emitted JavaScript. Reproduce with
+`node scripts/observe-retained-accessor-contract-resolver.mjs --check`.
+The contract now supplies the existing NoConstantValueResolver and retains
+its complete expected output. Production resolver lookup and its typed
+unavailable error remain intact. An unused import in that same test file was
+removed. Attempt7 retained the same failed result because an edit guard failed
+before writing the file; its repeated result and identical binaries are
+preserved, not counted as repair credit. Attempt8 verifies the applied fixture
+correction. Whole A40 readiness and hosted acceptance are still required.
 
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
