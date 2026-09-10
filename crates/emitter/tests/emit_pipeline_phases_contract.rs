@@ -99,11 +99,18 @@ fn emit_pipeline_phases_matches_typescript() {
             let outcome = std::panic::catch_unwind(|| {
                 let route = case["route"].as_str().unwrap();
                 let text = case["text"].as_str().unwrap();
-                let parsed = if route == "json" {
+                let mut parsed = if route == "json" {
                     parse_json_text("main.json", text)
                 } else {
                     parse_source_file("main.ts", text, Default::default(), None)
                 };
+                // TS parseJsonText does not fix up parent references. Match
+                // that owned input before the immutable emit source is mounted.
+                if route == "json" {
+                    for id in parsed.arena.node_base()..parsed.arena.node_end() {
+                        parsed.arena.node_mut(tsc_syntax::NodeId(id)).parent = None;
+                    }
+                }
                 let mut arena = TransformArena::new();
                 let source = arena.add_source(&parsed, None);
                 let root = arena.root(source).unwrap();

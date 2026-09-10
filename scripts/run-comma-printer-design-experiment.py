@@ -31,8 +31,8 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v12.patch')
-LIST_OWNER_PATCH_SHA = 'c787c9e6ab327bd355b2ae9d8a9ac47e761324c93d1032569053c5bc8464f50a'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v13.patch')
+LIST_OWNER_PATCH_SHA = 'f391fb4dade7a634aa92c998fdb6530c979d1a34debef984a8d75a0f522b9b7a'
 BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
 BUNDLE_PRINTER_SHA = 'b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12'
 
@@ -52,7 +52,7 @@ def main():
     attempt = int(sys.argv[1])
     assert attempt > 0
     selection = sys.argv[2]
-    assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory']
+    assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory', 'literal-neighbors']
     flags = sys.argv[3:]
     assert len(flags) == len(set(flags)) and set(flags) <= {'--factory', '--list-owner'}
     with_factory = '--factory' in flags
@@ -141,7 +141,12 @@ def main():
             command[command.index('--'):command.index('--')] = [
                 '--test', 'comma_argument_factory_contract', '--test', 'mapped_type_members_contract',
                 '--test', 'list_format_flags_contract', '--test', 'import_type_attributes_contract',
-                '--test', 'emit_pipeline_phases_contract']
+                '--test', 'emit_pipeline_phases_contract', '--test', 'literal_parent_provenance_contract']
+    elif selection == 'literal-neighbors':
+        command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
+                   'cargo', 'test', '--offline', '-p', 'tsc-rs-emitter',
+                   '--test', 'string_literal_identifier_source_contract',
+                   '--', '--nocapture', '--test-threads=1']
     elif selection == 'emitter':
         command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                    'cargo', 'test', '--offline', '--no-fail-fast', '-p', 'tsc-rs-emitter',

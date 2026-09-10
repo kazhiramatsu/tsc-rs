@@ -1357,6 +1357,155 @@ do not establish whole-emitter completion or cover callback-failure/reentry.
 All eleven direct source observers were freshly checked against their frozen
 artifacts after adjacent41. No expected output was changed.
 
+Full42 on v12 completed with477/530 exact twice and53 failures, exit101 in
+999.269 seconds. The [full receipt](../../../../ratchets/h2-8a-import-type-attributes-design-experiment.v1.json)
+retains1002 copied inputs,109 vendor inputs and the executed binary. Every530
+complete tuple is unchanged from v10/full36, including errors and partial
+writes. All80 required repairs and all477 previous successes remain preserved;
+there are no new typed failures or regressions. The direct repairs do not
+reduce the53 failures in this separate full comparison population.
+
+### Literal source eligibility and UTF16 observation amendment
+
+Full42 must terminate and its complete comparison be frozen before installing
+the following direct tests or changing the current runner inputs. This is an
+isolated candidate amendment; A40 readiness and H2.8a-e remain open.
+
+The JSONUnicode discrepancy is partly an input-state mismatch: TS parseJsonText
+leaves parent links absent, while Rust parsing finalizes structural parents.
+The existing Node.parent:Option<NodeId> can represent either input. The direct
+test adapter can project setParentNodes=false by clearing parents in its owned
+SourceFile before TransformArena::add_source mounts the immutable emit copy.
+Children, node IDs, flags and raw ranges are retained. This requires no new
+parser flag, source-mode field or public emitter API. It does not qualify a
+new production parser entrypoint or mutate an already mounted parse authority.
+
+The literal worker also has a separate semantic error: !changed is not
+canUseOriginalText. Pinned `_tsc.js:13647-13688` getLiteralText
+(356597156c0c174eae1c33df6b6a6f93615b875d1212e6d41d391323a4dba00c)
+delegates to canUseOriginalText:13689-13702
+(bf211667ca154c343bba9e29c26d71723a30cc41f76c857458ed4bf552ae76d6).
+nodeIsSynthesized:16000-16002
+(d5eb53abaa73cfcae3a8c02425faff560733177bd619f5e0db719a6f9f603f4c)
+tests raw pos/end, independently of NodeFlags.Synthesized or node.original.
+String literals additionally need an actual parent to retain source spelling.
+getLiteralTextOfNode:120467-120479
+(43989b908107b6f48eae6547835a82a24937f43ba2ddd8673c48b83018d8201e)
+selects textSourceNode before that test, and ORs printer neverAsciiEscape with
+the node's NoAsciiEscaping flag when choosing the escaping algorithm.
+The current native StringLiteral path omits the printer option.
+
+Fresh `observe-literal-parent-provenance.mjs --check` freezes128 source rows:
+TS/JSON, parented/unparented, four tokens (escaped ASCII, literal Unicode,
+escaped Unicode, unpaired surrogate), parsed/parsed-with-Synthesized-flag/
+clone/ranged-clone, and neverAsciiEscape false/true. Each row retains both
+parsed and emitted node states, raw UTF16 ranges, actual parent state,
+original identity, cooked UTF16 values, output and final writer coordinates.
+The original artifact SHA-256 is
+1f667aa43870ac0e813ebc9a071e3ead997665386d7f6897ccd4bccfd92098a4.
+Twelve source outputs contain an unpaired UTF16 unit, which serde_json String
+cannot represent. `observe-literal-parent-provenance-utf16.mjs --check` first
+rechecks the original source observer, then stores exactly those output units
+as text_utf16 arrays, retaining the same bytes and coordinates. Its artifact
+SHA-256 is267371271768c6497d3076bcdeb91202fcd71221f94acfe0a589b4547681012f.
+Both artifacts are immutable. This projection preserves all units; it does
+not replace them with U+FFFD, escaped spelling or a weaker equality check.
+
+The initial observer called setEmitFlags on an unparented parsed node and
+failed before printing. The four actual TS/JSON x flags0/NoAsciiEscaping setup
+failures are retained separately in both artifacts. getOrCreateEmitNode
+(`_tsc.js:25287-25301`) requires a parse SourceFile for a newly annotated parse
+node. These are source-only failure findings and earn no native print credit.
+Their native failure/ownership contract remains unresolved. The128 print
+recipes use the independent printer option and perform no setEmitFlags call.
+
+Native recipes use existing public syntax/factory representations. Before
+mounting, project requested parent absence and the explicit Synthesized bit.
+Represent TS Node.text's UTF16 value with existing JavaScriptString metadata,
+decoded from the input token using template_text_utf16 (these witnesses use
+only its supported string escapes). Clone and set_text_range use real factory
+methods; the complete128 tree states must match before claiming output parity.
+No hand-authored expected value, output substitution or filename branch is
+permitted. The JSON phase adapter receives the same pre-mount parent fix.
+Before43 on v12 must retain all old1151 observations and measure all128 new
+ones:1279 controls,2558 repetitions,700 tree states,508 factory states and94
+event traces across seven binaries/eight test functions.
+
+Candidate v13 is printer-only relative to v12: raw pos/end != u32::MAX and
+record.parent.is_some() replace !changed for string spelling; textSourceNode
+remains earlier in the selection; printer neverAsciiEscape participates in
+the existing cooked-string quoting path. The existing source-range helper
+validates actual raw offsets and writes source bytes verbatim. No new storage,
+reset, inherited flag or public ABI is introduced. Private bundle bytes are
+unchanged. Patch SHA-256
+f391fb4dade7a634aa92c998fdb6530c979d1a34debef984a8d75a0f522b9b7a;
+applied printer SHA-256
+40c39fa01a47d47f7585c682f081bddb8003f2f55d7c41a347051efa1cbbcd94.
+Only target drafts exist; no native v13 result is claimed.
+
+E-ARENA and E-METADATA-BASE are unchanged representation premises for these
+input adapters; E-STRINGS is modified-requalify. Their dated architecture rows
+still require fresh qualification before production use. UTF16 output storage
+is a new open finding: TextWriter.output and PrintedText.text are String;
+quote_javascript_string escapes even an unpaired unit when neverAsciiEscape
+is true. The12 source outputs cannot be represented losslessly by the current
+return type. Preserve their failures and design a typed lossless writer/output
+boundary; do not silently substitute UTF8 replacement bytes or omit controls.
+General textSourceNode recursion/parent eligibility, raw range failure order,
+termination options, metadata setter failure and whole A40 readiness stay open.
+
+After before43, freeze its actual complete outcomes, publish the v13 patch and
+pin the strongest completed full42 predecessor before after44. Run the existing
+72 string_literal_identifier_source_contract controls as an adjacent owner
+check, then emitter494/451/1350 and the required final full530 comparison on
+the actual final candidate. Retain failures rather than changing their source
+observations. Do not claim whole-emitter or H2.8 completion from this scope.
+
+The initial native attempt43 failed to compile its new test: NodeFlags was
+imported from tsc_syntax instead of tsc_types. Exit101 in7.027 seconds, no
+executed binaries; the complete observation is retained in
+`ratchets/h2-8a-literal-parent-compile-attempt.v1.json`. Correct only that test
+import and use fresh attempt44 for v12 native-before; the planned v13 after
+therefore moves to45. Attempt43 supplies no semantic or runtime evidence.
+
+Native-before44 on v12 completed with1224/1279 exact twice and55 failures,
+exit101 in14.634 seconds. All1151 preceding observations are unchanged after
+the JSON input-parent projection; all700 tree states,508 factory states and94
+event traces are exact. Of128 new literal rows,54 differ in output; the old
+JSONUnicode row still differs. The
+[before receipt](../../../../ratchets/h2-8a-literal-parent-direct-before.v1.json)
+retains all2558 attempts and seven executed binaries. v13 is now published at
+the frozen patch path, with the same hashes recorded above. Attempt45 runs
+the expanded direct comparison; no v13 runtime success is claimed yet.
+
+After45 on v13 completed with1267/1279 exact twice and12 failures, exit101 in
+29.420 seconds. It repairs43 of the55 measured differences, including the
+original JSONUnicode case; all1151 controls predating this amendment are now
+exact. All700 tree states,508 factory states and94 event traces remain exact.
+The [after receipt](../../../../ratchets/h2-8a-literal-parent-direct-after.v1.json)
+retains every output, UTF16 unit sequence and executed binary. The remaining12
+cases are exactly the unpaired-unit outputs under neverAsciiEscape: native
+still writes the escape's eight units including quotes, while TypeScript
+writes three units including quotes. These failures require the separate
+lossless generated-text design; no global or whole-owner completion follows.
+
+Adjacent46 passes all72 existing string-literal identifier/text-source controls
+twice, exit0 in9.379 seconds. Its
+[receipt](../../../../ratchets/h2-8a-literal-parent-neighbor-checks.v1.json)
+verifies the exact case set, fixture, complete archive and executed binary.
+Its source observer was freshly checked before the native run. General emitter
+checks on v13 are next; the lossless-output failures remain open.
+
+Adjacent47 on v13 passes494 units,451 contracts and1350 declaration reprint
+rows, exit0 in41.969 seconds without warnings. The
+[emitter receipt](../../../../ratchets/h2-8a-literal-parent-emitter-checks.v1.json)
+retains1005 copied inputs,109 vendor inputs and both executed binaries.
+The latest completed full530 comparison remains v12/full42; a final full
+comparison is still required after the remaining generated-text work. No
+v13 full-corpus, activation or qualification claim is made here.
+All fourteen source-observer commands, including the lossless JSON projection
+and72 adjacent text-source observations, were freshly checked after47.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,
