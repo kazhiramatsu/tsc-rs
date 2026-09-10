@@ -1,0 +1,445 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "state": "comma-factory-design-resolved-typechecked; whole A40 readiness remains open",
+  "closes_finding": {
+    "path": "ratchets/h2-8a-retained-lexical-source-review.v1.json",
+    "sha256": "e021c3ebff7aa2ca2ee683ff3ab93155833c1f18b6a81d42f61486f191fc9436",
+    "id": "A40-F-COMMA-FACTORY",
+    "closure_kind": "source-derived design and frozen witnesses; not runtime qualification"
+  },
+  "authorities": [
+    {
+      "path": "ratchets/h2-8a-retained-comma-sources.v1.json",
+      "sha256": "27bbbf5697959438ab633abaf33f424d10a2ea76b45cbc97bff402d7cf77a726"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-retained-lexical-owners.candidate.rs.txt",
+      "sha256": "15d6aa40ca6d6bda2f4083b79068fa7ce23492bff72d66c059d9384efda62b13"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-retained-lexical-owners.candidate-v2.rs.txt",
+      "sha256": "ab3363962f79229d4a10433f0c88126912efea062f61347e3a94eb38ccc39573"
+    },
+    {
+      "path": "ratchets/h2-8a-retained-lexical-design-check.v2.json",
+      "sha256": "3de7dd3cc436dc6bb2000b8a16fd9e8cacb766425b76bfab4f52430094063776"
+    },
+    {
+      "path": "ratchets/h2-8a-retained-lexical-owners-before.v3.json",
+      "sha256": "b16b64964c0e8cd78d652d38efd9b303906a35147df73e32a67fc35c1ed0bed8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/retained-comma-factory-inputs.json",
+      "sha256": "fcbaba612ddc76ac750fe94b97fa6cce9dd54fa411d88496cb7be610bdeb1a70"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/retained-comma-factory.json",
+      "sha256": "82d4eb9ea083c490d3992f3f3ae7290dccd730f3399a3af8c4758c723fa49f2b"
+    },
+    {
+      "path": "scripts/observe-retained-comma-factory.mjs",
+      "sha256": "132fd9e1cd2e0f3fd9293b63a03311beb88d9efb4238000828b97319c37ff9ce"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields.rs",
+      "sha256": "26de511b53ea232b073235a4507f703ae78cd4881c12bfea720f71f932dc03e7"
+    }
+  ],
+  "candidate": {
+    "path": "docs/design/greenfield/slices/h2-8a-retained-lexical-owners.candidate-v2.rs.txt",
+    "sha256": "ab3363962f79229d4a10433f0c88126912efea062f61347e3a94eb38ccc39573"
+  },
+  "predecessor_candidate": {
+    "path": "docs/design/greenfield/slices/h2-8a-retained-lexical-owners.candidate.rs.txt",
+    "sha256": "15d6aa40ca6d6bda2f4083b79068fa7ce23492bff72d66c059d9384efda62b13"
+  },
+  "source_edits": [
+    {
+      "before": "    fn inline_expressions(\n        &mut self,\n        expressions: Vec<TransformNode>,\n    ) -> Result<TransformNode, TransformError> {\n        if expressions.len() > 10 {\n            let elements = self\n                .context\n                .factory()?\n                .create_node_array(self.source, expressions)?;\n            return self.create_class_field_node(\n                NodeData::CommaListExpression(tsc_syntax::nodes::CommaListExpressionData {\n                    elements: Some(elements.array()),\n                }),\n                TransformFlags::NONE,\n            );\n        }\n        let mut expressions = expressions.into_iter();\n        let mut expression = expressions\n            .next()\n            .ok_or(TransformError::RequiredChildRemoved {\n                parent: SyntaxKind::ClassExpression,\n                field: \"inline expressions\",\n            })?;\n        for next in expressions {\n            expression = self.create_binary(expression, SyntaxKind::CommaToken, next)?;\n        }\n        Ok(expression)\n    }",
+      "after": "    fn flatten_retained_comma_elements(\n        &self,\n        expression: TransformNode,\n        output: &mut Vec<TransformNode>,\n    ) -> Result<(), TransformError> {\n        let record = self.context.arena().node(expression)?;\n        // flattenCommaElements, _tsc.js24371-24381. This factory operation\n        // expands one level; erased-field pending collection is recursive.\n        // Original-node provenance shares our EmitMetadata table, so absence\n        // of that entry implies both !original and !emitNode in this domain.\n        // The retained built-in pipeline never requests a source lazy node.id\n        // for an unanchored comma expression. Its generated-name/cache keys\n        // are declarations, binding/property names, or parsed resolver nodes;\n        // module/printer ID consumers run after this pass. An arena NodeId\n        // must not be mistaken for that separate source identity predicate.\n        let unanchored = (record.pos == u32::MAX || record.end == u32::MAX)\n            && (record.flags & NodeFlags::SYNTHESIZED.bits() as i32) != 0\n            && self.context.arena().metadata(expression).is_none();\n        if unanchored {\n            match &record.data {\n                NodeData::CommaListExpression(data) => {\n                    output.extend(self.array_nodes(data.elements)?);\n                    return Ok(());\n                }\n                NodeData::BinaryExpression(data)\n                    if data\n                        .operator_token\n                        .map(|node| self.context.arena().node(self.node(node)))\n                        .transpose()?\n                        .is_some_and(|operator| operator.kind == SyntaxKind::CommaToken) =>\n                {\n                    for child in [data.left, data.right] {\n                        let child = child.ok_or(TransformError::RequiredChildRemoved {\n                            parent: SyntaxKind::BinaryExpression,\n                            field: \"comma factory operand\",\n                        })?;\n                        output.push(self.node(child));\n                    }\n                    return Ok(());\n                }\n                _ => {}\n            }\n        }\n        output.push(expression);\n        Ok(())\n    }\n\n    fn inline_expressions(\n        &mut self,\n        expressions: Vec<TransformNode>,\n    ) -> Result<TransformNode, TransformError> {\n        if expressions.len() > 10 {\n            let mut flattened = Vec::with_capacity(expressions.len());\n            for expression in expressions {\n                self.flatten_retained_comma_elements(expression, &mut flattened)?;\n            }\n            let elements = self\n                .context\n                .factory()?\n                .create_node_array(self.source, flattened)?;\n            return self.create_class_field_node(\n                NodeData::CommaListExpression(tsc_syntax::nodes::CommaListExpressionData {\n                    elements: Some(elements.array()),\n                }),\n                TransformFlags::NONE,\n            );\n        }\n        let mut expressions = expressions.into_iter();\n        let mut expression = expressions\n            .next()\n            .ok_or(TransformError::RequiredChildRemoved {\n                parent: SyntaxKind::ClassExpression,\n                field: \"inline expressions\",\n            })?;\n        for next in expressions {\n            expression = self.create_binary(expression, SyntaxKind::CommaToken, next)?;\n        }\n        Ok(expression)\n    }",
+      "reason": "Implement the one-level flattenCommaElements producer for inlineExpressions >10; retain the separate recursive pending collector unchanged."
+    }
+  ],
+  "predicate_map": [
+    {
+      "ts": "nodeIsSynthesized(node)",
+      "rust": "record.pos == u32::MAX || record.end == u32::MAX",
+      "reason": "SourceRange synthetic sentinel represents negative pos/end; a positive raw range preserves the operand."
+    },
+    {
+      "ts": "!isParseTreeNode(node)",
+      "rust": "record.flags & NodeFlags::SYNTHESIZED != 0",
+      "reason": "The source predicate tests this flag; arena identity alone is not its substitute."
+    },
+    {
+      "ts": "!node.original && !node.emitNode",
+      "rust": "TransformArena::metadata(expression).is_none()",
+      "reason": "Native original provenance and emit metadata share the same side-table entry; flag recomputation lives in the separate transform-flag table."
+    },
+    {
+      "ts": "!node.id",
+      "rust": "Proven true for eligible comma operands at this private built-in pass boundary; no arena NodeId check",
+      "reason": "The32 direct source ID sites and40 pre-retained requests exclude an unanchored comma operand. Checker identity is on parsed/anchored semantic nodes; later module/printer consumers cannot retroactively affect this factory invocation."
+    },
+    {
+      "ts": "isCommaListExpression(node)",
+      "rust": "NodeData::CommaListExpression: append its immediate elements once",
+      "reason": "No recursive flattening; sameFlatMap visits only supplied outer elements."
+    },
+    {
+      "ts": "isBinaryExpression(node) && isCommaToken(node.operatorToken)",
+      "rust": "NodeData::BinaryExpression with CommaToken: append left and right once",
+      "reason": "Nested comma binaries remain a nested operand after one level. Missing operands return TransformError."
+    },
+    {
+      "ts": "return node",
+      "rust": "Append the unchanged TransformNode",
+      "reason": "Preserve parsed/ranged/original/metadata-bearing operands and all noncomma kinds."
+    }
+  ],
+  "identity_proof": {
+    "direct_call_counts": {
+      "generated-name-source-key": 2,
+      "binder-checker-identity": 15,
+      "original-declaration-key": 1,
+      "generated-identifier-name-map-key": 1,
+      "later-async-transform-or-emit-hook": 5,
+      "later-module-transform-or-substitution": 7,
+      "later-printer-generated-name": 1
+    },
+    "pre_retained_requests": [
+      {
+        "start_utf16": 1442187,
+        "sha256": "294a02743bf530e81a92c2312af6ace12333f7abf359b87afee692aff273bf00",
+        "owner": "getName",
+        "domain": "Declared function/class/module owner (or absent node); callers use declaration-name helpers, never an expression operand.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1554203,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "getLocalNameForExternalImport",
+        "domain": "Import/export declaration selected by the source kind checks.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1554480,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "getLocalNameForExternalImport",
+        "domain": "Import/export declaration selected by the source kind checks.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1554610,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "getLocalNameForExternalImport",
+        "domain": "Import/export declaration selected by the source kind checks.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1572184,
+        "sha256": "8bba162448ebaf20152a5f91accaa067c7ef51d355b4529440bb8b24dbbee42c",
+        "owner": "createAccessorPropertyBackingField",
+        "domain": "Accessor property name: member name or ComputedPropertyName, never its expression.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1572765,
+        "sha256": "7529abd5e140a85a64d31c93993871dd15190a79695e069f24448d2b28b1c8d7",
+        "owner": "createAccessorPropertyGetRedirector",
+        "domain": "Accessor property name, shared with backing storage.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 1573461,
+        "sha256": "7e7a6f4c274e68b2c24dd404309e3e3e5b05e0886f4adf81bab8f1d11b912bf6",
+        "owner": "createAccessorPropertySetRedirector",
+        "domain": "Accessor property name, shared with backing storage.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4463358,
+        "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+        "owner": "addDefaultValueAssignmentForBindingPattern",
+        "domain": "Parameter declaration identity, not its initializer.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4463602,
+        "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+        "owner": "addDefaultValueAssignmentForBindingPattern",
+        "domain": "Parameter declaration identity, not its initializer.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4463660,
+        "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+        "owner": "addDefaultValueAssignmentForBindingPattern",
+        "domain": "Parameter declaration identity, not its initializer.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4463854,
+        "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+        "owner": "addDefaultValueAssignmentForBindingPattern",
+        "domain": "Parameter declaration identity, not its initializer.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4539344,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "collectExternalModuleInfo",
+        "domain": "Import/export/class/function/variable declaration from the statement-kind dispatch.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4540675,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "collectExternalModuleInfo",
+        "domain": "Import/export/class/function/variable declaration from the statement-kind dispatch.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4540966,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "collectExternalModuleInfo",
+        "domain": "Import/export/class/function/variable declaration from the statement-kind dispatch.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4542578,
+        "sha256": "cfa995833d8304419b524435cd24e866770872cc12ea349658eec38d8c82f4cb",
+        "owner": "addExportedNamesForExportDeclaration",
+        "domain": "Original declaration obtained from the parsed resolver reference.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4543016,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "addExportedFunctionDeclaration",
+        "domain": "Original function declaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4543331,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "addExportedFunctionDeclaration",
+        "domain": "Original function declaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4544071,
+        "sha256": "cfa995833d8304419b524435cd24e866770872cc12ea349658eec38d8c82f4cb",
+        "owner": "collectExportedVariableInfo",
+        "domain": "Variable declaration or BindingElement.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4576560,
+        "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+        "owner": "getAssignedNameOfPropertyName",
+        "domain": "ComputedPropertyName (the preceding literal/private branches return before allocation).",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4605082,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "visitClassDeclaration",
+        "domain": "ClassDeclaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4615520,
+        "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+        "owner": "getExpressionForPropertyName",
+        "domain": "ComputedPropertyName; the expression is only returned by the nonallocation arm.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4616175,
+        "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+        "owner": "visitPropertyNameOfClassElement",
+        "domain": "ComputedPropertyName under legacy decorators.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4650607,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "getNamespaceParameterName",
+        "domain": "ModuleDeclaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4650764,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "getNamespaceContainerName",
+        "domain": "ModuleDeclaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4654569,
+        "sha256": "786630d7fa6c53f360b14a642166c89fdd95b423692b52b39613dd162d197b7a",
+        "owner": "trySubstituteNamespaceExportedName",
+        "domain": "ModuleDeclaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4707397,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "visitClassDeclarationInNewClassLexicalEnvironment",
+        "domain": "Original class declaration identity.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4711519,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "visitClassExpressionInNewClassLexicalEnvironment",
+        "domain": "Original class expression identity.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4713880,
+        "sha256": "77cedae5865ba580ae99743c5485430ecb5a2b00bd75cd3b7e9f9cace1a56937",
+        "owner": "transformClassMembers",
+        "domain": "Accessor member name.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4728023,
+        "sha256": "fe70466a1ac8ff9eb8e332c892eb32351b66541f4347a8671bd87deb8dcc9203",
+        "owner": "transformPropertyWorker",
+        "domain": "Property name: private member or ComputedPropertyName, never the expression.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4728230,
+        "sha256": "74eced778df60defc12005c8411ea70cbf785a26677c4ac778106ef103756625",
+        "owner": "transformPropertyWorker",
+        "domain": "Property name: private member or ComputedPropertyName, never the expression.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4734092,
+        "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+        "owner": "getPropertyNameExpressionIfNeeded",
+        "domain": "ComputedPropertyName, not its evaluated expression.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4741519,
+        "sha256": "938447a85ee3bfc41256f4e66322649676f1959842abdb531a58173f0687a1c9",
+        "owner": "createHoistedVariableForClass",
+        "domain": "The object arm receives a private property-name node through createHoistedVariableForPrivateName; the brand caller supplies no name. Other arms use strings or a fresh temp.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4742602,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "wrapPrivateIdentifierForDestructuringTarget",
+        "domain": "PropertyAccessExpression target, not its receiver expression.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4784240,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "generateConstructorDecorationExpression",
+        "domain": "Original class declaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4785913,
+        "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+        "owner": "getExpressionForPropertyName",
+        "domain": "ComputedPropertyName; the expression is only returned by the nonallocation arm.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4786612,
+        "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+        "owner": "getClassAliasIfNeeded",
+        "domain": "Original class declaration.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4850672,
+        "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+        "owner": "visitReferencedPropertyName",
+        "domain": "ComputedPropertyName after the literal/private early branches.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4862563,
+        "sha256": "0a0a79dfc88dc88bf646afd883401b431352790d32c41db5969250e5cf7e8b10",
+        "owner": "createAccessorPropertyDescriptorObject",
+        "domain": "Accessor declaration name.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4863190,
+        "sha256": "0a0a79dfc88dc88bf646afd883401b431352790d32c41db5969250e5cf7e8b10",
+        "owner": "createAccessorPropertyDescriptorObject",
+        "domain": "Accessor declaration name.",
+        "excludes_unanchored_comma_operand": true
+      },
+      {
+        "start_utf16": 4968791,
+        "sha256": "2cae18c5b633139110b1c0220728af322833d1ca5224f84024b558cca08c228b",
+        "owner": "visitForOfStatement",
+        "domain": "Variable binding name (Identifier or BindingPattern), not the iterable expression.",
+        "excludes_unanchored_comma_operand": true
+      }
+    ],
+    "pass_order": "getScriptTransformers places TypeScript, legacy decorators, JSX, ESNext and standard decorators before ClassFields; async and module passes follow it, and printer name generation follows transformation.",
+    "resolver_boundary": "Retained hasNodeCheckFlag projects through getParseTreeNode. Synthetic unanchored expressions do not enter checker identity tables through that query. Binder/checker-owned syntax and type-building nodes do not become these factory operands.",
+    "name_map_boundary": "IdentifierNameMap follows generated identifier source keys. The enumerated built-in producers use declaration/binding/member/ComputedPropertyName identities; none selects the comma expression inside a computed name.",
+    "custom_transform_guard": "H2.8 built-in Program/transpile routes supply no caller custom transformers. The private helper does not qualify arbitrary custom AST/factory calls; API1.2 owns custom before/after transforms.",
+    "negative_control": "The prior eight direct factory observations include a manually assigned source id and preserve that operand. This is retained as an API1 boundary control, without native API equality credit."
+  },
+  "implementation": {
+    "allowed_production_files": [
+      "crates/emitter/src/builtins/class_fields.rs"
+    ],
+    "new_shared_api": false,
+    "new_state_representation": false,
+    "orders": [
+      5,
+      7,
+      9
+    ],
+    "rust_owners": [
+      "ClassFieldsVisitor::flatten_retained_comma_elements",
+      "ClassFieldsVisitor::inline_expressions"
+    ],
+    "factory_flag_completion": "create_class_field_node retains the existing complete_created_node_flags consumer after constructing the flattened NodeArray.",
+    "error_behavior": "Validate binary children through RequiredChildRemoved and propagate arena errors; never recurse or replace malformed operands with success."
+  },
+  "witness_ids": [
+    "retained-comma-factory/es2022/esnext/set/generated-comma-member",
+    "retained-comma-factory/es2022/esnext/define/generated-comma-member",
+    "retained-comma-factory/esnext/esnext/set/generated-comma-member",
+    "retained-comma-factory/esnext/esnext/define/generated-comma-member",
+    "retained-comma-factory/es2022/esnext/set/parsed-comma-member",
+    "retained-comma-factory/es2022/esnext/define/parsed-comma-member",
+    "retained-comma-factory/esnext/esnext/set/parsed-comma-member",
+    "retained-comma-factory/esnext/esnext/define/parsed-comma-member"
+  ],
+  "acceptance": {
+    "eligible": 530,
+    "prior_exact": 393,
+    "required_repairs": 80,
+    "successor_controls": 57,
+    "minimum_exact_after": 473,
+    "primary_attempts": 1060,
+    "supplemental_executions": 1060
+  },
+  "limitations": [
+    "The candidate remains staged, with no production copy or native runtime execution.",
+    "The source220 inventory plus15 whole helper additions still require complete row-to-step/callee/witness/architecture readiness.",
+    "Full530 candidate comparison,494 units/451 contracts/1350 declaration reprints and hosted acceptance remain pending."
+  ]
+}

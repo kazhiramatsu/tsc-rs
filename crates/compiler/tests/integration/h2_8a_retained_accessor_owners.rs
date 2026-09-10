@@ -107,6 +107,18 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
     assert_eq!(edges.len(), 16);
     cases.extend(edges.iter().cloned());
     assert_eq!(cases.len(), 522);
+    let comma_factory: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/retained-comma-factory.json")).unwrap();
+    assert_eq!(comma_factory["typescript"], "6.0.3");
+    assert_eq!(comma_factory["repetitions"], 2);
+    assert!(comma_factory["upstream_failures"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    let comma_factory = comma_factory["cases"].as_array().unwrap();
+    assert_eq!(comma_factory.len(), 8);
+    cases.extend(comma_factory.iter().cloned());
+    assert_eq!(cases.len(), 530);
     let ids = cases
         .iter()
         .map(|case| case["case_id"].as_str().unwrap())
@@ -150,6 +162,7 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
                 !id.starts_with("retained-lexical-environments/")
                     && !id.starts_with("retained-constructor-references/")
                     && !id.starts_with("retained-lexical-edges/")
+                    && !id.starts_with("retained-comma-factory/")
             });
             assert_eq!(cases.len(), 454);
         }
@@ -170,6 +183,15 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
                     .starts_with("retained-lexical-edges/")
             });
             assert_eq!(cases.len(), 16);
+        }
+        Ok("comma-factory") => {
+            cases.retain(|case| {
+                case["case_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("retained-comma-factory/")
+            });
+            assert_eq!(cases.len(), 8);
         }
         unexpected => panic!("invalid retained accessor case selection: {unexpected:?}"),
     }

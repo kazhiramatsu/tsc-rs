@@ -9506,7 +9506,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
-      "sha256": "4a6f662a571ef5b61b3bcd9f0174ecb797dc2fb2ac5405bbad97a423aad53380"
+      "sha256": "292f9112aa4069fc6ebe83426d0456ee97ae61f9e26ac235c081713f97c5ba4d"
     },
     {
       "path": "crates/emitter/src/builtins.rs",
@@ -9708,6 +9708,18 @@
           "sha256": "4a6f662a571ef5b61b3bcd9f0174ecb797dc2fb2ac5405bbad97a423aad53380",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-edges-registration-58h4fzls/crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
           "reason": "A40 source-derived lexical edge coverage registers16 fresh controls and an edges selector. Producer454, lexical44 and constructor-references8 populations are unchanged. The entire comparator/capture suffix and every prior expected tuple remain byte-identical; no production edit or repeated baseline execution."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-retained-field-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "old_sha256": "4a6f662a571ef5b61b3bcd9f0174ecb797dc2fb2ac5405bbad97a423aad53380",
+          "sha256": "292f9112aa4069fc6ebe83426d0456ee97ae61f9e26ac235c081713f97c5ba4d",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-comma-registration-h5henbbm/crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "reason": "Register8 fresh A40 comma-factory controls. All522 previous inputs and complete comparator/capture code unchanged; producer454, lexical44, constructor8 and edges16 selectors preserved. No production edit or prior-case replay."
         }
       ]
     }

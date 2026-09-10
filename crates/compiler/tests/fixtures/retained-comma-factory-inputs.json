@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "description": "A40 source-derived comma factory injection and parsed-operand preservation controls; exact observations collected separately",
+  "cases": [
+    {
+      "case_id": "retained-comma-factory/es2022/esnext/set/generated-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(class Inner { [this.key(20)]: any; })]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/es2022/esnext/define/generated-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(class Inner { [this.key(20)]: any; })]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/esnext/esnext/set/generated-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(class Inner { [this.key(20)]: any; })]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/esnext/esnext/define/generated-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(class Inner { [this.key(20)]: any; })]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/es2022/esnext/set/parsed-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(key(30), key(31))]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/es2022/esnext/define/parsed-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(key(30), key(31))]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/esnext/esnext/set/parsed-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(key(30), key(31))]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-comma-factory/esnext/esnext/define/parsed-comma-member",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport function make(this: { key(index: number): symbol }): any {\n  return class Outer {\n    [key(0)]: any;\n    [key(1)]: any;\n    [key(2)]: any;\n    [key(3)]: any;\n    [key(4)]: any;\n    [key(5)]: any;\n    [key(6)]: any;\n    [key(7)]: any;\n    [key(8)]: any;\n    [key(9)]: any;\n    [key(10)]: any;\n    [key(11)]: any;\n    [(key(30), key(31))]() { return 1; }\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}
