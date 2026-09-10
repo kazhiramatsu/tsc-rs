@@ -13,8 +13,9 @@ now compiles in an isolated workspace with `cargo check -p tsc-rs-emitter --lib
 The [design-check receipt](../../../../ratchets/h2-8a-retained-lexical-design-check.v2.json)
 freezes the exact candidate, all678 Rust/Cargo input pins, successful actual
 exit0 and prior failed attempts. This checks types and API composition only:
-production source is unchanged, no candidate runtime test was executed, and
-no compatibility/admission/hosted claim follows from this check.
+production source is unchanged, that typecheck executed no runtime tests, and
+no compatibility/admission/hosted claim follows from it. A subsequent isolated
+runtime design experiment is described below.
 The immutable [first candidate](h2-8a-retained-lexical-owners.candidate.rs.txt)
 remains the preimage for earlier source-review evidence. Candidate v2 adds only
 the51-line comma factory amendment described below; isolated attempt4 passed
@@ -179,8 +180,11 @@ its generated declarations in the wrong function.
 | Function header/default/body | Generic walk ignores phase-specific hoisting | Header/name outside the body scope; visit/lower parameters, then body; cloned provenance and explicit prologue merge |
 | Constructor fields | Initializers are materialized after generic constructor visitation in the surrounding scope | Materialize source field plans inside the constructor's source-defined lexical phase; preserve the A39 raw-position producers |
 
-The proposed production boundary is `crates/emitter/src/builtins/class_fields.rs`.
-Do not edit it yet. Reuse the existing context and generated-binding types where
+The production boundary now also needs `crates/emitter/src/printer.rs`: the
+isolated experiment below found a missing `CommaListExpression` worker. The
+class-field candidate remains confined to
+`crates/emitter/src/builtins/class_fields.rs`. Do not edit either production
+file before the amended whole-slice gate passes. Reuse the existing context and generated-binding types where
 their complete semantics match; do not import downlevel extraction or its String
 receiver representation. Any required additional file must be named and gated
 before an edit. Standard-decorator handoff/private-static/descriptor/receiver/
@@ -293,6 +297,85 @@ with `python3 scripts/check-retained-comma-design.py`; this verifies the design,
 exact candidate edit, isolated typecheck and frozen before, not A40 readiness.
 
 ## Remaining readiness work
+
+Before closing the readiness ledger, execute an isolated **design experiment**
+over the frozen530 complete commands using the exact candidate v2 and unchanged
+comparator. This extends the isolated typecheck with observable evidence for
+the candidate's convergence; it does not authorize a production edit or confer
+runtime qualification. Use the copied design workspace, separate Cargo target
+directory, two build workers and one background job. Freeze all copied input
+hashes, the candidate, actual exit, binary bytes, and both complete captures
+per case. Compare the393 prior positives,80 required repairs and57 successor
+negatives without changing any expectations. Any discrepancy becomes an
+explicit design finding before readiness can close. Production still requires
+the whole owner/architecture mapping and a fresh mechanical ready gate below.
+
+Reproduce with `python3 scripts/run-retained-lexical-design-experiment.py N`,
+using a fresh positive attempt number. Poll the existing process while it is
+running. After a complete test execution, freeze its comparison with
+`python3 scripts/analyze-retained-lexical-design-experiment.py N`.
+Attempt1 ended with actual exit101 after426.003 seconds during compilation:
+18 include sites could not find the sibling tests' root-relative witness
+files in the copied workspace. It executed zero candidate commands and
+produced no test binary. Its prelaunch, actual exit, full log and source archive
+remain immutable. The runner now copies and hashes the statically referenced
+root-relative include inputs. Attempt2 uses the same candidate and comparator
+and completed all530 comparisons. Its frozen result is described below.
+
+### Isolated experiment result and printer amendment
+
+The [design experiment receipt](../../../../ratchets/h2-8a-retained-lexical-design-experiment.v1.json)
+freezes attempt2 at candidate SHA `ab3363962f79229d4a10433f0c88126912efea062f61347e3a94eb38ccc39573`:
+**471 exact /59 failed twice**, all393 prior positives preserved,74 of80
+required repairs exact, and four additional complete repairs from the earlier
+successor set. It retained1060 primary and1060 supplemental executions, both
+complete tuples per case, the actual exit101, the executed binary bytes,
+985 copied inputs and109 vendor inputs. The command took892.951 seconds.
+Root production and copied compiler inputs remained unchanged during the run.
+This is measured design evidence, not a qualified after profile or activation.
+
+`A40-F-COMMA-PRINTER` remains open. The six owned failures are the ES2022/ESNext
+set variants of `pending-comma-list`, `generated-comma-member` and
+`parsed-comma-member`. Each now produces the source-owned greater-than-ten
+`CommaListExpression`, then returns the same typed missing-printer-worker
+error. The printer already recognizes comma-list precedence and grammar
+parentheses; `Printer::emit_transformed_node_worker` lacks its emission arm.
+Keep the v2 comma factory correction. Converting the list back to a binary tree
+would avoid the missing owner and would not implement the source behavior.
+
+The printer amendment must stage an exact dispatch arm and private expression
+list worker in `crates/emitter/src/printer.rs`. Its source owner is
+`emitCommaList`119780-119788, calling `emitExpressionList`120026-120028 and
+`emitNodeList`/`emitNodeListItems`120029-120155 with format528. Map these inputs
+before applying the patch: explicit Expression hint per element, comma then
+space separators, no brackets or trailing comma, raw sibling/parent end
+comparisons, child comment-range starts, inherited comment suppression, and
+the optional one-line break/temporary indent for `startsOnNewLine` on the next
+element. `getLeadingLineTerminatorCount`120268-120300,
+`getSeparatingLineTerminatorCount`120301-120329 and
+`getClosingLineTerminatorCount`120330-120360 define line behavior. The current
+printer's `preserveSourceNewlines` state is unavailable and false; format528
+does not inherit a parent's MultiLine flag through `emitList`. Reuse typed
+`EmitContext`, `CommentCursor`/position phases and ordinary expression emission;
+do not substitute the existing declaration-list writer's Unspecified hints
+and comment phases. Freeze focused source-produced controls and the exact
+staged printer patch, then compare the six failures and adjacent cases again.
+
+The additional four exact commands are `legacy-bound-this` and
+`legacy-invalid-this`, ES2022 set, each in CommonJS and ESNext module form.
+Their JavaScript is unchanged; the complete source maps now match.
+`getClassFacts` retains ClassWasDecorated, and `transformProperty`97488-97500
+sets original/AdviseOnEmitNode/name map metadata for static expressions when
+class facts exist. `retained_class_was_decorated`, `RetainedClassFacts::any`
+and `retained_property_initializer` now compose those owners. Keep their old
+before dispositions immutable and record the four measured repairs separately.
+
+The other53 failures remain in the predeclared successor population. Twenty
+of the57 successor tuples changed from before, including the four now exact.
+The receipt retains all changed fields so remaining mismatches can be reviewed
+against both TypeScript and their complete prior tuples; a failed case's
+unchanged status is not proof that all its output bytes were preserved.
+No candidate adjacent emitter-suite run or hosted acceptance has occurred yet.
 
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
