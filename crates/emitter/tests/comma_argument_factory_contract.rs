@@ -37,8 +37,20 @@ fn comma_argument_factory_matches_typescript() {
     assert_eq!(trailing["repetitions"], 2);
     let trailing_cases = trailing["cases"].as_array().unwrap();
     assert_eq!(trailing_cases.len(), 104);
+    let boundaries: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/list-boundary-lines.json")).unwrap();
+    assert_eq!(boundaries["typescript"], "6.0.3");
+    assert_eq!(boundaries["route"], "direct-factory-and-printer");
+    assert_eq!(boundaries["repetitions"], 2);
+    let boundary_cases = boundaries["cases"].as_array().unwrap();
+    assert_eq!(boundary_cases.len(), 264);
     let mut failures = Vec::new();
-    for case in cases.iter().chain(additional_cases).chain(trailing_cases) {
+    for case in cases
+        .iter()
+        .chain(additional_cases)
+        .chain(trailing_cases)
+        .chain(boundary_cases)
+    {
         let id = case["case_id"].as_str().unwrap();
         for repetition in 0..2 {
             let outcome = std::panic::catch_unwind(|| {
@@ -83,6 +95,47 @@ fn comma_argument_factory_matches_typescript() {
                     .map(|id| arena.node_ref(source, *id).unwrap())
                     .collect::<Vec<_>>();
                 let supplied = match case["list_mode"].as_str().unwrap() {
+                    "line-boundaries" => {
+                        let mut children = Vec::new();
+                        for parsed in original.iter().copied() {
+                            let child = match case["child_provenance"].as_str().unwrap() {
+                                "parsed" => parsed,
+                                "clone" => arena.factory().clone_node(parsed).unwrap(),
+                                "clone-ranged" => {
+                                    let child = arena.factory().clone_node(parsed).unwrap();
+                                    arena.factory().set_text_range(child, parsed).unwrap()
+                                }
+                                "created-ranged" => {
+                                    let NodeData::Identifier(data) =
+                                        &arena.node(parsed).unwrap().data
+                                    else {
+                                        panic!("identifier")
+                                    };
+                                    let name = data.escaped_text.clone();
+                                    let child =
+                                        arena.factory().create_identifier(source, name).unwrap();
+                                    arena.factory().set_text_range(child, parsed).unwrap()
+                                }
+                                other => panic!("unknown child provenance {other}"),
+                            };
+                            if let Some(value) = case["starts_on_new_line"].as_bool() {
+                                arena.metadata_mut(child).set_starts_on_new_line(value);
+                            }
+                            children.push(child);
+                        }
+                        let array = arena.factory().create_node_array(source, children).unwrap();
+                        if case["ranged_list"].as_bool().unwrap() {
+                            arena
+                                .factory()
+                                .set_node_array_text_range(
+                                    array,
+                                    original_record.pos,
+                                    original_record.end,
+                                )
+                                .unwrap();
+                        }
+                        Some(array)
+                    }
                     "trailing-token" => {
                         assert_eq!(original.len(), 2);
                         assert!(original_record.has_trailing_comma);
@@ -315,8 +368,25 @@ fn comma_argument_factory_matches_typescript() {
                     .create_node(source, data, TransformFlags::NONE)
                     .unwrap();
                 if container == "array" {
-                    arena.factory().set_multi_line(expression, false).unwrap();
+                    arena
+                        .factory()
+                        .set_multi_line(expression, case["multi_line"].as_bool().unwrap_or(false))
+                        .unwrap();
                 }
+                if let Some(provenance) = case["parent_provenance"].as_str() {
+                    if matches!(provenance, "range-only" | "range-and-original") {
+                        arena.factory().set_text_range(expression, call).unwrap();
+                    }
+                    if matches!(provenance, "original-only" | "range-and-original") {
+                        arena.set_original_node(expression, Some(call)).unwrap();
+                    }
+                }
+                let parent_state = case.get("parent_provenance").map(|_| {
+                    let record = arena.node(expression).unwrap();
+                    serde_json::json!({"pos": raw_position(record.pos), "end": raw_position(record.end),
+                        "original_present": arena.metadata(expression).and_then(|m| m.original()).is_some(),
+                        "multi_line": record.multi_line})
+                });
                 let array_id = match &arena.node(expression).unwrap().data {
                     NodeData::CallExpression(data) => data.arguments,
                     NodeData::NewExpression(data) => data.arguments,
@@ -381,8 +451,11 @@ fn comma_argument_factory_matches_typescript() {
                 )
                 .print(&mut transformation, PrintRequest::SourceFile(source), None)
                 .unwrap();
-                let actual = serde_json::json!({ "array_state": array_state, "text": printed.text(), "utf8_base64": base64_encode(printed.text().as_bytes()),
+                let mut actual = serde_json::json!({ "array_state": array_state, "text": printed.text(), "utf8_base64": base64_encode(printed.text().as_bytes()),
                     "utf8_bytes": printed.text().len(), "end_utf16": { "position": printed.end().position().value(), "line": printed.end().line(), "column": printed.end().column() } });
+                if let Some(parent_state) = parent_state {
+                    actual["parent_state"] = parent_state;
+                }
                 assert_eq!(
                     actual, case["typescript_observation"],
                     "{id} repetition {repetition}"

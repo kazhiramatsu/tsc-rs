@@ -128,13 +128,13 @@ def main():
     source_archive = archive / 'source-and-inputs.tar.gz'
     assert sha(source_archive.read_bytes()) == pre['source_archive_sha256']
     fixtures = ['comma-list-printer', 'comma-argument-factory', 'list-intervening-owners',
-                'list-trailing-token-owners']
+                'list-trailing-token-owners', 'list-boundary-lines']
     cases = {}
     artifacts = []
     with tarfile.open(source_archive, 'r:gz') as tar:
         for row in pre['inputs'] + pre['vendor_inputs']:
             assert sha(tar.extractfile(row['path']).read()) == row['sha256'], row['path']
-        for name, count in zip(fixtures, [50, 44, 96, 104], strict=True):
+        for name, count in zip(fixtures, [50, 44, 96, 104, 264], strict=True):
             path = f'crates/emitter/tests/fixtures/{name}.json'
             data = tar.extractfile(path).read()
             artifact = json.loads(data)
