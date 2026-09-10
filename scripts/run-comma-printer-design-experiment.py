@@ -31,8 +31,10 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v6.patch')
-LIST_OWNER_PATCH_SHA = '805a14b709ad3ec858181ed94b1399ab6e4f24c9a24c33207fd8d237ebfd97d2'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v7.patch')
+LIST_OWNER_PATCH_SHA = 'e22b80f928d7d307aad96a3c3f58fdb8f161c3ede7079c00c6b3e1a0cb1f602c'
+BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
+BUNDLE_PRINTER_SHA = 'b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12'
 
 
 def sha(path):
@@ -69,6 +71,7 @@ def main():
     assert sha(ROOT / PATCH) == PATCH_SHA
     if with_list_owner:
         assert sha(ROOT / LIST_OWNER_PATCH) == LIST_OWNER_PATCH_SHA
+        assert sha(ROOT / BUNDLE_PRINTER) == BUNDLE_PRINTER_SHA
     if with_factory:
         assert sha(ROOT / FACTORY) == FACTORY_SHA
         assert sha(ROOT / FACTORY_PATCH) == FACTORY_PATCH_SHA

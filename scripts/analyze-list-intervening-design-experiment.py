@@ -127,15 +127,20 @@ def main():
     assert len(terminal['binaries']) == 2
     source_archive = archive / 'source-and-inputs.tar.gz'
     assert sha(source_archive.read_bytes()) == pre['source_archive_sha256']
-    fixtures = ['comma-list-printer', 'comma-argument-factory', 'list-intervening-owners',
-                'list-trailing-token-owners', 'list-boundary-lines']
+    fixtures = [
+        ('crates/emitter/tests/fixtures/comma-list-printer.json', 50),
+        ('crates/emitter/tests/fixtures/comma-argument-factory.json', 44),
+        ('crates/emitter/tests/fixtures/list-intervening-owners.json', 96),
+        ('crates/emitter/tests/fixtures/list-trailing-token-owners.json', 104),
+        ('crates/emitter/tests/fixtures/list-boundary-lines.json', 264),
+        ('ratchets/h2-8a-list-cursor-lifecycle.v1.json', 11),
+    ]
     cases = {}
     artifacts = []
     with tarfile.open(source_archive, 'r:gz') as tar:
         for row in pre['inputs'] + pre['vendor_inputs']:
             assert sha(tar.extractfile(row['path']).read()) == row['sha256'], row['path']
-        for name, count in zip(fixtures, [50, 44, 96, 104, 264], strict=True):
-            path = f'crates/emitter/tests/fixtures/{name}.json'
+        for path, count in fixtures:
             data = tar.extractfile(path).read()
             artifact = json.loads(data)
             assert artifact['typescript'] == '6.0.3' and artifact['repetitions'] == 2
@@ -158,10 +163,10 @@ def main():
         failures[key] = actual
     # The catch-unwind loop's final list includes early typed failures as
     # well as assertion differences; refuse an unparsed panic or missing row.
-    final_lists = re.findall(r'(?:comma argument factory|comma list printer) failures: (\[[^\n]*\])', log)
+    final_lists = re.findall(r'(?:comma argument factory|comma list printer|list cursor) failures: (\[[^\n]*\])', log)
     final_failures = {entry for rendered in final_lists for entry in json.loads(rendered)}
     assert final_failures == {f'{case_id} repetition {rep}' for case_id, rep in failures}
-    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript']:
+    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript', 'list_cursor_lifecycle_matches_typescript']:
         assert f'test {test} ...' in log
     assert terminal['actual_exit'] == (101 if failures else 0)
     assert len(re.findall(r'test result: (?:ok|FAILED)\.', log)) == 2

@@ -471,3 +471,246 @@ fn comma_argument_factory_matches_typescript() {
         "comma argument factory failures: {failures:?}"
     );
 }
+
+// One Printer instance is intentionally reused across all four requests.
+#[test]
+fn list_cursor_lifecycle_matches_typescript() {
+    fn array(
+        arena: &mut TransformArena,
+        source: tsc_emitter::TransformSourceId,
+        children: Vec<tsc_emitter::TransformNode>,
+    ) -> tsc_emitter::TransformNode {
+        let children = arena.factory().create_node_array(source, children).unwrap();
+        let node = arena
+            .factory()
+            .create_node(
+                source,
+                NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
+                    elements: Some(children.array()),
+                }),
+                TransformFlags::NONE,
+            )
+            .unwrap();
+        arena.factory().set_multi_line(node, false).unwrap();
+        node
+    }
+    fn call_parts(
+        arena: &TransformArena,
+        source: tsc_emitter::TransformSourceId,
+    ) -> (tsc_emitter::TransformNode, Vec<tsc_emitter::TransformNode>) {
+        let NodeData::SourceFile(data) = &arena.node(arena.root(source).unwrap()).unwrap().data
+        else {
+            panic!("source")
+        };
+        let statement = arena
+            .node_array(TransformNodeArray::new(source, data.statements.unwrap()))
+            .unwrap()
+            .nodes[0];
+        let NodeData::ExpressionStatement(data) = &arena
+            .node(arena.node_ref(source, statement).unwrap())
+            .unwrap()
+            .data
+        else {
+            panic!("statement")
+        };
+        let call = arena.node_ref(source, data.expression.unwrap()).unwrap();
+        let NodeData::CallExpression(data) = &arena.node(call).unwrap().data else {
+            panic!("call")
+        };
+        let children = arena
+            .node_array(TransformNodeArray::new(source, data.arguments.unwrap()))
+            .unwrap()
+            .nodes
+            .iter()
+            .map(|id| arena.node_ref(source, *id).unwrap())
+            .collect();
+        (call, children)
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../ratchets/h2-8a-list-cursor-lifecycle.v1.json"
+    )))
+    .unwrap();
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 11);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let expected = &case["typescript_observation"];
+                let target_text = expected["target_source"].as_str().unwrap();
+                let seed_text = expected["seed_source"].as_str().unwrap();
+                let parsed = parse_source_file("main.ts", target_text, Default::default(), None);
+                let seed_parsed =
+                    parse_source_file("other.ts", seed_text, Default::default(), None);
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, None);
+                let other = arena.add_source(&seed_parsed, None);
+                let (call, children) = call_parts(&arena, source);
+                let first = children[0];
+                let last = children[1];
+                let NodeData::CallExpression(call_data) = &arena.node(call).unwrap().data else {
+                    panic!("call")
+                };
+                let arguments = call_data.arguments;
+                let target = arena
+                    .factory()
+                    .create_node(
+                        source,
+                        NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
+                            elements: arguments,
+                        }),
+                        TransformFlags::NONE,
+                    )
+                    .unwrap();
+                arena.factory().set_multi_line(target, false).unwrap();
+                arena.factory().set_text_range(target, call).unwrap();
+                arena.set_original_node(target, Some(call)).unwrap();
+                let seed = match case["recipe"].as_str().unwrap() {
+                    "first" => array(&mut arena, source, vec![first]),
+                    "last" => array(&mut arena, source, vec![last]),
+                    "empty" => array(&mut arena, source, vec![]),
+                    "nested-first" | "nested-last" => {
+                        let nested = array(&mut arena, source, vec![first]);
+                        let children = if case["recipe"] == "nested-first" {
+                            vec![nested]
+                        } else {
+                            vec![nested, last]
+                        };
+                        array(&mut arena, source, children)
+                    }
+                    "comma-first" => {
+                        let elements = arena
+                            .factory()
+                            .create_node_array(source, vec![first])
+                            .unwrap();
+                        arena
+                            .factory()
+                            .create_node(
+                                source,
+                                NodeData::CommaListExpression(CommaListExpressionData {
+                                    elements: Some(elements.array()),
+                                }),
+                                TransformFlags::NONE,
+                            )
+                            .unwrap()
+                    }
+                    "call-first" => {
+                        let name = arena.factory().create_identifier(source, "f").unwrap();
+                        let arguments = arena
+                            .factory()
+                            .create_node_array(source, vec![first])
+                            .unwrap();
+                        arena
+                            .factory()
+                            .create_node(
+                                source,
+                                NodeData::CallExpression(CallExpressionData {
+                                    expression: Some(name.node()),
+                                    question_dot_token: None,
+                                    type_arguments: None,
+                                    arguments: Some(arguments.array()),
+                                }),
+                                TransformFlags::NONE,
+                            )
+                            .unwrap()
+                    }
+                    "object-first" | "object-scalar-after" => {
+                        let nested = array(&mut arena, source, vec![first]);
+                        let mut properties = Vec::new();
+                        for (name, initializer) in if case["recipe"] == "object-first" {
+                            vec![("x", nested)]
+                        } else {
+                            vec![("x", nested), ("y", first)]
+                        } {
+                            let name = arena.factory().create_identifier(source, name).unwrap();
+                            properties.push(
+                                arena
+                                    .factory()
+                                    .create_node(
+                                        source,
+                                        NodeData::PropertyAssignment(PropertyAssignmentData {
+                                            name: Some(name.node()),
+                                            initializer: Some(initializer.node()),
+                                            modifiers: None,
+                                            question_token: None,
+                                            exclamation_token: None,
+                                        }),
+                                        TransformFlags::NONE,
+                                    )
+                                    .unwrap(),
+                            );
+                        }
+                        let properties = arena
+                            .factory()
+                            .create_node_array(source, properties)
+                            .unwrap();
+                        let object = arena
+                            .factory()
+                            .create_node(
+                                source,
+                                NodeData::ObjectLiteralExpression(ObjectLiteralExpressionData {
+                                    properties: Some(properties.array()),
+                                }),
+                                TransformFlags::NONE,
+                            )
+                            .unwrap();
+                        arena.factory().set_multi_line(object, false).unwrap();
+                        object
+                    }
+                    "same-position-clone" => {
+                        let child = arena.factory().clone_node(first).unwrap();
+                        arena.factory().set_text_range(child, first).unwrap();
+                        array(&mut arena, source, vec![child])
+                    }
+                    "unicode-other-source" => {
+                        let (_, children) = call_parts(&arena, other);
+                        array(&mut arena, other, vec![children[1]])
+                    }
+                    other => panic!("unknown seed {other}"),
+                };
+                let first_pos = arena.node(first).unwrap().pos;
+                let first_pos = parsed.positions().byte_to_utf16(first_pos).unwrap();
+                let mut transformation = transform_nodes(
+                    arena,
+                    vec![
+                        TransformRoot::SourceFile(source),
+                        TransformRoot::SourceFile(other),
+                    ],
+                    Vec::new(),
+                    false,
+                )
+                .unwrap();
+                let mut printer = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_source_file_text_mode(SourceFileTextMode::Canonical),
+                );
+                let mut print = |node| {
+                    let text = printer
+                        .print(
+                            &mut transformation,
+                            PrintRequest::StandaloneNode {
+                                node,
+                                writer: tsc_emitter::StandaloneWriter::MultiLine,
+                            },
+                            None,
+                        )
+                        .unwrap();
+                    serde_json::json!({"text":text.text(), "utf8_base64":base64_encode(text.text().as_bytes()), "utf8_bytes":text.text().len(),
+                        "end_utf16":{"position":text.end().position().value(), "line":text.end().line(), "column":text.end().column()}})
+                };
+                let fresh = print(target);
+                let seed_output = print(seed);
+                let after_seed = print(target);
+                let after_target = print(target);
+                let actual = serde_json::json!({"target_source":target_text, "seed_source":seed_text, "target_first_pos_utf16":first_pos, "fresh":fresh, "seed_output":seed_output, "after_seed":after_seed, "after_target":after_target});
+                assert_eq!(actual, *expected, "{id} repetition {repetition}");
+            });
+            if result.is_err() {
+                failures.push(format!("{id} repetition {repetition}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "list cursor failures: {failures:?}");
+}

@@ -904,6 +904,99 @@ list, storing only byte offsets, or updating it for every ordinary child.
 The next Rust design must also audit list-bypassing source-text paths and
 preserve the cursor at each observable failure boundary.
 
+Attempt24 of v6 completed in951.707 seconds, exit101: **477/530 exact twice,
+53 failures**, all530 complete tuples identical to v4. Its
+[full receipt](../../../../ratchets/h2-8a-list-boundary-lines-design-experiment.v1.json)
+checks all1060 current captures and every baseline/predecessor capture, retains
+all80 required repairs and477 positives, and reports zero typed failures,
+regressions or changed failing tuples. The executed128193744-byte binary is
+archived with SHA-256
+`b61f341dad19df03fb3de27a546be49e1a68f18d70ce80a73117dd4d8c89880c`.
+
+### Printer-owned list position state
+
+The [cursor source census](../../../../ratchets/h2-8a-list-cursor-sources.v1.json)
+records all51 direct list-entry calls within createPrinter and60 whole owners,
+including the shared getEmitListItem/emitListItem callbacks outside the printer
+closure. It also records the separate prologue path and identifier-type-argument
+metadata producer/consumer. Reproduce with
+`node scripts/observe-list-cursor-sources.mjs --check`. This census is not a
+completed readiness disposition. MappedType.members, identifierTypeArguments,
+JSDoc-list workers, list-bypassing source-text paths and the remaining comment
+failure ordering still require explicit semantic resolution.
+
+The11 cursor sequences now have a direct Rust contract that uses a single
+Printer for four StandaloneNode requests. It mounts both source files in one
+arena for the UTF16-versus-byte case and retains the target's parsed argument
+NodeArray exactly as TypeScript does. No expected output or prior558 control
+is changed. The factory-direct selection now executes569 cases twice, with
+the original508 applicable factory-state checks. First run this contract on
+unchanged v6 and retain every complete failed observation before applying the
+new state candidate.
+
+The concrete Rust state design is a private ListElementPosition enum with
+Synthesized and Source(SourceUtf16Position) variants, held by Printer as
+Option<ListElementPosition>. None is the initial undefined state. The producer
+reads the current node's raw pos independently of end or original; a sourced
+position converts through the mounted source's PositionIndex. The value has
+no source identity and survives successful print calls, source changes and
+nested-list returns. No reset or scoped restoration is added. The existing
+public print entry points already require &mut Printer; propagate that
+exclusive borrow through their private emission call graph. Keep read-only
+helpers and public signatures unchanged. This preserves ordinary owned state
+and Printer's Clone/Eq/Send/Sync properties without interior mutability.
+
+The staged design updates the first-line reader after PreferNewLine and before
+JsxText/source-line predicates. List item entry records its position before
+ordinary item emission and never records names or initializers merely because
+they are children. Empty lists do not update it. Source and function prologues
+are not list entries; source statements after the prologue and block statements
+after function prologues are. Integrate explicit updates in literal/binding/
+attribute, comma, call, parameter, named import/export, declaration/type,
+modifier/decorator, JSX, class, case and statement list workers. The draft has
+22 update sites across19 native workers (the case-clause worker has two arms).
+Its100 private mutable receivers are
+derived from the emission call graph, not a public API rewrite.
+
+Extend the isolated candidate's allowed files to printer/bundle.rs only for
+the transitive &mut self receiver of write_bundle_prologue: a prologue itself
+does not update the cursor, but its ordinary emission may reach list workers
+after substitution. No writer ownership or cross-thread shared state is added.
+Raw-position validation retains typed errors; a later item error must not roll
+back a completed cursor update. Existing manual comment workers require their
+own failure-order controls before whole-cursor qualification; normal-output
+success alone will not close that obligation. Run569 direct controls, adjacent
+emitter suites and the full530 comparator on the final frozen candidate, and
+keep A40 production readiness open until every listed gap is dispositioned.
+
+Attempt25 on unchanged v6 is **562/569 exact twice**, exit101 in9.362 seconds.
+All7 failures change only the after_seed observation; fresh output, seed output
+and the following target output are individually equal. All558 previous cases
+and508 factory states remain exact. The
+[before receipt](../../../../ratchets/h2-8a-list-cursor-direct-before.v1.json)
+establishes `A40-F-LIST-CURSOR-LIFETIME` and retains the exact failed tuples and
+both executed binaries. The first frozen state candidate is
+[v7](h2-8a-list-intervening-printer.candidate-v7.patch), SHA-256
+`e22b80f928d7d307aad96a3c3f58fdb8f161c3ede7079c00c6b3e1a0cb1f602c`.
+It includes the single bundle receiver change and the owned state design above.
+The runner now explicitly pins the unchanged root bundle source before applying
+this patch; its full-comparison predecessor is the completed v6 receipt.
+Initial draft-generation assertions and rustfmt delimiter checks failed before
+any native execution; corrected, formatted draft bytes alone are frozen here.
+
+Attempt26 of v7 passes **569/569 direct controls twice**, with all508 factory
+states exact, exit0 in92.541 seconds without warnings. Its
+[after receipt](../../../../ratchets/h2-8a-list-cursor-direct-after.v1.json)
+retains all562 previously exact controls and repairs every observed after_seed
+difference. Attempt27 passes **494 units /451 contracts /1350 declaration
+reprint rows**, exit0 in108.791 seconds without warnings. The
+[emitter receipt](../../../../ratchets/h2-8a-list-cursor-emitter-checks.v1.json)
+validates993 copied inputs,109 vendor inputs and both executed binaries; the11
+preexisting declaration exclusions remain excluded. These are isolated candidate
+results. The remaining first-line consumers, missing list fields and comment/
+failure-order obligations listed above still block whole A40 readiness. The
+full530 v7 comparison is the next required check; no result is claimed yet.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,

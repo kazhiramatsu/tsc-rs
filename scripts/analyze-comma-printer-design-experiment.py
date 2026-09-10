@@ -139,6 +139,9 @@ def main():
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
     if pre.get('list_owner_patch') is not None:
         predecessors = {
+            'e22b80f928d7d307aad96a3c3f58fdb8f161c3ede7079c00c6b3e1a0cb1f602c': (
+                'ratchets/h2-8a-list-boundary-lines-design-experiment.v1.json',
+                '98142a8b7b575bac8d3378b2696a52315577466fca2b271320013fc673ff6e43'),
             '805a14b709ad3ec858181ed94b1399ab6e4f24c9a24c33207fd8d237ebfd97d2': (
                 'ratchets/h2-8a-list-trailing-token-design-experiment.v1.json',
                 'fc140aa5aca03bb3b35bd0eb5f67818de8fa1f81f54bc776707758c406f06a7f'),
