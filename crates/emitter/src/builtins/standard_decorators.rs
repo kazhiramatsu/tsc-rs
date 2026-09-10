@@ -238,10 +238,17 @@ impl DecoratedClassDeclarationName {
 /// while downlevel named evaluation must still install the runtime name
 /// `"default"`; an unassigned decorated class expression instead installs
 /// the empty string required by `transformESDecorators`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 enum DecoratedClassRuntimeName {
     Declared(String),
     Assigned(String),
+    /// `getAssignedNameOfPropertyName` for a non-literal computed property
+    /// name: the assigned name is the hoisted `__propKey` cache temp, shared
+    /// with the property's rewritten computed name.
+    AssignedReference {
+        name: String,
+        binding: TargetBinding,
+    },
     AnonymousDefaultDeclaration,
     UnassignedDecoratedExpression,
 }
@@ -250,6 +257,7 @@ impl DecoratedClassRuntimeName {
     fn text(&self) -> &str {
         match self {
             Self::Declared(text) | Self::Assigned(text) => text,
+            Self::AssignedReference { name, .. } => name,
             Self::AnonymousDefaultDeclaration => "default",
             Self::UnassignedDecoratedExpression => "",
         }
@@ -392,6 +400,23 @@ struct MethodPlan {
     emitted_name: Option<NodeId>,
 }
 
+/// Per-member borrow of the class transform's working state for
+/// `transform_class_member`.
+struct ClassMemberState<'a> {
+    plans: &'a mut Vec<PropertyPlan>,
+    method_plans: &'a mut Vec<MethodPlan>,
+    plans_by_node: &'a BTreeMap<NodeId, usize>,
+    method_plans_by_node: &'a BTreeMap<NodeId, usize>,
+    pending_initializers: &'a mut ClassPendingDecoratorInitializers,
+    transformed_members: &'a mut Vec<TransformNode>,
+    class_definition_bindings: &'a mut DecoratorDefinitionBindings,
+    class_decoration: Option<&'a ClassDecorationPlan>,
+    explicit_class_name: Option<&'a str>,
+    explicit_class_name_node: Option<TransformNode>,
+    class_evaluation_binding_name: Option<&'a str>,
+    class_owner: TransformNode,
+}
+
 struct DecorationBlockInputs<'a> {
     plans: &'a [PropertyPlan],
     method_plans: &'a [MethodPlan],
@@ -401,6 +426,9 @@ struct DecorationBlockInputs<'a> {
     class_super_name: Option<&'a str>,
     metadata_name: &'a str,
     leading_static_initializers: PendingDecoratorInitializerBatch,
+    /// Leftover pending expressions (already projected through `_outerThis`),
+    /// emitted right after the `_metadata` declaration.
+    pending_statements: Vec<TransformNode>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -587,6 +615,9 @@ struct StandardDecoratorVisitor<'context> {
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     inferred_class_names: BTreeMap<NodeId, String>,
+    /// Named evaluation through a non-literal computed property name: the
+    /// anonymous decorated class receives the property's hoisted key temp.
+    inferred_class_name_references: BTreeMap<NodeId, (String, TargetBinding)>,
     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
     used_names: BTreeSet<String>,
     generated_reference_names: BTreeSet<String>,
@@ -600,6 +631,12 @@ struct StandardDecoratorVisitor<'context> {
     /// (`classThis`) that `updateState` derives from them.
     receiver_frames: Vec<DecoratorReceiverFrame>,
     receiver_class_this: Option<TransformNode>,
+    /// tsc `pendingExpressions`: member decorator array assignments and
+    /// computed-name cache assignments waiting for the next non-inlineable
+    /// computed property name of the class; whatever remains after the
+    /// members becomes leading static-block statements (through
+    /// `_outerThis` for lexical `this`). Empty means `undefined`.
+    pending_expressions: Vec<TransformNode>,
     /// Computed-name cache temps of the current class scope by spelling:
     /// every identifier spelled like one (declaration, cache assignment,
     /// decorator context name, accessor names) carries the same generated
@@ -615,12 +652,24 @@ struct StandardDecoratorVisitor<'context> {
 /// for the class element that encloses the nested class; ordinary functions
 /// and object-literal methods open an `other` frame that hides the receiver;
 /// arrows keep the enclosing state.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum DecoratorReceiverFrame {
-    Class { class_this: Option<TransformNode> },
-    ClassElement { class_this: Option<TransformNode> },
+    /// `enterClass` saves the enclosing `pendingExpressions`; `exitClass`
+    /// restores them.
+    Class {
+        class_this: Option<TransformNode>,
+        saved_pending: Vec<TransformNode>,
+    },
+    ClassElement {
+        class_this: Option<TransformNode>,
+    },
     Name,
-    Other { depth: usize },
+    /// `enterOther` at depth 0 saves the enclosing `pendingExpressions`;
+    /// nested `other` entries only count depth.
+    Other {
+        depth: usize,
+        saved_pending: Vec<TransformNode>,
+    },
 }
 
 impl<'context> StandardDecoratorVisitor<'context> {
@@ -638,6 +687,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             inferred_class_names: BTreeMap::new(),
+            inferred_class_name_references: BTreeMap::new(),
             expanded_classes: BTreeMap::new(),
             used_names,
             generated_reference_names: BTreeSet::new(),
@@ -646,6 +696,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             file_level_names,
             receiver_frames: Vec::new(),
             receiver_class_this: None,
+            pending_expressions: Vec::new(),
             computed_temp_bindings: BTreeMap::new(),
         }
     }
@@ -658,9 +709,69 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let record = self.context.arena().node(original)?.clone();
         let kind = record.kind;
         let transformed = match record.data {
+            // tsc-port: isNamedEvaluation(node, isAnonymousClassNeedingAssignedName)
+            // @6.0.3 — the visitor's named-evaluation sources record the
+            // assigned name for an anonymous decorated class expression
+            // before the initializer is visited.
             NodeData::VariableDeclaration(data) => {
-                self.record_variable_class_name(&data)?;
+                self.record_named_evaluation_of_identifier(data.name, data.initializer, true)?;
                 Some(self.update_generic(original, NodeData::VariableDeclaration(data))?)
+            }
+            NodeData::Parameter(data) => {
+                self.record_named_evaluation_of_identifier(
+                    data.name,
+                    data.initializer,
+                    data.dot_dot_dot_token.is_none(),
+                )?;
+                Some(self.update_generic(original, NodeData::Parameter(data))?)
+            }
+            NodeData::BindingElement(data) => {
+                self.record_named_evaluation_of_identifier(
+                    data.name,
+                    data.initializer,
+                    data.dot_dot_dot_token.is_none(),
+                )?;
+                Some(self.update_generic(original, NodeData::BindingElement(data))?)
+            }
+            NodeData::PropertyAssignment(data) => {
+                self.record_named_evaluation_of_property_name(data.name, data.initializer)?;
+                Some(self.update_generic(original, NodeData::PropertyAssignment(data))?)
+            }
+            NodeData::ShorthandPropertyAssignment(data) => {
+                self.record_named_evaluation_of_identifier(
+                    data.name,
+                    data.object_assignment_initializer,
+                    true,
+                )?;
+                Some(self.update_generic(original, NodeData::ShorthandPropertyAssignment(data))?)
+            }
+            NodeData::BinaryExpression(data) => {
+                let operator = data
+                    .operator_token
+                    .map(|token| self.context.arena().node(self.node(token)))
+                    .transpose()?
+                    .map(|record| record.kind);
+                if matches!(
+                    operator,
+                    Some(
+                        SyntaxKind::EqualsToken
+                            | SyntaxKind::AmpersandAmpersandEqualsToken
+                            | SyntaxKind::BarBarEqualsToken
+                            | SyntaxKind::QuestionQuestionEqualsToken
+                    )
+                ) {
+                    self.record_named_evaluation_of_identifier(data.left, data.right, true)?;
+                }
+                Some(self.update_generic(original, NodeData::BinaryExpression(data))?)
+            }
+            NodeData::ExportAssignment(data) => {
+                let assigned = if data.is_export_equals == Some(true) {
+                    ""
+                } else {
+                    "default"
+                };
+                self.record_named_evaluation_text(data.expression, assigned)?;
+                Some(self.update_generic(original, NodeData::ExportAssignment(data))?)
             }
             NodeData::ClassExpression(data)
                 if self.class_is_decorated_like(data.modifiers, data.members)? =>
@@ -732,28 +843,186 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(transformed)
     }
 
-    fn record_variable_class_name(
-        &mut self,
-        data: &tsc_syntax::nodes::VariableDeclarationData,
-    ) -> Result<(), TransformError> {
-        let Some(initializer) = data.initializer else {
-            return Ok(());
+    /// tsc-port: isAnonymousFunctionDefinition(node, isAnonymousClassNeedingAssignedName)
+    /// @6.0.3 — the initializer, past its outer expressions, is an anonymous
+    /// class expression that this transform will decorate and that carries
+    /// no explicitly assigned name yet.
+    fn anonymous_class_needing_assigned_name(
+        &self,
+        initializer: Option<NodeId>,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let Some(initializer) = initializer else {
+            return Ok(None);
         };
-        let initializer = self.node(initializer);
-        if !matches!(
-            self.context.arena().node(initializer)?.data,
-            NodeData::ClassExpression(_)
-        ) {
+        let class = self.skip_outer_expressions(self.node(initializer))?;
+        let NodeData::ClassExpression(data) = &self.context.arena().node(class)?.data else {
+            return Ok(None);
+        };
+        if data.name.is_some() || self.explicitly_assigned_class_name(class)?.is_some() {
+            return Ok(None);
+        }
+        if !self.class_is_decorated_like(data.modifiers, data.members)? {
+            return Ok(None);
+        }
+        Ok(Some(class))
+    }
+
+    /// `getAssignedNameOfIdentifier`: an identifier binding names its
+    /// anonymous decorated class initializer (variable, parameter, binding
+    /// element, shorthand property, assignment).
+    fn record_named_evaluation_of_identifier(
+        &mut self,
+        name: Option<NodeId>,
+        initializer: Option<NodeId>,
+        allowed: bool,
+    ) -> Result<(), TransformError> {
+        if !allowed {
             return Ok(());
         }
-        let Some(name) = data.name else {
+        let Some(name) = name else {
             return Ok(());
         };
-        if let Some(text) = self.identifier_text(self.node(name))? {
+        let Some(text) = self.identifier_text(self.node(name))?.map(str::to_owned) else {
+            return Ok(());
+        };
+        self.record_named_evaluation_text(initializer, &text)
+    }
+
+    /// `getAssignedNameOfPropertyName` for object-literal property
+    /// assignments: literal names (including literal computed names) name
+    /// the class; other computed names are left to the enclosing lexical
+    /// environment, which this transform does not own.
+    fn record_named_evaluation_of_property_name(
+        &mut self,
+        name: Option<NodeId>,
+        initializer: Option<NodeId>,
+    ) -> Result<(), TransformError> {
+        let Some(name) = name else {
+            return Ok(());
+        };
+        let Some(text) = self.property_name_literal_text(self.node(name))? else {
+            return Ok(());
+        };
+        self.record_named_evaluation_text(initializer, &text)
+    }
+
+    fn record_named_evaluation_text(
+        &mut self,
+        initializer: Option<NodeId>,
+        text: &str,
+    ) -> Result<(), TransformError> {
+        if let Some(class) = self.anonymous_class_needing_assigned_name(initializer)? {
             self.inferred_class_names
-                .insert(initializer.node(), text.to_owned());
+                .entry(class.node())
+                .or_insert_with(|| text.to_owned());
         }
         Ok(())
+    }
+
+    /// The literal spelling of a property name: identifiers, private names,
+    /// string/numeric literals, and computed names whose expression is a
+    /// non-identifier literal (`isPropertyNameLiteral(name.expression) &&
+    /// !isIdentifier(name.expression)`).
+    fn property_name_literal_text(
+        &self,
+        name: TransformNode,
+    ) -> Result<Option<String>, TransformError> {
+        Ok(match &self.context.arena().node(name)?.data {
+            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
+            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::NumericLiteral(data) => Some(data.text.clone()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            NodeData::ComputedPropertyName(data) => match data.expression {
+                Some(expression) => match &self.context.arena().node(self.node(expression))?.data {
+                    NodeData::StringLiteral(data) => Some(data.text.clone()),
+                    NodeData::NumericLiteral(data) => Some(data.text.clone()),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+                    _ => None,
+                },
+                None => None,
+            },
+            _ => None,
+        })
+    }
+
+    /// tsc-port: transformNamedEvaluationOfPropertyDeclaration @6.0.3
+    ///
+    /// A class property whose initializer is an anonymous decorated class:
+    /// a literal name names it directly; a non-literal computed name hoists
+    /// the `__propKey` cache temp (in the class IIFE, ahead of the member's
+    /// own decorator temporaries), rewrites the property name to
+    /// `[temp = __propKey(expression)]` (visited under the name frame and
+    /// absorbing the pending expressions) and names the class by that temp.
+    /// Returns whether the property name was already visited.
+    fn prepare_property_named_evaluation(
+        &mut self,
+        member: TransformNode,
+        data: &tsc_syntax::nodes::PropertyDeclarationData,
+        decorated: bool,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<bool, TransformError> {
+        let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
+            return Ok(false);
+        };
+        let Some(name) = data.name else {
+            return Ok(false);
+        };
+        let name_node = self.node(name);
+        if let Some(text) = self.property_name_literal_text(name_node)? {
+            self.inferred_class_names
+                .entry(class.node())
+                .or_insert(text);
+            return Ok(false);
+        }
+        let NodeData::ComputedPropertyName(computed) =
+            self.context.arena().node(name_node)?.data.clone()
+        else {
+            return Ok(false);
+        };
+        if decorated {
+            // A decorated property with a non-literal computed name: tsc
+            // hoists the same generated name twice (`var _b, _b`); not
+            // reproduced here — recorded as an open row.
+            return Ok(false);
+        }
+        let Some(expression) = computed.expression else {
+            return Ok(false);
+        };
+        let _ = member;
+        let temporary_name = self.allocate_computed_temp_name();
+        let temporary_binding =
+            TargetBinding::allocate_planned(self.context, temporary_name.clone())?;
+        self.computed_temp_bindings
+            .insert(temporary_name.clone(), temporary_binding.clone());
+        bindings.record_generated_temporary(temporary_name.clone(), temporary_binding.clone());
+        self.request_prop_key_helper()?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
+        let key = self.create_call(helper, vec![self.node(expression)])?;
+        let temporary = self.create_identifier(&temporary_name)?;
+        temporary_binding.write_generated_metadata(self.context.arena_mut()?, temporary);
+        let assignment = self.create_assignment(temporary, key)?;
+        let flags = flags_after_update(
+            self.context.arena(),
+            name_node,
+            &NodeData::ComputedPropertyName(tsc_syntax::nodes::ComputedPropertyNameData {
+                expression: Some(assignment.node()),
+            }),
+        )?;
+        let updated_name = self.context.factory()?.update_node(
+            name_node,
+            NodeData::ComputedPropertyName(tsc_syntax::nodes::ComputedPropertyNameData {
+                expression: Some(assignment.node()),
+            }),
+            flags,
+        )?;
+        self.inferred_class_name_references
+            .insert(class.node(), (temporary_name, temporary_binding));
+        self.previsit_property_name(updated_name.node(), name)?;
+        Ok(true)
     }
 
     fn visit_class_declaration(
@@ -1167,6 +1436,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 }
             }
         }
+        // tsc-port: transformClassLike @6.0.3 — class decorators are
+        // transformed first and the extends expression is visited second,
+        // both in the enclosing frame (before `enterClass`); their hoisted
+        // temporaries therefore precede every member's.
+        let mut class_definition_bindings = DecoratorDefinitionBindings::default();
+        if let Some(class_plan) = class_decoration.as_mut() {
+            class_plan.decorators = self.transform_decorator_expressions(
+                &class_plan.decorators,
+                &mut class_definition_bindings,
+            )?;
+        }
         let class_super = self.prepare_class_super(&mut data.heritage_clauses)?;
         // The class-this identity exists before any class element is
         // visited: tsc's `createClassInfo` allocates `classThis` up front and
@@ -1190,15 +1470,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             None
         };
         let class_this_identity = class_this_assignment.map(|(_, class_this)| class_this);
-        // Enters the class receiver frame; `exit_receiver_class` runs after
-        // the member loop, before heritage clauses and the name are visited.
-        let (class_definition_bindings, computed_name_block) = self
-            .prepare_decorators_and_computed_names(
-                class_decoration.as_mut(),
-                &mut plans,
-                &mut method_plans,
-                class_this_identity,
-            )?;
+        // tsc-port: enterClass @6.0.3 — the member frames open under it;
+        // `exit_receiver_class` runs after both member passes.
+        self.enter_receiver_class(class_this_identity);
         let static_method_extra = method_plans
             .iter()
             .any(|plan| plan.is_static)
@@ -1215,33 +1489,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             needs_set_function_name || needs_descriptor_names,
             !method_plans.is_empty(),
         )?;
-        if plans.iter().any(|plan| plan.computed_temp_name.is_some())
-            || method_plans
-                .iter()
-                .any(|plan| plan.computed_temp_name.is_some())
-        {
-            self.request_prop_key_helper()?;
-        }
-
         let metadata_name = self.allocate_file_level_name("_metadata");
         let mut definitions = Vec::new();
-        if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
-            let initializer = self.create_this()?;
-            definitions.push(self.create_let(name, Some(initializer))?);
-        }
-        if !class_definition_bindings.temporaries.is_empty() {
-            let mut declarations = Vec::with_capacity(class_definition_bindings.temporaries.len());
-            for (name, binding) in &class_definition_bindings.temporaries {
-                let identifier = self.create_identifier(name)?;
-                if let Some(binding) = binding {
-                    binding.write_generated_metadata(self.context.arena_mut()?, identifier);
-                }
-                declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
-            }
-            definitions.push(
-                self.create_variable_statement_from_declarations(declarations, NodeFlags::NONE)?,
-            );
-        }
         if let Some(class_plan) = class_decoration.as_ref() {
             let mut decorators = Vec::with_capacity(class_plan.decorators.len());
             for decorator in &class_plan.decorators {
@@ -1333,7 +1582,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 })
                 .flatten();
             transformed_members
-                .push(self.create_set_function_name_block(runtime_class_name.text(), target)?);
+                .push(self.create_set_function_name_block(runtime_class_name, target)?);
         }
         if let Some(member) = named_evaluation_member {
             let visited = if let Some(class_this) = class_this_identity {
@@ -1347,9 +1596,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     })?
             };
             transformed_members.push(visited);
-        }
-        if let Some(block) = computed_name_block {
-            transformed_members.push(block);
         }
         let has_static_initializers = self.class_has_static_initializers(data.members)?;
         let decoration_block_index = transformed_members.len();
@@ -1393,146 +1639,87 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // tsc-port: transformClassLike @6.0.3
         // tsc-hash: 7199607733dc27e3d53faa0e8e37a065b7ec4ae8f2fdf154d925291fa23f61df
         // tsc-span: _tsc.js:99319-99616
+        //
+        // Two member passes: `visitNodes(members, node =>
+        // isConstructorDeclaration(node) ? node : classElementVisitor(node))`,
+        // then the constructors. Every member is visited under its own
+        // class-element frame; a constructor keeps its source position.
         let mut constructor_index = None;
-        let mut member_frame_open = false;
-        for member in original_members {
+        let mut constructor_slots = Vec::new();
+        for member in original_members.iter().copied() {
             if Some(member) == named_evaluation_member {
                 continue;
             }
-            // tsc-port: enterClassElement/exitClassElement @6.0.3 — one
-            // class-element frame per original member. The frame closes at
-            // the next member (or after the loop) so every `continue` below
-            // stays inside it. The member name is visited first, under the
-            // name frame, exactly as partialTransformClassElement does.
-            if member_frame_open {
-                self.exit_receiver_class_element();
+            let member_data = self.context.arena().node(member)?.data.clone();
+            if matches!(member_data, NodeData::Constructor(_)) {
+                constructor_slots.push((transformed_members.len(), member));
+                transformed_members.push(member);
+                continue;
             }
             self.enter_receiver_class_element(member)?;
-            member_frame_open = true;
-            self.previsit_class_element_name(member)?;
-
-            let member_data = self.context.arena().node(member)?.data.clone();
-            if matches!(&member_data, NodeData::ClassStaticBlockDeclaration(_)) {
-                let is_runtime_static_block =
-                    self.context
-                        .arena()
-                        .metadata(member)
-                        .is_none_or(|metadata| {
-                            metadata.assigned_name.is_none() && metadata.class_this.is_none()
-                        });
-                if is_runtime_static_block {
-                    let pending = pending_initializers.drain(DecoratorInitializerPlacement::Static);
-                    let statements = self.materialize_pending_initializer_statements(pending)?;
-                    if !statements.is_empty() {
-                        transformed_members.push(self.create_static_block(statements, true)?);
-                    }
-                }
-                let visited =
-                    self.visit(member.node())?
-                        .ok_or(TransformError::RequiredChildRemoved {
-                            parent: SyntaxKind::ClassExpression,
-                            field: "static block",
-                        })?;
-                transformed_members.push(self.node(visited));
-                continue;
-            }
-
-            if let NodeData::PropertyDeclaration(member_data) = member_data {
-                let placement =
-                    if self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)? {
-                        DecoratorInitializerPlacement::Static
-                    } else {
-                        DecoratorInitializerPlacement::Instance
-                    };
-                let pending = pending_initializers.drain(placement);
-                if let Some(index) = plans_by_node.get(&member.node()).copied() {
-                    let plan = plans[index].clone();
-                    let own_initializer =
-                        self.create_decorated_initializer(&plan, &pending.receiver)?;
-                    let initializer = self
-                        .inject_pending_initializer_expression(pending, Some(own_initializer))?
-                        .ok_or(TransformError::RequiredChildRemoved {
-                            parent: SyntaxKind::PropertyDeclaration,
-                            field: "decorated initializer",
-                        })?;
-                    let static_accessor_receiver =
-                        if plan.is_static && self.target < ScriptTarget::ES2022 {
-                            if let Some(class_plan) = class_decoration.as_ref() {
-                                Some(StaticAccessorReceiver::GeneratedBinding(
-                                    class_plan.class_this_name.clone(),
-                                ))
-                            } else if let (Some(text), Some(original_name)) =
-                                (explicit_class_name.as_ref(), explicit_class_name_node)
-                            {
-                                Some(StaticAccessorReceiver::ClassReference {
-                                    text: text.clone(),
-                                    original_name,
-                                    class_owner: original,
-                                })
-                            } else {
-                                class_evaluation_binding_name.as_ref().map(|name| {
-                                    StaticAccessorReceiver::GeneratedBinding(name.clone())
-                                })
-                            }
-                        } else {
-                            None
-                        };
-                    if plan.descriptor_name.is_some() {
-                        let backing_name = plan.backing_name.as_deref().ok_or(
-                            TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::PropertyDeclaration,
-                                field: "auto-accessor backing name",
-                            },
-                        )?;
-                        transformed_members.extend(self.create_auto_accessor_members(
-                            &plan,
-                            backing_name,
-                            initializer,
-                            static_accessor_receiver.as_ref(),
-                        )?);
-                    } else {
-                        transformed_members
-                            .push(self.update_decorated_property(&plan, initializer)?);
-                    }
-                    pending_initializers.enqueue(
-                        placement,
-                        PendingDecoratorInitializer::FieldExtra {
-                            initializers_name: plan.extra_initializers_name.clone(),
-                        },
-                    );
-                } else {
-                    let visited = self.visit_class_element_generic(member)?.node();
-                    let property = self
-                        .inject_pending_initializers_into_property(self.node(visited), pending)?;
-                    transformed_members.push(property);
-                }
-                continue;
-            }
-
-            if let Some(index) = method_plans_by_node.get(&member.node()).copied() {
-                let plan = method_plans[index].clone();
-                let transformed = if plan.is_private {
-                    self.create_private_method_forwarder(&plan)?
-                } else {
-                    self.update_public_method(&plan)?
-                };
-                transformed_members.push(transformed);
-                continue;
-            }
-
-            let visited = self.visit_class_element_generic(member)?.node();
-            if self.context.arena().node(self.node(visited))?.kind == SyntaxKind::Constructor {
-                constructor_index = Some(transformed_members.len());
-            }
-            transformed_members.push(self.node(visited));
-        }
-        if member_frame_open {
+            let mut state = ClassMemberState {
+                plans: &mut plans,
+                method_plans: &mut method_plans,
+                plans_by_node: &plans_by_node,
+                method_plans_by_node: &method_plans_by_node,
+                pending_initializers: &mut pending_initializers,
+                transformed_members: &mut transformed_members,
+                class_definition_bindings: &mut class_definition_bindings,
+                class_decoration: class_decoration.as_ref(),
+                explicit_class_name: explicit_class_name.as_deref(),
+                explicit_class_name_node,
+                class_evaluation_binding_name: class_evaluation_binding_name.as_deref(),
+                class_owner: original,
+            };
+            let result = self.transform_class_member(member, member_data, &mut state);
             self.exit_receiver_class_element();
+            result?;
+        }
+        // tsc-port: visitConstructorDeclaration @6.0.3 — the second member
+        // pass; the constructor element frame carries no receiver.
+        for (slot, member) in constructor_slots {
+            self.enter_receiver_class_element(member)?;
+            let visited = self.visit_class_element_generic(member);
+            self.exit_receiver_class_element();
+            transformed_members[slot] = visited?;
+            constructor_index = Some(slot);
+        }
+        // Whatever is still pending after the members becomes leading
+        // static-block statements; lexical `this` inside them is captured
+        // as `_outerThis` outside the class (thisVisitor @6.0.3).
+        let pending = std::mem::take(&mut self.pending_expressions);
+        let mut pending_statements = Vec::with_capacity(pending.len());
+        for expression in pending {
+            let expression =
+                self.rewrite_decorator_lexical_this(expression, &mut class_definition_bindings)?;
+            pending_statements.push(self.create_expression_statement(expression)?);
         }
         // tsc-port: exitClass @6.0.3 — everything synthesized below is
         // created, not visited; heritage clauses and the class name are
         // visited outside the class frame.
         self.exit_receiver_class();
+        // mergeLexicalEnvironment: the hoisted temporaries precede the class
+        // definition statements, and `_outerThis` (unshifted by the pending
+        // expression visitor) comes right after them.
+        let mut prologue = Vec::new();
+        if !class_definition_bindings.temporaries.is_empty() {
+            let mut declarations = Vec::with_capacity(class_definition_bindings.temporaries.len());
+            for (name, binding) in &class_definition_bindings.temporaries {
+                let identifier = self.create_identifier(name)?;
+                if let Some(binding) = binding {
+                    binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+                }
+                declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
+            }
+            prologue.push(
+                self.create_variable_statement_from_declarations(declarations, NodeFlags::NONE)?,
+            );
+        }
+        if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
+            let initializer = self.create_this()?;
+            prologue.push(self.create_let(name, Some(initializer))?);
+        }
+        definitions.splice(0..0, prologue);
 
         let pending_instance = pending_initializers.drain(DecoratorInitializerPlacement::Instance);
         if let Some(statement) = self.materialize_pending_initializer_statement(pending_instance)? {
@@ -1568,6 +1755,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             class_super_name: class_super.as_ref().map(|(name, _)| name.as_str()),
             metadata_name: &metadata_name,
             leading_static_initializers,
+            pending_statements,
         })?;
         transformed_members.insert(decoration_block_index, decoration_block);
 
@@ -1718,6 +1906,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             class_super_name,
             metadata_name,
             leading_static_initializers,
+            pending_statements,
         } = inputs;
         let mut statements = Vec::new();
         let metadata = self.create_metadata_initializer(class_super_name)?;
@@ -1726,38 +1915,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             Some(metadata),
             NodeFlags::CONST,
         )?);
-        let mut assignments = Vec::with_capacity(plans.len() + method_plans.len());
-        for (index, plan) in plans.iter().enumerate() {
-            assignments.push((self.context.arena().node(plan.original)?.pos, false, index));
-        }
-        for (index, plan) in method_plans.iter().enumerate() {
-            assignments.push((self.context.arena().node(plan.original)?.pos, true, index));
-        }
-        assignments.sort_by_key(|(position, is_method, index)| (*position, *is_method, *index));
-        for (_, is_method, index) in assignments {
-            if if is_method {
-                method_plans[index].computed_temp_name.is_some()
-            } else {
-                plans[index].computed_temp_name.is_some()
-            } {
-                continue;
-            }
-            let (decorator_nodes, decorators_name) = if is_method {
-                (
-                    method_plans[index].decorators.clone(),
-                    method_plans[index].decorators_name.clone(),
-                )
-            } else {
-                (
-                    plans[index].decorators.clone(),
-                    plans[index].decorators_name.clone(),
-                )
-            };
-            let array = self.create_decorator_array(&decorator_nodes)?;
-            let target = self.create_identifier(&decorators_name)?;
-            let assignment = self.create_assignment(target, array)?;
-            statements.push(self.create_expression_statement(assignment)?);
-        }
+        statements.extend(pending_statements);
         let mut decoration_order = Vec::with_capacity(plans.len() + method_plans.len());
         for (index, plan) in plans.iter().enumerate() {
             decoration_order.push((
@@ -1867,6 +2025,22 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     parent: SyntaxKind::ExpressionWithTypeArguments,
                     field: "expression",
                 })?;
+            // safeExtendsExpression: an anonymous class or function
+            // expression or an arrow function evaluates as `(0, expression)`
+            // so `_classSuper` does not become its inferred name.
+            let unwrapped = self.skip_outer_expressions(initializer)?;
+            let needs_comma = match &self.context.arena().node(unwrapped)?.data {
+                NodeData::ClassExpression(data) => data.name.is_none(),
+                NodeData::FunctionExpression(data) => data.name.is_none(),
+                NodeData::ArrowFunction(_) => true,
+                _ => false,
+            };
+            let initializer = if needs_comma {
+                let zero = self.create_numeric_literal("0")?;
+                self.create_binary(zero, SyntaxKind::CommaToken, initializer)?
+            } else {
+                initializer
+            };
             let name = self.allocate_file_level_name("_classSuper");
             let reference = self.create_identifier(&name)?;
             extends_data.expression = Some(reference.node());
@@ -1906,167 +2080,366 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(None)
     }
 
-    fn prepare_decorators_and_computed_names(
+    /// tsc-port: classElementVisitor @6.0.3 — one member, under the
+    /// class-element frame its caller entered (partialTransformClassElement
+    /// first, then the element-specific transform).
+    fn transform_class_member(
         &mut self,
-        class_plan: Option<&mut ClassDecorationPlan>,
-        plans: &mut [PropertyPlan],
-        method_plans: &mut [MethodPlan],
-        class_this: Option<TransformNode>,
-    ) -> Result<(DecoratorDefinitionBindings, Option<TransformNode>), TransformError> {
-        let mut bindings = DecoratorDefinitionBindings::default();
-        // Class decorators are visited before enterClass, in the enclosing
-        // frame (transformClassLike @6.0.3).
-        if let Some(class_plan) = class_plan {
-            class_plan.decorators =
-                self.transform_decorator_expressions(&class_plan.decorators, &mut bindings)?;
+        member: TransformNode,
+        member_data: NodeData,
+        state: &mut ClassMemberState<'_>,
+    ) -> Result<(), TransformError> {
+        // tsc-port: visitPropertyDeclaration @6.0.3 — named evaluation of an
+        // anonymous decorated class initializer precedes the element work.
+        let name_previsited = if let NodeData::PropertyDeclaration(data) = &member_data {
+            let decorated = state.plans_by_node.contains_key(&member.node());
+            self.prepare_property_named_evaluation(
+                member,
+                data,
+                decorated,
+                state.class_definition_bindings,
+            )?
+        } else {
+            false
+        };
+        if let Some(index) = state.plans_by_node.get(&member.node()).copied() {
+            self.partial_transform_property_plan(
+                &mut state.plans[index],
+                state.class_definition_bindings,
+            )?;
+        } else if let Some(index) = state.method_plans_by_node.get(&member.node()).copied() {
+            self.partial_transform_method_plan(
+                &mut state.method_plans[index],
+                state.class_definition_bindings,
+            )?;
+        } else if !name_previsited {
+            self.previsit_class_element_name(member)?;
         }
-        self.enter_receiver_class(class_this);
-
-        let mut order = Vec::with_capacity(plans.len() + method_plans.len());
-        for (index, plan) in plans.iter().enumerate() {
-            order.push((self.context.arena().node(plan.original)?.pos, false, index));
-        }
-        for (index, plan) in method_plans.iter().enumerate() {
-            order.push((self.context.arena().node(plan.original)?.pos, true, index));
-        }
-        order.sort_by_key(|(position, is_method, index)| (*position, *is_method, *index));
-
-        let mut pending = Vec::new();
-        for (_, is_method, index) in order {
-            // partialTransformClassElement runs inside enterClassElement:
-            // member decorator expressions and referenced computed names see
-            // the member's frame (the class receiver for static properties;
-            // for computed names, the class element enclosing a nested
-            // class).
-            let member = if is_method {
-                method_plans[index].original
-            } else {
-                plans[index].original
-            };
-            self.enter_receiver_class_element(member)?;
-            if is_method {
-                let decorators = method_plans[index].decorators.clone();
-                method_plans[index].decorators =
-                    self.transform_decorator_expressions(&decorators, &mut bindings)?;
-            } else {
-                let decorators = plans[index].decorators.clone();
-                plans[index].decorators =
-                    self.transform_decorator_expressions(&decorators, &mut bindings)?;
+        if matches!(&member_data, NodeData::ClassStaticBlockDeclaration(_)) {
+            let is_runtime_static_block =
+                self.context
+                    .arena()
+                    .metadata(member)
+                    .is_none_or(|metadata| {
+                        metadata.assigned_name.is_none() && metadata.class_this.is_none()
+                    });
+            if is_runtime_static_block {
+                let pending = state
+                    .pending_initializers
+                    .drain(DecoratorInitializerPlacement::Static);
+                let statements = self.materialize_pending_initializer_statements(pending)?;
+                if !statements.is_empty() {
+                    state
+                        .transformed_members
+                        .push(self.create_static_block(statements, true)?);
+                }
             }
+            let visited =
+                self.visit(member.node())?
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassExpression,
+                        field: "static block",
+                    })?;
+            state.transformed_members.push(self.node(visited));
+            return Ok(());
+        }
 
-            let (expression, decorators, decorators_name, survives) = if is_method {
-                let plan = &method_plans[index];
-                (
-                    plan.computed_expression,
-                    plan.decorators.clone(),
-                    plan.decorators_name.clone(),
-                    true,
-                )
+        if let NodeData::PropertyDeclaration(member_data) = member_data {
+            let placement =
+                if self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)? {
+                    DecoratorInitializerPlacement::Static
+                } else {
+                    DecoratorInitializerPlacement::Instance
+                };
+            let pending = state.pending_initializers.drain(placement);
+            if let Some(index) = state.plans_by_node.get(&member.node()).copied() {
+                let plan = state.plans[index].clone();
+                let own_initializer =
+                    self.create_decorated_initializer(&plan, &pending.receiver)?;
+                let initializer = self
+                    .inject_pending_initializer_expression(pending, Some(own_initializer))?
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PropertyDeclaration,
+                        field: "decorated initializer",
+                    })?;
+                let static_accessor_receiver =
+                    if plan.is_static && self.target < ScriptTarget::ES2022 {
+                        if let Some(class_plan) = state.class_decoration {
+                            Some(StaticAccessorReceiver::GeneratedBinding(
+                                class_plan.class_this_name.clone(),
+                            ))
+                        } else if let (Some(text), Some(original_name)) =
+                            (state.explicit_class_name, state.explicit_class_name_node)
+                        {
+                            Some(StaticAccessorReceiver::ClassReference {
+                                text: text.to_owned(),
+                                original_name,
+                                class_owner: state.class_owner,
+                            })
+                        } else {
+                            state.class_evaluation_binding_name.map(|name| {
+                                StaticAccessorReceiver::GeneratedBinding(name.to_owned())
+                            })
+                        }
+                    } else {
+                        None
+                    };
+                if plan.descriptor_name.is_some() {
+                    let backing_name = plan.backing_name.as_deref().ok_or(
+                        TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PropertyDeclaration,
+                            field: "auto-accessor backing name",
+                        },
+                    )?;
+                    state
+                        .transformed_members
+                        .extend(self.create_auto_accessor_members(
+                            &plan,
+                            backing_name,
+                            initializer,
+                            static_accessor_receiver.as_ref(),
+                        )?);
+                } else {
+                    state
+                        .transformed_members
+                        .push(self.update_decorated_property(&plan, initializer)?);
+                }
+                state.pending_initializers.enqueue(
+                    placement,
+                    PendingDecoratorInitializer::FieldExtra {
+                        initializers_name: plan.extra_initializers_name.clone(),
+                    },
+                );
             } else {
-                let plan = &plans[index];
-                (
-                    plan.computed_expression,
-                    plan.decorators.clone(),
-                    plan.decorators_name.clone(),
-                    plan.is_accessor,
-                )
-            };
-            let Some(expression) = expression else {
-                self.exit_receiver_class_element();
-                continue;
-            };
-            let temporary_name = self.allocate_computed_temp_name();
-            // createTempVariable(hoistVariableDeclaration): the cache temp is
-            // a generated identifier with an authoritative spelling. The
-            // hoisted declaration and every use share one binding, and
-            // class-field lowering's findComputedPropertyNameCacheAssignment
-            // recognizes the assignment to reuse the cached key as an
-            // auto-accessor's setter name instead of hoisting a second temp.
-            let temporary_binding =
-                TargetBinding::allocate_planned(self.context, temporary_name.clone())?;
-            self.computed_temp_bindings
-                .insert(temporary_name.clone(), temporary_binding.clone());
-            bindings.record_generated_temporary(temporary_name.clone(), temporary_binding.clone());
-            if is_method {
-                method_plans[index].computed_temp_name = Some(temporary_name.clone());
-            } else {
-                plans[index].computed_temp_name = Some(temporary_name.clone());
+                let visited = self.visit_class_element_generic(member)?.node();
+                let property =
+                    self.inject_pending_initializers_into_property(self.node(visited), pending)?;
+                state.transformed_members.push(property);
             }
-            let original_name = match &self.context.arena().node(member)?.data {
-                NodeData::PropertyDeclaration(data) => data.name,
-                NodeData::MethodDeclaration(data) => data.name,
-                NodeData::GetAccessor(data) => data.name,
-                NodeData::SetAccessor(data) => data.name,
+            return Ok(());
+        }
+
+        if let Some(index) = state.method_plans_by_node.get(&member.node()).copied() {
+            let plan = state.method_plans[index].clone();
+            let transformed = if plan.is_private {
+                self.create_private_method_forwarder(&plan)?
+            } else {
+                self.update_public_method(&plan)?
+            };
+            state.transformed_members.push(transformed);
+            return Ok(());
+        }
+
+        let visited = self.visit_class_element_generic(member)?.node();
+        state.transformed_members.push(self.node(visited));
+        Ok(())
+    }
+
+    /// tsc-port: partialTransformClassElement @6.0.3 (decorated property)
+    ///
+    /// The member decorators are transformed inside the element frame and
+    /// their array assignment joins `pendingExpressions`; a non-literal
+    /// computed name then absorbs the queue through
+    /// `visitReferencedPropertyName`.
+    fn partial_transform_property_plan(
+        &mut self,
+        plan: &mut PropertyPlan,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<(), TransformError> {
+        plan.decorators = self.transform_decorator_expressions(&plan.decorators, bindings)?;
+        self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
+        if let Some(expression) = plan.computed_expression {
+            let (temporary_name, name) =
+                self.visit_referenced_property_name(plan.data.name, expression, bindings)?;
+            plan.computed_temp_name = Some(temporary_name);
+            plan.data.name = Some(name.node());
+        } else {
+            self.previsit_class_element_name(plan.original)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: partialTransformClassElement @6.0.3 (decorated method or
+    /// accessor)
+    fn partial_transform_method_plan(
+        &mut self,
+        plan: &mut MethodPlan,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<(), TransformError> {
+        plan.decorators = self.transform_decorator_expressions(&plan.decorators, bindings)?;
+        self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
+        if let Some(expression) = plan.computed_expression {
+            let original_name = self
+                .declaration_property_name(plan.original)?
+                .map(TransformNode::node);
+            let (temporary_name, name) =
+                self.visit_referenced_property_name(original_name, expression, bindings)?;
+            plan.computed_temp_name = Some(temporary_name);
+            plan.emitted_name = Some(name.node());
+        } else {
+            self.previsit_class_element_name(plan.original)?;
+        }
+        Ok(())
+    }
+
+    /// `pendingExpressions.push(memberDecoratorsName = [decorators])`.
+    fn queue_member_decorators_assignment(
+        &mut self,
+        decorators_name: &str,
+        decorators: &[TransformNode],
+    ) -> Result<(), TransformError> {
+        let array = self.create_decorator_array(decorators)?;
+        let target = self.create_identifier(decorators_name)?;
+        let assignment = self.create_assignment(target, array)?;
+        self.pending_expressions.push(assignment);
+        Ok(())
+    }
+
+    /// tsc-port: visitReferencedPropertyName @6.0.3
+    ///
+    /// The cache temp is a generated binding with an authoritative spelling:
+    /// its hoisted declaration and every use share one binding, and
+    /// class-field lowering's findComputedPropertyNameCacheAssignment
+    /// recognizes the assignment. The key expression is visited under the
+    /// name frame; the assignment absorbs the pending expressions and the
+    /// emitted computed name keeps the parsed name's text range.
+    fn visit_referenced_property_name(
+        &mut self,
+        original_name: Option<NodeId>,
+        expression: NodeId,
+        bindings: &mut DecoratorDefinitionBindings,
+    ) -> Result<(String, TransformNode), TransformError> {
+        let temporary_name = self.allocate_computed_temp_name();
+        let temporary_binding =
+            TargetBinding::allocate_planned(self.context, temporary_name.clone())?;
+        self.computed_temp_bindings
+            .insert(temporary_name.clone(), temporary_binding.clone());
+        bindings.record_generated_temporary(temporary_name.clone(), temporary_binding.clone());
+        self.request_prop_key_helper()?;
+        self.enter_receiver_name();
+        let visited = self.visit(expression);
+        self.exit_receiver_name();
+        let expression = visited?.map(|expression| self.node(expression)).ok_or(
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ComputedPropertyName,
+                field: "expression",
+            },
+        )?;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
+        let key = self.create_call(helper, vec![expression])?;
+        let temporary = self.create_identifier(&temporary_name)?;
+        temporary_binding.write_generated_metadata(self.context.arena_mut()?, temporary);
+        let assignment = self.create_assignment(temporary, key)?;
+        let injected = self.inject_pending_expressions(assignment)?;
+        // updateComputedPropertyName(node, …): the parsed name node is
+        // updated, so the emitted name keeps its range and original.
+        let name = match original_name.map(|name| self.node(name)) {
+            Some(original_name)
+                if matches!(
+                    self.context.arena().node(original_name)?.data,
+                    NodeData::ComputedPropertyName(_)
+                ) =>
+            {
+                let data = tsc_syntax::nodes::ComputedPropertyNameData {
+                    expression: Some(injected.node()),
+                };
+                let flags = flags_after_update(
+                    self.context.arena(),
+                    original_name,
+                    &NodeData::ComputedPropertyName(data.clone()),
+                )?;
+                self.context.factory()?.update_node(
+                    original_name,
+                    NodeData::ComputedPropertyName(data),
+                    flags,
+                )?
+            }
+            _ => self.create_computed_property_name(injected)?,
+        };
+        Ok((temporary_name, name))
+    }
+
+    /// tsc-port: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3
+    ///
+    /// Both callers own a computed property name, whose comma sequence the
+    /// printer expects parenthesized: an existing parenthesized expression
+    /// keeps its parentheses around the inlined list, anything else is
+    /// wrapped. An empty queue returns the expression unchanged.
+    fn inject_pending_expressions(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.pending_expressions.is_empty() {
+            return Ok(expression);
+        }
+        let mut expressions = std::mem::take(&mut self.pending_expressions);
+        if let NodeData::ParenthesizedExpression(mut data) =
+            self.context.arena().node(expression)?.data.clone()
+        {
+            let inner = data
+                .expression
+                .and_then(|inner| self.context.arena().node_ref(self.source, inner))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ParenthesizedExpression,
+                    field: "expression",
+                })?;
+            expressions.push(inner);
+            let inline = self.inline_expressions(expressions)?;
+            data.expression = Some(inline.node());
+            let flags = flags_after_update(
+                self.context.arena(),
+                expression,
+                &NodeData::ParenthesizedExpression(data.clone()),
+            )?;
+            return self.context.factory()?.update_node(
+                expression,
+                NodeData::ParenthesizedExpression(data),
+                flags,
+            );
+        }
+        expressions.push(expression);
+        let inline = self.inline_expressions(expressions)?;
+        self.create_parenthesized(inline)
+    }
+
+    /// tsc-port: isSimpleInlineableExpression @6.0.3
+    fn is_simple_inlineable_expression(
+        &self,
+        expression: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let kind = self.context.arena().node(expression)?.kind;
+        Ok(kind != SyntaxKind::Identifier
+            && (matches!(
+                kind,
+                SyntaxKind::StringLiteral
+                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::NumericLiteral
+            ) || kind.value() >= SyntaxKind::FirstKeyword.value()
+                && kind.value() <= SyntaxKind::LastKeyword.value()))
+    }
+
+    /// tsc-port: skipOuterExpressions @6.0.3
+    fn skip_outer_expressions(&self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        let mut current = node;
+        loop {
+            let next = match &self.context.arena().node(current)?.data {
+                NodeData::ParenthesizedExpression(data) => data.expression,
+                NodeData::TypeAssertionExpression(data) => data.expression,
+                NodeData::AsExpression(data) => data.expression,
+                NodeData::SatisfiesExpression(data) => data.expression,
+                NodeData::NonNullExpression(data) => data.expression,
+                NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                NodeData::PartiallyEmittedExpression(data) => data.expression,
                 _ => None,
             };
-
-            let decorators = self.create_decorator_array(&decorators)?;
-            let decorators_target = self.create_identifier(&decorators_name)?;
-            pending.push(self.create_assignment(decorators_target, decorators)?);
-
-            self.enter_receiver_name();
-            let expression = self.visit(expression);
-            self.exit_receiver_name();
-            let expression = expression?.map(|expression| self.node(expression)).ok_or(
-                TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ComputedPropertyName,
-                    field: "expression",
-                },
-            )?;
-            let helper = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
-            let key = self.create_call(helper, vec![expression])?;
-            let temporary = self.create_identifier(&temporary_name)?;
-            temporary_binding.write_generated_metadata(self.context.arena_mut()?, temporary);
-            pending.push(self.create_assignment(temporary, key)?);
-
-            let cached = self.create_identifier(&temporary_name)?;
-            temporary_binding.write_generated_metadata(self.context.arena_mut()?, cached);
-            // visitReferencedPropertyName → updateComputedPropertyName keeps
-            // the parsed name's text range on every emitted computed name.
-            let cached_name = self.create_computed_property_name(cached)?;
-            if let Some(original_name) = original_name {
-                let original_name = self.node(original_name);
-                self.context
-                    .factory()?
-                    .set_text_range(cached_name, original_name)?;
+            match next {
+                Some(next) => current = self.node(next),
+                None => return Ok(current),
             }
-            if is_method {
-                method_plans[index].emitted_name = Some(cached_name.node());
-            } else {
-                plans[index].data.name = Some(cached_name.node());
-            }
-
-            if survives {
-                let expressions = std::mem::take(&mut pending);
-                let expression = self.inline_expressions(expressions)?;
-                let expression = self.create_parenthesized(expression)?;
-                let emitted_name = self.create_computed_property_name(expression)?;
-                if let Some(original_name) = original_name {
-                    let original_name = self.node(original_name);
-                    self.context
-                        .factory()?
-                        .set_text_range(emitted_name, original_name)?;
-                }
-                if is_method {
-                    method_plans[index].emitted_name = Some(emitted_name.node());
-                } else {
-                    plans[index].data.name = Some(emitted_name.node());
-                }
-            }
-            self.exit_receiver_class_element();
         }
-
-        let block = if pending.is_empty() {
-            None
-        } else {
-            let expression = self.inline_expressions(pending)?;
-            let statement = self.create_expression_statement(expression)?;
-            Some(self.create_static_block(vec![statement], false)?)
-        };
-        Ok((bindings, block))
     }
 
     fn transform_decorator_expressions(
@@ -2083,8 +2456,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     parent: SyntaxKind::Decorator,
                     field: "expression",
                 })?;
-            let bound = self.bind_decorator_expression(visited, bindings)?;
-            output.push(self.rewrite_decorator_lexical_this(bound, bindings)?);
+            output.push(self.bind_decorator_expression(visited, bindings)?);
         }
         Ok(output)
     }
@@ -2200,8 +2572,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let receiver_name = self.allocate_computed_temp_name();
         bindings.record_temporary(receiver_name.clone());
         let temporary = self.create_identifier(&receiver_name)?;
+        // createCallBinding: `setTextRange(createAssignment(thisArg,
+        // callee.expression), callee.expression)`, and the parentheses
+        // parenthesizeLeftSideOfAccess adds take the same range.
         let assignment = self.create_assignment(temporary, receiver)?;
+        self.context
+            .factory()?
+            .set_text_range(assignment, receiver)?;
         let assignment = self.create_parenthesized(assignment)?;
+        self.context
+            .factory()?
+            .set_text_range(assignment, receiver)?;
         let this_arg = self.create_identifier(&receiver_name)?;
         Ok((assignment, this_arg))
     }
@@ -3401,7 +3782,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_set_function_name_block(
         &mut self,
-        class_name: &str,
+        class_name: &DecoratedClassRuntimeName,
         target_name: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
@@ -3413,7 +3794,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else {
             self.create_this()?
         };
-        let name = self.create_string_literal(class_name)?;
+        let name = match class_name {
+            DecoratedClassRuntimeName::AssignedReference { name, binding } => {
+                let reference = self.create_identifier(name)?;
+                binding.write_generated_metadata(self.context.arena_mut()?, reference);
+                reference
+            }
+            other => self.create_string_literal(other.text())?,
+        };
         let call = self.create_call(helper, vec![target, name])?;
         let statement = self.create_expression_statement(call)?;
         let block = self.create_static_block(vec![statement], false)?;
@@ -3562,7 +3950,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 parent: SyntaxKind::Constructor,
                 field: "body",
             })?;
-        let NodeData::Block(mut block) = self.context.arena().node(body)?.data.clone() else {
+        let NodeData::Block(block) = self.context.arena().node(body)?.data.clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Constructor,
                 field: "body block",
@@ -3599,23 +3987,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 statements = replayed;
             }
         }
-        let statements = if let Some(original) = block.statements.map(|array| self.array(array)) {
-            self.context
-                .factory()?
-                .update_node_array(original, statements)?
-        } else {
-            self.context
-                .factory()?
-                .create_node_array(self.source, statements)?
-        };
-        block.statements = Some(statements.array());
-        let flags =
-            flags_after_update(self.context.arena(), body, &NodeData::Block(block.clone()))?;
-        let body = self
-            .context
-            .factory()?
-            .update_node(body, NodeData::Block(block), flags)?;
-        data.body = Some(body.node());
+        // `body = factory.createBlock(statements, /*multiLine*/ true);
+        // setOriginalNode(body, node.body); setTextRange(body, node.body)`:
+        // a fresh multi-line block, not an update of the parsed one.
+        let _ = block;
+        let body_block = self.create_block(statements, true)?;
+        self.context.factory()?.set_text_range(body_block, body)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(body_block, Some(body))?;
+        data.body = Some(body_block.node());
         let flags = flags_after_update(
             self.context.arena(),
             constructor,
@@ -4448,6 +4829,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         return Ok(explicit_name
                             .map(|name| DecoratedClassRuntimeName::Declared(name.to_owned())));
                     }
+                }
+                if let Some((name, binding)) =
+                    self.inferred_class_name_references.get(&class_like.node())
+                {
+                    return Ok(Some(DecoratedClassRuntimeName::AssignedReference {
+                        name: name.clone(),
+                        binding: binding.clone(),
+                    }));
                 }
                 Ok(assigned_name
                     .map(|name| DecoratedClassRuntimeName::Assigned(name.to_owned()))
@@ -5444,8 +5833,8 @@ impl StandardDecoratorVisitor<'_> {
             // `top.next.next.next`: the class element enclosing the class
             // whose element name is being visited.
             Some(DecoratorReceiverFrame::Name) => {
-                match frames.len().checked_sub(4).map(|index| frames[index]) {
-                    Some(DecoratorReceiverFrame::ClassElement { class_this }) => class_this,
+                match frames.len().checked_sub(4).map(|index| &frames[index]) {
+                    Some(DecoratorReceiverFrame::ClassElement { class_this }) => *class_this,
                     _ => None,
                 }
             }
@@ -5455,19 +5844,38 @@ impl StandardDecoratorVisitor<'_> {
     }
 
     /// tsc-port: enterClass @6.0.3 (`classInfo.classThis` of the class)
+    ///
+    /// The enclosing pending expressions are saved with the frame and the
+    /// class starts with none.
     fn enter_receiver_class(&mut self, class_this: Option<TransformNode>) {
-        self.receiver_frames
-            .push(DecoratorReceiverFrame::Class { class_this });
+        let saved_pending = std::mem::take(&mut self.pending_expressions);
+        self.receiver_frames.push(DecoratorReceiverFrame::Class {
+            class_this,
+            saved_pending,
+        });
         self.update_receiver_state();
     }
 
     /// tsc-port: exitClass @6.0.3
+    ///
+    /// The class flushed its own pending expressions before exiting; the
+    /// enclosing ones come back with the frame. Every `Err` path of a class
+    /// transform discards the visitor (`transform_nodes` returns the error),
+    /// so frames are only ever restored on `Ok`.
     fn exit_receiver_class(&mut self) {
-        debug_assert!(matches!(
-            self.receiver_frames.last(),
-            Some(DecoratorReceiverFrame::Class { .. })
-        ));
-        self.receiver_frames.pop();
+        match self.receiver_frames.pop() {
+            Some(DecoratorReceiverFrame::Class { saved_pending, .. }) => {
+                debug_assert!(
+                    self.pending_expressions.is_empty(),
+                    "pending expressions must be flushed before exitClass"
+                );
+                self.pending_expressions = saved_pending;
+            }
+            other => debug_assert!(
+                false,
+                "exit_receiver_class without a class frame: {other:?}"
+            ),
+        }
         self.update_receiver_state();
     }
 
@@ -5489,7 +5897,9 @@ impl StandardDecoratorVisitor<'_> {
             Some(DecoratorReceiverFrame::Class { .. })
         ));
         let class_this = match self.receiver_frames.last() {
-            Some(DecoratorReceiverFrame::Class { class_this }) if carries_receiver => *class_this,
+            Some(DecoratorReceiverFrame::Class { class_this, .. }) if carries_receiver => {
+                *class_this
+            }
             _ => None,
         };
         self.receiver_frames
@@ -5530,11 +5940,15 @@ impl StandardDecoratorVisitor<'_> {
 
     /// tsc-port: enterOther @6.0.3
     fn enter_receiver_other(&mut self) {
-        if let Some(DecoratorReceiverFrame::Other { depth }) = self.receiver_frames.last_mut() {
+        if let Some(DecoratorReceiverFrame::Other { depth, .. }) = self.receiver_frames.last_mut() {
+            debug_assert!(self.pending_expressions.is_empty());
             *depth += 1;
         } else {
-            self.receiver_frames
-                .push(DecoratorReceiverFrame::Other { depth: 0 });
+            let saved_pending = std::mem::take(&mut self.pending_expressions);
+            self.receiver_frames.push(DecoratorReceiverFrame::Other {
+                depth: 0,
+                saved_pending,
+            });
             self.update_receiver_state();
         }
     }
@@ -5542,9 +5956,16 @@ impl StandardDecoratorVisitor<'_> {
     /// tsc-port: exitOther @6.0.3
     fn exit_receiver_other(&mut self) {
         match self.receiver_frames.last_mut() {
-            Some(DecoratorReceiverFrame::Other { depth }) if *depth > 0 => *depth -= 1,
+            Some(DecoratorReceiverFrame::Other { depth, .. }) if *depth > 0 => {
+                debug_assert!(self.pending_expressions.is_empty());
+                *depth -= 1;
+            }
             Some(DecoratorReceiverFrame::Other { .. }) => {
-                self.receiver_frames.pop();
+                if let Some(DecoratorReceiverFrame::Other { saved_pending, .. }) =
+                    self.receiver_frames.pop()
+                {
+                    self.pending_expressions = saved_pending;
+                }
                 self.update_receiver_state();
             }
             _ => debug_assert!(false, "exit_receiver_other without an other frame"),
@@ -5663,6 +6084,22 @@ impl StandardDecoratorVisitor<'_> {
         let mut visited = Vec::with_capacity(nodes.len());
         for member in nodes {
             let member = self.node(member);
+            // Named evaluation of a decorated class initializer with a
+            // literal property name; a non-literal computed name would hoist
+            // into the enclosing lexical environment, which this transform
+            // does not own (open row).
+            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
+                if let (Some(name), Some(class)) = (
+                    data.name,
+                    self.anonymous_class_needing_assigned_name(data.initializer)?,
+                ) {
+                    if let Some(text) = self.property_name_literal_text(self.node(name))? {
+                        self.inferred_class_names
+                            .entry(class.node())
+                            .or_insert(text);
+                    }
+                }
+            }
             self.enter_receiver_class_element(member)?;
             let result = self
                 .previsit_class_element_name(member)
@@ -5692,10 +6129,68 @@ impl StandardDecoratorVisitor<'_> {
         let Some(name) = name else {
             return Ok(());
         };
+        self.previsit_property_name(name, name)
+    }
+
+    /// tsc-port: visitPropertyName @6.0.3 under the name frame. `name` is
+    /// the node to visit (possibly a rewritten computed name) and `memo_key`
+    /// the parsed name whose later visits reuse the result.
+    fn previsit_property_name(
+        &mut self,
+        name: NodeId,
+        memo_key: NodeId,
+    ) -> Result<(), TransformError> {
+        let is_computed = matches!(
+            self.context.arena().node(self.node(name))?.data,
+            NodeData::ComputedPropertyName(_)
+        );
         self.enter_receiver_name();
         let visited = self.visit(name);
         self.exit_receiver_name();
-        visited?;
+        let Some(visited) = visited? else {
+            return Ok(());
+        };
+        if memo_key != name {
+            self.nodes.insert(memo_key, Some(visited));
+        }
+        // tsc-port: visitComputedPropertyName @6.0.3 — a computed name whose
+        // visited expression is not simply inlineable absorbs the pending
+        // expressions of the class.
+        if !is_computed || self.pending_expressions.is_empty() {
+            return Ok(());
+        }
+        let visited_name = self.node(visited);
+        let NodeData::ComputedPropertyName(mut data) =
+            self.context.arena().node(visited_name)?.data.clone()
+        else {
+            return Ok(());
+        };
+        let expression = data
+            .expression
+            .and_then(|expression| self.context.arena().node_ref(self.source, expression))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ComputedPropertyName,
+                field: "expression",
+            })?;
+        if self.is_simple_inlineable_expression(expression)? {
+            return Ok(());
+        }
+        let injected = self.inject_pending_expressions(expression)?;
+        data.expression = Some(injected.node());
+        let flags = flags_after_update(
+            self.context.arena(),
+            visited_name,
+            &NodeData::ComputedPropertyName(data.clone()),
+        )?;
+        let updated = self.context.factory()?.update_node(
+            visited_name,
+            NodeData::ComputedPropertyName(data),
+            flags,
+        )?;
+        self.nodes.insert(memo_key, Some(updated.node()));
+        if memo_key != name {
+            self.nodes.insert(name, Some(updated.node()));
+        }
         Ok(())
     }
 

@@ -40,7 +40,10 @@ fn decorator_next_witnesses_match_complete_typescript_observations() {
         assert!(artifact["upstream_failures"].as_array().unwrap().is_empty());
         let group_cases = artifact["cases"].as_array().unwrap();
         assert_eq!(group_cases.len(), *count, "{group}");
-        if selection.as_deref().is_none_or(|selected| selected == *group) {
+        if selection
+            .as_deref()
+            .is_none_or(|selected| selected == *group)
+        {
             cases.extend(group_cases.iter().cloned());
         }
     }
