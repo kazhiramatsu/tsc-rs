@@ -1,0 +1,811 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "direct-printer-metadata",
+  "repetitions": 2,
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "501655bea2824e5223b74071afe164a535a622fa7b82f1397b2d72ac66840228",
+  "cases": [
+    {
+      "case_id": "comma-list-printer/parsed/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parsed/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/empty/retain",
+      "text": "sink();\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(());\r\n",
+        "utf8_base64": "c2luaygoKSk7DQo=",
+        "utf8_bytes": 11,
+        "end_utf16": {
+          "position": 11,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/empty/remove",
+      "text": "sink();\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink(());\r\n",
+        "utf8_base64": "c2luaygoKSk7DQo=",
+        "utf8_bytes": 11,
+        "end_utf16": {
+          "position": 11,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/single/retain",
+      "text": "sink(/* first */ a /* last */);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* last */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiBsYXN0ICovKSk7DQo=",
+        "utf8_bytes": 35,
+        "end_utf16": {
+          "position": 35,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/single/remove",
+      "text": "sink(/* first */ a /* last */);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a));\r\n",
+        "utf8_base64": "c2luaygoYSkpOw0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/trailing-comma/retain",
+      "text": "sink(a, b, c,);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/trailing-comma/remove",
+      "text": "sink(a, b, c,);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/end-leading/retain",
+      "text": "sink(a\n/* before delimiter */ , b\n/* after list */);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((a\r\n/* before delimiter */ , b\r\n/* after list */ ));\r\n",
+        "utf8_base64": "c2luaygoYQ0KLyogYmVmb3JlIGRlbGltaXRlciAqLyAsIGINCi8qIGFmdGVyIGxpc3QgKi8gKSk7DQo=",
+        "utf8_bytes": 59,
+        "end_utf16": {
+          "position": 59,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/end-leading/remove",
+      "text": "sink(a\n/* before delimiter */ , b\n/* after list */);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b));\r\n",
+        "utf8_base64": "c2luaygoYSwgYikpOw0K",
+        "utf8_bytes": 15,
+        "end_utf16": {
+          "position": 15,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/line-comments/retain",
+      "text": "sink(a, // first line\n b, // second line\n c);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((a, // first line\r\nb, // second line\r\nc));\r\n",
+        "utf8_base64": "c2luaygoYSwgLy8gZmlyc3QgbGluZQ0KYiwgLy8gc2Vjb25kIGxpbmUNCmMpKTsNCg==",
+        "utf8_bytes": 49,
+        "end_utf16": {
+          "position": 49,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/line-comments/remove",
+      "text": "sink(a, // first line\n b, // second line\n c);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/nested-comma/retain",
+      "text": "sink((a, b), c, d);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(((a, b), c, d));\r\n",
+        "utf8_base64": "c2luaygoKGEsIGIpLCBjLCBkKSk7DQo=",
+        "utf8_bytes": 23,
+        "end_utf16": {
+          "position": 23,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/nested-comma/remove",
+      "text": "sink((a, b), c, d);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink(((a, b), c, d));\r\n",
+        "utf8_base64": "c2luaygoKGEsIGIpLCBjLCBkKSk7DQo=",
+        "utf8_bytes": 23,
+        "end_utf16": {
+          "position": 23,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/grammar/retain",
+      "text": "sink({ x: 1 }, function () {}, a ? b : c);\n",
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(({ x: 1 }, function () { }, a ? b : c));\r\n",
+        "utf8_base64": "c2luaygoeyB4OiAxIH0sIGZ1bmN0aW9uICgpIHsgfSwgYSA/IGIgOiBjKSk7DQo=",
+        "utf8_bytes": 47,
+        "end_utf16": {
+          "position": 47,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/grammar/remove",
+      "text": "sink({ x: 1 }, function () {}, a ? b : c);\n",
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink(({ x: 1 }, function () { }, a ? b : c));\r\n",
+        "utf8_base64": "c2luaygoeyB4OiAxIH0sIGZ1bmN0aW9uICgpIHsgfSwgYSA/IGIgOiBjKSk7DQo=",
+        "utf8_bytes": 47,
+        "end_utf16": {
+          "position": 47,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic-comment-range/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "comment_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic-comment-range/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "comment_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/next-line/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "new_line": 1,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */\r\n    b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8NCiAgICBiLCBjIC8qIHRhaWwgYyAqLykpOw0K",
+        "utf8_bytes": 75,
+        "end_utf16": {
+          "position": 75,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/next-line/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "new_line": 1,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a,\r\n    b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwNCiAgICBiLCBjKSk7DQo=",
+        "utf8_bytes": 23,
+        "end_utf16": {
+          "position": 23,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/first-line-ignored/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "new_line": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/first-line-ignored/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "new_line": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic-next-line/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "comment_range": true,
+      "new_line": 1,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */,\r\n    b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sDQogICAgYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/synthetic-next-line/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "synthetic": true,
+      "comment_range": true,
+      "new_line": 1,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a,\r\n    b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwNCiAgICBiLCBjKSk7DQo=",
+        "utf8_bytes": 23,
+        "end_utf16": {
+          "position": 23,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-multiline-ignored/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "multi_line": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-multiline-ignored/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "multi_line": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-range/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-range/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-leading/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-leading/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-leading/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 1024,
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-leading/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 1024,
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-trailing/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a, /* between */ b, c));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSwgLyogYmV0d2VlbiAqLyBiLCBjKSk7DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-trailing/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-trailing/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 2048,
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-trailing/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 2048,
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-own/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a, /* between */ b, c));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSwgLyogYmV0d2VlbiAqLyBiLCBjKSk7DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-own/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-own/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 3072,
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-own/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 3072,
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-nested/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-nested/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-nested/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 4096,
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (a, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoYSwgYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-nested/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 4096,
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-all/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink((/* first */ a, /* between */ b, c));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSwgLyogYmV0d2VlbiAqLyBiLCBjKSk7DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/child-no-all/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "child_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-all/retain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 7168,
+      "parent_range": true,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "sink(/* first */ (a, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoYSwgYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-list-printer/parent-no-all/remove",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "parent_flags": 7168,
+      "parent_range": true,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "sink((a, b, c));\r\n",
+        "utf8_base64": "c2luaygoYSwgYiwgYykpOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

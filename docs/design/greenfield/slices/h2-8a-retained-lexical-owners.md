@@ -377,6 +377,84 @@ against both TypeScript and their complete prior tuples; a failed case's
 unchanged status is not proof that all its output bytes were preserved.
 No candidate adjacent emitter-suite run or hosted acceptance has occurred yet.
 
+#### Staged comma printer worker
+
+The [exact printer patch](h2-8a-comma-printer.candidate.patch) adds one dispatch
+arm and three private methods. It applies only to printer base SHA
+`8951dc94e07df2cfdca2f41a7b82e4c9ceeae75d6d5ff60ae5dabb752db53398`;
+its SHA is `f8a30aca24079b013b1396af6ffb769eabe8509af700e4f63f1fdf4f2ce8b90c`
+and the resulting printer SHA is
+`9fa6f4729211ac6a1fc180a1c86c7bcbe132c13a565a89dbc3782d689c96ed09`.
+Class candidate v2 is unchanged. This remains an isolated design candidate;
+the whole A40 readiness gate below is still open.
+
+The [printer source supplement](../../../../ratchets/h2-8a-comma-printer-sources.v1.json)
+pins26 whole owners, their source bodies, calls, and predicates. Reproduce it
+with `node scripts/observe-comma-printer-sources.mjs --check`. This supplements
+the earlier class owner inventories without claiming that their remaining
+architecture and semantic dispositions have been completed.
+
+| Source input / transition | Concrete candidate owner and behavior | Focused witness |
+| --- | --- | --- |
+| `emitCommaList` -> `emitExpressionList`, format528 | Worker dispatch -> `emit_comma_expression_list`; explicit `EmitHint::Expression`, `ExpressionSyntaxContext::NORMAL`, existing hook/substitution/source-map pipeline | All50 direct controls; six frozen complete Program failures |
+| Absent or empty children | `Option<NodeArrayId>` returns empty output for None; `TransformNodeArray::new` and arena validation distinguish an invalid present array from an empty one | `empty`, `single` |
+| CommaDelimited / SpaceBetweenSiblings; all other format bits absent | Snapshot child IDs in order; no brackets, inherited MultiLine, element parentheses, trailing comma, leading or closing line break | `trailing-comma`, `parent-multiline-ignored`, `nested-comma`, `grammar` |
+| `previous.end != parent.end`, NoTrailingComments | `emit_comma_element_end_comments` reads raw ends and flags, then invokes only `PositionCommentPhase::SourceLeading` with the ambient containerPos guard | `end-leading`, `parent-range`, child flag controls |
+| Child comment range before child emission | `emit_comma_element_start_comments` reads `CommentRange` independently from raw/original/map range; inherited `CommentEmissionScope::retains_end` guards trailing readers | `parsed`, `synthetic-comment-range`, parent flag controls |
+| `getStartsOnNewLine(next)` | Per-next-child `EmitMetadata::starts_on_new_line`; increase indent, optional positional comment phase, line break, ordinary expression, decrease indent; first child has no separator | `next-line`, `first-line-ignored`, `synthetic-next-line` |
+| Raw child.pos synthesized guard on the pre-newline phase | Test raw position before consulting a possibly retained comment range; normal no-newline phase still consults that range | `synthetic-next-line` vs `synthetic-comment-range` |
+| prefixSpace / forceNoNewline callback selection | For528, prefixSpace wins: filtered trailing comments receive a prefix whenever not at line start; otherwise use the existing non-prefixing intervening-comment callback | `next-line`, `line-comments` |
+| commentsDisabled / NoNestedComments | Inherited immutable `EmitContext`; both list-position helpers stop under nested suppression, ordinary child phases retain their existing owner | All retain/remove pairs and parent/child flag controls |
+| Failure and temporary state | Arena/range/hook/printer `Result` propagates; temporary indent restores before propagating a child-phase error; no new mutable global state or public API | Typed arena operations; full six-error comparison pending |
+
+The format528 specialization does not allocate transform nodes, modify flags,
+or change generated identities. Ordinary child emission owns nested comments,
+source maps, hook ordering and parenthesization. The enclosing statement-list
+owner retains detached-prefix consumption; before production readiness, its
+non-reentry proof must be included with the existing comment-scope premise.
+`preserveSourceNewlines` remains unavailable/false in this admitted printer
+configuration. Direct metadata observations exercise the private design and
+do not activate the separately owned custom-transform Program API.
+
+The [source-produced fixture](../../../../crates/emitter/tests/fixtures/comma-list-printer.json)
+contains50 cases, each printed twice by pinned TypeScript, with complete text,
+UTF-8 bytes and ending UTF-16 writer location. Its SHA is
+`5fc4aaa95b65aa1d2135aaeb9e4d5a36c6ddae7ea18fe38533b3f8f654a5c33b`.
+Reproduce with `node scripts/observe-comma-list-printer.mjs --check`.
+The native direct contract executes the same recipes twice and compares every
+recorded field; expectations are never generated from native output.
+
+`python3 scripts/run-comma-printer-design-experiment.py N direct` executes the
+direct contract in the existing isolated workspace; selection `all` executes
+the unchanged complete530 comparator. `edges` and `comma-factory` select its
+existing16/8-case bands. Each fresh attempt pins copied and root inputs,
+archives the applied patch and source bytes before execution, and retains the
+executed test binary before any later Cargo command. Attempts are never
+overwritten. One background heavy job, two Cargo workers, niceness15.
+
+The [direct attempt1 receipt](../../../../ratchets/h2-8a-comma-printer-direct.v1.json)
+freezes exit101 in182.698 seconds: **47/50 exact
+twice**, three repeated differences. The failed controls are
+`parent-no-trailing/retain`, `parent-no-own/retain`, and `parent-no-all/retain`.
+Each loses `/* tail c */` outside the call argument's generated parentheses.
+Keep all50 frozen expectations. The binary and both repeated differences are
+retained in the attempt archive; this is a design finding, not a passing suite.
+
+`A40-F-COMMA-ARGUMENT-COMMENTS` records the shared boundary involved:
+`emit_call_arguments` invokes `emit_node_id_with_context` without deferred
+outer trailing comments, then its explicit end-comment phase consults the
+unparenthesized argument's NoTrailingComments. The virtual SourceRanged
+parenthesis already has the correct `EmitFlags::NONE` owner, but no deferred
+outer trailing phase reaches it. Upstream
+`parenthesizeExpressionForDisallowedComma`20483-20488 creates a parenthesis and
+copies only the text range, leaving child flags inside. This finding needs a
+source-derived shared argument/parenthesizer disposition before qualification;
+do not add a comma-case special condition or change expectations. Full
+attempt2 uses the same frozen printer patch to measure the original six
+complete-command failures and preserve all471 prior candidate positives.
+After termination, freeze it with
+`python3 scripts/analyze-comma-printer-design-experiment.py 2`.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,
