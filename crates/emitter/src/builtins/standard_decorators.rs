@@ -2442,6 +2442,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
             _ => self.create_computed_property_name(injected)?,
         };
+        // The emitted name holds already-visited pending expressions (visited
+        // under their own members' frames); tsc never re-enters it, so the
+        // member update must not visit it again under this element's frame.
+        self.nodes.insert(name.node(), Some(name.node()));
         Ok((temporary_binding, name))
     }
 
