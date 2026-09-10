@@ -58,7 +58,7 @@ fn utf16_literal_escaping_matches_typescript() {
                 let metadata = arena.metadata(node).unwrap();
                 assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
                 let tree_state = json!({"kind":record.kind as u16,"pos":-1,"end":-1,"flags":record.flags,
-                    "emit_flags":metadata.flags().bits(),"value_utf16":metadata.javascript_string_value().unwrap().code_units()});
+                    "emit_flags":metadata.flags().bits(),"value_utf16":arena.literal_properties(node).unwrap().javascript_string_value().unwrap().code_units()});
                 let mut transformation = transform_nodes(
                     arena,
                     vec![TransformRoot::SourceFile(source)],
@@ -79,7 +79,7 @@ fn utf16_literal_escaping_matches_typescript() {
                     None,
                 )
                 .unwrap();
-                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text().encode_utf16().collect::<Vec<_>>(),
+                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text_utf16().as_ref(),
                     "utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
                     "end_utf16":{"position":printed.end().position().value(),"line":printed.end().line(),"column":printed.end().column()}});
                 assert_eq!(

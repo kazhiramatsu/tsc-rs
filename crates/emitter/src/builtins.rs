@@ -859,7 +859,7 @@ impl TypeScriptTransformer<'_> {
         if let Some(value) = javascript_string {
             context
                 .arena_mut()?
-                .metadata_mut(substitute)
+                .literal_properties_mut(substitute)?
                 .set_javascript_string_value(value);
         }
         if let Some(text) = trailing_comment {
@@ -3032,13 +3032,13 @@ fn create_module_export_name_literal(
     if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
         let value = context
             .arena()
-            .metadata(node)
-            .and_then(crate::EmitMetadata::javascript_string_value)
+            .literal_properties(node)
+            .and_then(crate::LiteralNodeProperties::javascript_string_value)
             .cloned();
-        let metadata = context.arena_mut()?.metadata_mut(literal);
-        metadata.set_string_literal_text_source(node);
+        let properties = context.arena_mut()?.literal_properties_mut(literal)?;
+        properties.set_string_literal_text_source(node);
         if let Some(value) = value {
-            metadata.set_javascript_string_value(value);
+            properties.set_javascript_string_value(value);
         }
     }
     Ok(literal)
@@ -9385,7 +9385,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if let Some(quote) = quote {
             self.context
                 .arena_mut()?
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)?
                 .set_string_literal_single_quote(quote.is_single());
         }
         Ok(clone)
@@ -9401,8 +9401,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if let Some(single_quote) = self
             .context
             .arena()
-            .metadata(literal)
-            .and_then(crate::EmitMetadata::string_literal_single_quote)
+            .literal_properties(literal)
+            .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
         {
             return Ok(Some(if single_quote {
                 StringLiteralQuote::Single
@@ -10297,14 +10297,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let value = self
                     .context
                     .arena()
-                    .metadata(node)
-                    .and_then(crate::EmitMetadata::javascript_string_value)
+                    .literal_properties(node)
+                    .and_then(crate::LiteralNodeProperties::javascript_string_value)
                     .cloned();
                 let literal = self.create_string_literal(&name.text)?;
                 if let Some(value) = value {
                     self.context
                         .arena_mut()?
-                        .metadata_mut(literal)
+                        .literal_properties_mut(literal)?
                         .set_javascript_string_value(value);
                 }
                 return self.context.factory()?.create_element_access_expression(
@@ -13675,7 +13675,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 let literal = self.create_string_literal(&text)?;
                 self.context
                     .arena_mut()?
-                    .metadata_mut(literal)
+                    .literal_properties_mut(literal)?
                     .set_javascript_string_value(value.clone());
                 Ok(literal)
             }

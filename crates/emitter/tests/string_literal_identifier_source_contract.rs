@@ -86,8 +86,11 @@ impl Transformer for LiteralTransformer {
             NodeData::StringLiteral(_) => context.factory()?.clone_node(name)?,
             _ => unreachable!(),
         };
+        context
+            .arena_mut()?
+            .literal_properties_mut(literal)?
+            .set_string_literal_text_source(name);
         let metadata = context.arena_mut()?.metadata_mut(literal);
-        metadata.set_string_literal_text_source(name);
         if self.no_ascii_escaping {
             metadata.add_flags(EmitFlags::NO_ASCII_ESCAPING);
         }

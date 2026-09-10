@@ -21,7 +21,8 @@ fn state(arena: &TransformArena, node: TransformNode) -> Value {
     let NodeData::StringLiteral(data) = &record.data else {
         panic!("literal")
     };
-    let value = metadata
+    let value = arena
+        .literal_properties(node)
         .and_then(|value| value.javascript_string_value())
         .map(|value| value.code_units().to_vec())
         .unwrap_or_else(|| data.text.encode_utf16().collect());
@@ -90,7 +91,8 @@ fn literal_parent_provenance_matches_typescript() {
                 };
                 let units = template_text_utf16(&data.text, Some(&token[1..token.len() - 1]));
                 arena
-                    .metadata_mut(original)
+                    .literal_properties_mut(original)
+                    .unwrap()
                     .set_javascript_string_value(JavaScriptString::from_code_units(units));
                 let node = match operation {
                     "parsed" | "parsed-synthesized-flag" => original,
@@ -124,7 +126,7 @@ fn literal_parent_provenance_matches_typescript() {
                     None,
                 )
                 .unwrap();
-                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text().encode_utf16().collect::<Vec<_>>(),"utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
+                let actual = json!({"tree_state":tree_state,"text_utf16":printed.text_utf16().as_ref(),"utf8_base64":base64_encode(printed.text().as_bytes()),"utf8_bytes":printed.text().len(),
                     "end_utf16":{"position":printed.end().position().value(),"line":printed.end().line(),"column":printed.end().column()}});
                 assert_eq!(
                     actual, case["typescript_observation"],

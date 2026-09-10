@@ -423,6 +423,63 @@ impl EmitEnumMemberValue {
     }
 }
 
+/// Literal node properties with the lifetime of their TransformArena node.
+/// These survive emit-session disposal and are copied by cloneNode's own-
+/// property transition, never by setOriginalNode's emitNode merge.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LiteralNodeProperties {
+    /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
+    /// value may contain an unpaired UTF-16 surrogate. Original raw source
+    /// remains authoritative whenever the printer can copy it unchanged.
+    pub(crate) javascript_string_value: Option<JavaScriptString>,
+    /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
+    /// attribute lowering preserves the source delimiter after decoding
+    /// entities, so the cooked value and quote choice must travel together.
+    pub(crate) string_literal_single_quote: Option<bool>,
+    /// Parsed string literal whose token spelling supplies a synthetic
+    /// string's emitted text. This is the source-string branch of tsc's
+    /// `StringLiteral.textSourceNode`; unlike `original`, it carries only
+    /// lexical spelling ownership and grants neither comments nor resolver
+    /// identity to the synthesized literal.
+    pub(crate) string_literal_text_source: Option<TransformNode>,
+    /// Exact rawText supplied to a template factory. None and empty differ.
+    raw_template_text: Option<JavaScriptString>,
+}
+
+impl LiteralNodeProperties {
+    pub fn javascript_string_value(&self) -> Option<&JavaScriptString> {
+        self.javascript_string_value.as_ref()
+    }
+
+    pub const fn string_literal_single_quote(&self) -> Option<bool> {
+        self.string_literal_single_quote
+    }
+
+    pub const fn string_literal_text_source(&self) -> Option<TransformNode> {
+        self.string_literal_text_source
+    }
+
+    pub fn raw_template_text(&self) -> Option<&JavaScriptString> {
+        self.raw_template_text.as_ref()
+    }
+
+    pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
+        self.javascript_string_value = Some(value);
+    }
+
+    pub fn set_string_literal_single_quote(&mut self, value: bool) {
+        self.string_literal_single_quote = Some(value);
+    }
+
+    pub fn set_string_literal_text_source(&mut self, value: TransformNode) {
+        self.string_literal_text_source = Some(value);
+    }
+
+    pub fn set_raw_template_text(&mut self, value: JavaScriptString) {
+        self.raw_template_text = Some(value);
+    }
+}
+
 /// Session-owned `emitNode` equivalent. Parsed nodes remain unchanged.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitMetadata {
@@ -461,20 +518,6 @@ pub struct EmitMetadata {
     /// lowered class-field initializer. Decorated static auto-accessors own
     /// this in addition to the generated getter's normal comment range.
     pub(crate) class_field_initializer_comment_source: Option<TransformNode>,
-    /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
-    /// value may contain an unpaired UTF-16 surrogate. Original raw source
-    /// remains authoritative whenever the printer can copy it unchanged.
-    pub(crate) javascript_string_value: Option<JavaScriptString>,
-    /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
-    /// attribute lowering preserves the source delimiter after decoding
-    /// entities, so the cooked value and quote choice must travel together.
-    pub(crate) string_literal_single_quote: Option<bool>,
-    /// Parsed string literal whose token spelling supplies a synthetic
-    /// string's emitted text. This is the source-string branch of tsc's
-    /// `StringLiteral.textSourceNode`; unlike `original`, it carries only
-    /// lexical spelling ownership and grants neither comments nor resolver
-    /// identity to the synthesized literal.
-    pub(crate) string_literal_text_source: Option<TransformNode>,
     /// Import declaration selected for a synthesized reference. This includes
     /// both classic JSX factory expressions and automatic-runtime helpers.
     /// The declaration identity, rather than the printable local spelling,
@@ -589,18 +632,6 @@ impl EmitMetadata {
         self.starts_on_new_line
     }
 
-    pub fn javascript_string_value(&self) -> Option<&JavaScriptString> {
-        self.javascript_string_value.as_ref()
-    }
-
-    pub const fn string_literal_single_quote(&self) -> Option<bool> {
-        self.string_literal_single_quote
-    }
-
-    pub(crate) const fn string_literal_text_source(&self) -> Option<TransformNode> {
-        self.string_literal_text_source
-    }
-
     pub const fn type_node(&self) -> Option<TransformNode> {
         self.type_node
     }
@@ -698,18 +729,6 @@ impl EmitMetadata {
 
     pub fn set_type_node(&mut self, value: TransformNode) {
         self.type_node = Some(value);
-    }
-
-    pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
-        self.javascript_string_value = Some(value);
-    }
-
-    pub fn set_string_literal_single_quote(&mut self, value: bool) {
-        self.string_literal_single_quote = Some(value);
-    }
-
-    pub fn set_string_literal_text_source(&mut self, value: TransformNode) {
-        self.string_literal_text_source = Some(value);
     }
 
     pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
@@ -859,15 +878,6 @@ impl EmitMetadata {
             source.generated_binding_planned_name_authoritative;
         self.generated_binding_reserved_in_nested_scopes |=
             source.generated_binding_reserved_in_nested_scopes;
-        if source.javascript_string_value.is_some() {
-            self.javascript_string_value = source.javascript_string_value.clone();
-        }
-        if source.string_literal_single_quote.is_some() {
-            self.string_literal_single_quote = source.string_literal_single_quote;
-        }
-        if source.string_literal_text_source.is_some() {
-            self.string_literal_text_source = source.string_literal_text_source;
-        }
         if source.referenced_import_declaration.is_some() {
             self.referenced_import_declaration = source.referenced_import_declaration;
             self.generated_import_reference = source.generated_import_reference;

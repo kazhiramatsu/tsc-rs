@@ -3770,7 +3770,7 @@ impl<'context> Es2018Visitor<'context> {
         if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
             self.context
                 .arena_mut()?
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)?
                 .set_string_literal_text_source(property_name);
         }
         Ok(clone)
@@ -3867,7 +3867,7 @@ impl<'context> Es2018Visitor<'context> {
         if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
             self.context
                 .arena_mut()?
-                .metadata_mut(literal)
+                .literal_properties_mut(literal)?
                 .set_string_literal_text_source(property_name);
         }
         Ok(literal)

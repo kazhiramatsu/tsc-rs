@@ -1645,9 +1645,9 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        let metadata = self.context.arena_mut()?.metadata_mut(literal);
-        metadata.set_javascript_string_value(JavaScriptString::from_code_units(units));
-        metadata.set_string_literal_single_quote(single_quote);
+        let properties = self.context.arena_mut()?.literal_properties_mut(literal)?;
+        properties.set_javascript_string_value(JavaScriptString::from_code_units(units));
+        properties.set_string_literal_single_quote(single_quote);
         Ok(literal)
     }
 

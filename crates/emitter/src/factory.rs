@@ -14,7 +14,7 @@ use tsc_types::{ModifierFlags, NodeFlags};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
-    SourceRange, TransformError, TransformFlags,
+    LiteralNodeProperties, SourceRange, TransformError, TransformFlags,
 };
 
 /// Typed spelling for an unscoped emit-helper reference.
@@ -190,6 +190,7 @@ pub struct TransformArena {
     node_transform_flags: BTreeMap<TransformNode, TransformFlags>,
     array_transform_flags: BTreeMap<TransformNodeArray, TransformFlags>,
     metadata: BTreeMap<TransformNode, EmitMetadata>,
+    literal_properties: BTreeMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,
 }
 
@@ -203,6 +204,7 @@ impl TransformArena {
             node_transform_flags: BTreeMap::new(),
             array_transform_flags: BTreeMap::new(),
             metadata: BTreeMap::new(),
+            literal_properties: BTreeMap::new(),
             next_generated_binding_id: 0,
         }
     }
@@ -224,6 +226,7 @@ impl Clone for TransformArena {
             node_transform_flags: self.node_transform_flags.clone(),
             array_transform_flags: self.array_transform_flags.clone(),
             metadata: self.metadata.clone(),
+            literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
         }
     }
@@ -237,6 +240,7 @@ impl PartialEq for TransformArena {
             && self.node_transform_flags == other.node_transform_flags
             && self.array_transform_flags == other.array_transform_flags
             && self.metadata == other.metadata
+            && self.literal_properties == other.literal_properties
             && self.next_generated_binding_id == other.next_generated_binding_id
     }
 }
@@ -546,6 +550,26 @@ impl TransformArena {
             self.array_transform_flags.remove(&array);
         } else {
             self.array_transform_flags.insert(array, flags);
+        }
+    }
+
+    pub fn literal_properties(&self, node: TransformNode) -> Option<&LiteralNodeProperties> {
+        self.literal_properties.get(&node)
+    }
+
+    /// Validate identity before creating node-owned literal properties.
+    pub fn literal_properties_mut(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<&mut LiteralNodeProperties, TransformError> {
+        self.node(node)?;
+        Ok(self.literal_properties.entry(node).or_default())
+    }
+
+    /// cloneNode copies own properties after setOriginalNode merges emitNode.
+    fn copy_literal_properties(&mut self, original: TransformNode, cloned: TransformNode) {
+        if let Some(properties) = self.literal_properties.get(&original).cloned() {
+            self.literal_properties.insert(cloned, properties);
         }
     }
 
@@ -1921,7 +1945,7 @@ impl<'arena> NodeFactory<'arena> {
             TransformFlags::NONE,
         )?;
         self.arena
-            .metadata_mut(literal)
+            .literal_properties_mut(literal)?
             .set_string_literal_single_quote(single_quote);
         Ok(literal)
     }
@@ -1939,15 +1963,15 @@ impl<'arena> NodeFactory<'arena> {
         let literal =
             self.create_string_literal(source, String::from_utf16_lossy(units), single_quote)?;
         self.arena
-            .metadata_mut(literal)
+            .literal_properties_mut(literal)?
             .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
         Ok(literal)
     }
 
     /// Lossless UTF-16 spelling of createTemplateLiteralLikeNode @6.0.3.
     /// tsc-port: createTemplateLiteralLikeNode @6.0.3
-    /// tsc-hash: 1511a496596c3ef84c876eb6ea51776d475c854621a500428d83ea351bcdbfcb
-    /// tsc-span: _tsc.js:22873-22879
+    /// tsc-hash: 4d36f6cd637eb6babb29850129ab9b8a3bfea4f9e238b375705907258faf9a2b
+    /// tsc-span: _tsc.js:22885-22890
     pub fn create_template_literal_like_from_code_units(
         &mut self,
         source: TransformSourceId,
@@ -1972,9 +1996,11 @@ impl<'arena> NodeFactory<'arena> {
             _ => return Err(TransformError::FactoryTokenKindExpected(kind)),
         };
         let literal = self.create_node(source, data, TransformFlags::CONTAINS_ES_2015)?;
-        self.arena
-            .metadata_mut(literal)
-            .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
+        let properties = self.arena.literal_properties_mut(literal)?;
+        properties.set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
+        if let Some(raw) = raw {
+            properties.set_raw_template_text(JavaScriptString::from_code_units(raw.to_vec()));
+        }
         Ok(literal)
     }
 
@@ -5192,6 +5218,7 @@ impl<'arena> NodeFactory<'arena> {
         }
         self.arena.set_transform_flags(clone, transform_flags);
         self.arena.set_original_node(clone, Some(original))?;
+        self.arena.copy_literal_properties(original, clone);
         Ok(clone)
     }
 
@@ -5522,11 +5549,76 @@ impl<'arena> NodeFactory<'arena> {
         source: TransformSourceId,
         data: &mut NodeData,
     ) -> Result<(), TransformError> {
+        self.parenthesize_comma_delimited_expression_children(source, data)?;
         self.parenthesize_binary_operands(source, data)?;
         self.parenthesize_conditional_operands(source, data)?;
         self.parenthesize_initializer_for_disallowed_comma(source, data)?;
         self.parenthesize_computed_property_name_expression(source, data)?;
         self.parenthesize_export_assignment_expression(source, data)
+    }
+
+    /// tsc-port: parenthesizeExpressionsOfCommaDelimitedList @6.0.3
+    /// tsc-span: _tsc.js:20479-20482
+    /// tsc-port: createArrayLiteralExpression/createCallExpression/createCallChain/createNewExpression @6.0.3
+    /// tsc-span: _tsc.js:22441-22449,22579-22595,22602-22617,22621-22631
+    fn parenthesize_comma_delimited_expression_children(
+        &mut self,
+        source: TransformSourceId,
+        data: &mut NodeData,
+    ) -> Result<(), TransformError> {
+        let (elements, array_literal) = match data {
+            NodeData::CallExpression(call) => (&mut call.arguments, false),
+            NodeData::NewExpression(new) if new.arguments.is_some() => (&mut new.arguments, false),
+            NodeData::ArrayLiteralExpression(array) => (&mut array.elements, true),
+            _ => return Ok(()),
+        };
+        let mut original = match *elements {
+            Some(array) => TransformNodeArray::new(source, array),
+            None => self.create_node_array(source, Vec::new())?,
+        };
+        let record = self.arena.node_array(original)?.clone();
+        let mut nodes = Vec::with_capacity(record.nodes.len());
+        for id in &record.nodes {
+            let node = self
+                .arena
+                .node_ref(source, *id)
+                .ok_or(TransformError::UnknownNode(TransformNode::new(source, *id)))?;
+            nodes.push(node);
+        }
+        let last_is_omitted = if array_literal {
+            nodes
+                .last()
+                .map(|node| self.arena.node(*node))
+                .transpose()?
+                .is_some_and(|node| node.kind == SyntaxKind::OmittedExpression)
+        } else {
+            false
+        };
+        let trailing_comma = record.has_trailing_comma || last_is_omitted;
+        if trailing_comma != record.has_trailing_comma {
+            // createArrayLiteralExpression calls createNodeArray with an
+            // explicit true for a final hole, before parenthesizing children.
+            let flags = self.arena.array_transform_flags(original);
+            original = self.create_node_array_with_trailing_comma(source, nodes.clone(), true)?;
+            self.set_node_array_text_range(original, record.pos, record.end)?;
+            self.arena.set_array_transform_flags(original, flags);
+        }
+        let mut changed = false;
+        for node in &mut nodes {
+            let parenthesized = self.parenthesize_expression_for_disallowed_comma(*node)?;
+            changed |= parenthesized != *node;
+            *node = parenthesized;
+        }
+        let mapped = if changed {
+            let mapped =
+                self.create_node_array_with_trailing_comma(source, nodes, trailing_comma)?;
+            self.set_node_array_text_range(mapped, record.pos, record.end)?;
+            mapped
+        } else {
+            original
+        };
+        *elements = Some(mapped.array());
+        Ok(())
     }
 
     /// A conditional's condition is a logical-OR expression in the grammar,
@@ -7276,6 +7368,7 @@ impl<'a> CrossSourceReuseClone<'a> {
         let cloned = TransformNode::new(self.target, cloned);
         self.arena.set_transform_flags(cloned, transform_flags);
         self.arena.set_original_node(cloned, Some(original))?;
+        self.arena.copy_literal_properties(original, cloned);
         Ok(cloned)
     }
 

@@ -12046,37 +12046,55 @@ fn erased_source_leader_preserves_only_recognized_triple_slash_comments() {
 }
 
 #[test]
-fn esnext_assignment_mode_static_auto_accessor_keeps_dynamic_this_receiver() {
-    let parsed = parse_source_file(
-        "decorator-static-accessor.ts",
-        concat!(
-            "const dec = (_value, _context) => {};\n",
-            "class C { @dec static accessor value = 1; }\n",
-        ),
-        Default::default(),
-        None,
-    );
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let resolver = NoConstantValueResolver;
-    let mut options = bootstrap_options();
-    options.use_define_for_class_fields = Some(false);
-    options.always_strict = Some(false);
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        get_script_transformers(&options, &resolver).unwrap(),
-        false,
-    )
-    .expect("ESNext assignment-mode decorated static auto-accessor");
-    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+fn decorated_static_auto_accessor_matches_typescript_target_routing() {
+    // TypeScript 6.0.3 retains the ESNext accessor in both field modes.
+    // ES2022 lowers it. Compare complete source-owned printed output for all
+    // four controls instead of assuming that every target emits a getter.
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/decorator-static-accessor-routing.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["typescript"], "6.0.3");
+    assert_eq!(fixture["repetitions"], 2);
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 4);
+    for case in cases {
+        let parsed = parse_source_file(
+            fixture["file_name"].as_str().unwrap(),
+            fixture["source"].as_str().unwrap(),
+            Default::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let resolver = NoConstantValueResolver;
+        let mut options = bootstrap_options();
+        options.target = Some(i32::try_from(case["target"].as_i64().unwrap()).unwrap());
+        options.use_define_for_class_fields =
+            Some(case["use_define_for_class_fields"].as_bool().unwrap());
+        options.always_strict = Some(false);
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            get_script_transformers(&options, &resolver).unwrap(),
+            false,
+        )
+        .expect("decorated static auto-accessor routing");
+        // Match compiler emit and transpileModule, including the unchanged
+        // ESNext/define source that standalone printing otherwise preserves.
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed)
+                .with_source_file_text_mode(tsc_emitter::SourceFileTextMode::Canonical),
+        )
         .print(&mut result, PrintRequest::SourceFile(source), None)
-        .expect("print ESNext assignment-mode decorated static auto-accessor");
-    let text = printed.text();
-
-    assert!(text.contains("static get value() { return this.#value_accessor_storage; }"));
-    assert!(text.contains("static set value(value) { this.#value_accessor_storage = value; }"));
-    assert!(!text.contains("return C.#value_accessor_storage"));
+        .expect("print decorated static auto-accessor routing");
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
 }
 
 #[test]

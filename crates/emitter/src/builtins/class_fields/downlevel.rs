@@ -1827,7 +1827,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
         let class_facts = self.scan_class_facts(data.members)?;
-        data.members = self.expand_auto_accessors(data.members)?;
+        if self.should_transform_auto_accessors_in_class(&class_facts) {
+            data.members = self.expand_auto_accessors(data.members)?;
+        }
         let is_export_default = self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?
             && self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
         if data.name.is_none()
@@ -2028,7 +2030,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             self.private_environment_class_name(original)?
         };
-        data.members = self.expand_auto_accessors(data.members)?;
+        if self.should_transform_auto_accessors_in_class(&class_facts) {
+            data.members = self.expand_auto_accessors(data.members)?;
+        }
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         // tsc's private lexical environment owns this allocation before
@@ -2432,8 +2436,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         if let Some(name) = arena
-            .metadata(assigned_name)
-            .and_then(|data| data.string_literal_text_source)
+            .literal_properties(assigned_name)
+            .and_then(|data| data.string_literal_text_source())
             .and_then(|source| self.identifier_text(source))
         {
             return Ok(Some(name.to_owned()));
@@ -2843,6 +2847,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         }
         Ok(InlineSequencePlacement::RequiresParentheses)
+    }
+
+    /// tsc-port: shouldTransformAutoAccessorsInCurrentClass @6.0.3 —
+    /// `True` below ESNext; at ESNext only `Maybe` (set semantics) resolves to
+    /// true when the class hoists its initializers to the constructor.
+    fn should_transform_auto_accessors_in_class(&self, facts: &ClassFactsPlan) -> bool {
+        self.target < ScriptTarget::ES_NEXT
+            || self.mode == PublicFieldMode::Assignment
+                && facts.will_hoist_initializers_to_constructor
     }
 
     fn expand_auto_accessors(
@@ -6099,7 +6112,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 StaticOperation::PrivateField(operation) => {
                     if operation.slot.is_static() {
-                        self.materialize_private_static_field(&operation)?
+                        self.materialize_private_static_field(&operation, false)?
                     } else {
                         // A duplicate private declaration replaces the
                         // name-table entry even when its staticness differs
@@ -6867,7 +6880,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         operation: &PrivateFieldOperation,
     ) -> Result<TransformNode, TransformError> {
         if operation.slot.is_static() {
-            let statement = self.materialize_private_static_field(operation)?;
+            let statement = self.materialize_private_static_field(operation, false)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -6936,7 +6949,20 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn materialize_private_static_field(
         &mut self,
         operation: &PrivateFieldOperation,
+        in_static_block: bool,
     ) -> Result<TransformNode, TransformError> {
+        // tsc-port: transformPrivateFieldInitializer @6.0.3 (ES2022+ static
+        // block path). The statement's range is `moveRangePastModifiers` of
+        // the property that reaches transformPropertyOrClassStaticBlock: for
+        // an auto-accessor backing field that is the generated storage name,
+        // so the statement starts at a synthesized position (no leading
+        // source map) and the bare createPrivateStaticFieldInitializer
+        // assignment carries no range. Below ES2022 the original accessor
+        // property itself is transformed and keeps its name-based ranges.
+        let generated_backing_in_static_block = in_static_block
+            && self
+                .generated_auto_accessor_backings
+                .contains(&operation.original.node());
         let storage_name =
             operation
                 .slot
@@ -6965,20 +6991,23 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(assignment)
                 .class_field_initializer_comment_source = Some(comment_source);
         }
-        if let Some(source_map_range) =
-            self.private_property_name_source_map_range(operation.original)?
-        {
-            let metadata = self.context.arena_mut()?.metadata_mut(assignment);
-            metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
-            metadata.set_source_map_range(source_map_range);
+        if !generated_backing_in_static_block {
+            if let Some(source_map_range) =
+                self.private_property_name_source_map_range(operation.original)?
+            {
+                let metadata = self.context.arena_mut()?.metadata_mut(assignment);
+                metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
+                metadata.set_source_map_range(source_map_range);
+            }
         }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
         if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .set_source_map_range(source_map_range);
+            let metadata = self.context.arena_mut()?.metadata_mut(statement);
+            metadata.set_source_map_range(source_map_range);
+            if generated_backing_in_static_block {
+                metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
+            }
         }
         Ok(statement)
     }
@@ -6987,7 +7016,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         operation: &PrivateFieldOperation,
     ) -> Result<TransformNode, TransformError> {
-        let statement = self.materialize_private_static_field(operation)?;
+        let statement = self.materialize_private_static_field(operation, true)?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)

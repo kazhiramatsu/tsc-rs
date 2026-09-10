@@ -1303,13 +1303,17 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             && self.context.flags.0 & USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE != 0
             && !self
                 .arena
-                .metadata(node)
-                .and_then(tsc_emitter::EmitMetadata::string_literal_single_quote)
+                .literal_properties(node)
+                .and_then(tsc_emitter::LiteralNodeProperties::string_literal_single_quote)
                 .unwrap_or(false)
         {
             let clone = self.clone_node(node)?;
             self.arena
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)
+                .map_err(|error| EmitResolverError::Factory {
+                    method: self.method,
+                    error: Box::new(error),
+                })?
                 .set_string_literal_single_quote(true);
             return Ok(Some(clone));
         }

@@ -1322,7 +1322,8 @@ fn create_string_literal(
         }),
     )?;
     arena
-        .metadata_mut(literal)
+        .literal_properties_mut(literal)
+        .map_err(factory_error)?
         .set_string_literal_single_quote(single_quote);
     Ok(literal)
 }

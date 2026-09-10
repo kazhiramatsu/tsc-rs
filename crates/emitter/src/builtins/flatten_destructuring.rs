@@ -2066,7 +2066,7 @@ fn clone_property_name_literal<H: FlattenHost>(
     if host.context_ref().arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
         host.context()
             .arena_mut()?
-            .metadata_mut(clone)
+            .literal_properties_mut(clone)?
             .set_string_literal_text_source(property_name);
     }
     Ok(clone)
@@ -2092,7 +2092,7 @@ fn create_string_literal_from_property_name<H: FlattenHost>(
     if host.context_ref().arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
         host.context()
             .arena_mut()?
-            .metadata_mut(literal)
+            .literal_properties_mut(literal)?
             .set_string_literal_text_source(property_name);
     }
     Ok(literal)
