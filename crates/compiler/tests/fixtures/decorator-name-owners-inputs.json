@@ -1,0 +1,708 @@
+{
+  "version": 1,
+  "description": "Generated-name ownership: FileLevel versus reserved names, sibling/nested reuse, cross-file globals and computed-name cache bindings.",
+  "cases": [
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/source-identifier-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst _classThis = 1, _metadata = 2, _classSuper = 3, _classDecorators = 4, _outerThis = 5, _a = 6;\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base {\n        static #p = 1;\n        @((this as any).dec) m() {}\n        static inner = @dec class { static #q = 2; @((this as any).dec) n() {} static self = this; };\n        static self = this;\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/sibling-classes-reuse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class A { static #p = 1; @((this as any).dec) m() {} static self = this; }\n    @dec class B { static #q = 2; @((this as any).dec) n() {} static self = this; }\n    return [A, B];\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/computed-temp-shared-binding",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst _a = 1;\n@dec export class Box {\n    @dec accessor [keys.a] = _a;\n    @dec [key()]() {}\n    static [keys.b] = @dec class {};\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/cross-file-global-names",
+      "roots": [
+        "/project/globals.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/globals.ts",
+          "text": "var _classThis = 1; var _metadata = 2; var _classSuper = 3; var _a = 4; var _outerThis = 5; var _m_decorators = 6; var class_1 = 7;\n"
+        },
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base {}\nexport function make(this: any): any {\n    @dec class Box extends Base { @((this as any).reg.dec) m() {} @dec [key()]() {} static inner = @dec class { @((this as any).reg.dec) n() {} }; }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}
