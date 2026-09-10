@@ -628,6 +628,10 @@ struct StandardDecoratorVisitor<'context> {
     /// (`classThis`) that `updateState` derives from them.
     receiver_frames: Vec<DecoratorReceiverFrame>,
     receiver_class_this: Option<TransformNode>,
+    /// `classSuper` derived by `updateState`: set only while a static
+    /// property initializer or static block of a decorated derived class
+    /// is visited.
+    receiver_class_super: Option<String>,
     /// tsc `pendingExpressions`: member decorator array assignments and
     /// computed-name cache assignments waiting for the next non-inlineable
     /// computed property name of the class; whatever remains after the
@@ -654,10 +658,14 @@ enum DecoratorReceiverFrame {
     /// restores them.
     Class {
         class_this: Option<TransformNode>,
+        /// `classInfo.classSuper`: the `_classSuper` name of a decorated
+        /// class with an extends clause.
+        class_super: Option<String>,
         saved_pending: Vec<TransformNode>,
     },
     ClassElement {
         class_this: Option<TransformNode>,
+        class_super: Option<String>,
     },
     Name,
     /// `enterOther` at depth 0 saves the enclosing `pendingExpressions`;
@@ -691,12 +699,27 @@ impl<'context> StandardDecoratorVisitor<'context> {
             file_level_names,
             receiver_frames: Vec::new(),
             receiver_class_this: None,
+            receiver_class_super: None,
             pending_expressions: Vec::new(),
             lexical_environments: Vec::new(),
         }
     }
 
+    /// tsc `visitor`: the expression's value is used.
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        self.visit_with_value_use(id, DecoratorValueUse::Required)
+    }
+
+    /// tsc `discardedValueVisitor`: the expression's value is discarded.
+    fn visit_discarded(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        self.visit_with_value_use(id, DecoratorValueUse::Discarded)
+    }
+
+    fn visit_with_value_use(
+        &mut self,
+        id: NodeId,
+        value_use: DecoratorValueUse,
+    ) -> Result<Option<NodeId>, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
@@ -757,7 +780,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 ) {
                     self.record_named_evaluation_of_identifier(data.left, data.right, true)?;
                 }
-                Some(self.update_generic(original, NodeData::BinaryExpression(data))?)
+                Some(self.visit_binary_expression(original, data, value_use)?)
             }
             NodeData::ExportAssignment(data) => {
                 let assigned = if data.is_export_equals == Some(true) {
@@ -823,6 +846,53 @@ impl<'context> StandardDecoratorVisitor<'context> {
             // tsc-port: visitEachChildOfClassStaticBlockDeclaration @6.0.3
             data @ NodeData::ClassStaticBlockDeclaration(_) => {
                 Some(self.visit_function_like_body(original, data)?)
+            }
+            // tsc-port: transformESDecorators visitor @6.0.3 — super property
+            // paths and value-use aware expression forms.
+            NodeData::CallExpression(data) => Some(self.visit_call_expression(original, data)?),
+            NodeData::TaggedTemplateExpression(data) => {
+                Some(self.visit_tagged_template_expression(original, data)?)
+            }
+            NodeData::PropertyAccessExpression(data) => {
+                Some(self.visit_property_access_expression(original, data)?)
+            }
+            NodeData::ElementAccessExpression(data) => {
+                Some(self.visit_element_access_expression(original, data)?)
+            }
+            NodeData::PrefixUnaryExpression(data) => {
+                let (operator, operand) = (data.operator, data.operand);
+                Some(self.visit_update_expression(
+                    original,
+                    NodeData::PrefixUnaryExpression(data),
+                    true,
+                    operator,
+                    operand,
+                    value_use,
+                )?)
+            }
+            NodeData::PostfixUnaryExpression(data) => {
+                let (operator, operand) = (data.operator, data.operand);
+                Some(self.visit_update_expression(
+                    original,
+                    NodeData::PostfixUnaryExpression(data),
+                    false,
+                    operator,
+                    operand,
+                    value_use,
+                )?)
+            }
+            NodeData::ForStatement(data) => Some(self.visit_for_statement(original, data)?),
+            NodeData::ExpressionStatement(data) => {
+                Some(self.visit_expression_statement(original, data)?)
+            }
+            NodeData::CommaListExpression(data) => {
+                Some(self.visit_comma_list_expression(original, data, value_use)?)
+            }
+            NodeData::ParenthesizedExpression(data) => {
+                Some(self.visit_parenthesized_expression(original, data, value_use)?)
+            }
+            NodeData::PartiallyEmittedExpression(data) => {
+                Some(self.visit_partially_emitted_expression(original, data, value_use)?)
             }
             NodeData::Decorator(_) => {
                 return Err(TransformError::UnsupportedSyntax {
@@ -1467,7 +1537,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let class_this_identity = class_this_assignment.map(|(_, class_this)| class_this);
         // tsc-port: enterClass @6.0.3 — the member frames open under it;
         // `exit_receiver_class` runs after both member passes.
-        self.enter_receiver_class(class_this_identity);
+        self.enter_receiver_class(
+            class_this_identity,
+            class_super.as_ref().map(|(name, _)| name.clone()),
+        );
         let static_method_extra = method_plans
             .iter()
             .any(|plan| plan.is_static)
@@ -5990,29 +6063,42 @@ impl StandardDecoratorVisitor<'_> {
     /// tsc-port: transformESDecorators.updateState @6.0.3
     fn update_receiver_state(&mut self) {
         let frames = &self.receiver_frames;
-        self.receiver_class_this = match frames.last() {
-            Some(DecoratorReceiverFrame::ClassElement { class_this }) => *class_this,
+        let (class_this, class_super) = match frames.last() {
+            Some(DecoratorReceiverFrame::ClassElement {
+                class_this,
+                class_super,
+            }) => (*class_this, class_super.clone()),
             // `top.next.next.next`: the class element enclosing the class
             // whose element name is being visited.
             Some(DecoratorReceiverFrame::Name) => {
                 match frames.len().checked_sub(4).map(|index| &frames[index]) {
-                    Some(DecoratorReceiverFrame::ClassElement { class_this }) => *class_this,
-                    _ => None,
+                    Some(DecoratorReceiverFrame::ClassElement {
+                        class_this,
+                        class_super,
+                    }) => (*class_this, class_super.clone()),
+                    _ => (None, None),
                 }
             }
             Some(DecoratorReceiverFrame::Class { .. } | DecoratorReceiverFrame::Other { .. })
-            | None => None,
+            | None => (None, None),
         };
+        self.receiver_class_this = class_this;
+        self.receiver_class_super = class_super;
     }
 
     /// tsc-port: enterClass @6.0.3 (`classInfo.classThis` of the class)
     ///
     /// The enclosing pending expressions are saved with the frame and the
     /// class starts with none.
-    fn enter_receiver_class(&mut self, class_this: Option<TransformNode>) {
+    fn enter_receiver_class(
+        &mut self,
+        class_this: Option<TransformNode>,
+        class_super: Option<String>,
+    ) {
         let saved_pending = std::mem::take(&mut self.pending_expressions);
         self.receiver_frames.push(DecoratorReceiverFrame::Class {
             class_this,
+            class_super,
             saved_pending,
         });
         self.update_receiver_state();
@@ -6058,14 +6144,19 @@ impl StandardDecoratorVisitor<'_> {
             self.receiver_frames.last(),
             Some(DecoratorReceiverFrame::Class { .. })
         ));
-        let class_this = match self.receiver_frames.last() {
-            Some(DecoratorReceiverFrame::Class { class_this, .. }) if carries_receiver => {
-                *class_this
-            }
-            _ => None,
+        let (class_this, class_super) = match self.receiver_frames.last() {
+            Some(DecoratorReceiverFrame::Class {
+                class_this,
+                class_super,
+                ..
+            }) if carries_receiver => (*class_this, class_super.clone()),
+            _ => (None, None),
         };
         self.receiver_frames
-            .push(DecoratorReceiverFrame::ClassElement { class_this });
+            .push(DecoratorReceiverFrame::ClassElement {
+                class_this,
+                class_super,
+            });
         self.update_receiver_state();
         Ok(())
     }
@@ -6189,7 +6280,7 @@ impl StandardDecoratorVisitor<'_> {
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
-        self.enter_receiver_class(None);
+        self.enter_receiver_class(None, None);
         let members = self.visit_class_members_generic(data.members);
         self.exit_receiver_class();
         data.members = members?;
@@ -6215,7 +6306,7 @@ impl StandardDecoratorVisitor<'_> {
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
-        self.enter_receiver_class(None);
+        self.enter_receiver_class(None, None);
         let members = self.visit_class_members_generic(data.members);
         self.exit_receiver_class();
         data.members = members?;
@@ -6403,6 +6494,996 @@ impl StandardDecoratorVisitor<'_> {
         }
         self.nodes.insert(member.node(), Some(updated.node()));
         Ok(updated)
+    }
+}
+
+/// tsc `visitor` versus `discardedValueVisitor`: whether the visited
+/// expression's value is used.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecoratorValueUse {
+    Required,
+    Discarded,
+}
+
+/// tsc-port: transformESDecorators super-property paths @6.0.3
+/// tsc-span: _tsc.js:100154-100480
+///
+/// Inside a decorated class's static property initializers and static
+/// blocks (`classThis` and `classSuper` set by the class-element frame),
+/// `super` property reads, calls, tagged templates, assignments, updates and
+/// destructuring targets are projected through `Reflect.get`/`Reflect.set`
+/// with `_classSuper` and `_classThis`; the temporaries they need are hoisted
+/// by the innermost lexical environment.
+impl StandardDecoratorVisitor<'_> {
+    fn visit_required(
+        &mut self,
+        id: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+    ) -> Result<TransformNode, TransformError> {
+        let id = id.ok_or(TransformError::RequiredChildRemoved { parent, field })?;
+        self.visit(id)?
+            .map(|node| self.node(node))
+            .ok_or(TransformError::RequiredChildRemoved { parent, field })
+    }
+
+    fn visit_discarded_required(
+        &mut self,
+        id: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+    ) -> Result<TransformNode, TransformError> {
+        let id = id.ok_or(TransformError::RequiredChildRemoved { parent, field })?;
+        self.visit_discarded(id)?
+            .map(|node| self.node(node))
+            .ok_or(TransformError::RequiredChildRemoved { parent, field })
+    }
+
+    fn update_data(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+    ) -> Result<NodeId, TransformError> {
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(original, data, flags)?
+            .node())
+    }
+
+    fn token_kind(&self, token: Option<NodeId>) -> Result<Option<SyntaxKind>, TransformError> {
+        Ok(match token {
+            Some(token) => Some(self.context.arena().node(self.node(token))?.kind),
+            None => None,
+        })
+    }
+
+    /// tsc-port: isSuperProperty @6.0.3
+    fn is_super_property(&self, node: TransformNode) -> Result<bool, TransformError> {
+        let expression = match &self.context.arena().node(node)?.data {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        Ok(match expression {
+            Some(expression) => {
+                self.context.arena().node(self.node(expression))?.kind == SyntaxKind::SuperKeyword
+            }
+            None => false,
+        })
+    }
+
+    /// The receiver pair a super-property rewrite needs: `classThis` and
+    /// `classSuper` of the current class-element frame.
+    fn super_receivers(&self) -> Option<(TransformNode, String)> {
+        match (self.receiver_class_this, self.receiver_class_super.as_ref()) {
+            (Some(class_this), Some(class_super)) => Some((class_this, class_super.clone())),
+            _ => None,
+        }
+    }
+
+    /// The setter/getter key of a super property: the visited element
+    /// argument, or a string literal from an identifier name.
+    fn super_property_key(
+        &mut self,
+        access: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        match self.context.arena().node(access)?.data.clone() {
+            NodeData::ElementAccessExpression(data) => Ok(Some(self.visit_required(
+                data.argument_expression,
+                SyntaxKind::ElementAccessExpression,
+                "argument_expression",
+            )?)),
+            NodeData::PropertyAccessExpression(data) => {
+                let Some(name) = data.name else {
+                    return Ok(None);
+                };
+                match &self.context.arena().node(self.node(name))?.data {
+                    NodeData::Identifier(identifier) => {
+                        let text = identifier.text.clone();
+                        Ok(Some(self.create_string_literal(&text)?))
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn create_reflect_get_call(
+        &mut self,
+        class_super: &str,
+        key: TransformNode,
+        receiver: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let reflect = self.create_identifier("Reflect")?;
+        let get = self.create_property_access(reflect, "get")?;
+        let target = self.create_identifier(class_super)?;
+        self.create_call(get, vec![target, key, receiver])
+    }
+
+    fn create_reflect_set_call(
+        &mut self,
+        class_super: &str,
+        key: TransformNode,
+        value: TransformNode,
+        receiver: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let reflect = self.create_identifier("Reflect")?;
+        let set = self.create_property_access(reflect, "set")?;
+        let target = self.create_identifier(class_super)?;
+        self.create_call(set, vec![target, key, value, receiver])
+    }
+
+    fn create_function_call_call(
+        &mut self,
+        target: TransformNode,
+        this_arg: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let call = self.create_property_access(target, "call")?;
+        let mut all = Vec::with_capacity(arguments.len() + 1);
+        all.push(this_arg);
+        all.extend(arguments);
+        self.create_call(call, all)
+    }
+
+    fn create_function_bind_call(
+        &mut self,
+        target: TransformNode,
+        this_arg: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let bind = self.create_property_access(target, "bind")?;
+        let mut all = Vec::with_capacity(arguments.len() + 1);
+        all.push(this_arg);
+        all.extend(arguments);
+        self.create_call(bind, all)
+    }
+
+    /// tsc-port: visitCallExpression @6.0.3
+    fn visit_call_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::CallExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let Some(class_this) = self.receiver_class_this else {
+            return self.update_generic(original, NodeData::CallExpression(data));
+        };
+        let Some(callee) = data.expression else {
+            return self.update_generic(original, NodeData::CallExpression(data));
+        };
+        if !self.is_super_property(self.node(callee))? {
+            return self.update_generic(original, NodeData::CallExpression(data));
+        }
+        let expression =
+            self.visit_required(Some(callee), SyntaxKind::CallExpression, "expression")?;
+        data.arguments = self.visit_optional_nodes(data.arguments)?;
+        let arguments = self.array_nodes(data.arguments)?;
+        let receiver = self.clone_receiver_class_this(class_this)?;
+        let invocation = self.create_function_call_call(expression, receiver, arguments)?;
+        self.set_original_and_range(invocation, original)?;
+        Ok(invocation.node())
+    }
+
+    /// tsc-port: visitTaggedTemplateExpression @6.0.3
+    fn visit_tagged_template_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::TaggedTemplateExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        let Some(class_this) = self.receiver_class_this else {
+            return self.update_generic(original, NodeData::TaggedTemplateExpression(data));
+        };
+        let Some(tag) = data.tag else {
+            return self.update_generic(original, NodeData::TaggedTemplateExpression(data));
+        };
+        if !self.is_super_property(self.node(tag))? {
+            return self.update_generic(original, NodeData::TaggedTemplateExpression(data));
+        }
+        let tag = self.visit_required(Some(tag), SyntaxKind::TaggedTemplateExpression, "tag")?;
+        let receiver = self.clone_receiver_class_this(class_this)?;
+        let bound = self.create_function_bind_call(tag, receiver, Vec::new())?;
+        self.set_original_and_range(bound, original)?;
+        data.tag = Some(bound.node());
+        data.type_arguments = None;
+        data.template = self.visit_optional_node(data.template)?;
+        self.update_data(original, NodeData::TaggedTemplateExpression(data))
+    }
+
+    /// tsc-port: visitPropertyAccessExpression @6.0.3
+    fn visit_property_access_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::PropertyAccessExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        if let Some((class_this, class_super)) = self.super_receivers() {
+            if self.is_super_property(original)? {
+                if let Some(key) = self.super_property_key(original)? {
+                    let super_expression = data
+                        .expression
+                        .map(|expression| self.node(expression))
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::PropertyAccessExpression,
+                            field: "expression",
+                        })?;
+                    let receiver = self.clone_receiver_class_this(class_this)?;
+                    let super_property =
+                        self.create_reflect_get_call(&class_super, key, receiver)?;
+                    self.set_original_and_range(super_property, super_expression)?;
+                    return Ok(super_property.node());
+                }
+            }
+        }
+        self.update_generic(original, NodeData::PropertyAccessExpression(data))
+    }
+
+    /// tsc-port: visitElementAccessExpression @6.0.3
+    fn visit_element_access_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ElementAccessExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        if let Some((class_this, class_super)) = self.super_receivers() {
+            if self.is_super_property(original)? {
+                let key = self.visit_required(
+                    data.argument_expression,
+                    SyntaxKind::ElementAccessExpression,
+                    "argument_expression",
+                )?;
+                let super_expression = data
+                    .expression
+                    .map(|expression| self.node(expression))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ElementAccessExpression,
+                        field: "expression",
+                    })?;
+                let receiver = self.clone_receiver_class_this(class_this)?;
+                let super_property = self.create_reflect_get_call(&class_super, key, receiver)?;
+                self.set_original_and_range(super_property, super_expression)?;
+                return Ok(super_property.node());
+            }
+        }
+        self.update_generic(original, NodeData::ElementAccessExpression(data))
+    }
+
+    const fn is_assignment_operator(kind: SyntaxKind) -> bool {
+        kind.value() >= SyntaxKind::FirstAssignment.value()
+            && kind.value() <= SyntaxKind::LastAssignment.value()
+    }
+
+    /// tsc-port: isCompoundAssignment @6.0.3 (PlusEqualsToken ..= CaretEqualsToken)
+    const fn is_compound_assignment(kind: SyntaxKind) -> bool {
+        kind.value() >= SyntaxKind::PlusEqualsToken.value()
+            && kind.value() <= SyntaxKind::CaretEqualsToken.value()
+    }
+
+    /// tsc-port: getNonAssignmentOperatorForCompoundAssignment @6.0.3
+    const fn non_assignment_operator(operator: SyntaxKind) -> SyntaxKind {
+        match operator {
+            SyntaxKind::PlusEqualsToken => SyntaxKind::PlusToken,
+            SyntaxKind::MinusEqualsToken => SyntaxKind::MinusToken,
+            SyntaxKind::AsteriskEqualsToken => SyntaxKind::AsteriskToken,
+            SyntaxKind::AsteriskAsteriskEqualsToken => SyntaxKind::AsteriskAsteriskToken,
+            SyntaxKind::SlashEqualsToken => SyntaxKind::SlashToken,
+            SyntaxKind::PercentEqualsToken => SyntaxKind::PercentToken,
+            SyntaxKind::LessThanLessThanEqualsToken => SyntaxKind::LessThanLessThanToken,
+            SyntaxKind::GreaterThanGreaterThanEqualsToken => {
+                SyntaxKind::GreaterThanGreaterThanToken
+            }
+            SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
+                SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+            }
+            SyntaxKind::AmpersandEqualsToken => SyntaxKind::AmpersandToken,
+            SyntaxKind::BarEqualsToken => SyntaxKind::BarToken,
+            SyntaxKind::BarBarEqualsToken => SyntaxKind::BarBarToken,
+            SyntaxKind::AmpersandAmpersandEqualsToken => SyntaxKind::AmpersandAmpersandToken,
+            SyntaxKind::QuestionQuestionEqualsToken => SyntaxKind::QuestionQuestionToken,
+            SyntaxKind::CaretEqualsToken => SyntaxKind::CaretToken,
+            other => other,
+        }
+    }
+
+    /// tsc-port: isLeftHandSideExpressionKind @6.0.3
+    const fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
+        matches!(
+            kind,
+            SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+                | SyntaxKind::NewExpression
+                | SyntaxKind::CallExpression
+                | SyntaxKind::JsxElement
+                | SyntaxKind::JsxSelfClosingElement
+                | SyntaxKind::JsxFragment
+                | SyntaxKind::TaggedTemplateExpression
+                | SyntaxKind::ArrayLiteralExpression
+                | SyntaxKind::ParenthesizedExpression
+                | SyntaxKind::ObjectLiteralExpression
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::Identifier
+                | SyntaxKind::PrivateIdentifier
+                | SyntaxKind::RegularExpressionLiteral
+                | SyntaxKind::NumericLiteral
+                | SyntaxKind::BigIntLiteral
+                | SyntaxKind::StringLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral
+                | SyntaxKind::TemplateExpression
+                | SyntaxKind::FalseKeyword
+                | SyntaxKind::NullKeyword
+                | SyntaxKind::ThisKeyword
+                | SyntaxKind::TrueKeyword
+                | SyntaxKind::SuperKeyword
+                | SyntaxKind::NonNullExpression
+                | SyntaxKind::ExpressionWithTypeArguments
+                | SyntaxKind::MetaProperty
+                | SyntaxKind::ImportKeyword
+                | SyntaxKind::MissingDeclaration
+        )
+    }
+
+    fn is_left_hand_side_expression(&self, node: TransformNode) -> Result<bool, TransformError> {
+        Ok(Self::is_left_hand_side_expression_kind(
+            self.context.arena().node(node)?.kind,
+        ))
+    }
+
+    /// tsc-port: skipParentheses @6.0.3
+    fn skip_parentheses(&self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        let mut current = node;
+        loop {
+            match &self.context.arena().node(current)?.data {
+                NodeData::ParenthesizedExpression(data) => match data.expression {
+                    Some(inner) => current = self.node(inner),
+                    None => return Ok(current),
+                },
+                _ => return Ok(current),
+            }
+        }
+    }
+
+    /// tsc-port: visitBinaryExpression @6.0.3 (the caller records named
+    /// evaluation first)
+    fn visit_binary_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::BinaryExpressionData,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::BinaryExpression(data));
+        }
+        let Some(operator) = self.token_kind(data.operator_token)? else {
+            return self.update_generic(original, NodeData::BinaryExpression(data));
+        };
+        let left = data.left.map(|left| self.node(left));
+        // isDestructuringAssignment
+        if operator == SyntaxKind::EqualsToken {
+            if let Some(left) = left {
+                if matches!(
+                    self.context.arena().node(left)?.data,
+                    NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
+                ) {
+                    let pattern = self.visit_assignment_pattern(left)?;
+                    let right =
+                        self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
+                    data.left = Some(pattern.node());
+                    data.right = Some(right.node());
+                    return self.update_data(original, NodeData::BinaryExpression(data));
+                }
+            }
+        }
+        if Self::is_assignment_operator(operator) {
+            if let (Some(left), Some((class_this, class_super))) = (left, self.super_receivers()) {
+                if self.is_super_property(left)? && self.is_left_hand_side_expression(left)? {
+                    if let Some(setter_name) = self.super_property_key(left)? {
+                        return self.lower_super_assignment(
+                            original,
+                            left,
+                            data.right,
+                            operator,
+                            setter_name,
+                            class_this,
+                            &class_super,
+                            value_use,
+                        );
+                    }
+                }
+            }
+        }
+        if operator == SyntaxKind::CommaToken {
+            let left =
+                self.visit_discarded_required(data.left, SyntaxKind::BinaryExpression, "left")?;
+            let right = match value_use {
+                DecoratorValueUse::Discarded => self.visit_discarded_required(
+                    data.right,
+                    SyntaxKind::BinaryExpression,
+                    "right",
+                )?,
+                DecoratorValueUse::Required => {
+                    self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?
+                }
+            };
+            data.left = Some(left.node());
+            data.right = Some(right.node());
+            return self.update_data(original, NodeData::BinaryExpression(data));
+        }
+        self.update_generic(original, NodeData::BinaryExpression(data))
+    }
+
+    /// tsc-port: visitBinaryExpression @6.0.3 (super property assignment)
+    #[allow(clippy::too_many_arguments)]
+    fn lower_super_assignment(
+        &mut self,
+        original: TransformNode,
+        left: TransformNode,
+        right: Option<NodeId>,
+        operator: SyntaxKind,
+        mut setter_name: TransformNode,
+        class_this: TransformNode,
+        class_super: &str,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        let mut expression = self.visit_required(right, SyntaxKind::BinaryExpression, "right")?;
+        if Self::is_compound_assignment(operator) {
+            let mut getter_name = setter_name;
+            if !self.is_simple_inlineable_expression(setter_name)? {
+                let temp = self.hoist_temp_variable(false)?;
+                getter_name = self.create_binding_identifier(&temp)?;
+                let target = self.create_binding_identifier(&temp)?;
+                setter_name = self.create_assignment(target, setter_name)?;
+            }
+            let receiver = self.clone_receiver_class_this(class_this)?;
+            let super_property_get =
+                self.create_reflect_get_call(class_super, getter_name, receiver)?;
+            self.set_original_and_range(super_property_get, left)?;
+            expression = self.create_binary(
+                super_property_get,
+                Self::non_assignment_operator(operator),
+                expression,
+            )?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
+        }
+        let temp = match value_use {
+            DecoratorValueUse::Discarded => None,
+            DecoratorValueUse::Required => Some(self.hoist_temp_variable(false)?),
+        };
+        if let Some(temp) = &temp {
+            let target = self.create_binding_identifier(temp)?;
+            self.context.factory()?.set_text_range(target, original)?;
+            expression = self.create_assignment(target, expression)?;
+        }
+        let receiver = self.clone_receiver_class_this(class_this)?;
+        expression =
+            self.create_reflect_set_call(class_super, setter_name, expression, receiver)?;
+        self.set_original_and_range(expression, original)?;
+        if let Some(temp) = &temp {
+            let result = self.create_binding_identifier(temp)?;
+            self.context.factory()?.set_text_range(result, original)?;
+            expression = self.create_binary(expression, SyntaxKind::CommaToken, result)?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
+        }
+        Ok(expression.node())
+    }
+
+    /// tsc-port: visitPreOrPostfixUnaryExpression @6.0.3
+    fn visit_update_expression(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+        is_prefix: bool,
+        operator: SyntaxKind,
+        operand: Option<NodeId>,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if !matches!(
+            operator,
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) {
+            return self.update_generic(original, data);
+        }
+        let Some((class_this, class_super)) = self.super_receivers() else {
+            return self.update_generic(original, data);
+        };
+        let Some(operand) = operand.map(|operand| self.node(operand)) else {
+            return self.update_generic(original, data);
+        };
+        let target = self.skip_parentheses(operand)?;
+        if !self.is_super_property(target)? {
+            return self.update_generic(original, data);
+        }
+        let Some(mut setter_name) = self.super_property_key(target)? else {
+            return self.update_generic(original, data);
+        };
+        let mut getter_name = setter_name;
+        if !self.is_simple_inlineable_expression(setter_name)? {
+            let temp = self.hoist_temp_variable(false)?;
+            getter_name = self.create_binding_identifier(&temp)?;
+            let assignment_target = self.create_binding_identifier(&temp)?;
+            setter_name = self.create_assignment(assignment_target, setter_name)?;
+        }
+        let receiver = self.clone_receiver_class_this(class_this)?;
+        let mut expression = self.create_reflect_get_call(&class_super, getter_name, receiver)?;
+        self.set_original_and_range(expression, original)?;
+        let result = match value_use {
+            DecoratorValueUse::Discarded => None,
+            DecoratorValueUse::Required => Some(self.hoist_temp_variable(false)?),
+        };
+        expression = self.expand_pre_or_postfix_increment_or_decrement(
+            original,
+            operand,
+            is_prefix,
+            operator,
+            expression,
+            result.as_ref(),
+        )?;
+        let receiver = self.clone_receiver_class_this(class_this)?;
+        expression =
+            self.create_reflect_set_call(&class_super, setter_name, expression, receiver)?;
+        self.set_original_and_range(expression, original)?;
+        if let Some(result) = &result {
+            let value = self.create_binding_identifier(result)?;
+            expression = self.create_binary(expression, SyntaxKind::CommaToken, value)?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
+        }
+        Ok(expression.node())
+    }
+
+    /// tsc-port: expandPreOrPostfixIncrementOrDecrementExpression @6.0.3
+    fn expand_pre_or_postfix_increment_or_decrement(
+        &mut self,
+        original: TransformNode,
+        operand: TransformNode,
+        is_prefix: bool,
+        operator: SyntaxKind,
+        expression: TransformNode,
+        result_variable: Option<&TargetBinding>,
+    ) -> Result<TransformNode, TransformError> {
+        let temp = self.hoist_temp_variable(false)?;
+        let temp_target = self.create_binding_identifier(&temp)?;
+        let mut expression = self.create_assignment(temp_target, expression)?;
+        self.context
+            .factory()?
+            .set_text_range(expression, operand)?;
+        let temp_operand = self.create_binding_identifier(&temp)?;
+        let mut operation = if is_prefix {
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::PrefixUnaryExpression(tsc_syntax::nodes::PrefixUnaryExpressionData {
+                    operator,
+                    operand: Some(temp_operand.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        } else {
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::PostfixUnaryExpression(tsc_syntax::nodes::PostfixUnaryExpressionData {
+                    operand: Some(temp_operand.node()),
+                    operator,
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        self.context
+            .factory()?
+            .set_text_range(operation, original)?;
+        if let Some(result_variable) = result_variable {
+            let result_target = self.create_binding_identifier(result_variable)?;
+            operation = self.create_assignment(result_target, operation)?;
+            self.context
+                .factory()?
+                .set_text_range(operation, original)?;
+        }
+        expression = self.create_binary(expression, SyntaxKind::CommaToken, operation)?;
+        self.context
+            .factory()?
+            .set_text_range(expression, original)?;
+        if !is_prefix {
+            let value = self.create_binding_identifier(&temp)?;
+            expression = self.create_binary(expression, SyntaxKind::CommaToken, value)?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
+        }
+        Ok(expression)
+    }
+
+    /// tsc-port: visitForStatement @6.0.3
+    fn visit_for_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ForStatementData,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::ForStatement(data));
+        }
+        data.initializer = match data.initializer {
+            Some(initializer) => self.visit_discarded(initializer)?,
+            None => None,
+        };
+        data.condition = self.visit_optional_node(data.condition)?;
+        data.incrementor = match data.incrementor {
+            Some(incrementor) => self.visit_discarded(incrementor)?,
+            None => None,
+        };
+        data.statement = self.visit_optional_node(data.statement)?;
+        self.update_data(original, NodeData::ForStatement(data))
+    }
+
+    /// tsc-port: visitExpressionStatement @6.0.3
+    fn visit_expression_statement(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ExpressionStatementData,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::ExpressionStatement(data));
+        }
+        data.expression = match data.expression {
+            Some(expression) => self.visit_discarded(expression)?,
+            None => None,
+        };
+        self.update_data(original, NodeData::ExpressionStatement(data))
+    }
+
+    /// tsc-port: visitCommaListExpression @6.0.3
+    fn visit_comma_list_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::CommaListExpressionData,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::CommaListExpression(data));
+        }
+        if let Some(elements) = data.elements {
+            let original_elements = self.array(elements);
+            let nodes = self
+                .context
+                .arena()
+                .node_array(original_elements)?
+                .nodes
+                .clone();
+            let length = nodes.len();
+            let mut visited = Vec::with_capacity(length);
+            for (index, element) in nodes.into_iter().enumerate() {
+                let element = if value_use == DecoratorValueUse::Discarded || index + 1 < length {
+                    self.visit_discarded(element)?
+                } else {
+                    self.visit(element)?
+                };
+                if let Some(element) = element {
+                    visited.push(self.node(element));
+                }
+            }
+            data.elements = Some(
+                self.context
+                    .factory()?
+                    .update_node_array(original_elements, visited)?
+                    .array(),
+            );
+        }
+        self.update_data(original, NodeData::CommaListExpression(data))
+    }
+
+    /// tsc-port: visitParenthesizedExpression @6.0.3
+    fn visit_parenthesized_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::ParenthesizedExpressionData,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::ParenthesizedExpression(data));
+        }
+        data.expression = match (data.expression, value_use) {
+            (Some(expression), DecoratorValueUse::Discarded) => self.visit_discarded(expression)?,
+            (Some(expression), DecoratorValueUse::Required) => self.visit(expression)?,
+            (None, _) => None,
+        };
+        self.update_data(original, NodeData::ParenthesizedExpression(data))
+    }
+
+    /// tsc-port: visitPartiallyEmittedExpression @6.0.3
+    fn visit_partially_emitted_expression(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::PartiallyEmittedExpressionData,
+        value_use: DecoratorValueUse,
+    ) -> Result<NodeId, TransformError> {
+        if self.receiver_class_this.is_none() {
+            return self.update_generic(original, NodeData::PartiallyEmittedExpression(data));
+        }
+        data.expression = match (data.expression, value_use) {
+            (Some(expression), DecoratorValueUse::Discarded) => self.visit_discarded(expression)?,
+            (Some(expression), DecoratorValueUse::Required) => self.visit(expression)?,
+            (None, _) => None,
+        };
+        self.update_data(original, NodeData::PartiallyEmittedExpression(data))
+    }
+
+    /// tsc-port: visitAssignmentPattern @6.0.3
+    fn visit_assignment_pattern(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().node(node)?.data.clone() {
+            NodeData::ArrayLiteralExpression(mut data) => {
+                if let Some(elements) = data.elements {
+                    let original_elements = self.array(elements);
+                    let nodes = self
+                        .context
+                        .arena()
+                        .node_array(original_elements)?
+                        .nodes
+                        .clone();
+                    let mut visited = Vec::with_capacity(nodes.len());
+                    for element in nodes {
+                        visited.push(self.visit_array_assignment_element(self.node(element))?);
+                    }
+                    data.elements = Some(
+                        self.context
+                            .factory()?
+                            .update_node_array(original_elements, visited)?
+                            .array(),
+                    );
+                }
+                let updated = self.update_data(node, NodeData::ArrayLiteralExpression(data))?;
+                Ok(self.node(updated))
+            }
+            NodeData::ObjectLiteralExpression(mut data) => {
+                if let Some(properties) = data.properties {
+                    let original_properties = self.array(properties);
+                    let nodes = self
+                        .context
+                        .arena()
+                        .node_array(original_properties)?
+                        .nodes
+                        .clone();
+                    let mut visited = Vec::with_capacity(nodes.len());
+                    for property in nodes {
+                        visited.push(self.visit_object_assignment_element(self.node(property))?);
+                    }
+                    data.properties = Some(
+                        self.context
+                            .factory()?
+                            .update_node_array(original_properties, visited)?
+                            .array(),
+                    );
+                }
+                let updated = self.update_data(node, NodeData::ObjectLiteralExpression(data))?;
+                Ok(self.node(updated))
+            }
+            _ => self.visit_required(Some(node.node()), SyntaxKind::BinaryExpression, "left"),
+        }
+    }
+
+    /// tsc-port: visitArrayAssignmentElement @6.0.3
+    fn visit_array_assignment_element(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().node(node)?.data.clone() {
+            NodeData::SpreadElement(data) => self.visit_assignment_rest_element(node, data),
+            NodeData::OmittedExpression(_) => self.visit_required(
+                Some(node.node()),
+                SyntaxKind::ArrayLiteralExpression,
+                "element",
+            ),
+            _ => self.visit_assignment_element(node),
+        }
+    }
+
+    /// tsc-port: visitAssignmentElement @6.0.3
+    fn visit_assignment_element(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if let NodeData::BinaryExpression(mut data) = self.context.arena().node(node)?.data.clone()
+        {
+            if self.token_kind(data.operator_token)? == Some(SyntaxKind::EqualsToken) {
+                if let Some(left) = data.left {
+                    let left = self.node(left);
+                    if self.is_left_hand_side_expression(left)? {
+                        self.record_named_evaluation_of_identifier(data.left, data.right, true)?;
+                        let target = self.visit_destructuring_assignment_target(left)?;
+                        let initializer =
+                            self.visit_required(data.right, SyntaxKind::BinaryExpression, "right")?;
+                        data.left = Some(target.node());
+                        data.right = Some(initializer.node());
+                        let updated = self.update_data(node, NodeData::BinaryExpression(data))?;
+                        return Ok(self.node(updated));
+                    }
+                }
+            }
+        }
+        self.visit_destructuring_assignment_target(node)
+    }
+
+    /// tsc-port: visitDestructuringAssignmentTarget @6.0.3
+    fn visit_destructuring_assignment_target(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            self.context.arena().node(node)?.data,
+            NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
+        ) {
+            return self.visit_assignment_pattern(node);
+        }
+        if let Some((class_this, class_super)) = self.super_receivers() {
+            if self.is_super_property(node)? {
+                if let Some(property_name) = self.super_property_key(node)? {
+                    // createTempVariable(/*recordTempVariable*/ undefined): a
+                    // setter parameter named in its own function scope, never
+                    // hoisted.
+                    let parameter = TargetBinding::allocate(self.context, "_a".to_owned())?;
+                    let value = self.create_binding_identifier(&parameter)?;
+                    let receiver = self.clone_receiver_class_this(class_this)?;
+                    let assignment =
+                        self.create_reflect_set_call(&class_super, property_name, value, receiver)?;
+                    let wrapper = self.create_assignment_target_wrapper(&parameter, assignment)?;
+                    self.set_original_and_range(wrapper, node)?;
+                    return Ok(wrapper);
+                }
+            }
+        }
+        self.visit_required(Some(node.node()), SyntaxKind::BinaryExpression, "left")
+    }
+
+    /// tsc-port: createAssignmentTargetWrapper @6.0.3 —
+    /// `({ set value(param) { expression; } }).value`
+    fn create_assignment_target_wrapper(
+        &mut self,
+        parameter: &TargetBinding,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let parameter_name = self.create_binding_identifier(parameter)?;
+        let parameter = self.context.factory()?.create_node(
+            self.source,
+            NodeData::Parameter(tsc_syntax::nodes::ParameterData {
+                name: Some(parameter_name.node()),
+                modifiers: None,
+                dot_dot_dot_token: None,
+                question_token: None,
+                r#type: None,
+                initializer: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let parameters = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![parameter])?;
+        let statement = self.create_expression_statement(expression)?;
+        let body = self.create_block(vec![statement], false)?;
+        let accessor_name = self.create_identifier("value")?;
+        let setter = self.context.factory()?.create_node(
+            self.source,
+            NodeData::SetAccessor(tsc_syntax::nodes::SetAccessorData {
+                name: Some(accessor_name.node()),
+                type_parameters: None,
+                parameters: Some(parameters.array()),
+                r#type: None,
+                body: Some(body.node()),
+                modifiers: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        let object = self.create_object_literal(vec![setter], false)?;
+        let object = self.create_parenthesized(object)?;
+        self.create_property_access(object, "value")
+    }
+
+    /// tsc-port: visitAssignmentRestElement @6.0.3
+    fn visit_assignment_rest_element(
+        &mut self,
+        node: TransformNode,
+        mut data: tsc_syntax::nodes::SpreadElementData,
+    ) -> Result<TransformNode, TransformError> {
+        if let Some(expression) = data.expression.map(|expression| self.node(expression)) {
+            if self.is_left_hand_side_expression(expression)? {
+                let target = self.visit_destructuring_assignment_target(expression)?;
+                data.expression = Some(target.node());
+                let updated = self.update_data(node, NodeData::SpreadElement(data))?;
+                return Ok(self.node(updated));
+            }
+        }
+        self.visit_required(
+            Some(node.node()),
+            SyntaxKind::ArrayLiteralExpression,
+            "element",
+        )
+    }
+
+    /// tsc-port: visitObjectAssignmentElement @6.0.3
+    fn visit_object_assignment_element(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().node(node)?.data.clone() {
+            NodeData::SpreadAssignment(mut data) => {
+                if let Some(expression) = data.expression.map(|expression| self.node(expression)) {
+                    if self.is_left_hand_side_expression(expression)? {
+                        let target = self.visit_destructuring_assignment_target(expression)?;
+                        data.expression = Some(target.node());
+                        let updated = self.update_data(node, NodeData::SpreadAssignment(data))?;
+                        return Ok(self.node(updated));
+                    }
+                }
+                self.visit_required(
+                    Some(node.node()),
+                    SyntaxKind::ObjectLiteralExpression,
+                    "property",
+                )
+            }
+            NodeData::PropertyAssignment(mut data) => {
+                let name =
+                    self.visit_required(data.name, SyntaxKind::PropertyAssignment, "name")?;
+                data.name = Some(name.node());
+                let initializer = data.initializer.map(|initializer| self.node(initializer));
+                if let Some(initializer) = initializer {
+                    let is_plain_assignment = match &self.context.arena().node(initializer)?.data {
+                        NodeData::BinaryExpression(binary) => {
+                            self.token_kind(binary.operator_token)? == Some(SyntaxKind::EqualsToken)
+                                && binary
+                                    .left
+                                    .map(|left| self.is_left_hand_side_expression(self.node(left)))
+                                    .transpose()?
+                                    .unwrap_or(false)
+                        }
+                        _ => false,
+                    };
+                    if is_plain_assignment {
+                        let element = self.visit_assignment_element(initializer)?;
+                        data.initializer = Some(element.node());
+                        let updated = self.update_data(node, NodeData::PropertyAssignment(data))?;
+                        return Ok(self.node(updated));
+                    }
+                    if self.is_left_hand_side_expression(initializer)? {
+                        let target = self.visit_destructuring_assignment_target(initializer)?;
+                        data.initializer = Some(target.node());
+                        let updated = self.update_data(node, NodeData::PropertyAssignment(data))?;
+                        return Ok(self.node(updated));
+                    }
+                }
+                let updated = self.update_generic(node, NodeData::PropertyAssignment(data))?;
+                Ok(self.node(updated))
+            }
+            _ => self.visit_required(
+                Some(node.node()),
+                SyntaxKind::ObjectLiteralExpression,
+                "property",
+            ),
+        }
     }
 }
 

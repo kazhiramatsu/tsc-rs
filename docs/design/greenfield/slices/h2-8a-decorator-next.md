@@ -116,3 +116,91 @@ lowered by `class_fields/downlevel.rs`).
 ## Execution record
 
 (filled per commit below)
+
+### Item 1 — visit order, pending expressions, `_outerThis` (commit `65f688302`)
+
+Causes found by the baseline (all confirmed by fresh TypeScript):
+
+1. Member decorator array assignments were emitted as decoration-block
+   statements instead of tsc's `pendingExpressions`; decorated fields with
+   computed names emitted `[_a]` plus a separate static block, and no computed
+   name ever absorbed the queue (`pending-into-undecorated-names`,
+   `decorated-computed-fields`, `nested-class-in-computed-name`).
+2. Lexical `this` in decorator expressions was rewritten to `_outerThis`
+   eagerly, including class decorators and expressions that end in a computed
+   name (`outer-this-computed-name`, `outer-this-nested-numbering`).
+3. `let _outerThis` preceded the hoisted `var` temporaries
+   (`outer-this-static-block`).
+4. The extends expression was visited before the class decorators, and the
+   `(0, expression)` safe-extends form was missing (`heritage-safe-extends`).
+5. Named evaluation of anonymous decorated class expressions covered only
+   variable declarations; parameters, property assignments, class properties
+   (literal and non-literal computed names) emitted `__setFunctionName(_, "")`
+   (`two-phase-constructor`, `decorated-class-expression-positions`,
+   `outer-this-nested-numbering`).
+6. Decorated methods with computed names lost the parsed name node (a
+   synthesized name without range/original) and the decorator call binding
+   lacked `setTextRange` on the cache assignment; the injected constructor
+   body updated the parsed (single-line) block instead of creating a fresh
+   multi-line one.
+
+Changes (`standard_decorators.rs` only): `pending_expressions` owned by the
+visitor and saved/restored by the class and depth-0 other frames;
+`transform_class_member` = classElementVisitor with `partial_transform_*`
+(decorators queued in the element frame, `visit_referenced_property_name`
+absorbing the queue through `updateComputedPropertyName`),
+`previsit_property_name` = visitPropertyName under the name frame with
+`visitComputedPropertyName` absorption; two member passes (constructors
+second) with balanced frames on `Ok` and `Err`; leftovers → leading block
+statements through the `_outerThis` visitor; `var` temporaries → `let
+_outerThis` → definitions; class decorators transformed before
+`prepare_class_super`; `safeExtendsExpression`; `isNamedEvaluation` sources in
+`visit()` and `prepare_property_named_evaluation` (computed names hoist the
+`__propKey` cache temp and name the class by it,
+`DecoratedClassRuntimeName::AssignedReference`). Every `Err` path discards the
+visitor (`transform_nodes` returns the error), so frames are only restored on
+`Ok`; the member loop still exits its element frame before propagating.
+
+Result: decorator-transform-order 10/60 → 32/60 exact twice
+(`target/dec-next-runs/item1-r3/`, run.log + captures + analysis.txt);
+`heritage-safe-extends`, `nested-class-in-computed-name`,
+`pending-into-undecorated-names`, `decorated-class-expression-positions`
+6/6. Residuals at that commit: nested-scope temp numbering (item 3a),
+`_outerThis` numbering (item 3b), class-fields cache-assignment handoff on
+comma-list computed names (item 3c).
+
+Open rows from item 1: a decorated computed property whose initializer is a
+decorated anonymous class (tsc hoists the same generated name twice, `var _b,
+_b`); literal computed names on decorated members (`@dec ["x"]`) still take
+the temp path instead of `{ computed: true, name: "x" }`; object-literal
+computed names inside decorated static contexts do not absorb the pending
+queue (tsc's `visitor` does).
+
+### Item 3a — temporaries are scope-owned generated bindings (commit `68f2a4f93`)
+
+Cause: hoisted temporaries were transform-time strings drawn from one
+class-scoped counter and a shared `used_names` set, so nested class IIFEs
+continued the enclosing sequence (`var _f` / `_b` where tsc restarts at `_a`),
+computed-name cache temps did not reserve their spelling in nested scopes
+(`var _a, _c` in `class-decorator-before-heritage`), and the by-spelling
+`computed_temp_bindings` map keyed bindings on printable text.
+
+Changes (`standard_decorators.rs`): `DecoratorLexicalEnvironment` stack
+(`start_lexical_environment`/`end_lexical_environment`) for the class IIFE,
+class static blocks, static property initializers (`(() => { var …; return
+…; })()`) and function-like bodies; `hoist_temp_variable(reserve_in_nested_scopes)`
+= `createTempVariable(hoistVariableDeclaration)` as
+`TargetBinding::allocate` (finalizer-named per scope in traversal order) or
+`allocate_reserved_in_nested_scopes` for `getGeneratedNameForNode(name)`
+cache temps; plans, contexts, access objects, setter names and the
+named-evaluation reference carry `TargetBinding` handles
+(`create_binding_identifier`); the by-spelling lookup in `create_identifier`
+is gone. Provisional spellings follow makeTempVariableName (skipping `_i`,
+`_n`) but are never load-bearing.
+
+Result: decorator-transform-order 32/60 → 38/60 exact twice
+(`target/dec-next-runs/item3a-r1/`); `class-decorator-before-heritage` 6/6;
+ES2022/define `two-phase-constructor` exact. Residuals: `_outerThis` numbering
+(item 3b), the class-fields cache handoff (item 3c) and, at ES2015, the
+`__propKey`/`__setFunctionName` helper order (the explicitly named class's
+`__setFunctionName` is a class-fields-pass helper upstream).
