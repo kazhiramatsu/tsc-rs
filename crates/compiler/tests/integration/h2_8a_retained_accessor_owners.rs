@@ -73,6 +73,31 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
     assert_eq!(contexts.len(), 36);
     cases.extend(contexts.iter().cloned());
     assert_eq!(cases.len(), 454);
+    let lexical: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/retained-lexical-environments.json"
+    ))
+    .unwrap();
+    assert_eq!(lexical["typescript"], "6.0.3");
+    assert_eq!(lexical["repetitions"], 2);
+    assert!(lexical["upstream_failures"].as_array().unwrap().is_empty());
+    let lexical = lexical["cases"].as_array().unwrap();
+    assert_eq!(lexical.len(), 44);
+    cases.extend(lexical.iter().cloned());
+    assert_eq!(cases.len(), 498);
+    let constructor_references: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/retained-constructor-references.json"
+    ))
+    .unwrap();
+    assert_eq!(constructor_references["typescript"], "6.0.3");
+    assert_eq!(constructor_references["repetitions"], 2);
+    assert!(constructor_references["upstream_failures"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    let constructor_references = constructor_references["cases"].as_array().unwrap();
+    assert_eq!(constructor_references.len(), 8);
+    cases.extend(constructor_references.iter().cloned());
+    assert_eq!(cases.len(), 506);
     let ids = cases
         .iter()
         .map(|case| case["case_id"].as_str().unwrap())
@@ -100,6 +125,32 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
                     .starts_with("decorator-receiver-context/")
             });
             assert_eq!(cases.len(), 36);
+        }
+        Ok("lexical") => {
+            cases.retain(|case| {
+                case["case_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("retained-lexical-environments/")
+            });
+            assert_eq!(cases.len(), 44);
+        }
+        Ok("producer") => {
+            cases.retain(|case| {
+                let id = case["case_id"].as_str().unwrap();
+                !id.starts_with("retained-lexical-environments/")
+                    && !id.starts_with("retained-constructor-references/")
+            });
+            assert_eq!(cases.len(), 454);
+        }
+        Ok("constructor-references") => {
+            cases.retain(|case| {
+                case["case_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("retained-constructor-references/")
+            });
+            assert_eq!(cases.len(), 8);
         }
         unexpected => panic!("invalid retained accessor case selection: {unexpected:?}"),
     }

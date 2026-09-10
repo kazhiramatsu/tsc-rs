@@ -9506,7 +9506,7 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
-      "sha256": "46e3e47f39e6b31e530709d8bff658c600be5a79a4b40cb4207e93019fc86ab8"
+      "sha256": "11b2ff536a028f194aaafd205b76e10ed3841800016d910b8dbe91f40589f15f"
     },
     {
       "path": "crates/emitter/src/builtins.rs",
@@ -9672,6 +9672,30 @@
           "sha256": "cb09648b748ac6b7b16e2d803dff6d6bd8236cfb9613735738b9b9318241d185",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/docs/design/greenfield/slices/h2-8a-retained-field-producers.md",
           "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-retained-field-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "old_sha256": "46e3e47f39e6b31e530709d8bff658c600be5a79a4b40cb4207e93019fc86ab8",
+          "sha256": "d7d33a543440b07e0ed504389999c6cfdd329c7021dcddf6b0ff00cda1741e23",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-lexical-registration-3xuyzwbc/crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "reason": "A40 research registers44 separately frozen lexical controls plus a lexical selector; producer selector retains A39 exact454 population. Complete comparator, capture serializer and existing454 expectation bytes are unchanged; no new runtime qualification or baseline replay claimed."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-retained-field-producers-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "old_sha256": "d7d33a543440b07e0ed504389999c6cfdd329c7021dcddf6b0ff00cda1741e23",
+          "sha256": "11b2ff536a028f194aaafd205b76e10ed3841800016d910b8dbe91f40589f15f",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-constructor-registration-s7694m76/crates/compiler/tests/integration/h2_8a_retained_accessor_owners.rs",
+          "reason": "A40 getClassFacts private-element ContainsConstructorReference branch registers8 fresh controls. Constructor-references selector executes only8; producer remains454 and lexical remains44. Comparators, capture code and all prior expected tuples are byte-identical; no runtime edit or repeated before."
         }
       ]
     }
