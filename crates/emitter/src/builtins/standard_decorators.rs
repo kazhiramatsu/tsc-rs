@@ -1674,8 +1674,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .as_ref()
             .filter(|_| needs_set_function_name && explicitly_assigned_name.is_none())
         {
-            let target = (!(self.target >= ScriptTarget::ES2022
-                && has_static_private_class_elements))
+            // An anonymous decorated class expression's helper block comes
+            // from injectClassNamedEvaluationHelperBlockIfMissing and is
+            // visited under the class-element frame, so its `this` is the
+            // class-this identity. Only an explicitly named class lowered by
+            // the class-fields pass (ES2022 with static private or accessor
+            // members) keeps `this`.
+            let class_fields_names_the_class = explicit_class_name.is_some()
+                && self.target >= ScriptTarget::ES2022
+                && has_static_private_class_elements;
+            let target = (!class_fields_names_the_class)
                 .then(|| {
                     class_decoration
                         .as_ref()
