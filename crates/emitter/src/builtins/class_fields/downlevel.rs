@@ -1848,11 +1848,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
+        // getClassFacts: ClassWasDecorated (classOrConstructorParameterIsDecorated
+        // on the original class) suppresses the constructor/super references
+        // derived from static lexical this/super. A standard-decorator class
+        // expression carries the decorated class's classThis identity; the
+        // decorator transform already projected its own static super
+        // references, so only nested classes can still contain super here.
+        let class_was_decorated = preferred_class_this.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
             preferred_class_this.is_some()
                 || self.class_has_named_evaluation_member(data.members)?,
-            false,
+            class_was_decorated,
         );
         let class_alias = self.allocate_class_constructor_identity(
             reference_plan,
@@ -1865,7 +1872,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
         let super_alias = self.allocate_super_base_binding(
             data.heritage_clauses,
-            class_facts.static_facts.contains_super,
+            class_facts.static_facts.contains_super && !class_was_decorated,
         )?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
