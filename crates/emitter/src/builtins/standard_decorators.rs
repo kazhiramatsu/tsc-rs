@@ -1086,6 +1086,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }),
             flags,
         )?;
+        self.mark_generated_computed_property_name(updated_name)?;
         self.inferred_class_name_references
             .insert(class.node(), temporary_binding);
         self.previsit_property_name(updated_name.node(), name)?;
@@ -1553,8 +1554,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .iter()
             .any(|plan| plan.descriptor_name.is_some())
             || plans.iter().any(|plan| plan.descriptor_name.is_some());
+        // An explicitly named class receives its `__setFunctionName` from the
+        // class-fields pass upstream (ES2015 and static-private lowering), so
+        // that helper is requested after the members' helpers; an anonymous
+        // decorated class expression requests it here, as
+        // injectClassNamedEvaluationHelperBlockIfMissing does.
+        let class_fields_owns_set_function_name =
+            needs_set_function_name && explicit_class_name.is_some();
         self.request_helpers(
-            needs_set_function_name || needs_descriptor_names,
+            (needs_set_function_name && !class_fields_owns_set_function_name)
+                || needs_descriptor_names,
             !method_plans.is_empty(),
         )?;
         let metadata_name = self.allocate_file_level_name("_metadata");
@@ -1778,6 +1787,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             prologue.push(self.create_let(name, Some(initializer))?);
         }
         definitions.splice(0..0, prologue);
+        if class_fields_owns_set_function_name {
+            self.context
+                .request_emit_helper(super::helpers::set_function_name())?;
+        }
 
         let pending_instance = pending_initializers.drain(DecoratorInitializerPlacement::Instance);
         if let Some(statement) = self.materialize_pending_initializer_statement(pending_instance)? {
@@ -2387,15 +2400,33 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     original_name,
                     &NodeData::ComputedPropertyName(data.clone()),
                 )?;
-                self.context.factory()?.update_node(
+                let updated = self.context.factory()?.update_node(
                     original_name,
                     NodeData::ComputedPropertyName(data),
                     flags,
-                )?
+                )?;
+                self.mark_generated_computed_property_name(updated)?;
+                updated
             }
             _ => self.create_computed_property_name(injected)?,
         };
         Ok((temporary_binding, name))
+    }
+
+    /// The class-fields owners recognize a decorator-generated computed name
+    /// (its cache assignment is the last comma element) by this internal
+    /// flag; names created by `create_computed_property_name` carry it too.
+    fn mark_generated_computed_property_name(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<(), TransformError> {
+        let arena = self.context.arena_mut()?;
+        let metadata = arena.metadata_mut(name);
+        let flags = metadata.internal_flags();
+        metadata.set_internal_flags(InternalEmitFlags::from_bits(
+            flags.bits() | InternalEmitFlags::GENERATED_COMPUTED_PROPERTY_NAME.bits(),
+        ));
+        Ok(())
     }
 
     /// tsc-port: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3

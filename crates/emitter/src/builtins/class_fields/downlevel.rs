@@ -6454,24 +6454,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // plain generated read. The former still belongs to the class's
             // ordered key-evaluation plan, while the field operation must use
             // only the cached read so constructors never repeat the key.
-            let assignment_left = match &self.context.arena().node(expression)?.data {
-                NodeData::BinaryExpression(binary)
-                    if binary
-                        .operator_token
-                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
-                        .is_some_and(|operator| {
-                            self.context
-                                .arena()
-                                .node(operator)
-                                .is_ok_and(|operator| operator.kind == SyntaxKind::EqualsToken)
-                        }) =>
-                {
-                    binary
-                        .left
-                        .and_then(|left| self.context.arena().node_ref(self.source, left))
-                }
-                _ => None,
-            };
+            // findComputedPropertyNameCacheAssignment: the cache assignment
+            // may be the last element of the pending-expression comma list
+            // the standard-decorator transform injected around it.
+            let assignment_left = self.find_computed_property_name_cache(expression)?;
             let (key_expression, evaluation) = if let Some(left) = assignment_left {
                 (self.context.factory()?.clone_node(left)?, Some(expression))
             } else {

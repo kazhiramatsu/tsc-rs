@@ -1282,6 +1282,28 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             && kind.value() <= SyntaxKind::LastKeyword.value())
     }
 
+    /// The generated binding an identifier already carries (a cache
+    /// assignment target hoisted by an earlier transform).
+    fn binding_of_generated_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+        ))
+    }
+
     fn computed_name_binding(
         &mut self,
         name: TransformNode,
@@ -1716,7 +1738,23 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             if self.retained_simple_inlineable(expression)? {
                 source_name
             } else {
-                let binding = self.computed_name_binding(source_name)?;
+                // getGeneratedNameForNode(property.name): when an earlier
+                // transform (standard decorators) already cached the key as
+                // `[…, temp = __propKey(expr)]`, that temp is the name's
+                // generated binding (findComputedPropertyNameCacheAssignment).
+                let cached = self
+                    .find_computed_name_cache(expression)?
+                    .and_then(|left| self.binding_of_generated_identifier(left));
+                let binding = match cached {
+                    Some(binding) => {
+                        let key = self.context.arena().get_original_node(source_name).node();
+                        self.computed_name_bindings
+                            .entry(key)
+                            .or_insert_with(|| binding.clone());
+                        binding
+                    }
+                    None => self.computed_name_binding(source_name)?,
+                };
                 computed.expression = Some(self.create_binding_identifier(&binding)?.node());
                 self.update_contextual_node(source_name, NodeData::ComputedPropertyName(computed))?
             }
