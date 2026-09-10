@@ -28,34 +28,43 @@ generated-name behavior that this packet still needs to implement.
 
 ## Frozen current evidence
 
-The [before profile](../../../../ratchets/h2-8a-retained-lexical-owners-before.v1.json)
-contains 506 cases:384 exact and122 failed twice. It explicitly combines the
-454 unchanged A39 captures with only52 new native controls; it is not a new
-506-case execution. All production Rust and Cargo inputs match between those
-jobs and the current tree. The common comparator and complete-capture code
-remain byte-identical; only fixture registration and selectors changed.
+The [expanded before profile](../../../../ratchets/h2-8a-retained-lexical-owners-before.v2.json)
+contains522 cases:389 exact and133 failed twice. SHA-256:
+`9eb5b661a5dfce450a5e3006e798342970b71d20bea59a00525f275859331461`.
+It preserves the immutable [506-case predecessor](../../../../ratchets/h2-8a-retained-lexical-owners-before.v1.json)
+and adds only16 new edge controls; no506/522 baseline replay occurred. The
+predecessor itself combines454 A39 captures with52 new controls. All277
+predecessor source/Cargo pins match current bytes, and275 match the new job's
+1035-pin manifest. The remaining two historical pins belong to the independent
+`new-ci` workspace, which the compiler test does not build. The common comparator
+and complete-capture code remain byte-identical; only registration changed.
 
 | Population | Exact / failed twice | Execution provenance |
 | --- | --- | --- |
 | A39 retained/accessor/helper/alias/context454 | 360 / 94 | Reused frozen A39 complete captures;908 primary and908 supplemental executions, zero new executions |
 | New lexical44 | 22 / 22 | New88 primary and88 supplemental native executions;88 fresh complete TypeScript executions |
 | New private constructor-reference8 | 2 / 6 | New16 primary and16 supplemental native executions;16 fresh complete TypeScript executions |
+| New lexical edges16 | 5 / 11 | New32 primary and32 supplemental native executions;32 fresh complete TypeScript executions; native binary bytes archived before any rebuild |
 
-All new failures differ in JavaScript and JavaScript mappings. Diagnostics,
+All new failures differ only in JavaScript and, where applicable, JavaScript
+mappings, including the map JSON inside `emit_result`. Diagnostics,
 declarations, status, exit products and typed-boundary behavior match. The four
 TS1166 and four TS2695 diagnostics in computed-key controls remain in the
-expected tuples. There are no new upstream exceptions; the two historical
+expected tuples. The16 edge controls also preserve108 TS1166,12 TS2464,48
+TS2465 and48 TS2339 diagnostics across the unique observations. There are no
+new upstream exceptions; the two historical
 upstream exceptions remain outside complete-command equality credit.
 
-The current owned repair set has65 failures. Preserve all384 prior positives
+The current owned repair set has76 failures, including every prior65 repair
+and all11 new edge failures. Preserve all389 prior positives
 and all57 complete successor negatives whose earlier decorator producer still
-belongs to A6-41. The intended after minimum is449 exact twice, with all506
+belongs to A6-41. The intended after minimum is465 exact twice, with all522
 commands still compared strictly and every remaining failure retained. This
 is an implementation target, not a qualification claim. The original769 and
 class1228 populations are separate; no new global total is inferred.
 
 Reproduction selectors on the current test are `producer` (the original454),
-`lexical` (44), `constructor-references` (8), and `all` (506), using
+`lexical` (44), `constructor-references` (8), `edges` (16), and `all` (522), using
 `TSC_RS_RETAINED_ACCESSOR_CASE_SET` with
 `cargo test -p tsc-rs-compiler --test contracts --
 retained_accessor_owners_match_complete_typescript_observations --nocapture
@@ -64,11 +73,14 @@ retained_accessor_owners_match_complete_typescript_observations --nocapture
 Fresh TS inputs and observers are
 [lexical inputs](../../../../crates/compiler/tests/fixtures/retained-lexical-inputs.json),
 [constructor-reference inputs](../../../../crates/compiler/tests/fixtures/retained-constructor-reference-inputs.json),
+[edge inputs](../../../../crates/compiler/tests/fixtures/retained-lexical-edge-inputs.json),
 [lexical observer](../../../../scripts/observe-retained-lexical-environments.mjs)
-and [constructor observer](../../../../scripts/observe-retained-constructor-references.mjs).
-Both use the unchanged complete TypeScript serializer, execute twice, and
+and [constructor observer](../../../../scripts/observe-retained-constructor-references.mjs),
+plus the [edge observer](../../../../scripts/observe-retained-lexical-edges.mjs).
+All use the unchanged complete TypeScript serializer, execute twice, and
 preserve exceptions separately. Their frozen output paths use the corresponding
-`retained-lexical-environments.json` and `retained-constructor-references.json`
+`retained-lexical-environments.json`, `retained-constructor-references.json`
+and `retained-lexical-edges.json`
 fixtures. Do not hand-author or regenerate expected output to fit native code.
 
 ## Resolved semantic requirements
@@ -199,22 +211,69 @@ Both are reflected in the typechecked candidate. The ordinary generated-name
 finalizer remains the spelling authority; temporary provisional strings never
 become the generated identity.
 
-The source predicates for BigInt computed names, private names ending in `_`,
-private temporary skipping, and the greater-than-ten comma-list branch need
-explicit witness coverage review before readiness. `isSimpleInlineableExpression`
-excludes BigIntLiteral and includes keyword kinds; the predecessor retained
-helper did not express that exact predicate. These findings do not permit
-shrinking or reclassifying any of the65 already-required repairs.
+The16 edge controls freeze four themes at ES2022/ESNext and set/define. BigInt
+computed names require caches because `isSimpleInlineableExpression` excludes
+BigIntLiteral; the same predicate includes keyword kinds. File-wide parsed
+private-name collisions force `#value_2_accessor_storage`, while escaped source
+spelling produces `#\u0076alue_accessor_storage`. Sixteen computed accessors
+after an unrelated `#_a_accessor_storage` reserve `_b` onward and skip `_i` and
+`_n`. Twelve pending computed field names exercise the greater-than-ten
+CommaList branch, including a function-local captured lexical receiver and
+the return comma expression's unparenthesized printer context. Their fresh
+before tuples confirm that all11 new failures belong to these retained owners;
+the other five complete tuples are adjacent preservation controls.
+
+## Source review checkpoint and concrete candidate gap
+
+The reproducible [source inventory](../../../../ratchets/h2-8a-retained-lexical-source-inventory.v1.json)
+contains203 selected seeds and their nested callbacks:220 whole owners,
+960 predicates and1436 call sites. Its
+[observer](../../../../scripts/inventory-retained-lexical-owners.mjs) derives
+the nearest registered parent from AST ancestry after registration, eliminating
+the earlier seed-order dependency. Call order is explicitly AST syntax order;
+it is not used as proof of execution order or callee resolution.
+
+The [source review](../../../../ratchets/h2-8a-retained-lexical-source-review.v1.json)
+maps five reviewed requirements to exact candidate function spans, source
+owners and frozen witness IDs: function/default phases, lexical products,
+iteration phases, computed caches and private-name domains. These are reviewed
+semantic invariants, not blanket qualification of all branches of each general
+source owner. Verify the current inputs and mappings with
+`python3 scripts/check-retained-lexical-source-review.py`; the check explicitly
+reports **NOT implementation-ready**.
+
+Review found `A40-F-COMMA-FACTORY`: `inlineExpressions` calls
+`createCommaListExpression`24382-24387 for more than ten operands. That factory
+first applies `flattenCommaElements`24371-24381 once per supplied element.
+It expands only a synthetic, non-parse node without `original`, `emitNode`, or
+a materialized source `node.id`; a comma binary expands to its two operands,
+and a comma list expands to its elements. This differs from recursive
+`flattenCommaListWorker`, used when collecting pending erased-field effects.
+The current staged `inline_expressions` creates the array directly and omits
+this factory operation. The candidate must be amended before readiness.
+
+Eight fresh direct TypeScript factory observations are embedded in the review.
+Plain binary, nested binary and comma-list inputs expand one level; an original
+node, emit metadata, materialized ID, parsed provenance or a source range each
+preserves the operand. These are factory research observations, with zero
+Program/native commands and no equality credit. Rust's always-present arena
+`NodeId` cannot stand in for TypeScript's lazy `node.id` guard: first establish
+the reachable provenance or a concrete typed representation. Complete Program
+witnesses must cover a generated comma-valued computed member after more than
+ten pending operands, plus adjacent preservation controls. Do not modify the
+already frozen16 edge outputs or reuse the recursive flattener as a shortcut.
 
 ## Remaining readiness work
 
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,
-   prologue merging and generated/private name domains. Existing source136
-   inventory is research input, not a ready semantic disposition ledger.
+   prologue merging and generated/private name domains. The source220 inventory
+   is research input, not a ready semantic disposition ledger. Add the two
+   comma factory owners and close their provenance predicates, as recorded in
+   `A40-F-COMMA-FACTORY`; also close the named helper omissions in the review.
 2. Audit the now-complete, typechecked candidate against each whole upstream
-   row; complete witness coverage for the newly identified name/comma predicates.
+   row and map the newly frozen name/comma witnesses to their exact predicates.
    The concrete source already contains the factory/raw/map/comment/flag
    operations, lexical/block restoration and initializer-result callers, but
    typing alone does not prove their semantic equality.
@@ -223,7 +282,7 @@ shrinking or reclassifying any of the65 already-required repairs.
    build the exact allowed-files, row-to-step and witness mappings.
 4. Freeze the staged source design and run a new mechanical readiness checker
    with unresolved=0 and undispositioned=0 before production changes. Then run
-   the full506 comparator and unchanged494/451 emitter suites with1350
+   the full522 comparator and unchanged494/451 emitter suites with1350
    declaration reprints, retain actual failures, and qualify only the complete
    measured owner scope. Hosted acceptance is still required before landing.
 

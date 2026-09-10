@@ -1,0 +1,1047 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source review checkpoint; NOT implementation-ready",
+  "source_inventory": {
+    "path": "ratchets/h2-8a-retained-lexical-source-inventory.v1.json",
+    "sha256": "69ee3291716afd733ba8f45c795e832aec467c47b3f3142b1e85c341179ed938"
+  },
+  "candidate": {
+    "path": "docs/design/greenfield/slices/h2-8a-retained-lexical-owners.candidate.rs.txt",
+    "sha256": "15d6aa40ca6d6bda2f4083b79068fa7ce23492bff72d66c059d9384efda62b13"
+  },
+  "before": {
+    "path": "ratchets/h2-8a-retained-lexical-owners-before.v2.json",
+    "sha256": "9eb5b661a5dfce450a5e3006e798342970b71d20bea59a00525f275859331461"
+  },
+  "runtime_preimage": {
+    "path": "crates/emitter/src/builtins/class_fields.rs",
+    "sha256": "26de511b53ea232b073235a4507f703ae78cd4881c12bfea720f71f932dc03e7"
+  },
+  "context_research_input": {
+    "path": "crates/emitter/src/transform.rs",
+    "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+  },
+  "review_policy": "These are semantic-invariant reviews, not blanket dispositions of every branch/callee in the referenced owners. A separate complete row-to-step/witness/architecture ledger is still required for readiness.",
+  "invariants": [
+    {
+      "id": "A40-R-FUNCTION-PHASES",
+      "status": "reviewed semantic requirements mapped to staged Rust; runtime qualification pending",
+      "implementation_orders": [
+        3
+      ],
+      "source_owners": [
+        {
+          "id": "generic-visitation/visitEachChildOfFunctionDeclaration@92032:36",
+          "sha256": "4dc88ea175117f5f439044972b05d6e118d06a94234a3e7870e1db9be5137057"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfFunctionExpression@91745:35",
+          "sha256": "b23ca1b6924db5b00bfe94b9e89417a1f6aea7cdf7e208e978e408e9f311fcf6"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfArrowFunction@91757:30",
+          "sha256": "5985d4c9286499170feacc30d9e0903908a91d3233839a07f08e7a63cebddd31"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfMethodDeclaration@91398:34",
+          "sha256": "05accd66795b506e357c27abb8960913e50b4a386ee7ed64b96c03122953ceab"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfConstructorDeclaration@91411:28",
+          "sha256": "615c0451b896cbfa09a10b819222d00ba2d038fd3773c2cd437b1f8929303eb2"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfGetAccessorDeclaration@91419:28",
+          "sha256": "96be5538efff414a1b754659c238b478792919395ebf2281bad72d01c0fdc426"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfSetAccessorDeclaration@91429:28",
+          "sha256": "6767f3a828e538964d7c6a3ff12f11d69ef1f1dc55d026b8249a1abba7b62c64"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfClassStaticBlockDeclaration@91438:44",
+          "sha256": "57bae9af6bcf535c10ddc5a5e6a6f8f63f30c34edc6f5f7fa8c8401bf6a4b2eb"
+        },
+        {
+          "id": "generic-visitation/visitParameterList@91168:1",
+          "sha256": "2835f20d38d494faaa1aa6faaf5748981e7665eae6e4032cb999ce043effd0ec"
+        },
+        {
+          "id": "generic-visitation/addDefaultValueAssignmentsIfNeeded@91182:1",
+          "sha256": "371a3a9c4db5d210791f8773b4b074a75a6521933ccebf080050c6a5508d7a9c"
+        },
+        {
+          "id": "generic-visitation/addDefaultValueAssignmentIfNeeded@91197:1",
+          "sha256": "f0c5674c0c9d696a22c493ce998a1f31193730e1b37792aecddd0f3ec48e30b7"
+        },
+        {
+          "id": "generic-visitation/addDefaultValueAssignmentForBindingPattern@91200:1",
+          "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+        },
+        {
+          "id": "generic-visitation/addDefaultValueAssignmentForInitializer@91239:1",
+          "sha256": "b54c3ffef836c6a21175eaa6ef3b9febd1d8e8383994b245ecda2f9cf4b024fc"
+        },
+        {
+          "id": "factory-lexical/createTypeCheck@24548:3",
+          "sha256": "d177b3c769a1fe72bbe1f6aaea39a839e318ab696955d19ff6cefaaf3314fe2f"
+        },
+        {
+          "id": "generic-visitation/visitFunctionBody@91277:1",
+          "sha256": "a3a512cd174753f2fb2f9744298f42b06fb64b600d7dbfe206f3650b35372839"
+        },
+        {
+          "id": "factory-lexical/convertToFunctionBlock@20665:3",
+          "sha256": "8f9e7ad96fb01e942a38d0fdeb2022e50c89da440a7862ed5e0e4ec40f6d3957"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::visit_function_with_name_visitor",
+          "start": 3444,
+          "end": 3559,
+          "sha256": "24f9e6224cf8cf86affb1612efab86df416268608b69850e8da0f1f3dbe08e1a"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_function_header",
+          "start": 3424,
+          "end": 3442,
+          "sha256": "cb47cd3c15fa78edcb5decd47f1b916aff74b344b5f08721b51a2b391ed930ae"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_function_parts",
+          "start": 3356,
+          "end": 3379,
+          "sha256": "38c1f17b8e5f240a320e7d8207fb2afe2768229cd9674a531c27b0f2c1bfb459"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_retained_parameters",
+          "start": 3381,
+          "end": 3402,
+          "sha256": "e386913b75badad2a05a5a236a8dabf1af8b16e50d39e84db11e3fdfc4c067aa"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::lower_parameter_defaults",
+          "start": 3133,
+          "end": 3152,
+          "sha256": "0be83ed3adcd424448fdfe6a4a06def9ba13b307f5066bce3841c7c088a31719"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::lower_parameter_default",
+          "start": 3154,
+          "end": 3244,
+          "sha256": "42bed2bd3bed24ea19e20f812644125f47a0f00d35caa3ef479b32657dbdbeea"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::install_function_environment",
+          "start": 3246,
+          "end": 3300,
+          "sha256": "d67eabd36a99a999022bf9e3e4dad0d662d0edba06ee99e9c27a665637a8df45"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_static_block",
+          "start": 3561,
+          "end": 3577,
+          "sha256": "d6ad8349021777edcd93e96e654453313d5e68d63ecdbc684c72bf6c33305839"
+        }
+      ],
+      "witness_ids": [
+        "retained-lexical-environments/es2022/esnext/define/binding-parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/define/computed-key-visit-order",
+        "retained-lexical-environments/es2022/esnext/define/concise-arrow-binding-parameter",
+        "retained-lexical-environments/es2022/esnext/define/parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/define/sibling-method-scopes",
+        "retained-lexical-environments/es2022/esnext/set/binding-parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/set/computed-key-visit-order",
+        "retained-lexical-environments/es2022/esnext/set/concise-arrow-binding-parameter",
+        "retained-lexical-environments/es2022/esnext/set/parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/set/sibling-method-scopes",
+        "retained-lexical-environments/esnext/esnext/define/binding-parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/define/computed-key-visit-order",
+        "retained-lexical-environments/esnext/esnext/define/concise-arrow-binding-parameter",
+        "retained-lexical-environments/esnext/esnext/define/parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/define/sibling-method-scopes",
+        "retained-lexical-environments/esnext/esnext/set/binding-parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/set/computed-key-visit-order",
+        "retained-lexical-environments/esnext/esnext/set/concise-arrow-binding-parameter",
+        "retained-lexical-environments/esnext/esnext/set/parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/set/sibling-method-scopes"
+      ],
+      "requirements": [
+        "Visit modifiers, names and type parameters before the parameter lexical environment; preserve tokens because this retained caller does not supply a token visitor.",
+        "Visit all parameters with InParameters set, then lower defaults only when VariablesHoistedInParameters is set. The retained dispatch admits ES2022/ESNext, satisfying the source ES2015 target guard.",
+        "Rest parameters remain unchanged. Binding patterns receive one generated parameter identity and a custom initialization declaration; scalar defaults clone the identifier and compare it with void zero.",
+        "Scalar default assignment target gets NoSourceMap; initializer preserves incoming flags and adds NoSourceMap/NoComments; assignment gets the parameter raw range and NoComments. The guard block gets the parameter raw range and the four source flag categories.",
+        "Suspend after parameters, visit the return type, resume before the body, then end and merge. Concise-body conversion maps both return statement and block to the expression raw range.",
+        "Class member names use the class pending-expression visitor; ordinary object methods use ordinary visitation. Static input blocks start their own environment; synthesized initializer blocks are not revisited."
+      ],
+      "limits": [
+        "The architecture reference and complete context/factory premise validation remain part of readiness.",
+        "Post-TypeScript type erasure is the admitted producer boundary; arbitrary API1 custom transforms are not qualified by these observations."
+      ]
+    },
+    {
+      "id": "A40-R-LEXICAL-PRODUCTS",
+      "status": "reviewed semantic requirements mapped to staged Rust; runtime qualification pending",
+      "implementation_orders": [
+        2,
+        3
+      ],
+      "source_owners": [
+        {
+          "id": "generic-visitation/visitLexicalEnvironment@91162:1",
+          "sha256": "9a044f93ef409ce791b07390377688cdd5469f78293cf26a30fc2e20dee746cf"
+        },
+        {
+          "id": "context/hoistVariableDeclaration@116104:3",
+          "sha256": "2d0687fbc9b8daa02fa3fde270944ce04c8fbc551a520a3090a9b2609e5b35a0"
+        },
+        {
+          "id": "context/addInitializationStatement@116127:3",
+          "sha256": "be3af326e6f9ea27f12de24b72145b52cfb5dab46ed631863b6739e6e4d095f1"
+        },
+        {
+          "id": "context/startLexicalEnvironment@116137:3",
+          "sha256": "04980a57554c041523a7785d47b9c44c56405c00b2a981e2f00a8ab92f91b9bd"
+        },
+        {
+          "id": "context/suspendLexicalEnvironment@116151:3",
+          "sha256": "ffce13515fce4769bc8f7647d2bcc1c63eea7d73b550f3164037ec79c7403e2a"
+        },
+        {
+          "id": "context/resumeLexicalEnvironment@116157:3",
+          "sha256": "54de0f88c82c993793669f631901ff9fbfa6cfc325f097984e7340a59fefdcd8"
+        },
+        {
+          "id": "context/endLexicalEnvironment@116163:3",
+          "sha256": "2c0e28a70cf8973bfd22ef5fd3bfdea40acd4ccd576d1a76ba9f90d27c3b32d8"
+        },
+        {
+          "id": "context/setLexicalEnvironmentFlags@116206:3",
+          "sha256": "c6913bfca12ea9bcf5ebe0a648ad1c3efe269b31a63aad8f5018d04c82602c06"
+        },
+        {
+          "id": "context/getLexicalEnvironmentFlags@116209:3",
+          "sha256": "98b93e053c29d2ad8828c72db80e41890b4ffa874a781389c88f85f9f2ba6e5a"
+        },
+        {
+          "id": "factory-lexical/mergeLexicalEnvironment@24889:3",
+          "sha256": "78e115d54a34d7dc7b221846c39b8eb6b1b7bada627972ad9815d90ccfb25e6c"
+        },
+        {
+          "id": "factory-lexical/findSpanEnd@24882:3",
+          "sha256": "453db5e35d1804fece8990616a99a46dde9fa8004f839b5239824cfba350fddf"
+        },
+        {
+          "id": "predicates/isPrologueDirective@14161:1",
+          "sha256": "b99b478d71a98ae5fb84c379a4fe96e7312f54557d8083fd3a740f6d382dc5ce"
+        },
+        {
+          "id": "predicates/isCustomPrologue@14164:1",
+          "sha256": "0ac2cb88af02c3d39b7afb38909b9bdcc3ec048936c12f91d585b935bb31cc08"
+        },
+        {
+          "id": "predicates/isHoistedFunction@14167:1",
+          "sha256": "47d77e6ed087993fcb01e93f778c0577b700a4911df1c357242fd391950a3e0d"
+        },
+        {
+          "id": "predicates/isHoistedVariableStatement@14173:1",
+          "sha256": "219eb7deeb65ca9b40ab2eb77a127437c35bc5dc7b370018aea86dae596220de"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::allocate_binding",
+          "start": 2875,
+          "end": 2901,
+          "sha256": "861f26fc43069b10bd3ef6e2378076aca990ad6c91e9a9b537a4b1c3f9e02dec"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::materialize_lexical_environment",
+          "start": 2947,
+          "end": 2971,
+          "sha256": "e4794bd4090f9e33f770aa1de2c8b2d63784aeca8b2e22c2d975b7b01e7112fd"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::merge_lexical_environment",
+          "start": 3061,
+          "end": 3131,
+          "sha256": "b160f3409f9e4a3b4ac5ec8f8a5248e6cb75da561d5537179688b630993b1e77"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::find_prologue_span_end",
+          "start": 3045,
+          "end": 3059,
+          "sha256": "bee5dc49050e826ea87e2a42b4fe7a1eba992d18ed9715f5662ed28317f4d9d2"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::prologue_text",
+          "start": 3024,
+          "end": 3043,
+          "sha256": "93255e466432241c2f15e1dc2d2694e3225abad9f42563e32a7423e70f11cf79"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::is_custom_prologue",
+          "start": 2973,
+          "end": 2978,
+          "sha256": "2ac869bc2e06bf2af36ab9fbeac2a3cc1d6e372168c0791f4ce36ac7d845535c"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::is_hoisted_function",
+          "start": 2980,
+          "end": 2986,
+          "sha256": "8cc6d62ee1e125d965847eb64a2fd3e164448397112adcc4f97db808279b239d"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::is_hoisted_variable_statement",
+          "start": 2988,
+          "end": 3022,
+          "sha256": "d91e215b84e4024901df12f483e378de8473e4eae7f398d8cbf0c5784ce60db1"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_source",
+          "start": 3780,
+          "end": 3814,
+          "sha256": "51e8a9e6c3d628b0580b2c62ab259fe569fc9c4464a240f10c7e4c77d1dcadcd"
+        }
+      ],
+      "witness_ids": [
+        "retained-lexical-environments/es2022/esnext/define/binding-parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/define/directive-function-scope",
+        "retained-lexical-environments/es2022/esnext/define/parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/set/binding-parameter-and-body",
+        "retained-lexical-environments/es2022/esnext/set/directive-function-scope",
+        "retained-lexical-environments/es2022/esnext/set/parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/define/binding-parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/define/directive-function-scope",
+        "retained-lexical-environments/esnext/esnext/define/parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/set/binding-parameter-and-body",
+        "retained-lexical-environments/esnext/esnext/set/directive-function-scope",
+        "retained-lexical-environments/esnext/esnext/set/parameter-and-body"
+      ],
+      "requirements": [
+        "TransformationContext stores hoisted Identifier handles; the retained consumer materializes VariableDeclaration nodes with NoNestedSourceMaps and one CustomPrologue variable statement.",
+        "Materialization orders function declarations, variable statement and initialization statements. The context marks hoists in parameters and initialization statements through its existing typed APIs.",
+        "Compute left and right directive/function/variable spans plus right custom span before insertion. Insert custom, variable and function ranges at their respective left boundaries; deduplicate right directives against the original left directives.",
+        "Preserve source/function NodeArray positions and trailing-comma state when applying the merged Vec. Reject an invalid declaration prologue sequence with TransformError.",
+        "Function visitation captures the Result before ending its context and generated-name scope; return-type errors resume the suspended context before propagation."
+      ],
+      "limits": [
+        "Whole helper closure still needs hoistFunctionDeclaration and isHoistedVariable explicitly inventoried, even though their bodies were read and their consumer behavior is recorded here.",
+        "Current context code was inspected at transform.rs647-782; this review does not independently qualify the shared context."
+      ]
+    },
+    {
+      "id": "A40-R-ITERATION-PHASES",
+      "status": "reviewed semantic requirements mapped to staged Rust; runtime qualification pending",
+      "implementation_orders": [
+        3
+      ],
+      "source_owners": [
+        {
+          "id": "generic-visitation/visitEachChildOfForStatement@91938:29",
+          "sha256": "265f0ae2f49acaa533c8e93dd787f8b7c51eebcf92f78aa5ae5005cf96476630"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfForInStatement@91947:31",
+          "sha256": "0c4314c717f1b2ec7b9cf05b03b7ab603c1d0f11a1696103d2244f4bd8b56eb7"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfForOfStatement@91955:31",
+          "sha256": "a755adea0997e4989d46191aeb24d3199f413632f6b74840356f11d4154e1ab2"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfWhileStatement@91931:31",
+          "sha256": "abb1a2c7b1db83e7efca76f51ff0f3b4c59c5bef8c27ceaafc231a3891956252"
+        },
+        {
+          "id": "generic-visitation/visitEachChildOfDoStatement@91924:28",
+          "sha256": "b74deddc5ec5746acdc001ce3ad361d9bf8ce8484f71abfdc6c47649febd8473"
+        },
+        {
+          "id": "generic-visitation/visitIterationBody@91291:1",
+          "sha256": "fe05fbfee1c93fa366c75924e3cd13f6d6f24d48ce2ed28123c827b4104f4ce6"
+        },
+        {
+          "id": "context/startBlockScope@116212:3",
+          "sha256": "f4bb3d5bcac04aa2d1635453999a4f477bf5dd86ca8a98d6fb57c71d33a2dc89"
+        },
+        {
+          "id": "context/endBlockScope@116219:3",
+          "sha256": "5a58ea9fd292425ca5d9ca2f608e5839871678b4447fc21c03822d6801b114d4"
+        },
+        {
+          "id": "context/addBlockScopedVariable@116239:3",
+          "sha256": "2a0ff6580dc2d09c84d4b4fd08343c6431401ad36d4ddcd29f5cb20abbf3bc1b"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::visit_iteration",
+          "start": 3621,
+          "end": 3669,
+          "sha256": "3c897f807b08ad063971396c658db35e60f723a9b3af5ce2dbfd9728b92622a0"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::visit_iteration_body",
+          "start": 3579,
+          "end": 3619,
+          "sha256": "4d1514462128deee092cc3acb07eb22eee6e1ec7cce7e3bace49649082d44728"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::allocate_binding",
+          "start": 2875,
+          "end": 2901,
+          "sha256": "861f26fc43069b10bd3ef6e2378076aca990ad6c91e9a9b537a4b1c3f9e02dec"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::create_variable_statement",
+          "start": 2919,
+          "end": 2945,
+          "sha256": "ce6eea5a9b555f1e2f6a8e11600bf99dac09107fbb046179f7dda707702a39bb"
+        }
+      ],
+      "witness_ids": [
+        "retained-lexical-environments/es2022/esnext/define/do-body",
+        "retained-lexical-environments/es2022/esnext/define/for-body",
+        "retained-lexical-environments/es2022/esnext/define/for-in-body",
+        "retained-lexical-environments/es2022/esnext/define/for-of-body",
+        "retained-lexical-environments/es2022/esnext/define/while-body",
+        "retained-lexical-environments/es2022/esnext/set/do-body",
+        "retained-lexical-environments/es2022/esnext/set/for-body",
+        "retained-lexical-environments/es2022/esnext/set/for-in-body",
+        "retained-lexical-environments/es2022/esnext/set/for-of-body",
+        "retained-lexical-environments/es2022/esnext/set/while-body",
+        "retained-lexical-environments/esnext/esnext/define/do-body",
+        "retained-lexical-environments/esnext/esnext/define/for-body",
+        "retained-lexical-environments/esnext/esnext/define/for-in-body",
+        "retained-lexical-environments/esnext/esnext/define/for-of-body",
+        "retained-lexical-environments/esnext/esnext/define/while-body",
+        "retained-lexical-environments/esnext/esnext/set/do-body",
+        "retained-lexical-environments/esnext/esnext/set/for-body",
+        "retained-lexical-environments/esnext/esnext/set/for-in-body",
+        "retained-lexical-environments/esnext/esnext/set/for-of-body",
+        "retained-lexical-environments/esnext/esnext/set/while-body"
+      ],
+      "requirements": [
+        "For/for-in/for-of headers precede the body scope; while condition precedes it, while do condition follows it.",
+        "Start a block scope only for the body, visit through statement-list lifting, then end the block scope before propagating the result.",
+        "When block variables exist, make one let statement and prepend it to the existing Block using a newly synthesized statement array, or wrap a non-Block body.",
+        "An ordinary anonymous class reference stays function-hoisted. Only the resolver BlockScopedBindingInLoop flag selects the current iteration declaration owner."
+      ],
+      "limits": [
+        "The resolver wrapper/fact producer and generated-name finalizer require separate whole-owner dispositions.",
+        "The admitted parser body-presence invariant must be named in the final error-boundary map; source Debug.assert(updated) is not an optional success branch."
+      ]
+    },
+    {
+      "id": "A40-R-COMPUTED-CACHE",
+      "status": "reviewed semantic requirements mapped to staged Rust; runtime qualification pending",
+      "implementation_orders": [
+        5
+      ],
+      "source_owners": [
+        {
+          "id": "predicates/isSimpleInlineableExpression@93030:1",
+          "sha256": "dabb12fd88952f3fff4c13a872996158367cbc5310529c0e3bf298ef7dc82931"
+        },
+        {
+          "id": "predicates/isSimpleCopiableExpression@93027:1",
+          "sha256": "e94fc826b2473f8e48f70dd785ba4924797d66957acf704f9e1fb331e6d56f89"
+        },
+        {
+          "id": "factory/findComputedPropertyNameCacheAssignment@28193:1",
+          "sha256": "9738d7baa77f784fba823fec2296c45db17f7b4261fcc98c1b0a0d5575985220"
+        },
+        {
+          "id": "predicates/isOuterExpression@27561:1",
+          "sha256": "0142cba7ec16112864a20bb8b7e54cba2101e966f6f51d70e28bb94f4883f173"
+        },
+        {
+          "id": "predicates/skipOuterExpressions@27582:1",
+          "sha256": "357d322623af759a4c11d3647dd82f36dcdfc073cd0fa0f38b4edcc2ed247c48"
+        },
+        {
+          "id": "predicates/isAssignmentExpression@17111:1",
+          "sha256": "204fb9c522daabe8ebc4adad783ec3b22365ff9f7f2fecd9c0e730fd2af86be8"
+        },
+        {
+          "id": "class-fields/getPropertyNameExpressionIfNeeded@97620:3",
+          "sha256": "9b1e547c87a3145460c6b060898752c749c4c7a32efff25d9bacd59633728e65"
+        },
+        {
+          "id": "class-fields/transformAutoAccessor@96256:3",
+          "sha256": "74ca6db3736087e00be42a18b0140d9d8a918e410b0657bef1f910f3c931a916"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::retained_simple_inlineable",
+          "start": 1269,
+          "end": 1282,
+          "sha256": "142b4aa15a610f407ede30145e20fb2ddac945b54b7975ab9b6fc85cb7daa18b"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::find_computed_name_cache",
+          "start": 1234,
+          "end": 1267,
+          "sha256": "7a92a82ec3e49ff223b1f806b26b008eae49380de07945b25d5a6b454161fdf8"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::skip_retained_outer_expressions",
+          "start": 1173,
+          "end": 1199,
+          "sha256": "e85cdeef4acccb3f5c9514359032d2d90bef854dedeb636f099242fff253bca4"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::generated_assignment_left",
+          "start": 1201,
+          "end": 1232,
+          "sha256": "70c0ed1ff595edbe143872c4cc2629d86ad4075a3f6fd1a9051b1ad7620e1780"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::computed_name_binding",
+          "start": 1284,
+          "end": 1298,
+          "sha256": "e066512e8dba2898ebd70b3d996844a12e27dad0c3cc3387757e82508ba96d70"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::property_name_expression_if_needed",
+          "start": 1300,
+          "end": 1336,
+          "sha256": "dbfc6bcb0c20dc9b3ddcf11ea65be895fd6a9794a6b7689575ab3ae3af61b8cb"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::retained_auto_accessor_names",
+          "start": 1353,
+          "end": 1407,
+          "sha256": "d15a7d805fa8c52bbb7b1132c01bd430f5e9ede3610a95a17ea207ea78eec391"
+        }
+      ],
+      "witness_ids": [
+        "retained-lexical-edges/es2022/esnext/define/bigint-computed",
+        "retained-lexical-edges/es2022/esnext/set/bigint-computed",
+        "retained-lexical-edges/esnext/esnext/define/bigint-computed",
+        "retained-lexical-edges/esnext/esnext/set/bigint-computed",
+        "retained-lexical-environments/es2022/esnext/define/computed-key-visit-order",
+        "retained-lexical-environments/es2022/esnext/set/computed-key-visit-order",
+        "retained-lexical-environments/esnext/esnext/define/computed-key-visit-order",
+        "retained-lexical-environments/esnext/esnext/set/computed-key-visit-order"
+      ],
+      "requirements": [
+        "Simple inlineable means string/no-substitution-template/numeric literals or keyword kinds. Identifier and BigIntLiteral are excluded.",
+        "Find an existing generated assignment before visiting the source expression; peel all outer wrappers and the rightmost comma/comma-list path. This cache predicate excludes compound assignments.",
+        "The ordinary post-visit predicate peels only PartiallyEmittedExpression, admits every assignment operator with a generated Identifier left side, and allocates only when shouldHoist is true.",
+        "The computed-name identity can be requested by constructor initialization before its declaration is hoisted by the member-name evaluation owner.",
+        "An uncached auto-accessor allocates its temporary before expression visitation; its temporary and assignment use the expression raw range. Getter and setter preserve separate updated name nodes."
+      ],
+      "limits": [
+        "References to transformAutoAccessor cover its name/cache invariant; backing/redirector producer and result-visitor dispositions remain separate.",
+        "Generated identity is checked through metadata, never a printable underscore prefix."
+      ]
+    },
+    {
+      "id": "A40-R-PRIVATE-NAME-DOMAINS",
+      "status": "reviewed semantic requirements mapped to staged Rust; runtime qualification pending",
+      "implementation_orders": [
+        6
+      ],
+      "source_owners": [
+        {
+          "id": "printer-generated-names/getTextOfNode2@120442:3",
+          "sha256": "90198d09a4b6bba8d66d02a696610c2cd7922a3e01a3890cbc9e1910ee0b1dc6"
+        },
+        {
+          "id": "factory/getGeneratedPrivateNameForNode@21693:3",
+          "sha256": "1806c69ce25fd103782508ef492180d29f3b717aa70de9bbcd20d7d0be4f0096"
+        },
+        {
+          "id": "printer-generated-names/generateMemberNames@120600:3",
+          "sha256": "efa9b4f3659f219cfeb4c255ca06039e0c35685001f1d6e884dafb8af8cf78f8"
+        },
+        {
+          "id": "printer-generated-names/generateNameIfNeeded@120615:3",
+          "sha256": "e813389bacd3bdbd1e476022e2d3f2bf1fd1135a390c28754955058522dc668e"
+        },
+        {
+          "id": "printer-generated-names/generateName@120624:3",
+          "sha256": "fecbbc798982be388f23048a085499b67d9cdb27c57aa91b3a1b80789e7b6e43"
+        },
+        {
+          "id": "printer-generated-names/generateNameCached@120633:3",
+          "sha256": "976f864ebc31d76318dc766366075a68583abc7b4ebc485ff1b6cb6bf6300eb8"
+        },
+        {
+          "id": "printer-generated-names/generateNameForNode@120876:3",
+          "sha256": "1a587dce38202bb6d52823d94501a8802866ef5fe74bcc71797ab27e10dc177b"
+        },
+        {
+          "id": "printer-generated-names/isUniqueName@120638:3",
+          "sha256": "eb35313ab6b5eb88f60326d32d1c6ef119491159a3f87dcc7739ee2a30dde997"
+        },
+        {
+          "id": "printer-generated-names/isReservedName@120641:3",
+          "sha256": "b3aaaf0f7824ea6d69d6b1df2ff45a08f1f5b8c22c23620726a3aa311f6fef63"
+        },
+        {
+          "id": "printer-generated-names/isFileLevelUniqueNameInCurrentFile@120665:3",
+          "sha256": "b1c307ef20de7258e2d6bcdd6eab82e0c2c7cc3737f5154bbf6642e87984d2a0"
+        },
+        {
+          "id": "printer-generated-names/isFileLevelUniqueName@12907:1",
+          "sha256": "86b2e1d4e23cbbeaf4dd2fcc55e3ad9ed916572715f43ae013b2aeff94710c50"
+        },
+        {
+          "id": "printer-generated-names/makeUniqueName@120741:3",
+          "sha256": "94b24041b1e9e89c3c2514f7411642fb63c4cf392b878c105f4c5931cd041078"
+        },
+        {
+          "id": "printer-generated-names/makeTempVariableName@120703:3",
+          "sha256": "32ace3390b76de9265b620385ec40489d4e7cc8b19e1f180e3bca535731a6681"
+        },
+        {
+          "id": "printer-generated-names/getTempFlags@120679:3",
+          "sha256": "8851db0556788e36359af71b8aa0d6e06d68bfc1f49d6796c655adcf184fb076"
+        },
+        {
+          "id": "printer-generated-names/setTempFlags@120689:3",
+          "sha256": "c2273885df5d86726ecdb90de34d0b7f5138069ef3ceb070295ce60bfaf2f2c1"
+        },
+        {
+          "id": "printer-generated-names/pushNameGenerationScope@120480:3",
+          "sha256": "eb6aff824996a2e45904bf7588ed50258583cfa8f9e27cf548630fddd45d818b"
+        },
+        {
+          "id": "printer-generated-names/popNameGenerationScope@120493:3",
+          "sha256": "47cfe3850b4cf45835aa7acde1c369ef0ec58088a0f32676da9709ac3335b800"
+        },
+        {
+          "id": "printer-generated-names/reservePrivateNameInNestedScopes@120509:3",
+          "sha256": "2bf15157139a9921b61fdd8dbb9cccf7d2811e1ee616364d56fb191fb8449899"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::prepare_retained_private_storage",
+          "start": 1419,
+          "end": 1442,
+          "sha256": "d5913d9a0a6a70a39b4dd78c93f0e3ad29f99dff58cdeebd57e5eccfda197f62"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::retained_private_storage",
+          "start": 1480,
+          "end": 1551,
+          "sha256": "23d9a32c3794fced4e2db7612bb2712230f06fa68ed79eb5e8f2a1b8e2b0a619"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::retained_member_name_text",
+          "start": 1444,
+          "end": 1478,
+          "sha256": "3c8b8399a209f0d5f415490a29a1efe94428958388e560842535bd3674eb1bf1"
+        }
+      ],
+      "witness_ids": [
+        "retained-lexical-edges/es2022/esnext/define/private-formatted-temp-sequence",
+        "retained-lexical-edges/es2022/esnext/define/private-source-name-collisions",
+        "retained-lexical-edges/es2022/esnext/set/private-formatted-temp-sequence",
+        "retained-lexical-edges/es2022/esnext/set/private-source-name-collisions",
+        "retained-lexical-edges/esnext/esnext/define/private-formatted-temp-sequence",
+        "retained-lexical-edges/esnext/esnext/define/private-source-name-collisions",
+        "retained-lexical-edges/esnext/esnext/set/private-formatted-temp-sequence",
+        "retained-lexical-edges/esnext/esnext/set/private-source-name-collisions"
+      ],
+      "requirements": [
+        "Preallocate transformed accessor private member names after heritage and before emitting constructor/member bodies.",
+        "Keep source-name private cache separate from the public computed-name cache. Reserve parsed private spellings across the source file and generated private spellings across ancestor scopes.",
+        "Use raw source spelling for a parsed member with parent/range provenance; emitted escaped spelling participates in the preferred base.",
+        "An optimistic preferred base tries the unsuffixed full name first. On collision append a number, adding a separator only if the base does not already end in underscore.",
+        "The formatted anonymous private sequence skips counts8 and13 (_i/_n), and increments past occupied names. The reserved source #_a_accessor_storage therefore starts the observed sequence at #_b_accessor_storage."
+      ],
+      "limits": [
+        "This fixes the source-derived private accessor domain. Other branches of the general printer owners are not declared qualified or unreachable by association.",
+        "getNodeForGeneratedName identity boundaries and the ordinary finalizer require separate complete architecture/premise checks."
+      ]
+    }
+  ],
+  "open_findings": [
+    {
+      "id": "A40-F-COMMA-FACTORY",
+      "owner": "H2.8a-A6-40",
+      "state": "unresolved-blocks-production",
+      "source_owners": [
+        {
+          "name": "flattenCommaElements",
+          "start": 24371,
+          "end": 24381,
+          "line_span_sha256": "e20b4cc21b5c8c83823c0855192e4a9930098724d2984f6630bb63ceb6765a04",
+          "body": "  function flattenCommaElements(node) {\n    if (nodeIsSynthesized(node) && !isParseTreeNode(node) && !node.original && !node.emitNode && !node.id) {\n      if (isCommaListExpression(node)) {\n        return node.elements;\n      }\n      if (isBinaryExpression(node) && isCommaToken(node.operatorToken)) {\n        return [node.left, node.right];\n      }\n    }\n    return node;\n  }\n"
+        },
+        {
+          "name": "createCommaListExpression",
+          "start": 24382,
+          "end": 24387,
+          "line_span_sha256": "08247cc9ca3c65db60e9698476edc91537e88ecd451b678d6198e38d1d30b57a",
+          "body": "  function createCommaListExpression(elements) {\n    const node = createBaseNode(357 /* CommaListExpression */);\n    node.elements = createNodeArray(sameFlatMap(elements, flattenCommaElements));\n    node.transformFlags |= propagateChildrenFlags(node.elements);\n    return node;\n  }\n"
+        }
+      ],
+      "candidate_functions": [
+        {
+          "symbol": "ClassFieldsVisitor::inline_expressions",
+          "start": 1958,
+          "end": 1985,
+          "sha256": "4f059f021c74335bfdd90e7f24f9d35e78a7c08de1a81b916516bb3945c890f3"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::flatten_retained_comma_list",
+          "start": 1914,
+          "end": 1956,
+          "sha256": "7061133e7466355401f4ec63abeba59f365bea9fc0384aaaba618b198e096d04"
+        },
+        {
+          "symbol": "ClassFieldsVisitor::inject_pending_expressions",
+          "start": 1144,
+          "end": 1171,
+          "sha256": "0ac46b45d6dd7978bf8b84c21cf0df1cd4a92b4af7a3af4eb5f3468882a261c7"
+        }
+      ],
+      "finding": "The staged inline_expressions greater-than-ten branch creates a CommaList directly. Source createCommaListExpression first applies flattenCommaElements once per supplied element. It is distinct from recursive flattenCommaListWorker.",
+      "predicate": "Synthetic raw range, not a parse-tree node, no original, no emitNode, and no materialized source node.id; then flatten a comma-list to its elements or a comma binary to its two operands, exactly one level.",
+      "identity_obligation": "Rust arena NodeId exists for every node and cannot directly implement the source lazy node.id predicate. Establish the reachable producer/consumer provenance or introduce the required typed representation in the packet before changing production.",
+      "next_actions": [
+        "Add both whole factory owners and their predicates/callers to the source inventory.",
+        "Map every predicate to concrete Rust provenance; do not use the recursive pending-list flattener as a substitute.",
+        "Freeze complete Program witnesses for more-than-ten pending operands injected into a generated comma-valued computed member and adjacent original/metadata-preserving controls.",
+        "Amend the staged candidate, typecheck its new exact bytes, and complete readiness before production copy."
+      ],
+      "factory_observations": {
+        "version": 1,
+        "status": "Direct pinned TypeScript factory observations; no Program command, native candidate execution or equality credit",
+        "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+        "observer_sha256": "779b5f962d219573f137ba98ce72d2e6f60838e74262e9e8eefecb4f25453cea",
+        "rows": [
+          {
+            "label": "plain-binary",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                "left",
+                "right"
+              ]
+            }
+          },
+          {
+            "label": "nested-binary",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": {
+                "kind": "BinaryExpression",
+                "operator": "CommaToken",
+                "left": "left",
+                "right": "right"
+              },
+              "right": "last"
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                },
+                "last"
+              ]
+            }
+          },
+          {
+            "label": "comma-list",
+            "input": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "left",
+                "right"
+              ]
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                "left",
+                "right"
+              ]
+            }
+          },
+          {
+            "label": "with-original",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": true,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                }
+              ]
+            }
+          },
+          {
+            "label": "with-emit-node",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": true,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                }
+              ]
+            }
+          },
+          {
+            "label": "with-id",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": -1,
+              "end": -1,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": true
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                }
+              ]
+            }
+          },
+          {
+            "label": "parsed",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": 0,
+              "end": 11,
+              "synthesized_flag": false,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                }
+              ]
+            }
+          },
+          {
+            "label": "ranged-synthetic",
+            "input": {
+              "kind": "BinaryExpression",
+              "operator": "CommaToken",
+              "left": "left",
+              "right": "right"
+            },
+            "predicates": {
+              "pos": 0,
+              "end": 11,
+              "synthesized_flag": true,
+              "original_present": false,
+              "emit_node_present": false,
+              "id_present": false
+            },
+            "result": {
+              "kind": "CommaListExpression",
+              "elements": [
+                "p0",
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "p5",
+                "p6",
+                "p7",
+                "p8",
+                "p9",
+                {
+                  "kind": "BinaryExpression",
+                  "operator": "CommaToken",
+                  "left": "left",
+                  "right": "right"
+                }
+              ]
+            }
+          }
+        ],
+        "program_commands": 0,
+        "native_commands": 0
+      },
+      "factory_observations_sha256": "56c14ef8496ae127d0db188354fd0d51cbfba25b9283e56bb4153de6e47f3147",
+      "factory_observer_source": "import ts from '../vendor/typescript-6.0.3/lib/typescript.js';\nimport fs from 'node:fs';\nimport assert from 'node:assert/strict';\nimport crypto from 'node:crypto';\nconst hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');\nassert.equal(ts.version, '6.0.3');\nconst parsed = ts.createSourceFile('/input.ts', 'left, right;', ts.ScriptTarget.ESNext, true);\nfunction shape(node) {\n  if (ts.isIdentifier(node)) return node.text;\n  if (ts.isBinaryExpression(node)) return {kind: 'BinaryExpression', operator: ts.SyntaxKind[node.operatorToken.kind], left: shape(node.left), right: shape(node.right)};\n  if (ts.isCommaListExpression(node)) return {kind: 'CommaListExpression', elements: node.elements.map(shape)};\n  throw new Error('Unexpected probe node ' + ts.SyntaxKind[node.kind]);\n}\nconst rows = [];\nfor (const label of ['plain-binary', 'nested-binary', 'comma-list', 'with-original', 'with-emit-node', 'with-id', 'parsed', 'ranged-synthetic']) {\n  let node = ts.factory.createComma(ts.factory.createIdentifier('left'), ts.factory.createIdentifier('right'));\n  if (label === 'nested-binary') node = ts.factory.createComma(node, ts.factory.createIdentifier('last'));\n  if (label === 'comma-list') node = ts.factory.createCommaListExpression([ts.factory.createIdentifier('left'), ts.factory.createIdentifier('right')]);\n  if (label === 'with-original') ts.setOriginalNode(node, parsed.statements[0].expression);\n  if (label === 'with-emit-node') ts.setEmitFlags(node, ts.EmitFlags.NoComments);\n  if (label === 'with-id') ts.getNodeId(node);\n  if (label === 'parsed') node = parsed.statements[0].expression;\n  if (label === 'ranged-synthetic') ts.setTextRange(node, parsed.statements[0].expression);\n  const before = shape(node);\n  const result = ts.factory.inlineExpressions([...Array.from({length:10}, (_, i) => ts.factory.createIdentifier('p' + i)), node]);\n  rows.push({label, input: before,\n    predicates: {pos: node.pos, end: node.end, synthesized_flag: !!(node.flags & ts.NodeFlags.Synthesized),\n      original_present: !!node.original, emit_node_present: !!node.emitNode, id_present: !!node.id},\n    result: shape(result)});\n}\nconst record = {version: 1, status: 'Direct pinned TypeScript factory observations; no Program command, native candidate execution or equality credit',\n  compiler_sha256: hash(fs.readFileSync('vendor/typescript-6.0.3/lib/typescript.js')),\n  observer_sha256: hash(fs.readFileSync(import.meta.filename)), rows,\n  program_commands: 0, native_commands: 0};\nconst output = 'target/h2-8a-retained-comma-factory-observations.json';\nassert.ok(!fs.existsSync(output));\nfs.writeFileSync(output, JSON.stringify(record, null, 2) + '\\n');\nconsole.log(JSON.stringify(rows.map(row => ({label:row.label, elements:row.result.elements.length, tail:row.result.elements.slice(10)}))));\n"
+    }
+  ],
+  "counts": {
+    "source_owners": 220,
+    "predicates": 960,
+    "calls": 1436,
+    "reviewed_invariants": 5,
+    "new_concrete_blocking_findings": 1
+  },
+  "limitations": [
+    "No candidate runtime execution or new compatibility count.",
+    "Architecture closure, complete upstream call dispositions, and full522/native regression/hosted acceptance remain open.",
+    "The direct factory observations are research evidence, not Program equality or API1 activation."
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-lexical-source-review-br5tbmwk"
+}

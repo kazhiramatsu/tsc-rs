@@ -1,0 +1,454 @@
+{
+  "version": 1,
+  "description": "A40 source-proven edge predicates: BigInt computed names; file-wide private name collisions and trailing separator; formatted private temp skipping; >10 pending expressions with plain and lexical-this owners",
+  "cases": [
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/set/bigint-computed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Field { [1n]: any = \"field\"; }\nexport class Accessor { seed = 0; accessor [2n]: any = \"instance\"; static accessor [3n]: any = \"static\"; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/define/bigint-computed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Field { [1n]: any = \"field\"; }\nexport class Accessor { seed = 0; accessor [2n]: any = \"instance\"; static accessor [3n]: any = \"static\"; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/set/bigint-computed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Field { [1n]: any = \"field\"; }\nexport class Accessor { seed = 0; accessor [2n]: any = \"instance\"; static accessor [3n]: any = \"static\"; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/define/bigint-computed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Field { [1n]: any = \"field\"; }\nexport class Accessor { seed = 0; accessor [2n]: any = \"instance\"; static accessor [3n]: any = \"static\"; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/set/private-source-name-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #value__accessor_storage = 0; #value_1_accessor_storage = 0; #value_accessor_storage = 0; }\nexport class Box { seed = 0; accessor value_: number = 1; accessor \\u0076alue: number = 2; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/define/private-source-name-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #value__accessor_storage = 0; #value_1_accessor_storage = 0; #value_accessor_storage = 0; }\nexport class Box { seed = 0; accessor value_: number = 1; accessor \\u0076alue: number = 2; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/set/private-source-name-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #value__accessor_storage = 0; #value_1_accessor_storage = 0; #value_accessor_storage = 0; }\nexport class Box { seed = 0; accessor value_: number = 1; accessor \\u0076alue: number = 2; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/define/private-source-name-collisions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #value__accessor_storage = 0; #value_1_accessor_storage = 0; #value_accessor_storage = 0; }\nexport class Box { seed = 0; accessor value_: number = 1; accessor \\u0076alue: number = 2; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/set/private-formatted-temp-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #_a_accessor_storage = 0; }\nexport class Box {\n  seed = 0;\n  accessor [\"v00\"]: number = 0;\n  accessor [\"v01\"]: number = 1;\n  accessor [\"v02\"]: number = 2;\n  accessor [\"v03\"]: number = 3;\n  accessor [\"v04\"]: number = 4;\n  accessor [\"v05\"]: number = 5;\n  accessor [\"v06\"]: number = 6;\n  accessor [\"v07\"]: number = 7;\n  accessor [\"v08\"]: number = 8;\n  accessor [\"v09\"]: number = 9;\n  accessor [\"v10\"]: number = 10;\n  accessor [\"v11\"]: number = 11;\n  accessor [\"v12\"]: number = 12;\n  accessor [\"v13\"]: number = 13;\n  accessor [\"v14\"]: number = 14;\n  accessor [\"v15\"]: number = 15;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/define/private-formatted-temp-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #_a_accessor_storage = 0; }\nexport class Box {\n  seed = 0;\n  accessor [\"v00\"]: number = 0;\n  accessor [\"v01\"]: number = 1;\n  accessor [\"v02\"]: number = 2;\n  accessor [\"v03\"]: number = 3;\n  accessor [\"v04\"]: number = 4;\n  accessor [\"v05\"]: number = 5;\n  accessor [\"v06\"]: number = 6;\n  accessor [\"v07\"]: number = 7;\n  accessor [\"v08\"]: number = 8;\n  accessor [\"v09\"]: number = 9;\n  accessor [\"v10\"]: number = 10;\n  accessor [\"v11\"]: number = 11;\n  accessor [\"v12\"]: number = 12;\n  accessor [\"v13\"]: number = 13;\n  accessor [\"v14\"]: number = 14;\n  accessor [\"v15\"]: number = 15;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/set/private-formatted-temp-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #_a_accessor_storage = 0; }\nexport class Box {\n  seed = 0;\n  accessor [\"v00\"]: number = 0;\n  accessor [\"v01\"]: number = 1;\n  accessor [\"v02\"]: number = 2;\n  accessor [\"v03\"]: number = 3;\n  accessor [\"v04\"]: number = 4;\n  accessor [\"v05\"]: number = 5;\n  accessor [\"v06\"]: number = 6;\n  accessor [\"v07\"]: number = 7;\n  accessor [\"v08\"]: number = 8;\n  accessor [\"v09\"]: number = 9;\n  accessor [\"v10\"]: number = 10;\n  accessor [\"v11\"]: number = 11;\n  accessor [\"v12\"]: number = 12;\n  accessor [\"v13\"]: number = 13;\n  accessor [\"v14\"]: number = 14;\n  accessor [\"v15\"]: number = 15;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/define/private-formatted-temp-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Reserved { #_a_accessor_storage = 0; }\nexport class Box {\n  seed = 0;\n  accessor [\"v00\"]: number = 0;\n  accessor [\"v01\"]: number = 1;\n  accessor [\"v02\"]: number = 2;\n  accessor [\"v03\"]: number = 3;\n  accessor [\"v04\"]: number = 4;\n  accessor [\"v05\"]: number = 5;\n  accessor [\"v06\"]: number = 6;\n  accessor [\"v07\"]: number = 7;\n  accessor [\"v08\"]: number = 8;\n  accessor [\"v09\"]: number = 9;\n  accessor [\"v10\"]: number = 10;\n  accessor [\"v11\"]: number = 11;\n  accessor [\"v12\"]: number = 12;\n  accessor [\"v13\"]: number = 13;\n  accessor [\"v14\"]: number = 14;\n  accessor [\"v15\"]: number = 15;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/set/pending-comma-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport class Plain {\n  [key(0)]: any;\n  [key(1)]: any;\n  [key(2)]: any;\n  [key(3)]: any;\n  [key(4)]: any;\n  [key(5)]: any;\n  [key(6)]: any;\n  [key(7)]: any;\n  [key(8)]: any;\n  [key(9)]: any;\n  [key(10)]: any;\n  [key(11)]: any;\n}\nexport function make(this: { key(index: number): symbol }) {\n  return class Captured {\n    [this.key(0)]: any;\n    [this.key(1)]: any;\n    [this.key(2)]: any;\n    [this.key(3)]: any;\n    [this.key(4)]: any;\n    [this.key(5)]: any;\n    [this.key(6)]: any;\n    [this.key(7)]: any;\n    [this.key(8)]: any;\n    [this.key(9)]: any;\n    [this.key(10)]: any;\n    [this.key(11)]: any;\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/es2022/esnext/define/pending-comma-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport class Plain {\n  [key(0)]: any;\n  [key(1)]: any;\n  [key(2)]: any;\n  [key(3)]: any;\n  [key(4)]: any;\n  [key(5)]: any;\n  [key(6)]: any;\n  [key(7)]: any;\n  [key(8)]: any;\n  [key(9)]: any;\n  [key(10)]: any;\n  [key(11)]: any;\n}\nexport function make(this: { key(index: number): symbol }) {\n  return class Captured {\n    [this.key(0)]: any;\n    [this.key(1)]: any;\n    [this.key(2)]: any;\n    [this.key(3)]: any;\n    [this.key(4)]: any;\n    [this.key(5)]: any;\n    [this.key(6)]: any;\n    [this.key(7)]: any;\n    [this.key(8)]: any;\n    [this.key(9)]: any;\n    [this.key(10)]: any;\n    [this.key(11)]: any;\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/set/pending-comma-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport class Plain {\n  [key(0)]: any;\n  [key(1)]: any;\n  [key(2)]: any;\n  [key(3)]: any;\n  [key(4)]: any;\n  [key(5)]: any;\n  [key(6)]: any;\n  [key(7)]: any;\n  [key(8)]: any;\n  [key(9)]: any;\n  [key(10)]: any;\n  [key(11)]: any;\n}\nexport function make(this: { key(index: number): symbol }) {\n  return class Captured {\n    [this.key(0)]: any;\n    [this.key(1)]: any;\n    [this.key(2)]: any;\n    [this.key(3)]: any;\n    [this.key(4)]: any;\n    [this.key(5)]: any;\n    [this.key(6)]: any;\n    [this.key(7)]: any;\n    [this.key(8)]: any;\n    [this.key(9)]: any;\n    [this.key(10)]: any;\n    [this.key(11)]: any;\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "retained-lexical-edges/esnext/esnext/define/pending-comma-list",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare function key(index: number): symbol;\nexport class Plain {\n  [key(0)]: any;\n  [key(1)]: any;\n  [key(2)]: any;\n  [key(3)]: any;\n  [key(4)]: any;\n  [key(5)]: any;\n  [key(6)]: any;\n  [key(7)]: any;\n  [key(8)]: any;\n  [key(9)]: any;\n  [key(10)]: any;\n  [key(11)]: any;\n}\nexport function make(this: { key(index: number): symbol }) {\n  return class Captured {\n    [this.key(0)]: any;\n    [this.key(1)]: any;\n    [this.key(2)]: any;\n    [this.key(3)]: any;\n    [this.key(4)]: any;\n    [this.key(5)]: any;\n    [this.key(6)]: any;\n    [this.key(7)]: any;\n    [this.key(8)]: any;\n    [this.key(9)]: any;\n    [this.key(10)]: any;\n    [this.key(11)]: any;\n  };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

@@ -98,6 +98,15 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
     assert_eq!(constructor_references.len(), 8);
     cases.extend(constructor_references.iter().cloned());
     assert_eq!(cases.len(), 506);
+    let edges: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/retained-lexical-edges.json")).unwrap();
+    assert_eq!(edges["typescript"], "6.0.3");
+    assert_eq!(edges["repetitions"], 2);
+    assert!(edges["upstream_failures"].as_array().unwrap().is_empty());
+    let edges = edges["cases"].as_array().unwrap();
+    assert_eq!(edges.len(), 16);
+    cases.extend(edges.iter().cloned());
+    assert_eq!(cases.len(), 522);
     let ids = cases
         .iter()
         .map(|case| case["case_id"].as_str().unwrap())
@@ -140,6 +149,7 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
                 let id = case["case_id"].as_str().unwrap();
                 !id.starts_with("retained-lexical-environments/")
                     && !id.starts_with("retained-constructor-references/")
+                    && !id.starts_with("retained-lexical-edges/")
             });
             assert_eq!(cases.len(), 454);
         }
@@ -151,6 +161,15 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
                     .starts_with("retained-constructor-references/")
             });
             assert_eq!(cases.len(), 8);
+        }
+        Ok("edges") => {
+            cases.retain(|case| {
+                case["case_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("retained-lexical-edges/")
+            });
+            assert_eq!(cases.len(), 16);
         }
         unexpected => panic!("invalid retained accessor case selection: {unexpected:?}"),
     }

@@ -1,0 +1,1842 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "historical_selection": {
+    "path": "target/h2-8a-retained-accessor-source-audit-v2.json",
+    "sha256": "92727b8ca61f264a58fa71e66737231fe07f556c47a64fa0d9003bb4f399c4a8",
+    "role": "Selection provenance only; no current qualification or readiness premise"
+  },
+  "seeds": [
+    {
+      "group": "class-fields",
+      "name": "transformSourceFile",
+      "kind": "FunctionDeclaration",
+      "start": 95892,
+      "start_utf16": 4658460,
+      "end_utf16": 4658959,
+      "sha256": "d541d6a76cc11ed0f42685bf1d8bc40569825cf7fe55f5b1d9220e524b32b51e"
+    },
+    {
+      "group": "class-fields",
+      "name": "modifierVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 95905,
+      "start_utf16": 4658962,
+      "end_utf16": 4659201,
+      "sha256": "d6ac360e77992669a928c07aca0d29e3ad91a68be201c3079e7c23f2c9c9e753"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitor",
+      "kind": "FunctionDeclaration",
+      "start": 95913,
+      "start_utf16": 4659204,
+      "end_utf16": 4661998,
+      "sha256": "e4fb6f227c00d2b55ae6831ed6892ef39cbc56b39fa559c5985aa1cee6f16f4c"
+    },
+    {
+      "group": "class-fields",
+      "name": "fallbackVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 95994,
+      "start_utf16": 4662001,
+      "end_utf16": 4662088,
+      "sha256": "7bc2c6b2956ba8a7b52229daea8c61f23dd06ac96f656b9a2a3ef2dbdcd7a082"
+    },
+    {
+      "group": "class-fields",
+      "name": "heritageClauseVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 96028,
+      "start_utf16": 4662865,
+      "end_utf16": 4663210,
+      "sha256": "7b8531043a4c782e234825b57386a4dbc88e7f9927b5996e908da8e8a3ad16ac"
+    },
+    {
+      "group": "class-fields",
+      "name": "classElementVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 96047,
+      "start_utf16": 4663472,
+      "end_utf16": 4664524,
+      "sha256": "836d247e4aa2fb84a0d7dbd031af7eb66895fd7ca4cfa54dc95739079344b8bf"
+    },
+    {
+      "group": "class-fields",
+      "name": "propertyNameVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 96083,
+      "start_utf16": 4664527,
+      "end_utf16": 4664734,
+      "sha256": "03ca6b9d2875240b76eb94661621eddefb9c017bc9e9b8c3f6adc7b0c677aed6"
+    },
+    {
+      "group": "class-fields",
+      "name": "accessorFieldResultVisitor",
+      "kind": "FunctionDeclaration",
+      "start": 96091,
+      "start_utf16": 4664737,
+      "end_utf16": 4665187,
+      "sha256": "18b7e059891f04246f9b2a4ee8d620b0d2d7edc16e21c559d98ac0bac903fb5f"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitComputedPropertyName",
+      "kind": "FunctionDeclaration",
+      "start": 96180,
+      "start_utf16": 4668001,
+      "end_utf16": 4668213,
+      "sha256": "cd253272a60d147beeba123745af02828264ef3eff8393f5213b20a43d80629f"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitMethodOrAccessorDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 96195,
+      "start_utf16": 4668672,
+      "end_utf16": 4669784,
+      "sha256": "d223fd62c2c61e7b91e8e95edea5c540eb17b84e0cf5adf7e8fffec7df906aea"
+    },
+    {
+      "group": "class-fields",
+      "name": "setCurrentClassElementAnd",
+      "kind": "FunctionDeclaration",
+      "start": 96226,
+      "start_utf16": 4669787,
+      "end_utf16": 4670149,
+      "sha256": "37f5d544abb64482d70c730605201ae889879dc472d82d216950d4ea92840e38"
+    },
+    {
+      "group": "class-fields",
+      "name": "tryGetClassThis",
+      "kind": "FunctionDeclaration",
+      "start": 96252,
+      "start_utf16": 4670653,
+      "end_utf16": 4670854,
+      "sha256": "7dd23eb0e38628480c1b9ec5c435d562e402768be8bbb21ac900487dbf1607ed"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformAutoAccessor",
+      "kind": "FunctionDeclaration",
+      "start": 96256,
+      "start_utf16": 4670857,
+      "end_utf16": 4673097,
+      "sha256": "74ca6db3736087e00be42a18b0140d9d8a918e410b0657bef1f910f3c931a916"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformPrivateFieldInitializer",
+      "kind": "FunctionDeclaration",
+      "start": 96294,
+      "start_utf16": 4673100,
+      "end_utf16": 4674767,
+      "sha256": "db542d7e7201f4e3c527fb2d6b7108d75253150a573540440817d02f31b8664b"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformPublicFieldInitializer",
+      "kind": "FunctionDeclaration",
+      "start": 96340,
+      "start_utf16": 4674770,
+      "end_utf16": 4676230,
+      "sha256": "f203099163d094eab0e18256391905e1e34aefdb85d9a61a08ee5f8e8fdc11f9"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformFieldInitializer",
+      "kind": "FunctionDeclaration",
+      "start": 96377,
+      "start_utf16": 4676233,
+      "end_utf16": 4676524,
+      "sha256": "2cd8e847ff7a65c2bca739e0f18de7395fd4afd71a6be2bfec58378bf682d904"
+    },
+    {
+      "group": "class-fields",
+      "name": "shouldTransformAutoAccessorsInCurrentClass",
+      "kind": "FunctionDeclaration",
+      "start": 96381,
+      "start_utf16": 4676527,
+      "end_utf16": 4676847,
+      "sha256": "34e94fcb7098a89b9ed5ec49484ae712e7ea36a41e848d49c0d94255a6d3caec"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitPropertyDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 96384,
+      "start_utf16": 4676850,
+      "end_utf16": 4677187,
+      "sha256": "762f357d3da0956110b9167f905736564836a4b05a9f5495129e50ea70e3fd38"
+    },
+    {
+      "group": "class-fields",
+      "name": "getClassFacts",
+      "kind": "FunctionDeclaration",
+      "start": 96844,
+      "start_utf16": 4697935,
+      "end_utf16": 4701278,
+      "sha256": "6ee154ed4d251b5b480ffc84c1cf87c1a365a662eb60af07cee2221ca2d828f0"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitExpressionWithTypeArgumentsInHeritageClause",
+      "kind": "FunctionDeclaration",
+      "start": 96899,
+      "start_utf16": 4701281,
+      "end_utf16": 4702050,
+      "sha256": "b1648fd3f544898edc1c55d1c2908c5cfb4b499c0fbcbf529bc4a73b1750a81d"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitInNewClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 96921,
+      "start_utf16": 4702053,
+      "end_utf16": 4704361,
+      "sha256": "194d28cef2235c10a7edd84e685aef70634c62ed3234255c65ddc46425171e97"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitClassDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 96968,
+      "start_utf16": 4704364,
+      "end_utf16": 4704509,
+      "sha256": "f6f224262069f9b007a11cb343753c7e955cea75aaa03ed85ac7357872e22d9d"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitClassDeclarationInNewClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 96971,
+      "start_utf16": 4704512,
+      "end_utf16": 4707780,
+      "sha256": "5d93d79fc1ea6be772cb5d2617fc3d134edaad9c4980d3b2d7418ffe57b85ebf"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitClassExpression",
+      "kind": "FunctionDeclaration",
+      "start": 97046,
+      "start_utf16": 4707783,
+      "end_utf16": 4707926,
+      "sha256": "6cc8627270564585bb0d7589bdf4b2cda0b28b6f6deadd590d1af66b2be583e7"
+    },
+    {
+      "group": "class-fields",
+      "name": "visitClassExpressionInNewClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 97049,
+      "start_utf16": 4707929,
+      "end_utf16": 4712140,
+      "sha256": "14b8c963902b758dd9fbbc2809669c02a1e07b8f9c760e44d8754bb9d8851921"
+    },
+    {
+      "group": "class-fields",
+      "name": "createClassTempVar",
+      "kind": "FunctionDeclaration",
+      "start": 97056,
+      "start_utf16": 4708439,
+      "end_utf16": 4709001,
+      "sha256": "770f003e666ad9ef409758dabc3bcb138ed0bfc88c98fbd11cff2ace7ceeab73"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformClassMembers",
+      "kind": "FunctionDeclaration",
+      "start": 97143,
+      "start_utf16": 4712723,
+      "end_utf16": 4716952,
+      "sha256": "16fc56d4730a122dd62f20e7dd473ce5b9b88fd9a54def99359d9a9163d788ea"
+    },
+    {
+      "group": "class-fields",
+      "name": "startClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 97639,
+      "start_utf16": 4734512,
+      "end_utf16": 4734630,
+      "sha256": "f7423847331844790fdbb0d421eee2eab826cf9745a9e3694521d231705d1c52"
+    },
+    {
+      "group": "class-fields",
+      "name": "endClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 97642,
+      "start_utf16": 4734633,
+      "end_utf16": 4734768,
+      "sha256": "7944291e0b368dfd38702ba0ba0b845b923a384eb8ca3e5f9d36937657ff00d4"
+    },
+    {
+      "group": "class-fields",
+      "name": "getClassLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 97645,
+      "start_utf16": 4734771,
+      "end_utf16": 4735095,
+      "sha256": "52212c9152cb0db13bdfc2b34d3d1844d6a8a8b413808386dff4630846eaa126"
+    },
+    {
+      "group": "class-fields",
+      "name": "getPrivateIdentifierEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 97655,
+      "start_utf16": 4735098,
+      "end_utf16": 4735345,
+      "sha256": "9e8e1bffdc4043eedd0c6a0096c76ea47d4a757d8348e48d51472972931c108e"
+    },
+    {
+      "group": "factory",
+      "name": "createBaseGeneratedIdentifier",
+      "kind": "FunctionDeclaration",
+      "start": 21598,
+      "start_utf16": 1283181,
+      "end_utf16": 1283515,
+      "sha256": "bb899296878d2bb2efe6bc7a604f702485c9508183dfc0cda0f30ec0e870457e"
+    },
+    {
+      "group": "factory",
+      "name": "createTempVariable",
+      "kind": "FunctionDeclaration",
+      "start": 21626,
+      "start_utf16": 1284241,
+      "end_utf16": 1284600,
+      "sha256": "325b8440f23b38addd6a87b4ca44c95ae928f4814507f987cffd9261e6e1edce"
+    },
+    {
+      "group": "factory",
+      "name": "getGeneratedPrivateNameForNode",
+      "kind": "FunctionDeclaration",
+      "start": 21693,
+      "start_utf16": 1287116,
+      "end_utf16": 1287587,
+      "sha256": "1806c69ce25fd103782508ef492180d29f3b717aa70de9bbcd20d7d0be4f0096"
+    },
+    {
+      "group": "factory",
+      "name": "createModifiersFromModifierFlags",
+      "kind": "FunctionDeclaration",
+      "start": 21785,
+      "start_utf16": 1290498,
+      "end_utf16": 1291957,
+      "sha256": "9e851ebc7ddd3b486cff1be7396bf101380af96a08ca2ec9204c464e45503cf6"
+    },
+    {
+      "group": "factory",
+      "name": "updateComputedPropertyName",
+      "kind": "FunctionDeclaration",
+      "start": 21821,
+      "start_utf16": 1292812,
+      "end_utf16": 1292976,
+      "sha256": "f09dc306744a9857640cf450351554fafc2d91138f78e7f318a9453af125fb08"
+    },
+    {
+      "group": "factory",
+      "name": "updatePropertyDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 21903,
+      "start_utf16": 1297960,
+      "end_utf16": 1298612,
+      "sha256": "a6da8ff7553840f474339c6e915f524c870de5cb90be42351d481ea69f6ff038"
+    },
+    {
+      "group": "factory",
+      "name": "createGetAccessorDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 22012,
+      "start_utf16": 1304341,
+      "end_utf16": 1305330,
+      "sha256": "fe1c86a6b723c0d043c33d86399a5e684f31d58d7fd2742c3a343ab1a2377514"
+    },
+    {
+      "group": "factory",
+      "name": "createSetAccessorDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 22043,
+      "start_utf16": 1305921,
+      "end_utf16": 1306873,
+      "sha256": "2a125e10a5ea3913ec13f8c998a21d7e4356b880ee7f361d13af462f9e6d4118"
+    },
+    {
+      "group": "factory",
+      "name": "createPropertyAccessExpression",
+      "kind": "FunctionDeclaration",
+      "start": 22474,
+      "start_utf16": 1328003,
+      "end_utf16": 1328455,
+      "sha256": "5f5601b23a8da22c48929b140646df4a30d4b5bed0e24523cee8dfb286d77771"
+    },
+    {
+      "group": "factory",
+      "name": "cloneGeneratedIdentifier",
+      "kind": "FunctionDeclaration",
+      "start": 24401,
+      "start_utf16": 1427398,
+      "end_utf16": 1427725,
+      "sha256": "6fd022cc9c0b44661f10f8280413217b045408c5ece4a713f97764f2bab5c670"
+    },
+    {
+      "group": "factory",
+      "name": "cloneIdentifier",
+      "kind": "FunctionDeclaration",
+      "start": 24409,
+      "start_utf16": 1427728,
+      "end_utf16": 1428204,
+      "sha256": "6a30c7d058c207e7737e4dc92fef4f59c9afa0285640fd76ebda1909099ac4ac"
+    },
+    {
+      "group": "factory",
+      "name": "cloneNode",
+      "kind": "FunctionDeclaration",
+      "start": 24436,
+      "start_utf16": 1428813,
+      "end_utf16": 1429755,
+      "sha256": "04e6cc6ac32172f263e59d0ef1b89774f0e310425f3f99b6923286b5a3be59a7"
+    },
+    {
+      "group": "factory",
+      "name": "setOriginalNode",
+      "kind": "FunctionDeclaration",
+      "start": 25208,
+      "start_utf16": 1463166,
+      "end_utf16": 1463439,
+      "sha256": "7e220ce2d2db27797863de86e1e468291442228ed9b1d89820b835bace29441b"
+    },
+    {
+      "group": "factory",
+      "name": "setEmitFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25318,
+      "start_utf16": 1466477,
+      "end_utf16": 1466581,
+      "sha256": "74360b7b9b8d9725d16ddd1d9fd7c263293aed62f0d34ff196598a63893624ec"
+    },
+    {
+      "group": "factory",
+      "name": "getSourceMapRange",
+      "kind": "FunctionDeclaration",
+      "start": 25336,
+      "start_utf16": 1467029,
+      "end_utf16": 1467153,
+      "sha256": "f8e554cb926e5c582db0cda20420659b3dc43102624030cf8d154dd92cc4593c"
+    },
+    {
+      "group": "factory",
+      "name": "setSourceMapRange",
+      "kind": "FunctionDeclaration",
+      "start": 25340,
+      "start_utf16": 1467154,
+      "end_utf16": 1467264,
+      "sha256": "47a11d665ec73b6e7187e91f6d2a08ce077fb417f616aebb054f36beb0cebe63"
+    },
+    {
+      "group": "factory",
+      "name": "getCommentRange",
+      "kind": "FunctionDeclaration",
+      "start": 25358,
+      "start_utf16": 1467757,
+      "end_utf16": 1467877,
+      "sha256": "726e145915fbbfde0aa8aefa6243cbc84a38c3e832d583ff284ed4831a4c3db6"
+    },
+    {
+      "group": "factory",
+      "name": "setCommentRange",
+      "kind": "FunctionDeclaration",
+      "start": 25362,
+      "start_utf16": 1467878,
+      "end_utf16": 1467984,
+      "sha256": "f40fd31a65e14ce045a32f820705dcb6d9abf5f7a87ea3c056dc718b677289ed"
+    },
+    {
+      "group": "factory",
+      "name": "setTextRange",
+      "kind": "FunctionDeclaration",
+      "start": 28256,
+      "start_utf16": 1575676,
+      "end_utf16": 1575801,
+      "sha256": "641fccddbba39e0b73a702f725eb9b0ffc3fa470e7ae811cac817d9323d8cbb4"
+    },
+    {
+      "group": "factory",
+      "name": "createAccessorPropertyBackingField",
+      "kind": "FunctionDeclaration",
+      "start": 28125,
+      "start_utf16": 1572024,
+      "end_utf16": 1572400,
+      "sha256": "09802e87b5b100349deff08496bfccbb5d54805a4719ae88222ac0fc6c5164c6"
+    },
+    {
+      "group": "factory",
+      "name": "createAccessorPropertyGetRedirector",
+      "kind": "FunctionDeclaration",
+      "start": 28142,
+      "start_utf16": 1572401,
+      "end_utf16": 1572947,
+      "sha256": "f4f35138b14c7113f0d3dc4d7fe486c22ecf1f4e55825bfc51098df9ad017ff2"
+    },
+    {
+      "group": "factory",
+      "name": "createAccessorPropertySetRedirector",
+      "kind": "FunctionDeclaration",
+      "start": 28164,
+      "start_utf16": 1572948,
+      "end_utf16": 1573711,
+      "sha256": "62e418ef1e09600f4446c64c09b76cc79aae056360585cdfa4c730f75406ca20"
+    },
+    {
+      "group": "factory",
+      "name": "findComputedPropertyNameCacheAssignment",
+      "kind": "FunctionDeclaration",
+      "start": 28193,
+      "start_utf16": 1573712,
+      "end_utf16": 1574209,
+      "sha256": "9738d7baa77f784fba823fec2296c45db17f7b4261fcc98c1b0a0d5575985220"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitNode",
+      "kind": "FunctionDeclaration",
+      "start": 91071,
+      "start_utf16": 4458409,
+      "end_utf16": 4458795,
+      "sha256": "8f2c5b16460e63ac68bb3ad9cae153c85a7db7d69218181033b4e35fdd98e1da"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitNodes2",
+      "kind": "FunctionDeclaration",
+      "start": 91087,
+      "start_utf16": 4458796,
+      "end_utf16": 4459623,
+      "sha256": "e798bbf906f0daaab6f78a3a8ed0f18a4e43a72194b4c3894775b26aef194c0a"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitArray",
+      "kind": "FunctionDeclaration",
+      "start": 91116,
+      "start_utf16": 4459624,
+      "end_utf16": 4459970,
+      "sha256": "e45a06da773830486de7e263546c22041eea7d15254d97e3e4b3ac8e05917b7f"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 91162,
+      "start_utf16": 4460903,
+      "end_utf16": 4461296,
+      "sha256": "9a044f93ef409ce791b07390377688cdd5469f78293cf26a30fc2e20dee746cf"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitParameterList",
+      "kind": "FunctionDeclaration",
+      "start": 91168,
+      "start_utf16": 4461297,
+      "end_utf16": 4461937,
+      "sha256": "2835f20d38d494faaa1aa6faaf5748981e7665eae6e4032cb999ce043effd0ec"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "addDefaultValueAssignmentsIfNeeded",
+      "kind": "FunctionDeclaration",
+      "start": 91182,
+      "start_utf16": 4461938,
+      "end_utf16": 4462460,
+      "sha256": "371a3a9c4db5d210791f8773b4b074a75a6521933ccebf080050c6a5508d7a9c"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "addDefaultValueAssignmentIfNeeded",
+      "kind": "FunctionDeclaration",
+      "start": 91197,
+      "start_utf16": 4462461,
+      "end_utf16": 4462811,
+      "sha256": "f0c5674c0c9d696a22c493ce998a1f31193730e1b37792aecddd0f3ec48e30b7"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "addDefaultValueAssignmentForBindingPattern",
+      "kind": "FunctionDeclaration",
+      "start": 91200,
+      "start_utf16": 4462812,
+      "end_utf16": 4463985,
+      "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "addDefaultValueAssignmentForInitializer",
+      "kind": "FunctionDeclaration",
+      "start": 91239,
+      "start_utf16": 4463986,
+      "end_utf16": 4465215,
+      "sha256": "b54c3ffef836c6a21175eaa6ef3b9febd1d8e8383994b245ecda2f9cf4b024fc"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitFunctionBody",
+      "kind": "FunctionDeclaration",
+      "start": 91277,
+      "start_utf16": 4465216,
+      "end_utf16": 4465807,
+      "sha256": "a3a512cd174753f2fb2f9744298f42b06fb64b600d7dbfe206f3650b35372839"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitIterationBody",
+      "kind": "FunctionDeclaration",
+      "start": 91291,
+      "start_utf16": 4465808,
+      "end_utf16": 4466361,
+      "sha256": "fe05fbfee1c93fa366c75924e3cd13f6d6f24d48ce2ed28123c827b4104f4ce6"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChild",
+      "kind": "FunctionDeclaration",
+      "start": 91318,
+      "start_utf16": 4466784,
+      "end_utf16": 4467124,
+      "sha256": "4777b94d77e5af7032e35c4fbfced966e4d0b802b3719bccfd0b126ec553fd61"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfParameterDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91349,
+      "start_utf16": 4468335,
+      "end_utf16": 4468985,
+      "sha256": "22600172211be41c4706621ee2c918189a41cc6230ecd982cae8159c69083045"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfPropertyDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91376,
+      "start_utf16": 4469823,
+      "end_utf16": 4470516,
+      "sha256": "0c46091590a26580e230c2e707374ae75a49a8fc3cc5fb84255c556e080a6d11"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfMethodDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91398,
+      "start_utf16": 4471189,
+      "end_utf16": 4471991,
+      "sha256": "05accd66795b506e357c27abb8960913e50b4a386ee7ed64b96c03122953ceab"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfConstructorDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91411,
+      "start_utf16": 4472020,
+      "end_utf16": 4472417,
+      "sha256": "615c0451b896cbfa09a10b819222d00ba2d038fd3773c2cd437b1f8929303eb2"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfGetAccessorDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91419,
+      "start_utf16": 4472446,
+      "end_utf16": 4472969,
+      "sha256": "96be5538efff414a1b754659c238b478792919395ebf2281bad72d01c0fdc426"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfSetAccessorDeclaration",
+      "kind": "FunctionExpression",
+      "start": 91429,
+      "start_utf16": 4472998,
+      "end_utf16": 4473470,
+      "sha256": "6767f3a828e538964d7c6a3ff12f11d69ef1f1dc55d026b8249a1abba7b62c64"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfFunctionDeclaration",
+      "kind": "FunctionExpression",
+      "start": 92032,
+      "start_utf16": 4504959,
+      "end_utf16": 4505633,
+      "sha256": "4dc88ea175117f5f439044972b05d6e118d06a94234a3e7870e1db9be5137057"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfFunctionExpression",
+      "kind": "FunctionExpression",
+      "start": 91745,
+      "start_utf16": 4489680,
+      "end_utf16": 4490352,
+      "sha256": "b23ca1b6924db5b00bfe94b9e89417a1f6aea7cdf7e208e978e408e9f311fcf6"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfArrowFunction",
+      "kind": "FunctionExpression",
+      "start": 91757,
+      "start_utf16": 4490383,
+      "end_utf16": 4491039,
+      "sha256": "5985d4c9286499170feacc30d9e0903908a91d3233839a07f08e7a63cebddd31"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfForStatement",
+      "kind": "FunctionExpression",
+      "start": 91938,
+      "start_utf16": 4500004,
+      "end_utf16": 4500434,
+      "sha256": "265f0ae2f49acaa533c8e93dd787f8b7c51eebcf92f78aa5ae5005cf96476630"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfForInStatement",
+      "kind": "FunctionExpression",
+      "start": 91947,
+      "start_utf16": 4500466,
+      "end_utf16": 4500881,
+      "sha256": "0c4314c717f1b2ec7b9cf05b03b7ab603c1d0f11a1696103d2244f4bd8b56eb7"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfForOfStatement",
+      "kind": "FunctionExpression",
+      "start": 91955,
+      "start_utf16": 4500913,
+      "end_utf16": 4501432,
+      "sha256": "a755adea0997e4989d46191aeb24d3199f413632f6b74840356f11d4154e1ab2"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfWhileStatement",
+      "kind": "FunctionExpression",
+      "start": 91931,
+      "start_utf16": 4499643,
+      "end_utf16": 4499974,
+      "sha256": "abb1a2c7b1db83e7efca76f51ff0f3b4c59c5bef8c27ceaafc231a3891956252"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfDoStatement",
+      "kind": "FunctionExpression",
+      "start": 91924,
+      "start_utf16": 4499286,
+      "end_utf16": 4499611,
+      "sha256": "b74deddc5ec5746acdc001ce3ad361d9bf8ce8484f71abfdc6c47649febd8473"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfSourceFile",
+      "kind": "FunctionExpression",
+      "start": 92339,
+      "start_utf16": 4520382,
+      "end_utf16": 4520620,
+      "sha256": "3793a30fc245afe65dc4d6c032b2dd37f048c0b4fbdc17932915f4038bea2d23"
+    },
+    {
+      "group": "context",
+      "name": "hoistVariableDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 116104,
+      "start_utf16": 5453111,
+      "end_utf16": 5453811,
+      "sha256": "2d0687fbc9b8daa02fa3fde270944ce04c8fbc551a520a3090a9b2609e5b35a0"
+    },
+    {
+      "group": "context",
+      "name": "addInitializationStatement",
+      "kind": "FunctionDeclaration",
+      "start": 116127,
+      "start_utf16": 5454333,
+      "end_utf16": 5454821,
+      "sha256": "be3af326e6f9ea27f12de24b72145b52cfb5dab46ed631863b6739e6e4d095f1"
+    },
+    {
+      "group": "context",
+      "name": "startLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 116137,
+      "start_utf16": 5454824,
+      "end_utf16": 5455848,
+      "sha256": "04980a57554c041523a7785d47b9c44c56405c00b2a981e2f00a8ab92f91b9bd"
+    },
+    {
+      "group": "context",
+      "name": "suspendLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 116151,
+      "start_utf16": 5455851,
+      "end_utf16": 5456261,
+      "sha256": "ffce13515fce4769bc8f7647d2bcc1c63eea7d73b550f3164037ec79c7403e2a"
+    },
+    {
+      "group": "context",
+      "name": "resumeLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 116157,
+      "start_utf16": 5456264,
+      "end_utf16": 5456669,
+      "sha256": "54de0f88c82c993793669f631901ff9fbfa6cfc325f097984e7340a59fefdcd8"
+    },
+    {
+      "group": "context",
+      "name": "endLexicalEnvironment",
+      "kind": "FunctionDeclaration",
+      "start": 116163,
+      "start_utf16": 5456672,
+      "end_utf16": 5458740,
+      "sha256": "2c0e28a70cf8973bfd22ef5fd3bfdea40acd4ccd576d1a76ba9f90d27c3b32d8"
+    },
+    {
+      "group": "context",
+      "name": "setLexicalEnvironmentFlags",
+      "kind": "FunctionDeclaration",
+      "start": 116206,
+      "start_utf16": 5458743,
+      "end_utf16": 5458904,
+      "sha256": "c6913bfca12ea9bcf5ebe0a648ad1c3efe269b31a63aad8f5018d04c82602c06"
+    },
+    {
+      "group": "context",
+      "name": "getLexicalEnvironmentFlags",
+      "kind": "FunctionDeclaration",
+      "start": 116209,
+      "start_utf16": 5458907,
+      "end_utf16": 5458986,
+      "sha256": "98b93e053c29d2ad8828c72db80e41890b4ffa874a781389c88f85f9f2ba6e5a"
+    },
+    {
+      "group": "context",
+      "name": "startBlockScope",
+      "kind": "FunctionDeclaration",
+      "start": 116212,
+      "start_utf16": 5458989,
+      "end_utf16": 5459408,
+      "sha256": "f4bb3d5bcac04aa2d1635453999a4f477bf5dd86ca8a98d6fb57c71d33a2dc89"
+    },
+    {
+      "group": "context",
+      "name": "endBlockScope",
+      "kind": "FunctionDeclaration",
+      "start": 116219,
+      "start_utf16": 5459411,
+      "end_utf16": 5460253,
+      "sha256": "5a58ea9fd292425ca5d9ca2f608e5839871678b4447fc21c03822d6801b114d4"
+    },
+    {
+      "group": "context",
+      "name": "addBlockScopedVariable",
+      "kind": "FunctionDeclaration",
+      "start": 116239,
+      "start_utf16": 5460256,
+      "end_utf16": 5460504,
+      "sha256": "2a0ff6580dc2d09c84d4b4fd08343c6431401ad36d4ddcd29f5cb20abbf3bc1b"
+    },
+    {
+      "group": "predicates",
+      "name": "modifiersToFlags",
+      "kind": "FunctionDeclaration",
+      "start": 17026,
+      "start_utf16": 1104702,
+      "end_utf16": 1104901,
+      "sha256": "f28f64db2c5e0faecc5584725d49983e0e1d9927b4c15be9625cb83502fe6f50"
+    },
+    {
+      "group": "predicates",
+      "name": "isSimpleInlineableExpression",
+      "kind": "FunctionDeclaration",
+      "start": 93030,
+      "start_utf16": 4546610,
+      "end_utf16": 4546741,
+      "sha256": "dabb12fd88952f3fff4c13a872996158367cbc5310529c0e3bf298ef7dc82931"
+    },
+    {
+      "group": "standard-decorators",
+      "name": "transformSourceFile",
+      "kind": "FunctionDeclaration",
+      "start": 98962,
+      "start_utf16": 4788592,
+      "end_utf16": 4789038,
+      "sha256": "e80bd9cb2721ef50fa0c6fa3b50542aa9077950f5da3e631533a0862470dd347"
+    },
+    {
+      "group": "standard-decorators",
+      "name": "createClassInfo",
+      "kind": "FunctionDeclaration",
+      "start": 99241,
+      "start_utf16": 4799194,
+      "end_utf16": 4803002,
+      "sha256": "d82dfcec591aae6c091a7a723f10471d2bf55a7380b094b74da1bd73766db1bc"
+    },
+    {
+      "group": "standard-decorators",
+      "name": "transformClassLike",
+      "kind": "FunctionDeclaration",
+      "start": 99319,
+      "start_utf16": 4803005,
+      "end_utf16": 4817721,
+      "sha256": "cd313d8c53608f2330c3edb9a42159f50e4c733419d64bb02c31ab7fbbf2ccf5"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createNodeArray",
+      "kind": "FunctionDeclaration",
+      "start": 21464,
+      "start_utf16": 1278591,
+      "end_utf16": 1279670,
+      "sha256": "8054dc0380c52cdec1934fab358880ee7ea8814cf50e3bac3a7d1153d88e9c95"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createBaseNode",
+      "kind": "FunctionDeclaration",
+      "start": 21493,
+      "start_utf16": 1279673,
+      "end_utf16": 1279754,
+      "sha256": "07979939e4e00be9b38b3d6b3984e40583565acfb4f10fef9f62557f57cd25e6"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createBaseDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 21496,
+      "start_utf16": 1279757,
+      "end_utf16": 1279912,
+      "sha256": "20d04f74d6ee80ba99aa0674c5ca5b865d37572cf0d7ebc1b02df70e8269ab36"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createToken",
+      "kind": "FunctionDeclaration",
+      "start": 21710,
+      "start_utf16": 1287680,
+      "end_utf16": 1290039,
+      "sha256": "52f36d448cddb9235fb4c7b7287b1820640ec08b9c4d136c7c4f8ac37dd5ae90"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createBinaryExpression",
+      "kind": "FunctionDeclaration",
+      "start": 22785,
+      "start_utf16": 1344920,
+      "end_utf16": 1346631,
+      "sha256": "ec5e5c02baa9bedcb1de198d375e5c6dfbf539aafd930526062e102046189062"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createBlock",
+      "kind": "FunctionDeclaration",
+      "start": 23045,
+      "start_utf16": 1359171,
+      "end_utf16": 1359522,
+      "sha256": "e90549faaf485c7f8bbe4b10e7e2adcd856047066f3f3786f5827a65f469f089"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createExpressionStatement",
+      "kind": "FunctionDeclaration",
+      "start": 23078,
+      "start_utf16": 1360657,
+      "end_utf16": 1361008,
+      "sha256": "322450dd20e487245d6043a0653f22dd82fcc0b9107c3d8fcbc566a894052ccd"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "createReturnStatement",
+      "kind": "FunctionDeclaration",
+      "start": 23196,
+      "start_utf16": 1366925,
+      "end_utf16": 1367284,
+      "sha256": "d52254bfc9af94423243d2af1470712608fc6e9a9b302c1906f5b26f277462a9"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "propagateNameFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25101,
+      "start_utf16": 1458632,
+      "end_utf16": 1458771,
+      "sha256": "64108a44a12add1f7f13629982d5bd86bd7e6122aeef5bccc9acd02686d4a627"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "propagateIdentifierNameFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25104,
+      "start_utf16": 1458772,
+      "end_utf16": 1458903,
+      "sha256": "1d86deb6ed90772493623fe9f1c691053eca4c690adf9194b5f7a33f4b5f5848"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "propagatePropertyNameFlagsOfChild",
+      "kind": "FunctionDeclaration",
+      "start": 25107,
+      "start_utf16": 1458904,
+      "end_utf16": 1459066,
+      "sha256": "a969cd160c59689a0b406aef09566b1ab1b76c1ab4a88b027bbc50c59dd6e277"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "propagateChildFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25110,
+      "start_utf16": 1459067,
+      "end_utf16": 1459373,
+      "sha256": "16b9f8f076f47d0a9688611b5ab136c2e45b8efdd458316fca63de46f88d90e2"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "propagateChildrenFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25115,
+      "start_utf16": 1459374,
+      "end_utf16": 1459479,
+      "sha256": "f5ad4fab904c55d8d0b2c97ea803edd6af629ea9121e35b0cf77dd8e0e8b8c90"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "aggregateChildrenFlags",
+      "kind": "FunctionDeclaration",
+      "start": 25118,
+      "start_utf16": 1459480,
+      "end_utf16": 1459688,
+      "sha256": "94aacba10ce0bee197cc7774ee5fac64b4cc8a0d964fa3146a837486f21b48c2"
+    },
+    {
+      "group": "factory-propagation",
+      "name": "getTransformFlagsSubtreeExclusions",
+      "kind": "FunctionDeclaration",
+      "start": 25125,
+      "start_utf16": 1459689,
+      "end_utf16": 1462445,
+      "sha256": "7e4abe781ab007cf962383aa7bbad35087834db83b4d03729649439a83b0cccf"
+    },
+    {
+      "group": "predicates",
+      "name": "isPrivateIdentifierClassElementDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 11944,
+      "start_utf16": 916834,
+      "end_utf16": 916997,
+      "sha256": "77e9468357648e3c64ead2fa83ef2c04a662f6988b67ee11cc0391b9e02775f7"
+    },
+    {
+      "group": "predicates",
+      "name": "isAutoAccessorPropertyDeclaration",
+      "kind": "FunctionDeclaration",
+      "start": 12046,
+      "start_utf16": 920753,
+      "end_utf16": 920872,
+      "sha256": "accbe8cc0e7ca32c197a05b629fd0c9492d03f6678a5773395dfc2d3e4874879"
+    },
+    {
+      "group": "predicates",
+      "name": "hasStaticModifier",
+      "kind": "FunctionDeclaration",
+      "start": 16937,
+      "start_utf16": 1101270,
+      "end_utf16": 1101361,
+      "sha256": "35d724b36ec61c35b11432e71b1560fdeac4fcf1617ce2ba1cedeb29593c5ef6"
+    },
+    {
+      "group": "predicates",
+      "name": "hasAccessorModifier",
+      "kind": "FunctionDeclaration",
+      "start": 16949,
+      "start_utf16": 1101646,
+      "end_utf16": 1101741,
+      "sha256": "3d972f91faa43f7ba996db2bc51bed0d665a81eb511bdb8150c9876e6c9ad5f4"
+    },
+    {
+      "group": "predicates",
+      "name": "hasSyntacticModifier",
+      "kind": "FunctionDeclaration",
+      "start": 16931,
+      "start_utf16": 1101039,
+      "end_utf16": 1101144,
+      "sha256": "2ad57e3e8d48ef5ae51fd703f89c6bb496831e8f94051060ccf2bb91b091b20f"
+    },
+    {
+      "group": "predicates",
+      "name": "getSelectedSyntacticModifierFlags",
+      "kind": "FunctionDeclaration",
+      "start": 16961,
+      "start_utf16": 1102048,
+      "end_utf16": 1102157,
+      "sha256": "8b5f49da66dde5d48ef404b78894aebe5b0cb56e8fd360f771bbd653dfe1ed00"
+    },
+    {
+      "group": "predicates",
+      "name": "isStatic",
+      "kind": "FunctionDeclaration",
+      "start": 16934,
+      "start_utf16": 1101145,
+      "end_utf16": 1101269,
+      "sha256": "13ac537d2713f111d17d0147e6e836b2996c198564d537fbdbf51b0cead83a2f"
+    },
+    {
+      "group": "predicates",
+      "name": "isGeneratedIdentifier",
+      "kind": "FunctionDeclaration",
+      "start": 11932,
+      "start_utf16": 916286,
+      "end_utf16": 916437,
+      "sha256": "a296c506aaba32612603c608a03fe59c114106e903bbdf3011f765a49489c7f4"
+    },
+    {
+      "group": "predicates",
+      "name": "isGeneratedPrivateIdentifier",
+      "kind": "FunctionDeclaration",
+      "start": 11936,
+      "start_utf16": 916438,
+      "end_utf16": 916603,
+      "sha256": "094f7d6bc9d7522f1834f2f7c51fe6029b72ce301fbfcbddd8b9e56b9a790031"
+    },
+    {
+      "group": "factory-field",
+      "name": "createAssignment",
+      "kind": "GetAccessor",
+      "start": 21326,
+      "start_utf16": 1274172,
+      "end_utf16": 1274262,
+      "sha256": "cc9f5c9e4d22cac7f5ec56b5bae1f5384aa2f26c17e70f6a6339ed45a51ce65a"
+    },
+    {
+      "group": "factory-field",
+      "name": "getBinaryCreateFunction",
+      "kind": "VariableDeclaration",
+      "start": 20808,
+      "start_utf16": 1256597,
+      "end_utf16": 1256711,
+      "sha256": "ac8feb44609f20e6d28ca6c34e2ffd274b446b7987ce73370e36e3dd63851cce"
+    },
+    {
+      "group": "standard-decorators",
+      "name": "thisVisitor",
+      "kind": "FunctionExpression",
+      "start": 99391,
+      "start_utf16": 4806862,
+      "end_utf16": 4807451,
+      "sha256": "32d5fca46fc217cce61ff61e692dee4c363e5b14458fd606de65d179b1e1eeda"
+    },
+    {
+      "group": "class-fields",
+      "name": "injectPendingExpressions",
+      "start": 96167,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4667482,
+      "end_utf16": 4667998,
+      "sha256": "49d896999aabb2b80d01ad8b32b38d14e3387e729044bd5a228925d13432c738"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformConstructor",
+      "start": 97253,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4717435,
+      "end_utf16": 4718734,
+      "sha256": "8cf2c51b9957e13946f9ce4bae4d8c6f12854a217541d0eacc7fde0fed53e92a"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformConstructorBodyWorker",
+      "start": 97290,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4718737,
+      "end_utf16": 4720543,
+      "sha256": "d188f69760f595f51b68ec3baddb35e4abc11fb751a95493a1c4516ead75a5da"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformConstructorBody",
+      "start": 97329,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4720546,
+      "end_utf16": 4724647,
+      "sha256": "b85e0bd5a8ccc28c97a898f62390d3bbf72b9abd675772e4d9533d1d84b2caaa"
+    },
+    {
+      "group": "class-fields",
+      "name": "addPropertyOrClassStaticBlockStatements",
+      "start": 97432,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4724650,
+      "end_utf16": 4725062,
+      "sha256": "3b833390a52125520a5d90c294d9019e95808a7c75215b1200e9afabfdf2f6cb"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformPropertyOrClassStaticBlock",
+      "start": 97444,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4725065,
+      "end_utf16": 4726136,
+      "sha256": "eb1bc9e6c683da26d779f4bed325e6cca7fb4a87fac5a34b782bb215b8cd5e21"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformProperty",
+      "start": 97488,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4727025,
+      "end_utf16": 4727711,
+      "sha256": "23ce6e58d099c8c36201b1c8d6e6cdddff163776cf7aa81457ad81cd9ac66e5a"
+    },
+    {
+      "group": "class-fields",
+      "name": "transformPropertyWorker",
+      "start": 97501,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4727714,
+      "end_utf16": 4731527,
+      "sha256": "b6adbf7a3142fe420c6fbbbd4cdd36d1d11a8ead4442ad1b6e5a51752c3b5061"
+    },
+    {
+      "group": "class-fields",
+      "name": "addInstanceMethodStatements",
+      "start": 97597,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4732598,
+      "end_utf16": 4733091,
+      "sha256": "0e86d36d3c2fc24c586796a2303620e5a588a285b8e04ccca8e7d199807f7ef5"
+    },
+    {
+      "group": "class-fields",
+      "name": "getPropertyNameExpressionIfNeeded",
+      "start": 97620,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4733455,
+      "end_utf16": 4734509,
+      "sha256": "9b1e547c87a3145460c6b060898752c749c4c7a32efff25d9bacd59633728e65"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "findSuperStatementIndexPath",
+      "start": 93090,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4548896,
+      "end_utf16": 4549060,
+      "sha256": "b0264b413809b113dd2e824cb6dc9a0d4c1d589769c371c9d4419afb323188b5"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "getProperties",
+      "start": 93095,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4549061,
+      "end_utf16": 4549227,
+      "sha256": "94d5984de9dd0bbd63a0b66492d2ba8eca26ea714ae5aea6b612c286fdb75d4f"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "isSuperCall",
+      "start": 14147,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 991452,
+      "end_utf16": 991573,
+      "sha256": "89d58b890ffa1ba5738c25c7efbf80ca8007f1434cc9aac320e008abaaef67d1"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "getFirstConstructorWithBody",
+      "start": 16674,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1091173,
+      "end_utf16": 1091324,
+      "sha256": "08796cc1e617e4d833b2ea49899888e1d4213842c1e6048bd019ee667d45ae72"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "isParameterPropertyDeclaration",
+      "start": 11312,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 895657,
+      "end_utf16": 895849,
+      "sha256": "810180460d9970f4907cb645b52c3bc7676fc17791abf4062a8b4a2457ab8de6"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "isClassThisAssignmentBlock",
+      "start": 93715,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4573820,
+      "end_utf16": 4574360,
+      "sha256": "64dc39626454f60126b9c3eb45239169691e39370b9b79ea1e97c7cf605e4a3a"
+    },
+    {
+      "group": "constructor-helpers",
+      "name": "isClassNamedEvaluationHelperBlock",
+      "start": 93802,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4577493,
+      "end_utf16": 4577955,
+      "sha256": "acb1f9160fe1e26d7e7befb343831db8f726f2ce790dc0af90f07c0dd6410571"
+    },
+    {
+      "group": "factory-names",
+      "name": "getGeneratedNameForNode",
+      "start": 21652,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1285355,
+      "end_utf16": 1285900,
+      "sha256": "ccf0eda44b7da1cbe1edd78e298fa45a1d4e00087a2741b770cf9dd2ad3c5419"
+    },
+    {
+      "group": "factory-names",
+      "name": "createPrivateIdentifier",
+      "start": 21673,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1286168,
+      "end_utf16": 1286388,
+      "sha256": "69a80ce2c1f9645578869739a0c212ff7f5d77227c765f787edeff5ecc5e1513"
+    },
+    {
+      "group": "factory-names",
+      "name": "createBaseGeneratedPrivateIdentifier",
+      "start": 21677,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1286391,
+      "end_utf16": 1286739,
+      "sha256": "081c358f91dfe6f71e4d144c6e0c004bea569ce406c07b5583b06358761e3e93"
+    },
+    {
+      "group": "factory-names",
+      "name": "getName",
+      "start": 24788,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1441547,
+      "end_utf16": 1442221,
+      "sha256": "68336e64df4cc93c0c35702898bcb259b0ce2bff5297d10ad5df7081873fb2f4"
+    },
+    {
+      "group": "factory-names",
+      "name": "getInternalName",
+      "start": 24800,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1442224,
+      "end_utf16": 1442400,
+      "sha256": "2ce49cfe233f43bad86c78cbe2e85e15b343f8824a2ec2ff2e50bc4bb2ee1243"
+    },
+    {
+      "group": "factory-names",
+      "name": "getLocalName",
+      "start": 24803,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1442403,
+      "end_utf16": 1442589,
+      "sha256": "e1976042031fe72c3956a9880cfeb5f7c6640f22ae4414e4cd4b7fd84256ddd2"
+    },
+    {
+      "group": "factory-names",
+      "name": "getNameOfDeclaration",
+      "start": 11562,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 903879,
+      "end_utf16": 904170,
+      "sha256": "b9f1092107558db9180309fd1cc362662f471372b64224c8254b94117cedcb83"
+    },
+    {
+      "group": "factory-names",
+      "name": "getAssignedName",
+      "start": 11566,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 904171,
+      "end_utf16": 904771,
+      "sha256": "098e744c79840928112212c5908010bc68ea3cdb225d4b1de60bb74dd2c517a0"
+    },
+    {
+      "group": "factory-names",
+      "name": "getNodeForGeneratedName",
+      "start": 28084,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1570344,
+      "end_utf16": 1570960,
+      "sha256": "15fe0551d80fa459b9b6c61273b353e7c29158a19c898a88f2929d1ef0934308"
+    },
+    {
+      "group": "factory-names",
+      "name": "formatGeneratedNamePart",
+      "start": 28103,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1570961,
+      "end_utf16": 1571289,
+      "sha256": "56f6b2070c603bf9e4e08af1b316249f56929531f4208f0d8b75882f73080ccc"
+    },
+    {
+      "group": "factory-names",
+      "name": "formatGeneratedName",
+      "start": 28119,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1571700,
+      "end_utf16": 1572023,
+      "sha256": "6554f97e86964e34fa25c7dff49e287618f938f374de7dc5960d4ecc71479230"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "convertToFunctionBlock",
+      "start": 20665,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1251276,
+      "end_utf16": 1251589,
+      "sha256": "8f9e7ad96fb01e942a38d0fdeb2022e50c89da440a7862ed5e0e4ec40f6d3957"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "inlineExpressions",
+      "start": 24785,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1441374,
+      "end_utf16": 1441544,
+      "sha256": "41f4ae28decc9d647e848fb01f02b9e69ee6ec1cb5f47e8cddc636a2101d75f6"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "copyPrologue",
+      "start": 24827,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1443654,
+      "end_utf16": 1443866,
+      "sha256": "2cf452a6141e39ada5bae8bae245a0c0c8858186d00860ca509f65efd461d390"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "copyStandardPrologue",
+      "start": 24837,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1444131,
+      "end_utf16": 1444877,
+      "sha256": "fdd4c5fe2c613dbf27a86a167d96743cb32ba6d70b6615748c3a5435145b442c"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "copyCustomPrologue",
+      "start": 24858,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1444880,
+      "end_utf16": 1445420,
+      "sha256": "ca4f381587c4e5f9a907b5784cb2a3c61c4ae7d4a6e9ac409ff516991d014d49"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "liftToBlock",
+      "start": 24878,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1445686,
+      "end_utf16": 1445863,
+      "sha256": "1a10375da92808091cfd061dbc717510b6ec60d86ca4b3761091b20b4cca956c"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "findSpanEnd",
+      "start": 24882,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1445866,
+      "end_utf16": 1446011,
+      "sha256": "453db5e35d1804fece8990616a99a46dde9fa8004f839b5239824cfba350fddf"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "mergeLexicalEnvironment",
+      "start": 24889,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1446014,
+      "end_utf16": 1448471,
+      "sha256": "78e115d54a34d7dc7b221846c39b8eb6b1b7bada627972ad9815d90ccfb25e6c"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "createTypeCheck",
+      "start": 24548,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1431562,
+      "end_utf16": 1431852,
+      "sha256": "d177b3c769a1fe72bbe1f6aaea39a839e318ab696955d19ff6cefaaf3314fe2f"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "createCallExpression",
+      "start": 22579,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1332759,
+      "end_utf16": 1333325,
+      "sha256": "0bc0af688b928e4d2ddb30ce1056b0558c4f966f73448cf653f952fa0c8e8257"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "createFunctionExpression",
+      "start": 22676,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1337801,
+      "end_utf16": 1339269,
+      "sha256": "d675754a913b33651d8372177024b9d09a96726b20c60896344f05e6ff6b828b"
+    },
+    {
+      "group": "factory-lexical",
+      "name": "createArrowFunction",
+      "start": 22701,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1339765,
+      "end_utf16": 1341117,
+      "sha256": "d8735fc4bbe959b7e50a0a11d04f98fc71d5fe77094a320c2da343d8e3dc23db"
+    },
+    {
+      "group": "predicates",
+      "name": "isPrologueDirective",
+      "start": 14161,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 992110,
+      "end_utf16": 992253,
+      "sha256": "b99b478d71a98ae5fb84c379a4fe96e7312f54557d8083fd3a740f6d382dc5ce"
+    },
+    {
+      "group": "predicates",
+      "name": "isCustomPrologue",
+      "start": 14164,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 992254,
+      "end_utf16": 992353,
+      "sha256": "0ac2cb88af02c3d39b7afb38909b9bdcc3ec048936c12f91d585b935bb31cc08"
+    },
+    {
+      "group": "predicates",
+      "name": "isHoistedFunction",
+      "start": 14167,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 992354,
+      "end_utf16": 992454,
+      "sha256": "47d77e6ed087993fcb01e93f778c0577b700a4911df1c357242fd391950a3e0d"
+    },
+    {
+      "group": "predicates",
+      "name": "isHoistedVariableStatement",
+      "start": 14173,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 992547,
+      "end_utf16": 992717,
+      "sha256": "219eb7deeb65ca9b40ab2eb77a127437c35bc5dc7b370018aea86dae596220de"
+    },
+    {
+      "group": "predicates",
+      "name": "isAssignmentExpression",
+      "start": 17111,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1107814,
+      "end_utf16": 1108086,
+      "sha256": "204fb9c522daabe8ebc4adad783ec3b22365ff9f7f2fecd9c0e730fd2af86be8"
+    },
+    {
+      "group": "predicates",
+      "name": "isSimpleCopiableExpression",
+      "start": 93027,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4546412,
+      "end_utf16": 4546609,
+      "sha256": "e94fc826b2473f8e48f70dd785ba4924797d66957acf704f9e1fb331e6d56f89"
+    },
+    {
+      "group": "predicates",
+      "name": "isOuterExpression",
+      "start": 27561,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1547952,
+      "end_utf16": 1548841,
+      "sha256": "0142cba7ec16112864a20bb8b7e54cba2101e966f6f51d70e28bb94f4883f173"
+    },
+    {
+      "group": "predicates",
+      "name": "skipOuterExpressions",
+      "start": 27582,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1548842,
+      "end_utf16": 1548993,
+      "sha256": "357d322623af759a4c11d3647dd82f36dcdfc073cd0fa0f38b4edcc2ed247c48"
+    },
+    {
+      "group": "predicates",
+      "name": "isSyntheticParenthesizedExpression",
+      "start": 28215,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1574210,
+      "end_utf16": 1574350,
+      "sha256": "abfc70522087da42d5a73e43aee42e50da2cdb3d72db8b6d6335bb73e891e550"
+    },
+    {
+      "group": "predicates",
+      "name": "flattenCommaListWorker",
+      "start": 28218,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1574351,
+      "end_utf16": 1574842,
+      "sha256": "a639f41f0bf8bb7bfa0aaea8ca1781844553bbfb9cacf7902d5f3bf7839e68a7"
+    },
+    {
+      "group": "predicates",
+      "name": "flattenCommaList",
+      "start": 28232,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1574843,
+      "end_utf16": 1574971,
+      "sha256": "00d3bdf83bc22e29b45cb1bfa7bc1f6c7d0ef19e11fc82cf50b74e3994cbb8c8"
+    },
+    {
+      "group": "predicates",
+      "name": "moveRangePastModifiers",
+      "start": 17311,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1115675,
+      "end_utf16": 1116060,
+      "sha256": "f6c4a0adebcd16ac122a4acfa5cbc3cae2457f4f65c8c4215d111332a8c73341"
+    },
+    {
+      "group": "predicates",
+      "name": "nodeCanBeDecorated",
+      "start": 14651,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1011586,
+      "end_utf16": 1012768,
+      "sha256": "24112c02018a89832e021e83df801e48a435b356935cce570499fe57e1a1f136"
+    },
+    {
+      "group": "predicates",
+      "name": "nodeIsDecorated",
+      "start": 14672,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1012769,
+      "end_utf16": 1012945,
+      "sha256": "ee2cddfa9d89ebe87632cd9fe0bb145fdea6ee6914d84018a4b4a88c569c7396"
+    },
+    {
+      "group": "predicates",
+      "name": "classOrConstructorParameterIsDecorated",
+      "start": 14692,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1013785,
+      "end_utf16": 1014067,
+      "sha256": "93e16f668daee223ae14d4f652ea0669255bdba8a0a4ae1a6b8e538d7553cd10"
+    },
+    {
+      "group": "factory-metadata",
+      "name": "removeAllComments",
+      "start": 25311,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1466261,
+      "end_utf16": 1466476,
+      "sha256": "3ccd78e8f71e39b2c4709127b4e2df62995ef61f3d09c30269993b110f64f8a8"
+    },
+    {
+      "group": "factory-metadata",
+      "name": "setStartsOnNewLine",
+      "start": 25354,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 1467640,
+      "end_utf16": 1467756,
+      "sha256": "046678040a7316a644dc9f60a95c271e0ab1b02d420951fbba36e4e7afa1451e"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "getTextOfNode2",
+      "start": 120442,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5616573,
+      "end_utf16": 5617562,
+      "sha256": "90198d09a4b6bba8d66d02a696610c2cd7922a3e01a3890cbc9e1910ee0b1dc6"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "pushNameGenerationScope",
+      "start": 120480,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5618811,
+      "end_utf16": 5619318,
+      "sha256": "eb6aff824996a2e45904bf7588ed50258583cfa8f9e27cf548630fddd45d818b"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "popNameGenerationScope",
+      "start": 120493,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5619321,
+      "end_utf16": 5619729,
+      "sha256": "47cfe3850b4cf45835aa7acde1c369ef0ec58088a0f32676da9709ac3335b800"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "reserveNameInNestedScopes",
+      "start": 120503,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5619732,
+      "end_utf16": 5619945,
+      "sha256": "9233166fb13c8976600a52a350e3c382c81b749639402f88f43f0bf347a2f073"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "reservePrivateNameInNestedScopes",
+      "start": 120509,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5619948,
+      "end_utf16": 5620203,
+      "sha256": "2bf15157139a9921b61fdd8dbb9cccf7d2811e1ee616364d56fb191fb8449899"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateNames",
+      "start": 120515,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5620206,
+      "end_utf16": 5623011,
+      "sha256": "8aeb4524292d60fbaa51cfa473b786cc55438f4d50a4b79a9a77711e251d867c"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateMemberNames",
+      "start": 120600,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5623014,
+      "end_utf16": 5623483,
+      "sha256": "efa9b4f3659f219cfeb4c255ca06039e0c35685001f1d6e884dafb8af8cf78f8"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateNameIfNeeded",
+      "start": 120615,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5623486,
+      "end_utf16": 5623736,
+      "sha256": "e813389bacd3bdbd1e476022e2d3f2bf1fd1135a390c28754955058522dc668e"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateName",
+      "start": 120624,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5623739,
+      "end_utf16": 5624241,
+      "sha256": "fecbbc798982be388f23048a085499b67d9cdb27c57aa91b3a1b80789e7b6e43"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateNameCached",
+      "start": 120633,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5624244,
+      "end_utf16": 5624630,
+      "sha256": "976f864ebc31d76318dc766366075a68583abc7b4ebc485ff1b6cb6bf6300eb8"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "isUniqueName",
+      "start": 120638,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5624633,
+      "end_utf16": 5624812,
+      "sha256": "eb35313ab6b5eb88f60326d32d1c6ef119491159a3f87dcc7739ee2a30dde997"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "isReservedName",
+      "start": 120641,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5624815,
+      "end_utf16": 5625373,
+      "sha256": "b3aaaf0f7824ea6d69d6b1df2ff45a08f1f5b8c22c23620726a3aa311f6fef63"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "isFileLevelUniqueNameInCurrentFile",
+      "start": 120665,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5625376,
+      "end_utf16": 5625544,
+      "sha256": "b1c307ef20de7258e2d6bcdd6eab82e0c2c7cc3737f5154bbf6642e87984d2a0"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "isFileLevelUniqueName",
+      "start": 12907,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 955552,
+      "end_utf16": 955706,
+      "sha256": "86b2e1d4e23cbbeaf4dd2fcc55e3ad9ed916572715f43ae013b2aeff94710c50"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "getTempFlags",
+      "start": 120679,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5625997,
+      "end_utf16": 5626310,
+      "sha256": "8851db0556788e36359af71b8aa0d6e06d68bfc1f49d6796c655adcf184fb076"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "setTempFlags",
+      "start": 120689,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5626313,
+      "end_utf16": 5626708,
+      "sha256": "c2273885df5d86726ecdb90de34d0b7f5138069ef3ceb070295ce60bfaf2f2c1"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "makeTempVariableName",
+      "start": 120703,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5626711,
+      "end_utf16": 5628207,
+      "sha256": "32ace3390b76de9265b620385ec40489d4e7cc8b19e1f180e3bca535731a6681"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "makeUniqueName",
+      "start": 120741,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5628210,
+      "end_utf16": 5629495,
+      "sha256": "94b24041b1e9e89c3c2514f7411642fb63c4cf392b878c105f4c5931cd041078"
+    },
+    {
+      "group": "printer-generated-names",
+      "name": "generateNameForNode",
+      "start": 120876,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 5631475,
+      "end_utf16": 5633662,
+      "sha256": "1a587dce38202bb6d52823d94501a8802866ef5fe74bcc71797ab27e10dc177b"
+    },
+    {
+      "group": "generic-visitation",
+      "name": "visitEachChildOfClassStaticBlockDeclaration",
+      "start": 91438,
+      "kind": "FunctionExpression",
+      "start_utf16": 4473515,
+      "end_utf16": 4473867,
+      "sha256": "57bae9af6bcf535c10ddc5a5e6a6f8f63f30c34edc6f5f7fa8c8401bf6a4b2eb"
+    },
+    {
+      "group": "resolver",
+      "name": "hasNodeCheckFlag",
+      "start": 88127,
+      "kind": "FunctionDeclaration",
+      "start_utf16": 4318410,
+      "end_utf16": 4318546,
+      "sha256": "95fb6e43127faa787f64b52e311d808c9a87b034053399f098607a9260217be8"
+    },
+    {
+      "group": "resolver",
+      "name": "hasNodeCheckFlag-wrapper",
+      "start": 88560,
+      "kind": "ArrowFunction",
+      "start_utf16": 4336541,
+      "end_utf16": 4336693,
+      "sha256": "0d8a16815fc40920300f34b9e81861c75b674a4b5ad5e2735819d4912d9ad41b"
+    }
+  ]
+}
