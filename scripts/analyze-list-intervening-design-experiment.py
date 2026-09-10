@@ -124,7 +124,7 @@ def main():
         retained = Path(binary['retained_path'])
         assert retained.stat().st_size == binary['size']
         assert sha(retained.read_bytes()) == binary['sha256']
-    assert len(terminal['binaries']) == 7
+    assert len(terminal['binaries']) == 9
     source_archive = archive / 'source-and-inputs.tar.gz'
     assert sha(source_archive.read_bytes()) == pre['source_archive_sha256']
     fixtures = [
@@ -140,6 +140,8 @@ def main():
         ('crates/emitter/tests/fixtures/emit-pipeline-phases.json', 8),
         ('crates/emitter/tests/fixtures/emit-pipeline-bundle.json', 2),
         ('crates/emitter/tests/fixtures/literal-parent-provenance-utf16.json', 128),
+        ('crates/emitter/tests/fixtures/utf16-literal-escaping.json', 288),
+        ('crates/emitter/tests/fixtures/utf16-writer.json', 48),
     ]
     cases = {}
     artifacts = []
@@ -169,13 +171,13 @@ def main():
         failures[key] = actual
     # The catch-unwind loop's final list includes early typed failures as
     # well as assertion differences; refuse an unparsed panic or missing row.
-    final_lists = re.findall(r'(?:comma argument factory|comma list printer|list cursor|mapped type members|list format flags|import type attributes|emit pipeline phases|literal parent provenance) failures: (\[[^\n]*\])', log)
+    final_lists = re.findall(r'(?:comma argument factory|comma list printer|list cursor|mapped type members|list format flags|import type attributes|emit pipeline phases|literal parent provenance|utf16 literal escaping|utf16 writer) failures: (\[[^\n]*\])', log)
     final_failures = {entry for rendered in final_lists for entry in json.loads(rendered)}
     assert final_failures == {f'{case_id} repetition {rep}' for case_id, rep in failures}
-    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript', 'list_cursor_lifecycle_matches_typescript', 'mapped_type_members_matches_typescript', 'list_format_flags_matches_typescript', 'import_type_attributes_matches_typescript', 'emit_pipeline_phases_matches_typescript', 'literal_parent_provenance_matches_typescript']:
+    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript', 'list_cursor_lifecycle_matches_typescript', 'mapped_type_members_matches_typescript', 'list_format_flags_matches_typescript', 'import_type_attributes_matches_typescript', 'emit_pipeline_phases_matches_typescript', 'literal_parent_provenance_matches_typescript', 'utf16_literal_escaping_matches_typescript', 'utf16_writer_matches_typescript', 'writer_value_equality_survives_chunking_and_clone_clear']:
         assert f'test {test} ...' in log
     assert terminal['actual_exit'] == (101 if failures else 0)
-    assert len(re.findall(r'test result: (?:ok|FAILED)\.', log)) == 7
+    assert len(re.findall(r'test result: (?:ok|FAILED)\.', log)) == 9
     rows = []
     for case_id, case in cases.items():
         pair = [failures.get((case_id, rep)) for rep in range(2)]

@@ -1,0 +1,526 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "route": "direct-factory-and-printer",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "9ccfecf35528e3a57de53ae647a129dec630a4251bf55b42fed5819489122d60",
+  "cases": [
+    {
+      "case_id": "template-fragment-provenance/NoSubstitutionTemplateLiteral/false",
+      "kind": "NoSubstitutionTemplateLiteral",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": false,
+      "parsed_source": "const value = `\\uD83D\\uDE00\\uD800`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgzRFx1REUwMFx1RDgwMGA=",
+          "utf8_bytes": 20,
+          "end_utf16": {
+            "position": 20,
+            "line": 0,
+            "column": 20
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YFx1RDgzRFx1REUwMFx1RDgwMGA=",
+          "utf8_bytes": 20,
+          "end_utf16": {
+            "position": 20,
+            "line": 0,
+            "column": 20
+          }
+        },
+        "equal_utf16": true
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/NoSubstitutionTemplateLiteral/true",
+      "kind": "NoSubstitutionTemplateLiteral",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": true,
+      "parsed_source": "const value = `😀\\uD800`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            96,
+            55357,
+            56832,
+            55296,
+            96
+          ],
+          "utf8_base64": "YPCfmIDvv71g",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 5,
+            "line": 0,
+            "column": 5
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            96,
+            55357,
+            56832,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "YPCfmIBcdUQ4MDBg",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 10,
+            "line": 0,
+            "column": 10
+          }
+        },
+        "equal_utf16": false
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateHead/false",
+      "kind": "TemplateHead",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": false,
+      "parsed_source": "const value = `\\uD83D\\uDE00\\uD800${expression}`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgzRFx1REUwMFx1RDgwMCR7",
+          "utf8_bytes": 21,
+          "end_utf16": {
+            "position": 21,
+            "line": 0,
+            "column": 21
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            96,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YFx1RDgzRFx1REUwMFx1RDgwMCR7",
+          "utf8_bytes": 21,
+          "end_utf16": {
+            "position": 21,
+            "line": 0,
+            "column": 21
+          }
+        },
+        "equal_utf16": true
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateHead/true",
+      "kind": "TemplateHead",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": true,
+      "parsed_source": "const value = `😀\\uD800${expression}`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            96,
+            55357,
+            56832,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "YPCfmIDvv70kew==",
+          "utf8_bytes": 10,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            96,
+            55357,
+            56832,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "YPCfmIBcdUQ4MDAkew==",
+          "utf8_bytes": 13,
+          "end_utf16": {
+            "position": 11,
+            "line": 0,
+            "column": 11
+          }
+        },
+        "equal_utf16": false
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateMiddle/false",
+      "kind": "TemplateMiddle",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": false,
+      "parsed_source": "const value = `${left}\\uD83D\\uDE00\\uD800${right}`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgzRFx1REUwMFx1RDgwMCR7",
+          "utf8_bytes": 21,
+          "end_utf16": {
+            "position": 21,
+            "line": 0,
+            "column": 21
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "fVx1RDgzRFx1REUwMFx1RDgwMCR7",
+          "utf8_bytes": 21,
+          "end_utf16": {
+            "position": 21,
+            "line": 0,
+            "column": 21
+          }
+        },
+        "equal_utf16": true
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateMiddle/true",
+      "kind": "TemplateMiddle",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": true,
+      "parsed_source": "const value = `${left}😀\\uD800${right}`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            125,
+            55357,
+            56832,
+            55296,
+            36,
+            123
+          ],
+          "utf8_base64": "ffCfmIDvv70kew==",
+          "utf8_bytes": 10,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            125,
+            55357,
+            56832,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            36,
+            123
+          ],
+          "utf8_base64": "ffCfmIBcdUQ4MDAkew==",
+          "utf8_bytes": 13,
+          "end_utf16": {
+            "position": 11,
+            "line": 0,
+            "column": 11
+          }
+        },
+        "equal_utf16": false
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateTail/false",
+      "kind": "TemplateTail",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": false,
+      "parsed_source": "const value = `${left}\\uD83D\\uDE00\\uD800`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgzRFx1REUwMFx1RDgwMGA=",
+          "utf8_bytes": 20,
+          "end_utf16": {
+            "position": 20,
+            "line": 0,
+            "column": 20
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            125,
+            92,
+            117,
+            68,
+            56,
+            51,
+            68,
+            92,
+            117,
+            68,
+            69,
+            48,
+            48,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "fVx1RDgzRFx1REUwMFx1RDgwMGA=",
+          "utf8_bytes": 20,
+          "end_utf16": {
+            "position": 20,
+            "line": 0,
+            "column": 20
+          }
+        },
+        "equal_utf16": true
+      }
+    },
+    {
+      "case_id": "template-fragment-provenance/TemplateTail/true",
+      "kind": "TemplateTail",
+      "units": [
+        55357,
+        56832,
+        55296
+      ],
+      "never_ascii_escape": true,
+      "parsed_source": "const value = `${left}😀\\uD800`;",
+      "typescript_observation": {
+        "synthetic": {
+          "text_utf16": [
+            125,
+            55357,
+            56832,
+            55296,
+            96
+          ],
+          "utf8_base64": "ffCfmIDvv71g",
+          "utf8_bytes": 9,
+          "end_utf16": {
+            "position": 5,
+            "line": 0,
+            "column": 5
+          }
+        },
+        "parsed": {
+          "text_utf16": [
+            125,
+            55357,
+            56832,
+            92,
+            117,
+            68,
+            56,
+            48,
+            48,
+            96
+          ],
+          "utf8_base64": "ffCfmIBcdUQ4MDBg",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 10,
+            "line": 0,
+            "column": 10
+          }
+        },
+        "equal_utf16": false
+      }
+    }
+  ]
+}

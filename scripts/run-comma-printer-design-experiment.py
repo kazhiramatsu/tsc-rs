@@ -31,10 +31,17 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v13.patch')
-LIST_OWNER_PATCH_SHA = 'f391fb4dade7a634aa92c998fdb6530c979d1a34debef984a8d75a0f522b9b7a'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v14.patch')
+LIST_OWNER_PATCH_SHA = '42eb23af16878692f1b99802e3318520a9c5f99196b231cbcbeb0e05f3409863'
+WRITER = Path('crates/emitter/src/writer.rs')
+WRITER_SHA = '0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6'
 BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
 BUNDLE_PRINTER_SHA = 'b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12'
+
+UTF16_TEST_PATCH = Path('docs/design/greenfield/slices/h2-8a-utf16-writer-tests.candidate.patch')
+UTF16_TEST_PATCH_SHA = '549a3817b6ac55d62c40b9faf302c904e15aef1cfd30f36f6e929a1d9139c46b'
+UTF16_TEST_BASES = {'crates/emitter/tests/literal_parent_provenance_contract.rs': '1146af1be6cdaac6fe1003200091f5763c17e28c1594df4fc4667fe4ad1c26cd', 'crates/emitter/tests/utf16_literal_escaping_contract.rs': '00254a6e7b6ca7b8422c2e9b53c25e2d1b9367f2bbdfb58909a9a5f6ef76ecf7', 'crates/emitter/tests/integration/declaration_printer_reprint_contract.rs': '9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b'}
+UTF16_TEST_ADDITIONS = [Path('crates/emitter/tests/utf16_writer_contract.rs')]
 
 
 def sha(path):
@@ -58,7 +65,7 @@ def main():
     with_factory = '--factory' in flags
     with_list_owner = '--list-owner' in flags
     assert not with_list_owner or with_factory
-    assert selection != 'factory-direct' or with_factory
+    assert selection != 'factory-direct' or with_list_owner
     prefix = ROOT / f'target/h2-8a-comma-printer-design-experiment-{attempt}'
     pre_path = prefix.with_suffix('.pre.json')
     log_path = prefix.with_suffix('.log')
@@ -72,6 +79,11 @@ def main():
     if with_list_owner:
         assert sha(ROOT / LIST_OWNER_PATCH) == LIST_OWNER_PATCH_SHA
         assert sha(ROOT / BUNDLE_PRINTER) == BUNDLE_PRINTER_SHA
+        assert sha(ROOT / WRITER) == WRITER_SHA
+        assert sha(ROOT / UTF16_TEST_PATCH) == UTF16_TEST_PATCH_SHA
+        for path, expected in UTF16_TEST_BASES.items():
+            assert sha(ROOT / path) == expected
+        assert all(not (ROOT / path).exists() for path in UTF16_TEST_ADDITIONS)
     if with_factory:
         assert sha(ROOT / FACTORY) == FACTORY_SHA
         assert sha(ROOT / FACTORY_PATCH) == FACTORY_PATCH_SHA
@@ -95,6 +107,7 @@ def main():
                 assert (ROOT / included).is_file(), spelling
                 includes.setdefault(spelling, []).append(str(source))
     source_paths = sorted(set(source_paths) | {Path(p) for p in includes})
+    root_source_paths = list(source_paths)
     for relative in source_paths:
         original = ROOT / (CANDIDATE if relative == PRODUCTION else relative)
         destination = workspace / relative
@@ -109,8 +122,15 @@ def main():
     if with_list_owner:
         subprocess.run(['git', 'apply', '--check', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
+        # Remove only the declared generated test left by an earlier isolated
+        # attempt. Root has no corresponding file or candidate-only API.
+        for relative in UTF16_TEST_ADDITIONS:
+            (workspace / relative).unlink(missing_ok=True)
+        subprocess.run(['git', 'apply', '--check', str(ROOT / UTF16_TEST_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', str(ROOT / UTF16_TEST_PATCH)], cwd=workspace, check=True)
+        source_paths = sorted(set(source_paths) | set(UTF16_TEST_ADDITIONS))
     inputs = [{'path': str(p), 'sha256': sha(workspace / p)} for p in source_paths]
-    production_inputs = [{'path': str(p), 'sha256': sha(ROOT / p)} for p in source_paths]
+    production_inputs = [{'path': str(p), 'sha256': sha(ROOT / p)} for p in root_source_paths]
     previous_pre = json.loads((ROOT / 'target/h2-8a-retained-comma-native-before-1-prelaunch.json').read_text())
     vendor_inputs = [r for r in previous_pre['inputs'] if r['path'].startswith('vendor/')]
     for row in vendor_inputs:
@@ -128,6 +148,7 @@ def main():
             tar.add(ROOT / FACTORY_PATCH, arcname=str(FACTORY_PATCH))
         if with_list_owner:
             tar.add(ROOT / LIST_OWNER_PATCH, arcname=str(LIST_OWNER_PATCH))
+            tar.add(ROOT / UTF16_TEST_PATCH, arcname=str(UTF16_TEST_PATCH))
     target = ROOT / 'target/h2-8a-retained-lexical-design-artifacts'
     command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                'cargo', 'test', '--offline', '-p', 'tsc-rs-compiler', '--test', 'contracts', '--',
@@ -141,7 +162,8 @@ def main():
             command[command.index('--'):command.index('--')] = [
                 '--test', 'comma_argument_factory_contract', '--test', 'mapped_type_members_contract',
                 '--test', 'list_format_flags_contract', '--test', 'import_type_attributes_contract',
-                '--test', 'emit_pipeline_phases_contract', '--test', 'literal_parent_provenance_contract']
+                '--test', 'emit_pipeline_phases_contract', '--test', 'literal_parent_provenance_contract',
+                '--test', 'utf16_literal_escaping_contract', '--test', 'utf16_writer_contract']
     elif selection == 'literal-neighbors':
         command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                    'cargo', 'test', '--offline', '-p', 'tsc-rs-emitter',
@@ -165,7 +187,11 @@ def main():
            'printer_base_sha256': PRINTER_SHA,
            'factory_patch': {'path': str(FACTORY_PATCH), 'sha256': FACTORY_PATCH_SHA,
                              'base_sha256': FACTORY_SHA} if with_factory else None,
-           'list_owner_patch': {'path': str(LIST_OWNER_PATCH), 'sha256': LIST_OWNER_PATCH_SHA} if with_list_owner else None,
+           'list_owner_patch': {'path': str(LIST_OWNER_PATCH), 'sha256': LIST_OWNER_PATCH_SHA,
+                                'writer_base_sha256': WRITER_SHA} if with_list_owner else None,
+           'utf16_test_patch': {'path': str(UTF16_TEST_PATCH), 'sha256': UTF16_TEST_PATCH_SHA,
+                                'root_bases': UTF16_TEST_BASES,
+                                'root_absent': [str(p) for p in UTF16_TEST_ADDITIONS]} if with_list_owner else None,
            'baseline': {'path': str(BASELINE), 'sha256': BASELINE_SHA},
            'source_archive_sha256': sha(archive / 'source-and-inputs.tar.gz')}
     write_json(pre_path, pre)
@@ -178,6 +204,9 @@ def main():
               'manifest_sha256': sha(pre_path), 'log_sha256': sha(log_path),
               'production_unchanged': all(sha(ROOT / row['path']) == row['sha256'] for row in production_inputs),
               'copied_inputs_unchanged': all(sha(workspace / row['path']) == row['sha256'] for row in inputs)}
+    if with_list_owner:
+        record['root_test_additions_still_absent'] = all(not (ROOT / p).exists() for p in UTF16_TEST_ADDITIONS)
+        record['production_unchanged'] &= record['root_test_additions_still_absent']
     # Preserve the executed binary before allowing another Cargo job.
     binaries = re.findall(r'Running (?:tests/[^ ]+|unittests [^ ]+) \(([^\)]+)\)', log_path.read_text())
     record['binaries'] = []

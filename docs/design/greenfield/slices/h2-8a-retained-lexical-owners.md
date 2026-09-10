@@ -1506,6 +1506,177 @@ v13 full-corpus, activation or qualification claim is made here.
 All fourteen source-observer commands, including the lossless JSON projection
 and72 adjacent text-source observations, were freshly checked after47.
 
+### Lossless generated text and literal escaping amendment
+
+The12 direct failures require preserving generated UTF16, not just cooked
+metadata. Fresh `observe-utf16-writer.mjs --check` freezes48 programs with all
+intermediate writer states (LF/CRLF/single-line; paired/split/reversed/unpaired
+units, empty raw/ordinary/comment writes, all ordinary writer aliases,
+indentation, comment flags, forced lines and clear/reuse). Artifact SHA-256:
+787d8e76f56ec71aca18fb5b35da8362fafc922fb831ae2633ac53bc10cc770f.
+The initial source probe found createSingleLineStringWriter is private, so the
+observer exposes that exact lexical function by adding one export property in
+an in-memory copy of pinned typescript.js. Both original and instrumented
+compiler hashes are retained; no writer worker is changed. This48 population
+is source-only until the new typed UTF16 write surface exists in the candidate.
+
+`observe-utf16-literal-escaping.mjs --check` additionally freezes288 factory
+print rows:12 inputs x double/single/four template token kinds x both printer
+neverAsciiEscape and node NoAsciiEscaping flags. It covers every ASCII control,
+U+0085/2028/2029, NUL followed by a digit, literal quotes, backslash, template
+substitution, CRLF and bare LF, pairs and unpaired units. Full cooked tree
+values, generated UTF16, UTF8 projection and final positions are compared.
+Artifact SHA-256:cbd9f34c0889a4c47ecf03b6a3717858895d9d45fc95c9315c4f11e8b5e41fed.
+Native-before48 runs v13 plus these288 controls:1567 total,3134 executions,
+988 tree states,508 factory states and94 event traces in eight binaries.
+All1279 previous observations, including their12 failures, are retained.
+
+Upstream authority is createTextWriter (`_tsc.js:16365-16461`),
+createSingleLineStringWriter (`12672-12703`), getIndentString/getIndentSize
+(`16355-16364`), and the previously pinned literal owners. The writer owns
+output, indentation, pending line-start state, line count/position and trailing
+comment state until clear/reset. updateLineCountAndPosFor measures each
+appended chunk; splitting CRLF across writes therefore remains observable.
+String concatenation can pair a high and low surrogate from separate writes.
+Escaping (`16274-16319`) preserves unpaired units when ASCII escaping is off;
+vertical tab uses \\v and U+0085 always uses \\u0085. Backtick escaping retains a
+bare LF but escapes a CRLF pair together; escapeTemplateSubstitution follows
+character escaping. Source rawText remains a separate lexical owner.
+
+Isolated candidate files are writer.rs, printer.rs and its existing bundle.rs
+file; root production stays unchanged. The writer file's unchanged root hash
+must join the runner's base pins before candidate execution. Function steps:
+
+1. Add private GeneratedText storage with a normal String and an optional
+   complete UTF16 representation, promoted when a write contains unpaired
+   units. The UTF8 projection is derived, never the source of promoted units.
+   Append handles a low unit after a prior high by updating the projection's
+   final replacement character while retaining both original units. Empty
+   writes preserve that possibility. clear removes the logical text and resets
+   the representation; clone owns independent buffers. Equality compares the
+   logical UTF16 sequence, independently of promotion history.
+2. Existing UTF8 writer methods retain their signatures and fast path. Add
+   explicit UTF16 counterparts for ordinary/raw/literal/comment writes and
+   the string-literal alias. They share the existing indentation, empty-input,
+   comment and line/position transitions. A shared measurement routine consumes
+   UTF16 units (encode_utf16 for UTF8 callers, copied units for UTF16 callers)
+   using computeLineStarts (`_tsc.js:8250-8277`): CRLF coalesces within a chunk,
+   and CR/LF/U+2028/U+2029 end lines. It retains only the count and final start
+   consumed by updateLineCountAndPosFor, avoiding a temporary line-start array
+   or a replacement-string allocation.48 exact transition traces and adjacent
+   writer checks must verify both input routes. text() is the UTF8 projection, and
+   text_utf16() exposes the actual units without normalization.
+3. PrintedText owns GeneratedText and exposes the same two views. All four
+   writer-copy constructors in printer.rs/bundle.rs and the canonical file
+   return path retain the generated value. System helper insertion preserves
+   prefix/suffix units while using its existing ASCII/UTF8 delimiter search;
+   convert the validated insertion byte boundary to a UTF16 offset before
+   insertion and remeasure the actual units. Existing map refusal is retained.
+4. String and cooked-template quoting return UTF16 units through the existing
+   JavaScriptString type. One unit-based escaping worker implements the pinned
+   quote/control/non-ASCII rules, including NUL lookahead, CRLF and template
+   substitution. Literal writers consume those units directly. Existing raw
+   UTF8 token spelling follows its current route; no value is reconstructed
+   from final emitted text. Native literal observations then read text_utf16(),
+   leaving their immutable expected arrays and byte/position checks unchanged.
+5. Freeze actual before48, stage and pin the cumulative candidate, install48
+   writer controls and execute all1615 controls twice in nine binaries. Verify
+   all old positives and complete failed observations, then72 literal-source
+   neighbors and494/451/1350 adjacent checks. Final full530 must compare all
+   tuples to completed v12/full42. No previous failed run is discarded.
+
+The completed before48 receipt is
+`ratchets/h2-8a-utf16-literal-escaping-direct-before.v1.json`, SHA-256
+5d7fa1d17d2d19ba25488f7498169fcc5f88d9890add2d59534c5dba20cd9050:
+1461/1567 exact twice,106 failures; every1279 prior row individually unchanged,
+including its12 failures. The added288 produced194 exact and94 failing rows.
+
+Candidate v14 is frozen in
+`h2-8a-list-intervening-printer.candidate-v14.patch`, SHA-256
+42eb23af16878692f1b99802e3318520a9c5f99196b231cbcbeb0e05f3409863.
+Applied printer SHA-256:
+5cb51c0d750cc8ef68f55749169be7adf6e2caa6c8e105745cacf2f9077768c7;
+bundle:f0070263f5748d2fe7bdda43b59eeba48fd58e545b53e0cffcb0a2d4dab58c0a;
+writer:1fdc8e5da9b839d8f45897cf042115d73b7817e8496671f8ef2eb4b01ec2fb2a.
+The shared per-chunk measurement consumes the complete source algorithm in
+`_tsc.js:8250-8277`, SHA-256
+147e073a0b43a88a9f85025067b10b6b4ce1f11b28549970fca1e71eee8d93e8.
+
+`python3 scripts/run-comma-printer-design-experiment.py 49 factory-direct
+--factory --list-owner` completed with actual exit0 in102.20566350000445s.
+All1615 controls matched twice (3230 native attempts):988 input trees,
+508 factory states and94 event traces also exact. All1461 prior positives
+were preserved and all106 prior failures repaired; prior fixture hashes are
+unchanged. The48 writer rows include every intermediate state and compare
+both all-UTF16 and mixed UTF8/UTF16 input routes. A separate native property
+test proves chunk-independent equality, clone/clear independence, and unequal
+JavaScript values with equal UTF8 projections; it earns no additional source
+case credit. Nine binaries ran eleven test functions.
+`ratchets/h2-8a-utf16-writer-direct-after.v1.json`, SHA-256
+84b679b1be9607d7957117468063caa825c3aa477b9708a5080a83241ac19522,
+retains the actual terminal result, executed binaries, input archive and the
+exact analyzer. Before48 and after49 analyses are immutable. The runner now
+pins the unchanged production writer before applying the isolated patch.
+
+Adjacent50 passed all72 literal-source controls twice, exit0 in8.505378416972235s;
+receipt `ratchets/h2-8a-utf16-writer-neighbor-checks.v1.json`, SHA-256
+fd81d893849426820c09d57e16f9ae6021f13ca324372ba02ceb85d101082a26.
+Adjacent51 passed494 unit tests and450/451 contracts, including all1350
+declaration reprints, but exited101 in104.13500695803668s. Its one failure is
+retained in `ratchets/h2-8a-utf16-writer-emitter-failure.v1.json`, SHA-256
+ec418f0f9a695341b419f702b00a9ebbe668128937890fbf04f8dfbeb9128eaf.
+
+Fresh `node scripts/observe-template-fragment-provenance.mjs --check` freezes
+the exact eight combinations used by that legacy contract: four template
+token kinds, the same cooked units D83D/DE00/D800, and both printer escape
+settings. It observes synthesized tokens and their separately parsed lexical
+comparators, including actual units, bytes and positions. Fixture
+`template-fragment-provenance.json` SHA-256:
+ff3d21c4bc12bb9b3ff39d2ec9e02015d712082550039185670705237a8300a3.
+The four NoAscii outputs differ in TypeScript: a synthesized token retains
+D800, while the parsed raw token retains its backslash-uD800 spelling. The
+old native-to-native equality assertion was therefore incorrect; the revised
+contract compares both independent outputs to these source observations.
+It retains all eight old inputs and repeats each comparison twice. This
+test correction changes no candidate production code or source expectation.
+
+Tests using the new writer APIs are staged in
+`h2-8a-utf16-writer-tests.candidate.patch`, SHA-256
+549a3817b6ac55d62c40b9faf302c904e15aef1cfd30f36f6e929a1d9139c46b.
+The runner applies this only in the isolated workspace, after the production
+candidate: it creates utf16_writer_contract.rs, changes the two direct literal
+observers to use text_utf16(), and replaces the legacy declaration-template
+equality assertion with the source-derived contract. Root tests continue to
+compile against root APIs. The two direct test bodies and new writer body
+must remain byte-identical to their actually executed after49 copies; the
+declaration contract is the only changed executed test. Root base hashes and
+the new test's root absence are checked explicitly and retained in prelaunch.
+
+Adjacent52 re-executed the corrected contracts and completed with actual exit0
+in26.445854375022464s:494 unit tests,451 contracts,1350 declaration reprints,
+and all8 source-derived template provenance rows twice. Receipt
+`ratchets/h2-8a-utf16-writer-emitter-checks.v1.json`, SHA-256
+5da692f2df41acbfc10740f43333795b7b5b1a4fc5a2436293699d36b323f0e5.
+Comparing its complete copied input table to51 proves that only the revised
+declaration contract changed and only its new fixture was added. All
+candidate production bytes are unchanged; the library binary is identical.
+Comparing52 to49 separately proves all five candidate production files and
+the three relocated direct test bodies are byte-identical. Root's two direct
+literal test bodies match the API-compatible before48 bytes exactly. The
+sixteen previous source-observer checks and new template-provenance check
+also passed. Full530 still requires a fresh execution against full42; direct,
+adjacent, and full populations are distinct and cannot be added together.
+
+The new state is owned by a writer/PrintedText, never global or stored in
+node metadata. E-STRINGS and writer/printed-output boundaries are
+modified-requalify; mounted arenas and cooked JavaScriptString are unchanged
+representations. The executor and declaration sinks already request a UTF8
+projection; their broader callback-value qualification remains open. Raw
+template text from arbitrary UTF16 factory input, full textSourceNode
+recursion, writer/map fault order, metadata annotation failures, performance
+qualification and whole A40 readiness also remain unresolved. These are not
+unproved API1 deferrals, and this candidate cannot activate production.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,
