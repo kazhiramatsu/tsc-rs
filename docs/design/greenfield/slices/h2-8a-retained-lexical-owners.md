@@ -1843,6 +1843,31 @@ The next full comparison pins the strongest completed full53, not an older
 baseline. The remaining53 independent-review handoff is
 [h2-8a-decorator-remaining53-review.md](h2-8a-decorator-remaining53-review.md).
 
+Attempt59 full530 terminated at checker compilation: actual101 in
+139.9407060830854s,2 E0277 diagnostics,0 executed binaries and0 command
+observations. The58 emitter-only checks did not compile the checker callers.
+Receipt `ratchets/h2-8a-literal-property-checker-compile-attempt.v1.json`, SHA-256
+09391047a13a39d60541c5d360d6bf9f02dc131dac0472290b83f841c8c67eff. No53 preservation or full530 result is inferred.
+The v16 cumulative candidate, SHA-256
+ea078b163b5f067aeb9b1964268eb1eaba134b53faef422b2eea050d3267966b,
+adds only the two established checker error conversions: chains::factory_error
+and syntactic builder's EmitResolverError::Factory retaining self.method.
+The fallible arena getter and every emitter production/native-test byte stay
+identical to v15; testpatchv4 is unchanged. This is the already-allowed checker
+consumer migration, not a new semantic owner or an infallible fallback.
+Attempt60 is the next full530 execution and again pins strongest completed53.
+
+Attempt60 actually executed all530 twice after the v16 checker conversion fix:
+477 exact,53 failed,0 regressions and0 complete-tuple changes from strongest53.
+Actual101 in1052.878883791971s,1 retained compiler binary, no typed failures;
+root and copied inputs unchanged. Receipt
+`ratchets/h2-8a-literal-property-design-experiment.v1.json`, SHA-256
+03419eb53896a349a2e6e1b6db11f52a00621076140d2e5d11c926cb391d9279.
+Every emitter and native test input matches58; only the two checker wrappers
+changed. The retained A6-41 failures now move to the explicit
+[receiver-frame design experiment](h2-8a-decorator-receiver-frames.md).
+That separate candidate is unqualified and grants no whole A6-41 readiness.
+
 The v14 generated-output state is owned by a writer/PrintedText, never global or stored in
 node metadata. E-STRINGS and writer/printed-output boundaries are
 modified-requalify; mounted arenas and cooked JavaScriptString are unchanged
@@ -1879,3 +1904,48 @@ CARGO_BUILD_JOBS=2. Poll a live handle; do not restart after an observation
 timeout. Root is the sole writer. No fixture-specific production logic, output
 substitution, handwritten expectations, permissive fallback or blanket flag
 repair is allowed. H2.8a-e remains active throughout this work.
+
+
+### External decorator draft integrated: full62
+
+The remaining53 full60 command failures are now exact in the isolated v18
+composition. The external receiver and static-accessor patches were composed
+on full60/v16 without changing any fixture, native adapter, literal property
+or UTF16 writer byte. All1013 copied inputs differ from full60 in precisely
+standard_decorators.rs, class_fields.rs and class_fields/downlevel.rs.
+Independent saved-capture review and a new source-bound full62 run both prove
+530/530 exact twice, all477 prior observations unchanged and53 repaired, with
+zero typed failures/regressions. The final run exited0 after983.3120198750403s.
+All1060 new captures equal the external handoff, including JS/maps, diagnostics,
+write callback fields and the full emit result.
+
+Integrated patch: `h2-8a-list-intervening-printer.candidate-v18.patch`, SHA-256
+`839f72ea3535695548dacfd13d51d92dc47c1a86138cb15145cb8f62c8e51d93`.
+Receipt: `ratchets/h2-8a-decorator-receiver-design-experiment.v1.json`, SHA-256
+`77f5440820c9c2ab3e9933533021684b67252b79c30e0545f3d1ac981578cf7d`.
+Fresh pinned TypeScript source checks cover326 complete commands twice; the
+external design packet records their receipt and the separate upstream
+exceptions. The earlier v17 receiver prototype was terminal26/36 exact, with
+10 map-only differences, and is superseded rather than developed further.
+
+This closes the53 failures within the530 population, not whole A6-41, A40 or
+H2.8a-e readiness. See `h2-8a-decorator-receiver-frames.md` for shared-node memo,
+receiver identity, class decorator/heritage ordering, name-oracle ownership and
+super/pending/constructor-phase review rows. Root production remains unchanged;
+adjacent emitter validation follows on the same final candidate bytes.
+
+
+Adjacent emitter validation is now complete for the integrated candidate:
+attempt65 passed494 library tests and452 contracts, including1350 declaration
+reprints,8 template-provenance controls twice, and the four source-generated
+static-accessor print controls. Receipt
+`ratchets/h2-8a-decorator-receiver-emitter-checks.v1.json`, SHA-256
+`186ed40ee40b7b41df4e60a23a33d8f340ef39c0da02a575df74eeab8b994580`.
+Attempts63/64 and their failures remain frozen: the old test incorrectly
+required an ESNext getter; its replacement additionally needed the compiler's
+canonical print mode for the unchanged ESNext/define control. The separate
+native-only testpatchv2 corrects that comparison using fresh pinned TypeScript
+output, without altering any existing upstream fixture or production byte.
+The full62 production/compiler-test inputs are unchanged, so its530/530 result
+remains the applicable full command evidence. These counts are not added across
+overlapping populations, and they do not close the whole design gate.

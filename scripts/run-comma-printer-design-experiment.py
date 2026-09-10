@@ -31,8 +31,8 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v15.patch')
-LIST_OWNER_PATCH_SHA = 'ce0c560e7c8567cdca3f95c8e2f711b4f13735659a680458c316d28f0f43cc4d'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v18.patch')
+LIST_OWNER_PATCH_SHA = '839f72ea3535695548dacfd13d51d92dc47c1a86138cb15145cb8f62c8e51d93'
 WRITER = Path('crates/emitter/src/writer.rs')
 WRITER_SHA = '0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6'
 BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
@@ -47,6 +47,16 @@ METADATA = Path('crates/emitter/src/metadata.rs')
 METADATA_SHA = '7f73ec168773329fbaff08795de32b4504833c3d6dd8583badced16016a29933'
 LITERAL_OBSERVATION_PATCH = Path('docs/design/greenfield/slices/h2-8a-literal-property-observation.candidate.patch')
 LITERAL_OBSERVATION_PATCH_SHA = '51d1a3bec8b8c7c517d376dbb8a2e32f0a24d21a62e3aa25143ac95e794fddef'
+
+RECEIVER_DESIGN = Path('docs/design/greenfield/slices/h2-8a-decorator-receiver-frames.md')
+STANDARD_DECORATORS = Path('crates/emitter/src/builtins/standard_decorators.rs')
+STANDARD_DECORATORS_SHA = '042d017e951554a104adf938c138e28af63672ba6ff91b69d671b0c88b40b659'
+DECORATOR_ROUTING_TEST_PATCH = Path('docs/design/greenfield/slices/h2-8a-decorator-static-accessor-test.candidate-v2.patch')
+DECORATOR_ROUTING_TEST_PATCH_SHA = '04ac9fe5b1ea2ee62c506e5fc711f21d4ecf73cdc5ee84c536a01c0d59ab5e67'
+DECORATOR_ROUTING_TEST = Path('crates/emitter/tests/integration/active_transform_contract.rs')
+DECORATOR_ROUTING_TEST_BASE_SHA = '94d65f57a35dd2e6baae7c83d8174f2568c758352f52a11fc7ffed08cfb6a657'
+DECORATOR_ROUTING_FIXTURE = Path('crates/emitter/tests/fixtures/decorator-static-accessor-routing.json')
+DECORATOR_ROUTING_FIXTURE_SHA = '062dfb6eccb239bc0a0edf9f309a7cb8bc1682690c68a4088eb44dbeaade387f'
 
 
 def sha(path):
@@ -64,7 +74,7 @@ def main():
     attempt = int(sys.argv[1])
     assert attempt > 0
     selection = sys.argv[2]
-    assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory', 'literal-neighbors']
+    assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory', 'literal-neighbors', 'context', 'additional']
     flags = sys.argv[3:]
     assert len(flags) == len(set(flags)) and set(flags) <= {'--factory', '--list-owner'}
     with_factory = '--factory' in flags
@@ -83,6 +93,10 @@ def main():
     assert sha(ROOT / PATCH) == PATCH_SHA
     if with_list_owner:
         assert sha(ROOT / LIST_OWNER_PATCH) == LIST_OWNER_PATCH_SHA
+        assert sha(ROOT / DECORATOR_ROUTING_TEST_PATCH) == DECORATOR_ROUTING_TEST_PATCH_SHA
+        assert sha(ROOT / DECORATOR_ROUTING_TEST) == DECORATOR_ROUTING_TEST_BASE_SHA
+        assert sha(ROOT / DECORATOR_ROUTING_FIXTURE) == DECORATOR_ROUTING_FIXTURE_SHA
+        assert sha(ROOT / STANDARD_DECORATORS) == STANDARD_DECORATORS_SHA
         assert sha(ROOT / BUNDLE_PRINTER) == BUNDLE_PRINTER_SHA
         assert sha(ROOT / WRITER) == WRITER_SHA
         assert sha(ROOT / METADATA) == METADATA_SHA
@@ -137,6 +151,8 @@ def main():
             (workspace / relative).unlink(missing_ok=True)
         subprocess.run(['git', 'apply', '--check', str(ROOT / UTF16_TEST_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', str(ROOT / UTF16_TEST_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', '--check', str(ROOT / DECORATOR_ROUTING_TEST_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', str(ROOT / DECORATOR_ROUTING_TEST_PATCH)], cwd=workspace, check=True)
         source_paths = sorted(set(source_paths) | set(UTF16_TEST_ADDITIONS))
     inputs = [{'path': str(p), 'sha256': sha(workspace / p)} for p in source_paths]
     production_inputs = [{'path': str(p), 'sha256': sha(ROOT / p)} for p in root_source_paths]
@@ -157,8 +173,10 @@ def main():
             tar.add(ROOT / FACTORY_PATCH, arcname=str(FACTORY_PATCH))
         if with_list_owner:
             tar.add(ROOT / LIST_OWNER_PATCH, arcname=str(LIST_OWNER_PATCH))
+            tar.add(ROOT / RECEIVER_DESIGN, arcname=str(RECEIVER_DESIGN))
             tar.add(ROOT / UTF16_TEST_PATCH, arcname=str(UTF16_TEST_PATCH))
             tar.add(ROOT / LITERAL_OBSERVATION_PATCH, arcname=str(LITERAL_OBSERVATION_PATCH))
+            tar.add(ROOT / DECORATOR_ROUTING_TEST_PATCH, arcname=str(DECORATOR_ROUTING_TEST_PATCH))
     target = ROOT / 'target/h2-8a-retained-lexical-design-artifacts'
     command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                'cargo', 'test', '--offline', '-p', 'tsc-rs-compiler', '--test', 'contracts', '--',
@@ -206,6 +224,12 @@ def main():
            'utf16_test_patch': {'path': str(UTF16_TEST_PATCH), 'sha256': UTF16_TEST_PATCH_SHA,
                                 'root_bases': UTF16_TEST_BASES,
                                 'root_absent': [str(p) for p in UTF16_TEST_ADDITIONS]} if with_list_owner else None,
+           'decorator_routing_test_patch': {'path': str(DECORATOR_ROUTING_TEST_PATCH),
+                                            'sha256': DECORATOR_ROUTING_TEST_PATCH_SHA,
+                                            'root_test': str(DECORATOR_ROUTING_TEST),
+                                            'root_base_sha256': DECORATOR_ROUTING_TEST_BASE_SHA,
+                                            'fixture': str(DECORATOR_ROUTING_FIXTURE),
+                                            'fixture_sha256': DECORATOR_ROUTING_FIXTURE_SHA} if with_list_owner else None,
            'baseline': {'path': str(BASELINE), 'sha256': BASELINE_SHA},
            'source_archive_sha256': sha(archive / 'source-and-inputs.tar.gz')}
     write_json(pre_path, pre)

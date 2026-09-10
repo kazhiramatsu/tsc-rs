@@ -139,6 +139,15 @@ def main():
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
     if pre.get('list_owner_patch') is not None:
         predecessors = {
+            '839f72ea3535695548dacfd13d51d92dc47c1a86138cb15145cb8f62c8e51d93': (
+                'ratchets/h2-8a-literal-property-design-experiment.v1.json',
+                '03419eb53896a349a2e6e1b6db11f52a00621076140d2e5d11c926cb391d9279'),
+            '11b357f0bfcef1eeab1e7e2df3f369d7e313d0f46ff9ec2be810c2985c796d80': (
+                'ratchets/h2-8a-literal-property-design-experiment.v1.json',
+                '03419eb53896a349a2e6e1b6db11f52a00621076140d2e5d11c926cb391d9279'),
+            'ea078b163b5f067aeb9b1964268eb1eaba134b53faef422b2eea050d3267966b': (
+                'ratchets/h2-8a-utf16-writer-design-experiment.v1.json',
+                '72bead2204a6091714650a6a2b0065a8b3439aea8840cd07cb432a4f9dd20f31'),
             'ce0c560e7c8567cdca3f95c8e2f711b4f13735659a680458c316d28f0f43cc4d': (
                 'ratchets/h2-8a-utf16-writer-design-experiment.v1.json',
                 '72bead2204a6091714650a6a2b0065a8b3439aea8840cd07cb432a4f9dd20f31'),
