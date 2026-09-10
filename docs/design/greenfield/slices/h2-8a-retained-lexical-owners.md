@@ -995,7 +995,193 @@ validates993 copied inputs,109 vendor inputs and both executed binaries; the11
 preexisting declaration exclusions remain excluded. These are isolated candidate
 results. The remaining first-line consumers, missing list fields and comment/
 failure-order obligations listed above still block whole A40 readiness. The
-full530 v7 comparison is the next required check; no result is claimed yet.
+full530 v7 comparison (attempt28) is now complete: **477/530 exact twice**,
+53 failures, exit101 in1098.796 seconds. The
+[full receipt](../../../../ratchets/h2-8a-list-cursor-design-experiment.v1.json)
+retains993 copied inputs,109 vendor inputs and the executed binary. All530
+complete tuples, including errors and partial writes, are identical to the
+completed v6 predecessor; all80 required repairs and477 prior successes remain
+exact. This supplies regression evidence, not additional repairs of the53
+successor failures or whole-emitter convergence.
+
+### Mapped type member-list amendment (source controls frozen)
+
+`emitMappedType` in pinned `_tsc.js:118112-118155` emits the optional `members`
+list after the mapped signature and before the closing brace. The format is2
+(`PreserveLines`): no brackets, no delimiter, no sibling space and no list
+indent. `emitList` adds `PreferNewLine` from parent `EmitFlags.MultiLine`;
+the signature's `SingleLine` choice is independent. Ordinary child emission,
+positional comments and the printer-owned cursor still run. Empty/absent
+unbracketed lists do not emit bracket-boundary comments. Native
+`MappedTypeData.members` exists, but `emit_mapped_type` currently ignores it.
+This is a missing reachable owner, not a deferred syntax category.
+
+The fresh observer `node scripts/observe-mapped-type-members.mjs --check`
+fixes328 direct controls in
+`crates/emitter/tests/fixtures/mapped-type-members.json` (SHA-256
+`1aad1af30be5d18a4816ac8bb0b994124459b6829f8414b50c289593a8aed2d3`).
+These vary four source layouts, parsed/updated/created/ranged parents,
+kept/reversed/cloned children, array ranges, empty/absent arrays, all four
+SingleLine/MultiLine combinations and nested/JSDoc/remove-comment policies.
+Full tree provenance and raw positions, output bytes and final UTF16 writer
+coordinates are observed twice. The native test must reproduce the recipes
+with one mounted `main.ts`, declaration syntax admitted, an empty transform
+pipeline and StandaloneNode printing; raw Rust byte positions are converted
+to UTF16 before comparison. No expected observation is hand-authored.
+
+The candidate implementation step is to generalize the existing delimited
+list worker with explicit optional brackets, delimiter and sibling-space
+policies, then route mapped members through it with Unspecified item hint.
+No empty punctuation writes or duplicated mapped-only comment engine are
+allowed. Preserve the common raw-position line controllers and cursor state;
+run ordinary child comments at their existing pipeline phase. Delimiter-end
+callbacks and final-comma handling are absent when the format has no delimiter.
+Freeze native-before evidence on v7, then the cumulative candidate patch and
+native-after controls; compare adjacent emitter suites and the full530 tuples
+to the completed v7 receipt. Production files remain unchanged while the whole
+A40 readiness gate is open.
+
+Native-before attempt29 executes all897 controls twice on unchanged v7:
+585 exact,312 failed, exit101 in15.083 seconds. Every nonempty mapped-member
+control fails; every328 tree state, all16 empty/absent controls and the569
+previous controls are exact. The
+[before receipt](../../../../ratchets/h2-8a-mapped-members-direct-before.v1.json)
+establishes `A40-F-MAPPED-MEMBERS` and retains all three executed binaries.
+The cumulative
+[v8 candidate](h2-8a-list-intervening-printer.candidate-v8.patch) is frozen with
+SHA-256 `271c5668f7de149c8d14f9b71173e4e744551b7fa9a094f47950485e38a7e697`;
+its rendered printer SHA-256 is
+`98936a543b3683e0dac33f35f8ac26ee6b1a217b62fb110985f3ec2c23007296`.
+`ListBrackets` selects optional square/curly punctuation; `ListDelimiter`
+selects comma/none, independently of sibling spacing and indentation. The
+renamed common `emit_formatted_node_list` handles the new member caller and
+all five previous callers. Only mapped members derive the newly needed
+PreferNewLine from parent emit flags here; the existing callers' flag-wrapper
+and Compact line-policy gaps remain separate open obligations. No broader
+list-format readiness is claimed. Draft-generator count assertions exposed
+unrelated string-token sites; edits were bounded to the five call sites and
+the common worker before any v8 native execution. Native-after is next.
+
+Attempt30 on v8 is **873/897 exact twice**, with24 failures, exit101 in85.664
+seconds. It repairs288 of312 nonempty failures and preserves every585 prior
+success and all328 tree states. Every remaining failure is a cloned member
+with source comments. The upstream caller expansion identifies two missing
+ordinary name phases: `emitPropertySignature` (`_tsc.js:117876-117882`) calls
+`emitNodeWithWriter(name,writeProperty)` (`119839-119845`), which calls ordinary
+`emit`; `emitMethodSignature` (`117897-117902`) directly calls `emit(name)`.
+Both names therefore enter Unspecified notification/substitution and ordinary
+leading/trailing comments. Cloning the member leaves its raw range synthetic,
+but its reused parsed name still owns source comments. Native
+`emit_required_identifier_name_with_context` currently enters IdentifierName
+without deferred source comments, so it cannot emit that name-owned comment.
+
+The next cumulative candidate routes these two required names through
+`emit_optional_ordinary_child` with Unspecified hint, retaining explicit
+MissingTransformedChild validation and full source-comment extent. This is
+a general signature-name fix, with no mapped-parent/provenance branch. The
+parent comment scope suppresses comments already consumed by a parsed member;
+NoNestedComments and removeComments continue through the existing pipeline.
+The24 frozen clone failures, the304 other mapped controls and569 previous
+controls are the immediate witnesses, followed by the full declaration/core
+and530 regression comparisons. Writer callback/category reachability and the
+remaining signature-token phases still require their whole-owner disposition;
+this amendment does not qualify those unmeasured observables.
+
+The frozen [v9 candidate](h2-8a-list-intervening-printer.candidate-v9.patch)
+has SHA-256 `b72e45e6317307a04d0576ba15cc000c50296cdd07c1c8e0476a67ae4d54083a`
+and applied printer SHA-256
+`dfd02c0ca77b41b559184f4f27103b56e3aecd0afddddb5add59878173056f32`.
+It changes the two ordinary signature-name calls on top of v8. Its strongest
+completed full530 predecessor is still v7, not the failed direct-only v8 run.
+
+Attempt31 on v9 passes **897/897 direct controls twice**, exit0 in24.000 seconds,
+with508 factory states and328 mapped tree states exact. The
+[after receipt](../../../../ratchets/h2-8a-mapped-members-direct-after.v1.json)
+retains the intermediate v8 failures and all three v9 executed binaries. It
+repairs every312 measured mapped-member difference and preserves585 prior
+successes. Adjacent and full530 checks will run on the final cumulative
+candidate after the immediately shared format-policy obligation below.
+
+### List wrapper and parent flag amendment
+
+Fresh source inspection distinguishes `_tsc.js:120015-120028` emitList (adds
+PreferNewLine from EmitFlags.MultiLine) from emitExpressionList (no such
+addition). The whole callers are binding patterns (`118183-118192`), array
+literal (`118203-118207`), object literal (`118208-118222`) and import attributes
+(`119316-119321`). Array and object literals add PreferNewLine from `multiLine`;
+import attributes do not read `multiLine`. Binding formats have no LinesMask
+and do not read `multiLine`: getLeading/getClosing return0, while separating
+lines follow only the next child's startsOnNewLine. A PreferNewLine bit alone
+does not enable that PreserveLines branch. The current common worker conflates
+these inputs and its callers omit the emitList parent flag addition.
+
+`node scripts/observe-list-format-flags.mjs --check` freezes160 controls in
+`crates/emitter/tests/fixtures/list-format-flags.json`, SHA-256
+`3d7b7be6069f460f0a585893b280b843ef0a2dceb14d14203214ebd8203a90a8`.
+Five owner kinds vary source sibling lines, factory/public-setter multiLine,
+all four SingleLine/MultiLine emit-flag combinations and last-child
+startsOnNewLine. Both tree state and complete writer outputs are observed
+twice. Binding-node multiLine is assigned through the same open field accepted
+by native public set_multi_line; it is an intentionally ignored input in tsc.
+Native controls use the corresponding factory recipes and ordinary standalone
+printing with no transforms. The expanded direct command executes1057 controls
+in four binaries; previous897 expectations are unchanged.
+
+The design step is to derive PreferNewLine at each caller from exactly its
+source-owned inputs, then separate PreserveSource from Compact line behavior
+inside the shared worker. Compact first/closing lines are false; compact
+sibling breaks use child startsOnNewLine and temporary indentation. Array
+emit flags are not consulted; object literals OR multiLine with parent
+EmitFlags.MultiLine; import attributes use only parent EmitFlags.MultiLine;
+bindings ignore both parent inputs. Capture native-before on v9, freeze a new
+cumulative candidate, then execute the complete expanded direct set followed
+by494/451/1350 adjacent checks and full530 versus v7. Existing writer/cursor/
+comment ordering stays owned by the common worker. Whole A40 remains open.
+
+The first expanded native run32 has985/1057 exact controls and72 failures:
+56 real output differences plus32 tree spelling differences (16 overlap).
+The latter come from the observation adapter: TypeScript's enum reverse map
+overwrites kinds301/302 with AssertClause/AssertEntry
+(`typescript.js:5828-5831`), while native Debug uses ImportAttributes/
+ImportAttribute for the same301/302 (`syntax/src/kind.rs:611-613`). The native
+test adapter now asserts these numeric identities and emits the source's
+final alias names. Oracle fixtures, syntax trees and production remain
+unchanged. Run32 remains retained evidence of the adapter mismatch, not72
+semantic failures. A corrected native-before run on the same v9 follows
+before executing the staged format-policy candidate.
+
+Corrected before33 on unchanged v9 has **1001/1057 exact twice**,56 output
+failures, exit101 in9.702 seconds; all897 previous controls and all488 observed
+tree states are exact. The
+[before receipt](../../../../ratchets/h2-8a-list-format-flags-direct-before.v1.json)
+retains run32's initial adapter evidence separately. The56 measured differences
+are8 object literals,16 import attributes and16 each binding-pattern kind.
+The array-literal negative controls remain exact. Candidate
+[v10](h2-8a-list-intervening-printer.candidate-v10.patch), SHA-256
+`fea19f9b360900530d5f6f29847d2ae9f005b7ae6715b4b2ac9cdae9b7e02552`,
+implements the exact caller and Compact policies above. Applied printer
+SHA-256 is `7a8bfc47a8b08ef3e2da6af2f978ea77841d4f9205e6de1dc5b6041bb569a505`.
+The shared parameter now explicitly names PreferNewLine; it is not a generic
+request to force multiline output. Native-after on these bytes is next.
+
+After34 on v10 passes **1057/1057 controls twice**, exit0 in27.475 seconds,
+with508 earlier factory states and488 mapped/format tree states exact. The
+[after receipt](../../../../ratchets/h2-8a-list-format-flags-direct-after.v1.json)
+retains all four executed binaries and repairs every56 measured format
+difference while preserving1001 previously exact controls. The cumulative
+candidate also preserves all328 mapped-member controls. Complete adjacent
+emitter and full530 comparisons on these bytes are next; none is claimed from
+the direct-control result alone.
+
+Adjacent35 on final v10 passes **494 units /451 contracts /1350 declaration
+reprint rows**, exit0 in172.865 seconds without warnings. The
+[emitter receipt](../../../../ratchets/h2-8a-list-format-flags-emitter-checks.v1.json)
+verifies997 copied inputs,109 vendor inputs and both executed binaries. The11
+preexisting declaration exclusions remain unchanged. All eight direct source
+observers were freshly checked against their immutable artifacts. Full530 on
+the same v10 candidate is next, comparing all complete tuples to v7; these
+focused and adjacent successes do not establish whole A40 readiness or global
+emitter completion.
 
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,

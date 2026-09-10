@@ -31,8 +31,8 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
-LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v7.patch')
-LIST_OWNER_PATCH_SHA = 'e22b80f928d7d307aad96a3c3f58fdb8f161c3ede7079c00c6b3e1a0cb1f602c'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v10.patch')
+LIST_OWNER_PATCH_SHA = 'fea19f9b360900530d5f6f29847d2ae9f005b7ae6715b4b2ac9cdae9b7e02552'
 BUNDLE_PRINTER = Path('crates/emitter/src/printer/bundle.rs')
 BUNDLE_PRINTER_SHA = 'b948d3825de0cb9e558094639b4a0a8f0558a6d2ccc35635e203c6f507d50d12'
 
@@ -138,7 +138,9 @@ def main():
                    'cargo', 'test', '--offline', '--no-fail-fast', '-p', 'tsc-rs-emitter', '--test', 'comma_list_printer_contract',
                    '--', '--nocapture', '--test-threads=1']
         if selection == 'factory-direct':
-            command[command.index('--'):command.index('--')] = ['--test', 'comma_argument_factory_contract']
+            command[command.index('--'):command.index('--')] = [
+                '--test', 'comma_argument_factory_contract', '--test', 'mapped_type_members_contract',
+                '--test', 'list_format_flags_contract']
     elif selection == 'emitter':
         command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                    'cargo', 'test', '--offline', '--no-fail-fast', '-p', 'tsc-rs-emitter',

@@ -139,6 +139,15 @@ def main():
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
     if pre.get('list_owner_patch') is not None:
         predecessors = {
+            'fea19f9b360900530d5f6f29847d2ae9f005b7ae6715b4b2ac9cdae9b7e02552': (
+                'ratchets/h2-8a-list-cursor-design-experiment.v1.json',
+                'e82ef777e0647b876e8de7aa60b2ea317f42a5c8c6d8fcc0e132e59fc136bbbb'),
+            'b72e45e6317307a04d0576ba15cc000c50296cdd07c1c8e0476a67ae4d54083a': (
+                'ratchets/h2-8a-list-cursor-design-experiment.v1.json',
+                'e82ef777e0647b876e8de7aa60b2ea317f42a5c8c6d8fcc0e132e59fc136bbbb'),
+            '271c5668f7de149c8d14f9b71173e4e744551b7fa9a094f47950485e38a7e697': (
+                'ratchets/h2-8a-list-cursor-design-experiment.v1.json',
+                'e82ef777e0647b876e8de7aa60b2ea317f42a5c8c6d8fcc0e132e59fc136bbbb'),
             'e22b80f928d7d307aad96a3c3f58fdb8f161c3ede7079c00c6b3e1a0cb1f602c': (
                 'ratchets/h2-8a-list-boundary-lines-design-experiment.v1.json',
                 '98142a8b7b575bac8d3378b2696a52315577466fca2b271320013fc673ff6e43'),
