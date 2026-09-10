@@ -586,6 +586,117 @@ before writing the file; its repeated result and identical binaries are
 preserved, not counted as repair credit. Attempt8 verifies the applied fixture
 correction. Whole A40 readiness and hosted acceptance are still required.
 
+### Actual next-item comment ownership design amendment
+
+The new96 controls in `list-intervening-owners.json`, produced twice by
+`node scripts/observe-list-intervening-owners.mjs --check`, vary four
+containers, three comment layouts, four retained/reordered/synthetic child
+recipes, and source-ranged versus synthetic arrays. Attempt9 freezes the
+unmodified candidate:26/96 additional controls exact, the original40/44
+factory controls exact, and50/50 comma controls exact. These are direct
+factory/printer observations, not Program/custom-transform admission.
+
+The next staged printer amendment replaces the implicit previous-node
+argument of `emit_delimited_trailing_comments_for_node` with a private
+`DelimitedCommentBoundary` enum. `BeforeItem(TransformNode)` reads that
+actual item's `CommentRange` start, including explicit metadata overrides;
+an absent synthetic start emits nothing. `AfterTrailingComma(TransformNode)`
+keeps the existing final-token lane separate. The enum owns no mutable state
+or cache and lives only for the immediate list callback. The returned
+`CommentResume` identifies the same source/start and the emitted prefix end;
+the next ordinary leading phase consumes it once. Arena, range and cursor
+validation remain typed `PrinterError` boundaries. Comment suppression uses
+the inherited expression context and the positional callback's container-end
+guard, independently of the next child's NoLeadingComments flag.
+
+Update all six shared callers: both ordinary expression-list branches,
+JSON expression lists, parameter lists, named import/export lists, and call
+arguments. For siblings, pass the actual next node, never a source-comma scan
+from the previous node. Only a written final trailing comma uses the separate
+token boundary. Synthesized call and named import/export arrays must consume
+the returned resume instead of replaying the item's intervening phase. Keep
+the containing call's ordinary leading-prefix ownership. Do not modify the
+factory or class candidates, original fixtures, or root production sources.
+
+Source authority is `emitNodeListItems`120068-120155, especially next-child
+`getCommentRange(child).pos`120107-120125, and the distinct final-token call
+120133-120141 to `emitTokenWithComment`118731-118764. The existing26-owner
+printer inventory pins the list, range and comment callbacks. Array/object
+callers118203-118222, call/new118275-118297, named imports119254 and named
+exports119350, parameters119976-119990 determine the format and consumers.
+This amendment resolves the choice of sibling comment owner; the whole A40
+gate, full format/newline and final-token ownership audit still remain open.
+Freeze the patch and run original50+44 and new96 together, then adjacent
+emitter suites and the full530 comparator against the frozen477 predecessor.
+Any new differences retain their exact observations as open design findings.
+
+Attempt10 of that amendment is188/190 exact twice: original94/94 and new94/96.
+The two remaining reverse-array/line-comment rows expose a distinct separating
+line predicate. `getSeparatingLineTerminatorCount`120299-120327, with
+preserveSourceNewlines=false and PreserveLines, compares the current raw
+positions when the original nodes have the same parent; reversed positions
+are valid. Array range synthesis does not disable this branch. Rust's older
+comparable-gap helper rejects reversed ranges and its caller skips synthesized
+arrays, so both rows omit the required line after the comment.
+
+The v2 staged patch adds a private preserved-list sibling-line predicate for
+both ordinary expression-list branches. It validates current source positions,
+tests raw endpoint synthesis, compares original-parent identity only for the
+upstream parent predicate, and uses `PositionIndex::line_and_character_byte`
+for each endpoint independently. This preserves Unicode/CRLF line semantics
+without an ordered gap scan or repeated whole-file scans. JsxText, missing
+original parents, and synthesized startsOnNewLine/PreferNewLine follow the
+source branches. Existing generic gap helpers remain with their other owners.
+Additional source bodies read: nodeIsSynthesized16000-16002,
+rangeEndIsOnSameLineAsRangeStart17352-17359, getStartPositionOfRange17367-17375,
+synthesizedNodeStartsOnNewLine120398-120407,
+originalNodesHaveSameParent121105-121108. Root sources still remain unchanged.
+
+Attempt11 (v2) is190/190 direct controls exact twice, with all140 factory
+states exact. The [direct receipt](../../../../ratchets/h2-8a-list-intervening-direct.v1.json)
+retains attempts9/10/11, their immutable binaries, complete input pins, and
+every failed tuple before repair. However, adjacent attempt12 is494 units
+passing and450/451 contracts: the declaration reprint's existing
+`P4/unfiltered-intervening-comments` row detects a regression. The proposed
+prefix-space spelling of the ordinary sibling callback accidentally applied
+onlyPrintJsDocStyle filtering. Source emitTrailingCommentOfPosition is
+unfiltered; only the prefix callback selected before a separating newline
+uses emitTrailingComment's filter. Preserve this failure and expectation.
+
+The v3 patch passes the caller's separating-line decision explicitly into
+the boundary callback. Ordinary same-line sibling comments retain the
+unfiltered positional lane; before-newline and final-token callbacks keep
+their source-defined filtering. Compute literal sibling line decisions once
+and reuse them for both comments and the following newline. This is an
+additional callback-policy distinction, not a case-specific exception.
+
+The [v3 patch](h2-8a-list-intervening-printer.candidate-v3.patch), SHA-256
+`e0b8c978b40d1dc19e834f25403681a35ebd8d0de11bea4d1f2caca119d1446d`,
+applies after the original comma-printer patch and is the current list-owner
+candidate. V1 and v2 patches remain immutable historical experiments.
+Attempt13 (`13 factory-direct --factory --list-owner`) is **190/190 exact
+twice**, including all140 factory-state observations, exit0 in30.498 seconds.
+The [updated direct receipt](../../../../ratchets/h2-8a-list-intervening-direct.v2.json)
+freezes the actual sources and both binaries. Attempt14
+(`14 emitter --factory --list-owner`) is **494 units /451 contracts /1350
+declaration reprint rows passing**, exit0 in53.575 seconds. Its
+[emitter receipt](../../../../ratchets/h2-8a-list-intervening-emitter-checks.v1.json)
+also retains the exact failed attempt12. The
+[fresh P4 observation](../../../../ratchets/h2-8a-list-intervening-jsdoc.v1.json)
+reprints the unchanged declaration input twice and matches its old expected
+bytes; reproduce with `node scripts/observe-list-intervening-jsdoc.mjs --check`.
+The [caller/token supplement](../../../../ratchets/h2-8a-list-intervening-sources.v1.json)
+pins13 whole owners and the
+[line-predicate supplement](../../../../ratchets/h2-8a-list-separating-sources.v1.json)
+pins9 whole owners. Their corresponding observer scripts support `--check`.
+
+`A40-F-LIST-INTERVENING-OWNER` and the measured reverse-array separating
+positions are resolved for these direct controls. Full530 comparison of v3,
+the remaining format/final-token/detached-prefix audit, whole A40 readiness
+and hosted acceptance remain required. The full comparator's `--list-owner`
+route now uses the stronger factory/printer477 predecessor receipt, verifies
+all1060 old captures, and reports every complete tuple change or regression.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,

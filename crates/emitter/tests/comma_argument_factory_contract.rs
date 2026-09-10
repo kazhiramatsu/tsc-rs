@@ -1,7 +1,7 @@
 //! Direct source-derived factory identity/range and printer controls.
 use tsc_emitter::{
-    base64_encode, create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest,
-    PrinterOptions, SourceFileTextMode, SourceRange, TransformArena, TransformFlags,
+    base64_encode, create_printer, transform_nodes, CommentRange, EmitFlags, NewLineKind,
+    PrintRequest, PrinterOptions, SourceFileTextMode, SourceRange, TransformArena, TransformFlags,
     TransformNodeArray, TransformRoot,
 };
 use tsc_syntax::{nodes::*, parse_source_file, NodeData, SyntaxKind};
@@ -23,8 +23,15 @@ fn comma_argument_factory_matches_typescript() {
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 44);
+    let additional: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/list-intervening-owners.json")).unwrap();
+    assert_eq!(additional["typescript"], "6.0.3");
+    assert_eq!(additional["route"], "direct-factory-and-printer");
+    assert_eq!(additional["repetitions"], 2);
+    let additional_cases = additional["cases"].as_array().unwrap();
+    assert_eq!(additional_cases.len(), 96);
     let mut failures = Vec::new();
-    for case in cases {
+    for case in cases.iter().chain(additional_cases) {
         let id = case["case_id"].as_str().unwrap();
         for repetition in 0..2 {
             let outcome = std::panic::catch_unwind(|| {
@@ -69,6 +76,47 @@ fn comma_argument_factory_matches_typescript() {
                     .map(|id| arena.node_ref(source, *id).unwrap())
                     .collect::<Vec<_>>();
                 let supplied = match case["list_mode"].as_str().unwrap() {
+                    "selection" => {
+                        let mut elements = Vec::new();
+                        for entry in case["recipe"].as_array().unwrap() {
+                            let node = if let Some(index) = entry.as_u64() {
+                                original[usize::try_from(index).unwrap()]
+                            } else {
+                                let node = arena
+                                    .factory()
+                                    .create_identifier(source, "generated")
+                                    .unwrap();
+                                if entry.as_str().unwrap() == "synthetic-comment-range" {
+                                    let record = arena.node(original[1]).unwrap();
+                                    let range = SourceRange::from_raw(
+                                        record.pos,
+                                        record.end,
+                                        parsed.positions(),
+                                    )
+                                    .unwrap();
+                                    arena
+                                        .metadata_mut(node)
+                                        .set_comment_range(CommentRange::new(source, range));
+                                } else {
+                                    assert_eq!(entry.as_str().unwrap(), "synthetic");
+                                }
+                                node
+                            };
+                            elements.push(node);
+                        }
+                        let array = arena.factory().create_node_array(source, elements).unwrap();
+                        if case["ranged_list"].as_bool().unwrap() {
+                            arena
+                                .factory()
+                                .set_node_array_text_range(
+                                    array,
+                                    original_record.pos,
+                                    original_record.end,
+                                )
+                                .unwrap();
+                        }
+                        Some(array)
+                    }
                     "plain" => Some(original_array),
                     "absent" => None,
                     "hole" => {

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "existing-declaration-printer-control",
+  "source": {
+    "path": "ratchets/h2-7a-printer-reprint.v1.json",
+    "sha256": "b4ec52dffd2120df9026133c30ccc07725ee5f63b4d78b266db86af909f6439a",
+    "row": "h2-7a-p/P4/unfiltered-intervening-comments"
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "47852f10aeb3d68d44ac2f748efdd6f3c4b2bcd89b0c8555621375ef0c822ea1",
+  "options": {
+    "newLine": 1,
+    "removeComments": false,
+    "noEmitHelpers": true,
+    "onlyPrintJsDocStyle": true,
+    "omitBraceSourceMapPositions": true
+  },
+  "repetitions": 2,
+  "results": [
+    {
+      "text": "declare const a: Array</* intervening block */ string>;\ndeclare const b: Map<// intervening line\nstring, number>;\ndeclare function f(/* p0 */ x: string, // after x\ny: number): void;\ndeclare function g(x: string, y: number): void;\ndeclare const t: [\n    string,\n    number\n];\ndeclare const u: /* leading dropped */ string | /* between dropped */ number;\nexport {};\n",
+      "utf8_base64": "ZGVjbGFyZSBjb25zdCBhOiBBcnJheTwvKiBpbnRlcnZlbmluZyBibG9jayAqLyBzdHJpbmc+OwpkZWNsYXJlIGNvbnN0IGI6IE1hcDwvLyBpbnRlcnZlbmluZyBsaW5lCnN0cmluZywgbnVtYmVyPjsKZGVjbGFyZSBmdW5jdGlvbiBmKC8qIHAwICovIHg6IHN0cmluZywgLy8gYWZ0ZXIgeAp5OiBudW1iZXIpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIGcoeDogc3RyaW5nLCB5OiBudW1iZXIpOiB2b2lkOwpkZWNsYXJlIGNvbnN0IHQ6IFsKICAgIHN0cmluZywKICAgIG51bWJlcgpdOwpkZWNsYXJlIGNvbnN0IHU6IC8qIGxlYWRpbmcgZHJvcHBlZCAqLyBzdHJpbmcgfCAvKiBiZXR3ZWVuIGRyb3BwZWQgKi8gbnVtYmVyOwpleHBvcnQge307Cg==",
+      "sha256": "395d7c980da77b86ae1d2e033a1d7e1a385b3b0b119e5deae3ac3671066df113"
+    },
+    {
+      "text": "declare const a: Array</* intervening block */ string>;\ndeclare const b: Map<// intervening line\nstring, number>;\ndeclare function f(/* p0 */ x: string, // after x\ny: number): void;\ndeclare function g(x: string, y: number): void;\ndeclare const t: [\n    string,\n    number\n];\ndeclare const u: /* leading dropped */ string | /* between dropped */ number;\nexport {};\n",
+      "utf8_base64": "ZGVjbGFyZSBjb25zdCBhOiBBcnJheTwvKiBpbnRlcnZlbmluZyBibG9jayAqLyBzdHJpbmc+OwpkZWNsYXJlIGNvbnN0IGI6IE1hcDwvLyBpbnRlcnZlbmluZyBsaW5lCnN0cmluZywgbnVtYmVyPjsKZGVjbGFyZSBmdW5jdGlvbiBmKC8qIHAwICovIHg6IHN0cmluZywgLy8gYWZ0ZXIgeAp5OiBudW1iZXIpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIGcoeDogc3RyaW5nLCB5OiBudW1iZXIpOiB2b2lkOwpkZWNsYXJlIGNvbnN0IHQ6IFsKICAgIHN0cmluZywKICAgIG51bWJlcgpdOwpkZWNsYXJlIGNvbnN0IHU6IC8qIGxlYWRpbmcgZHJvcHBlZCAqLyBzdHJpbmcgfCAvKiBiZXR3ZWVuIGRyb3BwZWQgKi8gbnVtYmVyOwpleHBvcnQge307Cg==",
+      "sha256": "395d7c980da77b86ae1d2e033a1d7e1a385b3b0b119e5deae3ac3671066df113"
+    }
+  ]
+}

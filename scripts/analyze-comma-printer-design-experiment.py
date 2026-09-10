@@ -137,7 +137,10 @@ def main():
                'successor_exact': len(successor_ids & set(exact)), 'successor_failed': len(successor_ids & set(failed)),
                'successor_changed_from_before': len(successor_ids & set(changed_from_before)),
                'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
-    if pre.get('factory_patch') is not None:
+    if pre.get('list_owner_patch') is not None:
+        predecessor_path = ROOT / 'ratchets/h2-8a-comma-argument-factory-design-experiment.v1.json'
+        predecessor_sha = '56ce6ff67fa17c9d5992f480d3e32adbe6c88ff35d79913208c83960080d9043'
+    elif pre.get('factory_patch') is not None:
         predecessor_path = ROOT / 'ratchets/h2-8a-comma-printer-design-experiment.v1.json'
         predecessor_sha = 'b2f8e916afecc13a66c81e96faef3073c879ba92f1feefbdf81b70170f87839d'
     else:

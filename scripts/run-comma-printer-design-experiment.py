@@ -31,6 +31,8 @@ FACTORY = Path('crates/emitter/src/factory.rs')
 FACTORY_PATCH = Path('docs/design/greenfield/slices/h2-8a-comma-argument-factory.candidate.patch')
 FACTORY_SHA = '4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0'
 FACTORY_PATCH_SHA = '4c4ba5f1406ce9b36ae076423a4422a72e91904f6f35edc86b34aa375e9c8039'
+LIST_OWNER_PATCH = Path('docs/design/greenfield/slices/h2-8a-list-intervening-printer.candidate-v3.patch')
+LIST_OWNER_PATCH_SHA = 'e0b8c978b40d1dc19e834f25403681a35ebd8d0de11bea4d1f2caca119d1446d'
 
 
 def sha(path):
@@ -49,8 +51,11 @@ def main():
     assert attempt > 0
     selection = sys.argv[2]
     assert selection in ['direct', 'factory-direct', 'emitter', 'all', 'edges', 'comma-factory']
-    with_factory = sys.argv[3:] == ['--factory']
-    assert not sys.argv[3:] or with_factory
+    flags = sys.argv[3:]
+    assert len(flags) == len(set(flags)) and set(flags) <= {'--factory', '--list-owner'}
+    with_factory = '--factory' in flags
+    with_list_owner = '--list-owner' in flags
+    assert not with_list_owner or with_factory
     assert selection != 'factory-direct' or with_factory
     prefix = ROOT / f'target/h2-8a-comma-printer-design-experiment-{attempt}'
     pre_path = prefix.with_suffix('.pre.json')
@@ -62,6 +67,8 @@ def main():
     assert sha(ROOT / BASELINE) == BASELINE_SHA
     assert sha(ROOT / PRINTER) == PRINTER_SHA
     assert sha(ROOT / PATCH) == PATCH_SHA
+    if with_list_owner:
+        assert sha(ROOT / LIST_OWNER_PATCH) == LIST_OWNER_PATCH_SHA
     if with_factory:
         assert sha(ROOT / FACTORY) == FACTORY_SHA
         assert sha(ROOT / FACTORY_PATCH) == FACTORY_PATCH_SHA
@@ -96,6 +103,9 @@ def main():
     if with_factory:
         subprocess.run(['git', 'apply', '--check', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
         subprocess.run(['git', 'apply', str(ROOT / FACTORY_PATCH)], cwd=workspace, check=True)
+    if with_list_owner:
+        subprocess.run(['git', 'apply', '--check', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
+        subprocess.run(['git', 'apply', str(ROOT / LIST_OWNER_PATCH)], cwd=workspace, check=True)
     inputs = [{'path': str(p), 'sha256': sha(workspace / p)} for p in source_paths]
     production_inputs = [{'path': str(p), 'sha256': sha(ROOT / p)} for p in source_paths]
     previous_pre = json.loads((ROOT / 'target/h2-8a-retained-comma-native-before-1-prelaunch.json').read_text())
@@ -113,6 +123,8 @@ def main():
             tar.add(ROOT / path, arcname=str(path))
         if with_factory:
             tar.add(ROOT / FACTORY_PATCH, arcname=str(FACTORY_PATCH))
+        if with_list_owner:
+            tar.add(ROOT / LIST_OWNER_PATCH, arcname=str(LIST_OWNER_PATCH))
     target = ROOT / 'target/h2-8a-retained-lexical-design-artifacts'
     command = ['/usr/sbin/taskpolicy', '-b', '/usr/bin/nice', '-n', '15',
                'cargo', 'test', '--offline', '-p', 'tsc-rs-compiler', '--test', 'contracts', '--',
@@ -142,6 +154,7 @@ def main():
            'printer_base_sha256': PRINTER_SHA,
            'factory_patch': {'path': str(FACTORY_PATCH), 'sha256': FACTORY_PATCH_SHA,
                              'base_sha256': FACTORY_SHA} if with_factory else None,
+           'list_owner_patch': {'path': str(LIST_OWNER_PATCH), 'sha256': LIST_OWNER_PATCH_SHA} if with_list_owner else None,
            'baseline': {'path': str(BASELINE), 'sha256': BASELINE_SHA},
            'source_archive_sha256': sha(archive / 'source-and-inputs.tar.gz')}
     write_json(pre_path, pre)

@@ -1,0 +1,471 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -460,6 +460,14 @@
+     Normal,
+     AfterSibling,
+     DelimitedListStart,
++}
++
++/// The sibling list phase reads the actual next item's comment start.
++/// A final trailing comma has a separate token-owned source boundary.
++#[derive(Clone, Copy, Debug)]
++enum DelimitedCommentBoundary {
++    BeforeItem(TransformNode),
++    AfterTrailingComma(TransformNode),
+ }
+ 
+ /// A list's trailing-position phase is independent of its child's ordinary
+@@ -7792,6 +7800,75 @@
+         ))
+     }
+ 
++    /// tsc-port: getSeparatingLineTerminatorCount @6.0.3
++    /// tsc-span: _tsc.js:120299-120327
++    /// PreserveLines with preserveSourceNewlines=false compares the two
++    /// current endpoints independently, even when siblings were reordered.
++    /// Original nodes supply parent identity only, not the printed positions.
++    fn preserved_list_siblings_need_line_break(
++        &self,
++        transformation: &TransformationResult<'_>,
++        source: TransformSourceId,
++        previous: NodeId,
++        next: NodeId,
++        prefer_new_line: bool,
++    ) -> Result<bool, PrinterError> {
++        let arena = transformation.arena();
++        let previous = arena
++            .node_ref(source, previous)
++            .ok_or(PrinterError::UnknownStatement(previous.0))?;
++        let next = arena
++            .node_ref(source, next)
++            .ok_or(PrinterError::UnknownStatement(next.0))?;
++        let previous_record = arena.node(previous)?;
++        let next_record = arena.node(next)?;
++        if next_record.kind == SyntaxKind::JsxText {
++            return Ok(false);
++        }
++        let previous_synthetic = previous_record.pos == u32::MAX || previous_record.end == u32::MAX;
++        let next_synthetic = next_record.pos == u32::MAX || next_record.end == u32::MAX;
++        if !previous_synthetic && !next_synthetic {
++            let original_previous = arena.get_original_node(previous);
++            let original_next = arena.get_original_node(next);
++            let original_parent = arena.node(original_previous)?.parent;
++            if original_previous.source() == original_next.source()
++                && original_parent.is_some()
++                && original_parent == arena.node(original_next)?.parent
++            {
++                let syntax = arena.source(source)?.syntax();
++                let positions = syntax.positions();
++                let end = SourceBytePosition::new(previous_record.end, positions)?;
++                let start = SourceBytePosition::new(next_record.pos, positions)?;
++                let token_start = skip_trivia(syntax.text(), start.value() as usize);
++                let token_start = SourceBytePosition::new(
++                    u32::try_from(token_start).expect("source position fits u32"),
++                    positions,
++                )?;
++                let end_line = positions
++                    .line_and_character_byte(end.value())
++                    .expect("validated source endpoint")
++                    .line;
++                let start_line = positions
++                    .line_and_character_byte(token_start.value())
++                    .expect("validated source start")
++                    .line;
++                return Ok(end_line != start_line);
++            }
++            return Ok(prefer_new_line);
++        }
++        let starts_on_line = |node, synthetic| {
++            if synthetic {
++                arena
++                    .metadata(node)
++                    .and_then(crate::EmitMetadata::starts_on_new_line)
++                    .unwrap_or(prefer_new_line)
++            } else {
++                prefer_new_line
++            }
++        };
++        Ok(starts_on_line(previous, previous_synthetic) || starts_on_line(next, next_synthetic))
++    }
++
+     fn source_node_starts_are_on_same_line(
+         &self,
+         transformation: &TransformationResult<'_>,
+@@ -8043,38 +8120,41 @@
+                         writer,
+                     )?;
+                 }
+-                let emit_delimiter = index + 1 < count || trailing_comma;
+-                if emit_delimiter {
+-                    writer.write_punctuation(",");
+-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
+-                        transformation,
+-                        child,
+-                        writer,
+-                    )?;
+-                }
+-                let same_source_line = if format.lines.preserves_source() && !synthesized_array {
++                let same_source_line = if format.lines.preserves_source() {
+                     ids.get(index + 1).copied()
+                 } else {
+                     None
+                 }
+                 .map(|next| {
+-                    let next = transformation
+-                        .arena()
+-                        .node_ref(source, next)
+-                        .ok_or(PrinterError::UnknownStatement(next.0))?;
+-                    // Non-comparable sibling positions in a multi-line list
+-                    // take tsc's `format & MultiLine` fallback: one line
+-                    // (H2.5h CA-2a — synthesized class-wrapper elements in
+-                    // a parsed multi-line array).
+-                    self.source_node_end_and_node_start_same_line_comparable(
++                    self.preserved_list_siblings_need_line_break(
+                         transformation,
+-                        child,
++                        source,
++                        id,
+                         next,
++                        true,
+                     )
+-                    .map(|comparable| comparable.unwrap_or(false))
++                    .map(|line| !line)
+                 })
+                 .transpose()?
+                 .unwrap_or(false);
++                let emit_delimiter = index + 1 < count || trailing_comma;
++                if emit_delimiter {
++                    writer.write_punctuation(",");
++                    pending_delimited_comment = self.emit_delimited_boundary_comments(
++                        transformation,
++                        ids.get(index + 1).map_or(
++                            DelimitedCommentBoundary::AfterTrailingComma(child),
++                            |next| {
++                                DelimitedCommentBoundary::BeforeItem(TransformNode::new(
++                                    source, *next,
++                                ))
++                            },
++                        ),
++                        expression_context,
++                        !same_source_line,
++                        writer,
++                    )?;
++                }
+                 if same_source_line {
+                     writer.write_space(" ");
+                 } else {
+@@ -8153,25 +8233,42 @@
+                     expression_context.comments(),
+                     writer,
+                 )?;
++                let separate_line = if format.lines.preserves_source() {
++                    ids.get(index + 1)
++                        .map(|next| {
++                            self.preserved_list_siblings_need_line_break(
++                                transformation,
++                                source,
++                                id,
++                                *next,
++                                false,
++                            )
++                        })
++                        .transpose()?
++                        .unwrap_or(false)
++                } else {
++                    false
++                };
+                 let emit_delimiter = index + 1 < count || trailing_comma;
+                 if emit_delimiter {
+                     writer.write_punctuation(",");
+-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
++                    pending_delimited_comment = self.emit_delimited_boundary_comments(
+                         transformation,
+-                        child,
++                        ids.get(index + 1).map_or(
++                            DelimitedCommentBoundary::AfterTrailingComma(child),
++                            |next| {
++                                DelimitedCommentBoundary::BeforeItem(TransformNode::new(
++                                    source, *next,
++                                ))
++                            },
++                        ),
++                        expression_context,
++                        separate_line,
+                         writer,
+                     )?;
+                 }
+                 if index + 1 < count {
+-                    let next = TransformNode::new(source, ids[index + 1]);
+-                    if format.lines.preserves_source()
+-                        && !synthesized_array
+-                        && !self.source_node_end_and_node_start_are_on_same_line(
+-                            transformation,
+-                            child,
+-                            next,
+-                        )?
+-                    {
++                    if separate_line {
+                         writer.write_line(false);
+                     } else if !writer.is_at_start_of_line() {
+                         // A line comment after the source comma has already
+@@ -8271,18 +8368,37 @@
+             )?;
+ 
+             let has_next = index + 1 < ids.len();
++            let separate_line = if let Some(next) = ids.get(index + 1) {
++                self.json_node_end_line(transformation, child)?
++                    != self.json_node_start_line(
++                        transformation,
++                        TransformNode::new(parent.source(), *next),
++                    )?
++            } else {
++                false
++            };
+             if has_next || trailing_comma && allow_trailing_comma {
+                 writer.write_punctuation(",");
+             }
+-            self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
++            if has_next || trailing_comma && allow_trailing_comma {
++                self.emit_delimited_boundary_comments(
++                    transformation,
++                    ids.get(index + 1).map_or(
++                        DelimitedCommentBoundary::AfterTrailingComma(child),
++                        |next| {
++                            DelimitedCommentBoundary::BeforeItem(TransformNode::new(
++                                parent.source(),
++                                *next,
++                            ))
++                        },
++                    ),
++                    expression_context,
++                    separate_line,
++                    writer,
++                )?;
++            }
+             if has_next {
+-                let next = transformation
+-                    .arena()
+-                    .node_ref(parent.source(), ids[index + 1])
+-                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
+-                if self.json_node_end_line(transformation, child)?
+-                    != self.json_node_start_line(transformation, next)?
+-                {
++                if separate_line {
+                     writer.write_line(false);
+                 } else {
+                     writer.write_space(" ");
+@@ -11397,7 +11513,7 @@
+         } else {
+             let count = ids.len();
+             let mut pending_delimited_comment = None;
+-            for (index, id) in ids.into_iter().enumerate() {
++            for (index, id) in ids.iter().copied().enumerate() {
+                 let parameter = transformation
+                     .arena()
+                     .node_ref(source, id)
+@@ -11443,9 +11559,14 @@
+                 self.emit_list_element_end_comments(transformation, parameter, writer)?;
+                 if index + 1 < count {
+                     writer.write_punctuation(",");
+-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
++                    pending_delimited_comment = self.emit_delimited_boundary_comments(
+                         transformation,
+-                        parameter,
++                        DelimitedCommentBoundary::BeforeItem(TransformNode::new(
++                            source,
++                            ids[index + 1],
++                        )),
++                        expression_context,
++                        false,
+                         writer,
+                     )?;
+                     if !writer.is_at_start_of_line() {
+@@ -12001,13 +12122,27 @@
+         }
+ 
+         writer.write_space(" ");
++        let mut pending_delimited_comment = None;
+         for (index, id) in ids.iter().copied().enumerate() {
+             let child = transformation
+                 .arena()
+                 .node_ref(source, id)
+                 .ok_or(PrinterError::UnknownStatement(id.0))?;
+-            if index == 0 || synthesized {
++            if index == 0 {
+                 self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
++            } else if synthesized {
++                let resume = self.delimited_comment_resume_for_node(
++                    transformation,
++                    child,
++                    pending_delimited_comment.take(),
++                )?;
++                self.emit_leading_comments_for_node_worker(
++                    transformation,
++                    child,
++                    LeadingCommentContext::DelimitedListStart,
++                    resume,
++                    writer,
++                )?;
+             } else {
+                 self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)?;
+             }
+@@ -12021,7 +12156,18 @@
+             self.emit_list_element_end_comments(transformation, child, writer)?;
+             if index + 1 < ids.len() || trailing_comma {
+                 writer.write_punctuation(",");
+-                self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
++                pending_delimited_comment = self.emit_delimited_boundary_comments(
++                    transformation,
++                    ids.get(index + 1).map_or(
++                        DelimitedCommentBoundary::AfterTrailingComma(child),
++                        |next| {
++                            DelimitedCommentBoundary::BeforeItem(TransformNode::new(source, *next))
++                        },
++                    ),
++                    expression_context,
++                    false,
++                    writer,
++                )?;
+             }
+             if index + 1 < ids.len() {
+                 writer.write_space(" ");
+@@ -12577,9 +12723,11 @@
+                     )?;
+                 }
+                 writer.write_punctuation(",");
+-                self.emit_delimited_trailing_comments_for_node(
+-                    transformation,
+-                    TransformNode::new(source, ids[index - 1]),
++                let list_owned = self.emit_delimited_boundary_comments(
++                    transformation,
++                    DelimitedCommentBoundary::BeforeItem(node),
++                    expression_context,
++                    multi_line && index >= 2,
+                     writer,
+                 )?;
+                 if multi_line && index >= 2 {
+@@ -12597,10 +12745,21 @@
+                     writer.write_space(" ");
+                 }
+                 if synthesized_array {
+-                    self.emit_leading_comments_for_delimited_list_start_in_parent(
++                    let parent_owner =
++                        self.expression_comment_phase_owner_for_node(transformation, parent)?;
++                    let owner =
++                        self.expression_comment_phase_owner_for_node(transformation, node)?;
++                    let (parent_pos, _) = Self::established_container_sides(parent_owner);
++                    let container_owned = self.parent_comment_container_owned_prefix_for_owner(
+                         transformation,
+-                        parent,
++                        parent_pos,
++                        owner,
++                    )?;
++                    self.emit_leading_comments_for_node_worker(
++                        transformation,
+                         node,
++                        LeadingCommentContext::DelimitedListStart,
++                        Self::furthest_comment_resume(list_owned, container_owned)?,
+                         writer,
+                     )?;
+                 } else {
+@@ -16310,43 +16469,79 @@
+         Ok(())
+     }
+ 
+-    fn emit_delimited_trailing_comments_for_node(
++    /// tsc-port: emitNodeListItems @6.0.3
++    /// tsc-span: _tsc.js:120068-120155
++    fn emit_delimited_boundary_comments(
+         &self,
+         transformation: &TransformationResult<'_>,
+-        node: TransformNode,
++        boundary: DelimitedCommentBoundary,
++        expression_context: EmitContext,
++        separating_line: bool,
+         writer: &mut TextWriter,
+     ) -> Result<Option<CommentResume>, PrinterError> {
+-        if self.options.remove_comments {
++        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+             return Ok(None);
+         }
++        let (node, before_item) = match boundary {
++            DelimitedCommentBoundary::BeforeItem(node) => (node, true),
++            DelimitedCommentBoundary::AfterTrailingComma(node) => (node, false),
++        };
+         let comment_range = self.comment_range_for_node(transformation, node)?;
+         let comment_source = comment_range.source();
+         let source = transformation.arena().source(comment_source)?.syntax();
+-        let Some(end) = comment_range.range().end() else {
++        let owner = if before_item {
++            let Some(start) = comment_range.range().start() else {
++                return Ok(None);
++            };
++            start.value() as usize
++        } else {
++            let Some(end) = comment_range.range().end() else {
++                return Ok(None);
++            };
++            let delimiter = skip_trivia(source.text(), end.value() as usize);
++            if source.text().as_bytes().get(delimiter) != Some(&b',') {
++                return Ok(None);
++            }
++            delimiter + 1
++        };
++        let owner = SourceBytePosition::new(
++            u32::try_from(owner).expect("source position fits u32"),
++            source.positions(),
++        )?;
++        let owner_cursor = CommentCursor::new(comment_source, owner);
++        if expression_context.comments().retains_end(owner_cursor) {
++            return Ok(None);
++        }
++        let comments = collect_source_comment_ranges(source.text(), owner.value() as usize, true);
++        let Some(last) = comments.last() else {
+             return Ok(None);
+         };
+-        let element_end = end.value() as usize;
+-        let delimiter = skip_trivia(source.text(), element_end);
+-        if source.text().as_bytes().get(delimiter) != Some(&b',') {
+-            return Ok(None);
+-        }
+-        let owner = delimiter + 1;
+-        let emitted_through = collect_source_comment_ranges(source.text(), owner, true)
+-            .last()
+-            .map(|comment| comment.end);
+-        emit_source_trailing_comments_of_position(source.text(), owner, writer);
+-        let Some(emitted_through) = emitted_through else {
+-            return Ok(None);
+-        };
+-        let owner =
+-            SourceBytePosition::new(u32::try_from(owner).unwrap_or(u32::MAX), source.positions())?;
++        // These workers spell the sibling separator after this callback,
++        // so the equivalent space precedes each comment here. The source's
++        // ordinary positional callback is unfiltered; only a separating-line
++        // or final-token prefix callback applies onlyPrintJsDocStyle.
++        for comment in &comments {
++            if (!before_item || separating_line)
++                && self.options.only_print_js_doc_style
++                && !should_write_js_doc_style_comment(source.text(), comment.start)
++            {
++                continue;
++            }
++            if !writer.is_at_start_of_line() {
++                writer.write_space(" ");
++            }
++            write_source_comment(source.text(), comment.start, comment.end, writer);
++            if comment.has_trailing_new_line {
++                writer.write_line(false);
++            }
++        }
+         let emitted_through = SourceBytePosition::new(
+-            u32::try_from(emitted_through).unwrap_or(u32::MAX),
++            u32::try_from(last.end).expect("comment position fits u32"),
+             source.positions(),
+         )?;
+         Ok(Some(
+             CommentResume::new(
+-                CommentCursor::new(comment_source, owner),
++                owner_cursor,
+                 CommentCursor::new(comment_source, emitted_through),
+             )
+             .map_err(Self::comment_resume_error)?,

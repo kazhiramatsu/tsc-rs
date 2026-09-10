@@ -1,0 +1,4523 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "direct-factory-and-printer",
+  "repetitions": 2,
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "df872e5bb80d4f56f3baa30aa0a731be3114552bf462a166a17278c89f369857",
+  "cases": [
+    {
+      "case_id": "list-intervening/call/inline/skip-middle/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogdGhpcmQgKi8gYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/skip-middle/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogdGhpcmQgKi8gYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/reverse/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/reverse/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/synthetic/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/synthetic/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/synthetic-comment-range/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/inline/synthetic-comment-range/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/skip-middle/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogdGhpcmQxICovIC8qIHRoaXJkMiAqLyBjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 77,
+        "end_utf16": {
+          "position": 77,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/skip-middle/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogdGhpcmQxICovIC8qIHRoaXJkMiAqLyBjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 77,
+        "end_utf16": {
+          "position": 77,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/reverse/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 77,
+        "end_utf16": {
+          "position": 77,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/reverse/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 77,
+        "end_utf16": {
+          "position": 77,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/synthetic/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/synthetic/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/synthetic-comment-range/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbjEgKi8gLyogYmV0d2VlbjIgKi8gZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 76,
+        "end_utf16": {
+          "position": 76,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/comments/synthetic-comment-range/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbjEgKi8gLyogYmV0d2VlbjIgKi8gZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 76,
+        "end_utf16": {
+          "position": 76,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/skip-middle/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLy8gdGhpcmQNCmMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/skip-middle/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLy8gdGhpcmQNCmMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/reverse/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvLyB0aGlyZA0KYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/reverse/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaygvLyB0aGlyZA0KYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/synthetic/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/synthetic/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/synthetic-comment-range/synthetic-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLy8gYmV0d2Vlbg0KZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/call/lines/synthetic-comment-range/ranged-list",
+      "container": "call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLy8gYmV0d2Vlbg0KZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/skip-middle/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/skip-middle/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/reverse/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIHRoaXJkICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/reverse/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIHRoaXJkICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/synthetic/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/synthetic/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/synthetic-comment-range/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 62,
+        "end_utf16": {
+          "position": 62,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/inline/synthetic-comment-range/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 62,
+        "end_utf16": {
+          "position": 62,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/skip-middle/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 79,
+        "end_utf16": {
+          "position": 79,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/skip-middle/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 79,
+        "end_utf16": {
+          "position": 79,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/reverse/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 79,
+        "end_utf16": {
+          "position": 79,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/reverse/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 79,
+        "end_utf16": {
+          "position": 79,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/synthetic/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/synthetic/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/synthetic-comment-range/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuMSAqLyAvKiBiZXR3ZWVuMiAqLyBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 78,
+        "end_utf16": {
+          "position": 78,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/comments/synthetic-comment-range/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuMSAqLyAvKiBiZXR3ZWVuMiAqLyBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 78,
+        "end_utf16": {
+          "position": 78,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/skip-middle/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyB0aGlyZA0KYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/skip-middle/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyB0aGlyZA0KYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/reverse/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8vIHRoaXJkDQpjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/reverse/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "c2luaz8uKC8vIHRoaXJkDQpjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 63,
+        "end_utf16": {
+          "position": 63,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/synthetic/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/synthetic/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/synthetic-comment-range/synthetic-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyBiZXR3ZWVuDQpnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/optional-call/lines/synthetic-comment-range/ranged-list",
+      "container": "optional-call",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyBiZXR3ZWVuDQpnZW5lcmF0ZWQpOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/skip-middle/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIHRoaXJkICovIGMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/skip-middle/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* third */ c /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIHRoaXJkICovIGMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/reverse/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogdGhpcmQgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/reverse/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* third */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogdGhpcmQgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovKTsNCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/synthetic/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/synthetic/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/synthetic-comment-range/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 64,
+        "end_utf16": {
+          "position": 64,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/inline/synthetic-comment-range/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* between */ generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gZ2VuZXJhdGVkKTsNCg==",
+        "utf8_bytes": 64,
+        "end_utf16": {
+          "position": 64,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/skip-middle/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 81,
+        "end_utf16": {
+          "position": 81,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/skip-middle/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 81,
+        "end_utf16": {
+          "position": 81,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/reverse/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogdGhpcmQxICovIC8qIHRoaXJkMiAqLyBjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 81,
+        "end_utf16": {
+          "position": 81,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/reverse/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogdGhpcmQxICovIC8qIHRoaXJkMiAqLyBjIC8qIHRhaWwgYyAqLywgLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8pOw0K",
+        "utf8_bytes": 81,
+        "end_utf16": {
+          "position": 81,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/synthetic/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/synthetic/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/synthetic-comment-range/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4xICovIC8qIGJldHdlZW4yICovIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 80,
+        "end_utf16": {
+          "position": 80,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/comments/synthetic-comment-range/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4xICovIC8qIGJldHdlZW4yICovIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 80,
+        "end_utf16": {
+          "position": 80,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/skip-middle/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8vIHRoaXJkDQpjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/skip-middle/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, // third\r\nc /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8vIHRoaXJkDQpjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/reverse/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLy8gdGhpcmQNCmMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/reverse/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(// third\r\nc /* tail c */, /* first */ a /* tail a */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLy8gdGhpcmQNCmMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLyk7DQo=",
+        "utf8_bytes": 65,
+        "end_utf16": {
+          "position": 65,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/synthetic/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/synthetic/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, generated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIGdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/synthetic-comment-range/synthetic-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8vIGJldHdlZW4NCmdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 62,
+        "end_utf16": {
+          "position": 62,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/new/lines/synthetic-comment-range/ranged-list",
+      "container": "new",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, // between\r\ngenerated);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8vIGJldHdlZW4NCmdlbmVyYXRlZCk7DQo=",
+        "utf8_bytes": 62,
+        "end_utf16": {
+          "position": 62,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/skip-middle/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* third */ c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqL107DQo=",
+        "utf8_bytes": 59,
+        "end_utf16": {
+          "position": 59,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/skip-middle/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* third */ c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZCAqLyBjIC8qIHRhaWwgYyAqL107DQo=",
+        "utf8_bytes": 59,
+        "end_utf16": {
+          "position": 59,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/reverse/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* third */ c /* tail c */, /* first */ a /* tail a */];\r\n",
+        "utf8_base64": "Wy8qIHRoaXJkICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqL107DQo=",
+        "utf8_bytes": 59,
+        "end_utf16": {
+          "position": 59,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/reverse/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 63,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* third */ c /* tail c */, /* first */ a /* tail a */];\r\n",
+        "utf8_base64": "Wy8qIHRoaXJkICovIGMgLyogdGFpbCBjICovLCAvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqL107DQo=",
+        "utf8_bytes": 59,
+        "end_utf16": {
+          "position": 59,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/synthetic/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/synthetic/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/synthetic-comment-range/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* between */ generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGdlbmVyYXRlZF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/inline/synthetic-comment-range/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, /* third */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 63,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* between */ generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGdlbmVyYXRlZF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/skip-middle/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 73,
+        "end_utf16": {
+          "position": 73,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/skip-middle/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* third1 */ /* third2 */ c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiB0aGlyZDEgKi8gLyogdGhpcmQyICovIGMgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 73,
+        "end_utf16": {
+          "position": 73,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/reverse/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */];\r\n",
+        "utf8_base64": "Wy8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovXTsNCg==",
+        "utf8_bytes": 73,
+        "end_utf16": {
+          "position": 73,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/reverse/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 65,
+              "end": 93,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* third1 */ /* third2 */ c /* tail c */, /* first */ a /* tail a */];\r\n",
+        "utf8_base64": "Wy8qIHRoaXJkMSAqLyAvKiB0aGlyZDIgKi8gYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovXTsNCg==",
+        "utf8_bytes": 73,
+        "end_utf16": {
+          "position": 73,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/synthetic/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/synthetic/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/synthetic-comment-range/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* between1 */ /* between2 */ generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuMSAqLyAvKiBiZXR3ZWVuMiAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 72,
+        "end_utf16": {
+          "position": 72,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/comments/synthetic-comment-range/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, /* between1 */ /* between2 */ b, /* third1 */ /* third2 */ c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 93,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* between1 */ /* between2 */ generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuMSAqLyAvKiBiZXR3ZWVuMiAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 72,
+        "end_utf16": {
+          "position": 72,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/skip-middle/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, // third\r\n    c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyB0aGlyZA0KICAgIGMgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/skip-middle/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        2
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, // third\r\n    c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyB0aGlyZA0KICAgIGMgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 61,
+        "end_utf16": {
+          "position": 61,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/reverse/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[// third\r\n    c /* tail c */, /* first */\r\n    a /* tail a */];\r\n",
+        "utf8_base64": "Wy8vIHRoaXJkDQogICAgYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovDQogICAgYSAvKiB0YWlsIGEgKi9dOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/reverse/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        2,
+        0
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 47,
+              "end": 59,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[// third\r\n    c /* tail c */, /* first */\r\n    a /* tail a */];\r\n",
+        "utf8_base64": "Wy8vIHRoaXJkDQogICAgYyAvKiB0YWlsIGMgKi8sIC8qIGZpcnN0ICovDQogICAgYSAvKiB0YWlsIGEgKi9dOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/synthetic/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/synthetic/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/synthetic-comment-range/synthetic-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": false,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, // between\r\n    generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyBiZXR3ZWVuDQogICAgZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-intervening/array/lines/synthetic-comment-range/ranged-list",
+      "container": "array",
+      "list_mode": "selection",
+      "recipe": [
+        0,
+        "synthetic-comment-range"
+      ],
+      "ranged_list": true,
+      "text": "sink(/* first */ a /* tail a */, // between\n b, // third\n c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 59,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, // between\r\n    generated];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvLyBiZXR3ZWVuDQogICAgZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 2,
+          "column": 0
+        }
+      }
+    }
+  ]
+}
