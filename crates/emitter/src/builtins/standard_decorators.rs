@@ -15,8 +15,10 @@ use crate::{
 };
 
 use super::{
-    constructor_prologue, flags_after_update, system::collect_identifier_texts,
-    target_bindings::TargetBinding, ConstructorPrologue,
+    constructor_prologue, flags_after_update,
+    system::collect_identifier_texts,
+    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
+    ConstructorPrologue,
 };
 
 const ES_DECORATE_HELPER_TEXT: &str = r#"var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
@@ -568,7 +570,9 @@ impl ClassPendingDecoratorInitializers {
 /// makes it impossible to create a cached receiver without also declaring it.
 #[derive(Default)]
 struct DecoratorDefinitionBindings {
-    outer_this_name: Option<String>,
+    /// `createUniqueName("_outerThis", Optimistic)`: one binding per class,
+    /// named file-wide in print order by the finalizer.
+    outer_this: Option<TargetBinding>,
 }
 
 /// tsc-port: startLexicalEnvironment/endLexicalEnvironment @6.0.3
@@ -683,7 +687,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         target: ScriptTarget,
     ) -> Self {
         let used_names = collect_identifier_texts(context.arena(), source);
-        let file_level_names = used_names.clone();
+        // isFileLevelUniqueName consults `SourceFile.identifiers`: the parsed
+        // identifier census, not the transform arena's synthetic nodes.
+        let file_level_names = ParsedSourceIdentifierNames::collect(context.arena(), source)
+            .map(ParsedSourceIdentifierNames::into_names)
+            .unwrap_or_else(|_| used_names.clone());
         Self {
             context,
             source,
@@ -1782,9 +1790,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if let Some(declaration) = self.create_hoisted_declarations(temporaries)? {
             prologue.push(declaration);
         }
-        if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
+        if let Some(binding) = class_definition_bindings.outer_this.as_ref() {
+            let name = self.create_binding_identifier(binding)?;
             let initializer = self.create_this()?;
-            prologue.push(self.create_let(name, Some(initializer))?);
+            let declaration =
+                self.create_variable_declaration_with_name(name, Some(initializer))?;
+            prologue.push(
+                self.create_variable_statement_from_declarations(
+                    vec![declaration],
+                    NodeFlags::LET,
+                )?,
+            );
         }
         definitions.splice(0..0, prologue);
         if class_fields_owns_set_function_name {
@@ -5860,15 +5876,19 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
         let original = self.visitor.node(id);
         let record = self.visitor.context.arena().node(original)?.clone();
         let rewritten = if record.kind == SyntaxKind::ThisKeyword {
-            let name = match self.bindings.outer_this_name.as_ref() {
-                Some(name) => name.clone(),
+            let binding = match self.bindings.outer_this.as_ref() {
+                Some(binding) => binding.clone(),
                 None => {
-                    let name = self.visitor.allocate_name("_outerThis");
-                    self.bindings.outer_this_name = Some(name.clone());
-                    name
+                    let binding = TargetBinding::allocate_preferred_optimistic(
+                        self.visitor.context,
+                        "_outerThis".to_owned(),
+                        "_outerThis".to_owned(),
+                    )?;
+                    self.bindings.outer_this = Some(binding.clone());
+                    binding
                 }
             };
-            self.visitor.create_identifier(&name)?.node()
+            self.visitor.create_binding_identifier(&binding)?.node()
         } else if matches!(&record.data, NodeData::Token)
             || Self::establishes_this_boundary(record.kind)
         {

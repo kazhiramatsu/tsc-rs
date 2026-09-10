@@ -91,6 +91,10 @@ impl ParsedSourceIdentifierNames {
         self.0.contains(name)
     }
 
+    pub(super) fn into_names(self) -> BTreeSet<String> {
+        self.0
+    }
+
     pub(super) fn optimistic_candidate(&self, preferred: &str) -> String {
         if !self.0.contains(preferred) {
             return preferred.to_owned();
@@ -310,6 +314,27 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
+        })
+    }
+
+    /// tsc `createUniqueName(base, GeneratedIdentifierFlags.Optimistic)`
+    /// without `FileLevel`/`ReservedInNestedScopes`: named file-wide in print
+    /// order (`allocate_planned_file_wide_optimistic`).
+    pub(super) fn allocate_preferred_optimistic(
+        context: &mut TransformationContext,
+        preferred_base: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: None,
+            preferred_base: Some(preferred_base),
+            preferred_role_suffix: None,
+            preferred_name_domain: Some(PreferredNameDomain::ScopedOptimistic),
+            ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
+            reserve_in_nested_scopes: false,
             derived_from: None,
         })
     }
@@ -731,11 +756,17 @@ fn finalize_generated_binding_names_with_policy(
                             reserve_in_nested_scopes,
                         ),
                         (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
-                            scopes.allocate_planned_preferred_with_policy(
-                                &base,
-                                planned_name,
-                                reserve_in_nested_scopes,
-                            )
+                            if reserve_in_nested_scopes {
+                                scopes.allocate_planned_preferred_with_policy(
+                                    &base,
+                                    planned_name,
+                                    reserve_in_nested_scopes,
+                                )
+                            } else {
+                                // A non-reserved optimistic name is tsc's
+                                // non-scoped makeUniqueName: file-wide.
+                                scopes.allocate_planned_file_wide_optimistic(&base, planned_name)
+                            }
                         }
                         (Some(base), None, None, None) => {
                             // Pre-assigned in phase 2 (scope-pass
