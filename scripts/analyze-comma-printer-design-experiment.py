@@ -189,6 +189,7 @@ def main():
               'predecessor_capture_receipts': predecessor_receipts,
               'candidate_regressions': sorted(candidate_regressions), 'changed_from_candidate': sorted(candidate_changed),
               'printer_patch_sha256': pre['printer_patch_sha256'], 'factory_patch': pre.get('factory_patch'),
+              'list_owner_patch': pre.get('list_owner_patch'),
               'prelaunch': {'path': str(pre_path), 'sha256': sha(pre_path)}, 'exit': result,
               'baseline': pre['baseline'], 'candidate_sha256': pre['candidate_sha256'], 'archive': str(archive),
               'global_claim': 'The overlapping original769/class1228 populations were not rerun; H2.8a-e and A40 readiness remain open.'}
