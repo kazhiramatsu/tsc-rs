@@ -30,7 +30,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8"
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8.md",
-      "sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54"
+      "sha256": "2f1950ba3d604e85175ab3ffd67137552f990d7f71c77f4adbb808684d573f72"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-jsdoc-block-scope-container.md",
@@ -1759,6 +1759,25 @@
           "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/crates/compiler/tests/contracts.rs",
           "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-jsdoc-block-scope-container-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-readiness-ibhacd_w/emitter-architecture-before.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54",
+          "sha256": "2f1950ba3d604e85175ab3ffd67137552f990d7f71c77f4adbb808684d573f72",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
         }
       ]
     }

@@ -62,6 +62,17 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
     assert_eq!(retained.len(), 128);
     cases.extend(retained);
     assert_eq!(cases.len(), 418);
+    let contexts: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/decorator-receiver-context.json"
+    ))
+    .unwrap();
+    assert_eq!(contexts["typescript"], "6.0.3");
+    assert_eq!(contexts["repetitions"], 2);
+    assert!(contexts["upstream_failures"].as_array().unwrap().is_empty());
+    let contexts = contexts["cases"].as_array().unwrap();
+    assert_eq!(contexts.len(), 36);
+    cases.extend(contexts.iter().cloned());
+    assert_eq!(cases.len(), 454);
     let ids = cases
         .iter()
         .map(|case| case["case_id"].as_str().unwrap())
@@ -80,6 +91,15 @@ fn retained_accessor_owners_match_complete_typescript_observations() {
             assert_eq!(selected.len(), 48);
             cases.retain(|case| selected.contains(case["case_id"].as_str().unwrap()));
             assert_eq!(cases.len(), 46);
+        }
+        Ok("context") => {
+            cases.retain(|case| {
+                case["case_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("decorator-receiver-context/")
+            });
+            assert_eq!(cases.len(), 36);
         }
         unexpected => panic!("invalid retained accessor case selection: {unexpected:?}"),
     }

@@ -119,7 +119,7 @@
     },
     {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8"
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
     },
     {
       "path": "docs/design/greenfield/post-h1-completion-slices.md",
@@ -127,7 +127,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/README.md",
-      "sha256": "d6d408f69c8f6470df7281e898dd3cfd90f5de89519024ce5f811ff4673f3787"
+      "sha256": "3fdb3583d08a4dc24cf8e5623940420f12bef4f350ce584086d4017c3032cb3f"
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
@@ -167,7 +167,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
-      "sha256": "a8c3e18edfe015501a306a4ceaf345f72cdb5a29968182ba56f24a531d3eb39e"
+      "sha256": "026a303acf70bc5775e38d7f961cbd645059c754e3b1682511ac9ad90e1f027a"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
@@ -179,7 +179,7 @@
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
-      "sha256": "6d347aecd6de0d350b897cd68da7aaaea6dbf06d867c0aef8c65895c19bc899d"
+      "sha256": "8e87ce3bf9069e62905f4f39d3a8d214a14770864be365aaa494906d90def360"
     },
     {
       "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
-      "sha256": "f79e11ea2b13c92641c140603e79a47f9f5bc10060533deeee7e2cf7dc18fb58"
+      "sha256": "4c51ab84ddf3829861bb05ec44008e7dbd5cc406578baa113786e8f6a95d0e07"
     },
     {
       "path": "ratchets/h2-8a-promoted-class-export-maps-shared-after.v1.json",
@@ -1294,6 +1294,46 @@
           "sha256": "f79e11ea2b13c92641c140603e79a47f9f5bc10060533deeee7e2cf7dc18fb58",
           "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
           "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-readiness-ibhacd_w/emitter-architecture-before.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "docs/design/greenfield/slices/README.md",
+          "old_sha256": "d6d408f69c8f6470df7281e898dd3cfd90f5de89519024ce5f811ff4673f3787",
+          "sha256": "3fdb3583d08a4dc24cf8e5623940420f12bef4f350ce584086d4017c3032cb3f",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/docs/design/greenfield/slices/README.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "old_sha256": "a8c3e18edfe015501a306a4ceaf345f72cdb5a29968182ba56f24a531d3eb39e",
+          "sha256": "026a303acf70bc5775e38d7f961cbd645059c754e3b1682511ac9ad90e1f027a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "old_sha256": "6d347aecd6de0d350b897cd68da7aaaea6dbf06d867c0aef8c65895c19bc899d",
+          "sha256": "8e87ce3bf9069e62905f4f39d3a8d214a14770864be365aaa494906d90def360",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "old_sha256": "f79e11ea2b13c92641c140603e79a47f9f5bc10060533deeee7e2cf7dc18fb58",
+          "sha256": "4c51ab84ddf3829861bb05ec44008e7dbd5cc406578baa113786e8f6a95d0e07",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
         }
       ]
     }
