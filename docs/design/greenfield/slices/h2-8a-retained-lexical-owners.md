@@ -6,6 +6,16 @@ H2.8a-e. This slice must implement the retained class-field owner's complete
 generated-binding, lexical-environment, computed-name and initializer-result
 behavior. Anonymous receiver replacement alone is insufficient.
 
+The whole-file [Rust candidate](h2-8a-retained-lexical-owners.candidate.rs.txt)
+now compiles in an isolated workspace with `cargo check -p tsc-rs-emitter --lib
+--offline`. Its SHA-256 is
+`15d6aa40ca6d6bda2f4083b79068fa7ce23492bff72d66c059d9384efda62b13`.
+The [design-check receipt](../../../../ratchets/h2-8a-retained-lexical-design-check.v1.json)
+freezes the exact candidate, all678 Rust/Cargo input pins, successful actual
+exit0 and prior failed attempts. This checks types and API composition only:
+production source is unchanged, no candidate runtime test was executed, and
+no compatibility/admission/hosted claim follows from this check.
+
 Pinned TypeScript 6.0.3 defines semantics. The freshly qualified
 [A6-39 producer packet](h2-8a-retained-field-producers.md) and its
 [after profile](../../../../ratchets/h2-8a-retained-field-producers-after.v1.json)
@@ -154,6 +164,48 @@ receiver representation. Any required additional file must be named and gated
 before an edit. Standard-decorator handoff/private-static/descriptor/receiver/
 naming/super remains A6-41, with the complete57 guarded negatives preserved.
 
+## Concrete staged implementation and checks
+
+The candidate is a complete replacement for the one allowed production file,
+not fragments requiring an implementer to invent missing call sites. Its
+3853 lines include the existing transformer/downlevel dispatch and substitution
+consumer, explicit retained state,32 reused helper bodies, and the following
+new composed owners. The existing before506 observations remain unchanged.
+
+| Order | Candidate owner | Input, output and completion boundary |
+| --- | --- | --- |
+| 1 | `ClassFieldsVisitor::new`, `RetainedClassFrame`, `RetainedClassFacts` | Supply resolver and alias-registry borrows; replace arbitrary node/array caches and source-global temporary strings with generated identities, source-name caches and per-class state. Parsed private names reserve the source collision domain. |
+| 2 | `allocate_binding`, `materialize_lexical_environment`, `merge_lexical_environment` | Keep generated identity separate from declaration placement; consume context Identifier hoists into source-ordered prologue products. Every source/function owner restores its outer environment on Result propagation. |
+| 3 | `visit_function_with_name_visitor`, `visit_retained_parameters`, `visit_iteration_body` | Evaluate headers outside function scopes; visit and lower parameters before bodies; handle all seven function and five iteration kinds. Input static blocks own a separate lexical environment. Generated initializer blocks are not revisited. |
+| 4 | `retained_class_facts`, `visit_class_declaration`, `visit_class_expression` | Allocate constructor references before heritage/member visitation, preserve receiver nodes, register declaration aliases, and return declaration prologue/class/postfix statements. The retained expression branch preserves the source's potentially unassigned constructor temp. |
+| 5 | `property_name_expression_if_needed`, `retained_auto_accessor_names`, `visit_class_member_name` | Recognize generated cache assignments before expression visitation; separate source-name identity from hoist timing; preserve raw expression maps and class-only pending-expression injection. Ordinary object-literal method names use the ordinary visitor. |
+| 6 | `prepare_retained_private_storage`, `retained_private_storage` | Preallocate generated private member names after heritage and before member bodies; share their source-name identity with constructor initialization and redirectors. Preserve escaped source spelling, collision separator behavior and private `_i`/`_n` skipping. |
+| 7 | `transform_retained_members`, `transform_retained_auto_accessor`, `transform_retained_field` | Process backing/getter/setter results through their owners. Insert synthetic constructors/static blocks after structurally verified classThis and assigned-name blocks, preserving the source member-array positions. |
+| 8 | `transform_retained_constructor`, `visit_constructor_super_path`, `retained_property_initializer` | Revisit the existing constructor first, then materialize source fields in its second lexical environment, parameter properties first. Preserve prologue/super-path order and exact raw/comment/map/flag products. `extends null` is not derived. |
+| 9 | `RetainedVisitOutcome`, `visit_statement_lifted`, `NodeDataChildVisitor` | Splice declaration result lists in statement arrays, preserve a single embedded statement, lift longer lists to a Block, and reject a statement list in an expression position. Source declaration files bypass this visitor. |
+
+The design check found six compile errors: the helper-name enum's module path,
+raw NodeFlags representation, missing EmitFlags BitAnd, and two calls to a
+nonexistent TransformFlags method. All were corrected using existing APIs;
+the subsequent check passed without diagnostics. The first launcher attempt
+failed before starting Cargo because taskpolicy was addressed at the wrong
+absolute path; that failure is retained separately from the two Cargo checks.
+No shared production API or dependency was changed to make the draft compile.
+
+Further source review also resolved two previously imprecise producer details:
+`moveRangePastModifiers` uses **property.name.pos** for properties/methods,
+not the last modifier's end; and `liftToBlock` preserves a one-statement result.
+Both are reflected in the typechecked candidate. The ordinary generated-name
+finalizer remains the spelling authority; temporary provisional strings never
+become the generated identity.
+
+The source predicates for BigInt computed names, private names ending in `_`,
+private temporary skipping, and the greater-than-ten comma-list branch need
+explicit witness coverage review before readiness. `isSimpleInlineableExpression`
+excludes BigIntLiteral and includes keyword kinds; the predecessor retained
+helper did not express that exact predicate. These findings do not permit
+shrinking or reclassifying any of the65 already-required repairs.
+
 ## Remaining readiness work
 
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
@@ -161,10 +213,11 @@ naming/super remains A6-41, with the complete57 guarded negatives preserved.
    function child-table ordering, constructor's two visitation phases,
    prologue merging and generated/private name domains. Existing source136
    inventory is research input, not a ready semantic disposition ledger.
-2. Finish the concrete function-level Rust edit sequence and all factory/raw/
-   map/comment/flag operations. Specify lexical/block error restoration and
-   every initializer-result caller. Verify context variable-declaration inputs
-   against its existing consumers instead of guessing from its method name.
+2. Audit the now-complete, typechecked candidate against each whole upstream
+   row; complete witness coverage for the newly identified name/comma predicates.
+   The concrete source already contains the factory/raw/map/comment/flag
+   operations, lexical/block restoration and initializer-result callers, but
+   typing alone does not prove their semantic equality.
 3. Revalidate every architecture row and frozen predecessor used as a premise,
    including the finalizer's name policy and source/parsed collision domains;
    build the exact allowed-files, row-to-step and witness mappings.
