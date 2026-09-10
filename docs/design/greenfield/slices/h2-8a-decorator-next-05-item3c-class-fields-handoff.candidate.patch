@@ -1,0 +1,197 @@
+From 65f73c33d6dd288d58d44ceb838f1ee193683f24 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:27:16 +0900
+Subject: [PATCH] draft(A6-41 item 3c): class-fields handoff on comma-list
+ computed names
+
+standard_decorators.rs: updated computed names keep the
+GENERATED_COMPUTED_PROPERTY_NAME internal flag (the class-fields owners'
+cache signal), and the class-name __setFunctionName of an explicitly named
+class is requested after the members' helpers (it is a class-fields-pass
+helper upstream, so __propKey precedes it at ES2015).
+class_fields.rs (ES2022 set semantics): the lowered field key reuses the
+cache assignment's generated binding found by find_computed_name_cache
+(getGeneratedNameForNode(property.name) is the same generated name upstream)
+instead of allocating a second binding.
+class_fields/downlevel.rs (ES2015): the cache assignment is located through
+find_computed_property_name_cache (parentheses and comma chains) instead of a
+direct-assignment match.
+---
+ crates/emitter/src/builtins/class_fields.rs   | 40 ++++++++++++++++++-
+ .../src/builtins/class_fields/downlevel.rs    | 22 ++--------
+ .../src/builtins/standard_decorators.rs       | 37 +++++++++++++++--
+ 3 files changed, 77 insertions(+), 22 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/class_fields.rs b/crates/emitter/src/builtins/class_fields.rs
+index f4c9d9ba0..41b2af757 100644
+--- a/crates/emitter/src/builtins/class_fields.rs
++++ b/crates/emitter/src/builtins/class_fields.rs
+@@ -1282,6 +1282,28 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+             && kind.value() <= SyntaxKind::LastKeyword.value())
+     }
+ 
++    /// The generated binding an identifier already carries (a cache
++    /// assignment target hoisted by an earlier transform).
++    fn binding_of_generated_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
++        let metadata = self.context.arena().metadata(name)?;
++        let id = metadata.generated_binding_id()?;
++        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
++            return None;
++        };
++        Some(TargetBinding::from_existing(
++            id,
++            identifier.text.clone(),
++            metadata.generated_binding_base().map(str::to_owned),
++            metadata
++                .generated_binding_preferred_base()
++                .map(str::to_owned),
++            metadata.generated_binding_role_suffix().map(str::to_owned),
++            metadata.generated_binding_is_file_level_optimistic(),
++            metadata.generated_binding_planned_name_is_authoritative(),
++            metadata.generated_binding_reserved_in_nested_scopes(),
++        ))
++    }
++
+     fn computed_name_binding(
+         &mut self,
+         name: TransformNode,
+@@ -1716,7 +1738,23 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
+             if self.retained_simple_inlineable(expression)? {
+                 source_name
+             } else {
+-                let binding = self.computed_name_binding(source_name)?;
++                // getGeneratedNameForNode(property.name): when an earlier
++                // transform (standard decorators) already cached the key as
++                // `[…, temp = __propKey(expr)]`, that temp is the name's
++                // generated binding (findComputedPropertyNameCacheAssignment).
++                let cached = self
++                    .find_computed_name_cache(expression)?
++                    .and_then(|left| self.binding_of_generated_identifier(left));
++                let binding = match cached {
++                    Some(binding) => {
++                        let key = self.context.arena().get_original_node(source_name).node();
++                        self.computed_name_bindings
++                            .entry(key)
++                            .or_insert_with(|| binding.clone());
++                        binding
++                    }
++                    None => self.computed_name_binding(source_name)?,
++                };
+                 computed.expression = Some(self.create_binding_identifier(&binding)?.node());
+                 self.update_contextual_node(source_name, NodeData::ComputedPropertyName(computed))?
+             }
+diff --git a/crates/emitter/src/builtins/class_fields/downlevel.rs b/crates/emitter/src/builtins/class_fields/downlevel.rs
+index edad98034..9700220b5 100644
+--- a/crates/emitter/src/builtins/class_fields/downlevel.rs
++++ b/crates/emitter/src/builtins/class_fields/downlevel.rs
+@@ -6454,24 +6454,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+             // plain generated read. The former still belongs to the class's
+             // ordered key-evaluation plan, while the field operation must use
+             // only the cached read so constructors never repeat the key.
+-            let assignment_left = match &self.context.arena().node(expression)?.data {
+-                NodeData::BinaryExpression(binary)
+-                    if binary
+-                        .operator_token
+-                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
+-                        .is_some_and(|operator| {
+-                            self.context
+-                                .arena()
+-                                .node(operator)
+-                                .is_ok_and(|operator| operator.kind == SyntaxKind::EqualsToken)
+-                        }) =>
+-                {
+-                    binary
+-                        .left
+-                        .and_then(|left| self.context.arena().node_ref(self.source, left))
+-                }
+-                _ => None,
+-            };
++            // findComputedPropertyNameCacheAssignment: the cache assignment
++            // may be the last element of the pending-expression comma list
++            // the standard-decorator transform injected around it.
++            let assignment_left = self.find_computed_property_name_cache(expression)?;
+             let (key_expression, evaluation) = if let Some(left) = assignment_left {
+                 (self.context.factory()?.clone_node(left)?, Some(expression))
+             } else {
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index fab017bad..0aadbae04 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -1086,6 +1086,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             }),
+             flags,
+         )?;
++        self.mark_generated_computed_property_name(updated_name)?;
+         self.inferred_class_name_references
+             .insert(class.node(), temporary_binding);
+         self.previsit_property_name(updated_name.node(), name)?;
+@@ -1553,8 +1554,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             .iter()
+             .any(|plan| plan.descriptor_name.is_some())
+             || plans.iter().any(|plan| plan.descriptor_name.is_some());
++        // An explicitly named class receives its `__setFunctionName` from the
++        // class-fields pass upstream (ES2015 and static-private lowering), so
++        // that helper is requested after the members' helpers; an anonymous
++        // decorated class expression requests it here, as
++        // injectClassNamedEvaluationHelperBlockIfMissing does.
++        let class_fields_owns_set_function_name =
++            needs_set_function_name && explicit_class_name.is_some();
+         self.request_helpers(
+-            needs_set_function_name || needs_descriptor_names,
++            (needs_set_function_name && !class_fields_owns_set_function_name)
++                || needs_descriptor_names,
+             !method_plans.is_empty(),
+         )?;
+         let metadata_name = self.allocate_file_level_name("_metadata");
+@@ -1778,6 +1787,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             prologue.push(self.create_let(name, Some(initializer))?);
+         }
+         definitions.splice(0..0, prologue);
++        if class_fields_owns_set_function_name {
++            self.context
++                .request_emit_helper(super::helpers::set_function_name())?;
++        }
+ 
+         let pending_instance = pending_initializers.drain(DecoratorInitializerPlacement::Instance);
+         if let Some(statement) = self.materialize_pending_initializer_statement(pending_instance)? {
+@@ -2387,17 +2400,35 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                     original_name,
+                     &NodeData::ComputedPropertyName(data.clone()),
+                 )?;
+-                self.context.factory()?.update_node(
++                let updated = self.context.factory()?.update_node(
+                     original_name,
+                     NodeData::ComputedPropertyName(data),
+                     flags,
+-                )?
++                )?;
++                self.mark_generated_computed_property_name(updated)?;
++                updated
+             }
+             _ => self.create_computed_property_name(injected)?,
+         };
+         Ok((temporary_binding, name))
+     }
+ 
++    /// The class-fields owners recognize a decorator-generated computed name
++    /// (its cache assignment is the last comma element) by this internal
++    /// flag; names created by `create_computed_property_name` carry it too.
++    fn mark_generated_computed_property_name(
++        &mut self,
++        name: TransformNode,
++    ) -> Result<(), TransformError> {
++        let arena = self.context.arena_mut()?;
++        let metadata = arena.metadata_mut(name);
++        let flags = metadata.internal_flags();
++        metadata.set_internal_flags(InternalEmitFlags::from_bits(
++            flags.bits() | InternalEmitFlags::GENERATED_COMPUTED_PROPERTY_NAME.bits(),
++        ));
++        Ok(())
++    }
++
+     /// tsc-port: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3
+     ///
+     /// Both callers own a computed property name, whose comma sequence the
+-- 
+2.50.1 (Apple Git-155)
+

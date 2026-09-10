@@ -1,0 +1,43 @@
+From 306930ab7c7fabab39c4e66321de68181b1abfe9 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:39:51 +0900
+Subject: [PATCH] draft(A6-41 item 1, follow-up): named-evaluation helper of an
+ anonymous decorated class targets classThis
+
+standard_decorators.rs: injectClassNamedEvaluationHelperBlockIfMissing's
+block is visited under the class-element frame, so an anonymous decorated
+class expression emits __setFunctionName(_classThis, name) even when static
+private members route the class through the class-fields lowering; only an
+explicitly named class at ES2022 with static private/accessor members keeps
+__setFunctionName(this, name) (class-fields-owned naming). Witness
+source-identifier-collisions (nested anonymous class with static #q).
+---
+ crates/emitter/src/builtins/standard_decorators.rs | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 75a58353f..c72ea4fb2 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -1674,8 +1674,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             .as_ref()
+             .filter(|_| needs_set_function_name && explicitly_assigned_name.is_none())
+         {
+-            let target = (!(self.target >= ScriptTarget::ES2022
+-                && has_static_private_class_elements))
++            // An anonymous decorated class expression's helper block comes
++            // from injectClassNamedEvaluationHelperBlockIfMissing and is
++            // visited under the class-element frame, so its `this` is the
++            // class-this identity. Only an explicitly named class lowered by
++            // the class-fields pass (ES2022 with static private or accessor
++            // members) keeps `this`.
++            let class_fields_names_the_class = explicit_class_name.is_some()
++                && self.target >= ScriptTarget::ES2022
++                && has_static_private_class_elements;
++            let target = (!class_fields_names_the_class)
+                 .then(|| {
+                     class_decoration
+                         .as_ref()
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,986 @@
+From 68f2a4f93d2ba1271a58644d3aadcc518be7104f Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:18:34 +0900
+Subject: [PATCH] draft(A6-41 item 3a): hoisted temporaries are scope-owned
+ generated bindings
+
+standard_decorators.rs: tsc lexical environments (startLexicalEnvironment/
+endLexicalEnvironment) own the hoisted temporaries of the class-definition
+IIFE, static blocks, static property initializers (wrapped in an IIFE when
+non-empty) and function-like bodies; createTempVariable temps are
+TargetBinding::allocate (finalizer-named per scope in traversal order,
+makeTempVariableName skipping _i/_n), getGeneratedNameForNode computed-name
+cache temps are reserved in nested scopes; explicit binding handles replace
+the by-spelling computed_temp_bindings lookup (plans carry the binding, the
+context/access/setter names and the named-evaluation reference use it).
+
+Witness group decorator-transform-order: 32/60 -> 38/60 exact twice
+(target/dec-next-runs/item3a-r1); nested class IIFEs now restart at _a and
+computed-name cache temps reserve their spelling in nested scopes.
+---
+ .../src/builtins/standard_decorators.rs       | 505 ++++++++++++------
+ 1 file changed, 335 insertions(+), 170 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 5ec61442e..192b48fb0 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -167,7 +167,10 @@ struct PropertyPlan {
+     extra_initializers_name: String,
+     descriptor_name: Option<String>,
+     backing_name: Option<String>,
+-    computed_temp_name: Option<String>,
++    /// `getGeneratedNameForNode(name)`: the hoisted `__propKey` cache temp
++    /// shared by the emitted computed name, the decorator context name, the
++    /// access object and (for auto-accessors) the setter name.
++    computed_temp: Option<TargetBinding>,
+     computed_expression: Option<NodeId>,
+ }
+ 
+@@ -245,10 +248,7 @@ enum DecoratedClassRuntimeName {
+     /// `getAssignedNameOfPropertyName` for a non-literal computed property
+     /// name: the assigned name is the hoisted `__propKey` cache temp, shared
+     /// with the property's rewritten computed name.
+-    AssignedReference {
+-        name: String,
+-        binding: TargetBinding,
+-    },
++    AssignedReference(TargetBinding),
+     AnonymousDefaultDeclaration,
+     UnassignedDecoratedExpression,
+ }
+@@ -257,7 +257,7 @@ impl DecoratedClassRuntimeName {
+     fn text(&self) -> &str {
+         match self {
+             Self::Declared(text) | Self::Assigned(text) => text,
+-            Self::AssignedReference { name, .. } => name,
++            Self::AssignedReference(binding) => binding.provisional_name(),
+             Self::AnonymousDefaultDeclaration => "default",
+             Self::UnassignedDecoratedExpression => "",
+         }
+@@ -395,7 +395,7 @@ struct MethodPlan {
+     decorators: Vec<TransformNode>,
+     decorators_name: String,
+     descriptor_name: Option<String>,
+-    computed_temp_name: Option<String>,
++    computed_temp: Option<TargetBinding>,
+     computed_expression: Option<NodeId>,
+     emitted_name: Option<NodeId>,
+ }
+@@ -409,7 +409,6 @@ struct ClassMemberState<'a> {
+     method_plans_by_node: &'a BTreeMap<NodeId, usize>,
+     pending_initializers: &'a mut ClassPendingDecoratorInitializers,
+     transformed_members: &'a mut Vec<TransformNode>,
+-    class_definition_bindings: &'a mut DecoratorDefinitionBindings,
+     class_decoration: Option<&'a ClassDecorationPlan>,
+     explicit_class_name: Option<&'a str>,
+     explicit_class_name_node: Option<TransformNode>,
+@@ -569,21 +568,20 @@ impl ClassPendingDecoratorInitializers {
+ /// makes it impossible to create a cached receiver without also declaring it.
+ #[derive(Default)]
+ struct DecoratorDefinitionBindings {
+-    /// Hoisted temporaries in declaration order; a computed-name cache temp
+-    /// carries its generated binding so the hoisted `var` declaration names
+-    /// the same generated identifier as its uses (hoistVariableDeclaration).
+-    temporaries: Vec<(String, Option<TargetBinding>)>,
+     outer_this_name: Option<String>,
+ }
+ 
+-impl DecoratorDefinitionBindings {
+-    fn record_temporary(&mut self, name: String) {
+-        self.temporaries.push((name, None));
+-    }
+-
+-    fn record_generated_temporary(&mut self, name: String, binding: TargetBinding) {
+-        self.temporaries.push((name, Some(binding)));
+-    }
++/// tsc-port: startLexicalEnvironment/endLexicalEnvironment @6.0.3
++///
++/// The hoisted temporaries of one function-like body: the class-definition
++/// IIFE, a class static block, a static property initializer (wrapped in an
++/// IIFE when it hoisted anything) or a function-like body. Each environment
++/// restarts the provisional `_a` sequence; the finalizer assigns the printed
++/// spelling per scope in traversal order (makeTempVariableName).
++#[derive(Default)]
++struct DecoratorLexicalEnvironment {
++    temporaries: Vec<TargetBinding>,
++    temp_ordinal: usize,
+ }
+ 
+ /// Rewrites only lexical `this` references evaluated while defining a class.
+@@ -617,11 +615,10 @@ struct StandardDecoratorVisitor<'context> {
+     inferred_class_names: BTreeMap<NodeId, String>,
+     /// Named evaluation through a non-literal computed property name: the
+     /// anonymous decorated class receives the property's hoisted key temp.
+-    inferred_class_name_references: BTreeMap<NodeId, (String, TargetBinding)>,
++    inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
+     expanded_classes: BTreeMap<NodeId, Vec<NodeId>>,
+     used_names: BTreeSet<String>,
+     generated_reference_names: BTreeSet<String>,
+-    computed_temp_ordinal: usize,
+     should_transform_private_static_elements_in_file: bool,
+     /// Source-level identifier texts: the only collision set tsc consults
+     /// for `GeneratedIdentifierFlags.FileLevel` helper names
+@@ -637,11 +634,10 @@ struct StandardDecoratorVisitor<'context> {
+     /// members becomes leading static-block statements (through
+     /// `_outerThis` for lexical `this`). Empty means `undefined`.
+     pending_expressions: Vec<TransformNode>,
+-    /// Computed-name cache temps of the current class scope by spelling:
+-    /// every identifier spelled like one (declaration, cache assignment,
+-    /// decorator context name, accessor names) carries the same generated
+-    /// binding, as tsc reuses the one `createTempVariable` node.
+-    computed_temp_bindings: BTreeMap<String, TargetBinding>,
++    /// tsc `startLexicalEnvironment`/`endLexicalEnvironment` stack: the
++    /// hoisted temporaries (`hoistVariableDeclaration`) of the innermost
++    /// function-like body being transformed.
++    lexical_environments: Vec<DecoratorLexicalEnvironment>,
+ }
+ 
+ /// tsc-port: transformESDecorators lexical state @6.0.3
+@@ -691,13 +687,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             expanded_classes: BTreeMap::new(),
+             used_names,
+             generated_reference_names: BTreeSet::new(),
+-            computed_temp_ordinal: 0,
+             should_transform_private_static_elements_in_file: false,
+             file_level_names,
+             receiver_frames: Vec::new(),
+             receiver_class_this: None,
+             pending_expressions: Vec::new(),
+-            computed_temp_bindings: BTreeMap::new(),
++            lexical_environments: Vec::new(),
+         }
+     }
+ 
+@@ -796,30 +791,39 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             NodeData::MethodDeclaration(mut data) => {
+                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                 self.enter_receiver_other();
+-                let updated = self.update_generic(original, NodeData::MethodDeclaration(data));
++                let updated =
++                    self.visit_function_like_body(original, NodeData::MethodDeclaration(data));
+                 self.exit_receiver_other();
+                 Some(updated?)
+             }
+             NodeData::GetAccessor(mut data) => {
+                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                 self.enter_receiver_other();
+-                let updated = self.update_generic(original, NodeData::GetAccessor(data));
++                let updated = self.visit_function_like_body(original, NodeData::GetAccessor(data));
+                 self.exit_receiver_other();
+                 Some(updated?)
+             }
+             NodeData::SetAccessor(mut data) => {
+                 data.modifiers = self.strip_decorators(data.modifiers)?;
+                 self.enter_receiver_other();
+-                let updated = self.update_generic(original, NodeData::SetAccessor(data));
++                let updated = self.visit_function_like_body(original, NodeData::SetAccessor(data));
+                 self.exit_receiver_other();
+                 Some(updated?)
+             }
+             data @ (NodeData::FunctionExpression(_) | NodeData::FunctionDeclaration(_)) => {
+                 self.enter_receiver_other();
+-                let updated = self.update_generic(original, data);
++                let updated = self.visit_function_like_body(original, data);
+                 self.exit_receiver_other();
+                 Some(updated?)
+             }
++            // Arrows keep the receiver frame but own a lexical environment.
++            data @ NodeData::ArrowFunction(_) => {
++                Some(self.visit_function_like_body(original, data)?)
++            }
++            // tsc-port: visitEachChildOfClassStaticBlockDeclaration @6.0.3
++            data @ NodeData::ClassStaticBlockDeclaration(_) => {
++                Some(self.visit_function_like_body(original, data)?)
++            }
+             NodeData::Decorator(_) => {
+                 return Err(TransformError::UnsupportedSyntax {
+                     feature: UnsupportedTransformFeature::Decorators,
+@@ -960,7 +964,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         member: TransformNode,
+         data: &tsc_syntax::nodes::PropertyDeclarationData,
+         decorated: bool,
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<bool, TransformError> {
+         let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
+             return Ok(false);
+@@ -990,20 +993,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             return Ok(false);
+         };
+         let _ = member;
+-        let temporary_name = self.allocate_computed_temp_name();
+-        let temporary_binding =
+-            TargetBinding::allocate_planned(self.context, temporary_name.clone())?;
+-        self.computed_temp_bindings
+-            .insert(temporary_name.clone(), temporary_binding.clone());
+-        bindings.record_generated_temporary(temporary_name.clone(), temporary_binding.clone());
++        let temporary_binding = self.hoist_temp_variable(true)?;
+         self.request_prop_key_helper()?;
+         let helper = self
+             .context
+             .factory()?
+             .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
+         let key = self.create_call(helper, vec![self.node(expression)])?;
+-        let temporary = self.create_identifier(&temporary_name)?;
+-        temporary_binding.write_generated_metadata(self.context.arena_mut()?, temporary);
++        let temporary = self.create_binding_identifier(&temporary_binding)?;
+         let assignment = self.create_assignment(temporary, key)?;
+         let flags = flags_after_update(
+             self.context.arena(),
+@@ -1020,7 +1017,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             flags,
+         )?;
+         self.inferred_class_name_references
+-            .insert(class.node(), (temporary_name, temporary_binding));
++            .insert(class.node(), temporary_binding);
+         self.previsit_property_name(updated_name.node(), name)?;
+         Ok(true)
+     }
+@@ -1194,7 +1191,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             return Ok(());
+         }
+         let is_private = self.name_is_private(name)?;
+-        let (name, computed_temp_name, computed_expression) = self.decorator_property_name(name)?;
++        let (name, computed_expression) = self.decorator_property_name(name)?;
+         let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
+         let static_prefix = if is_static { "static_" } else { "" };
+         let private_prefix = if is_private { "private_" } else { "" };
+@@ -1217,7 +1214,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             decorators,
+             decorators_name,
+             descriptor_name,
+-            computed_temp_name,
++            computed_temp: None,
+             computed_expression,
+             emitted_name: None,
+         });
+@@ -1238,9 +1235,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             matches!(route, DecoratedClassRoute::Declaration(_)) || declaration_name.is_none()
+         );
+         let class_scope_names = self.used_names.clone();
+-        let class_scope_temp_bindings = self.computed_temp_bindings.clone();
+-        let enclosing_temp_ordinal = self.computed_temp_ordinal;
+-        self.computed_temp_ordinal = 0;
++        // transformClassLike starts with `startLexicalEnvironment()`: class
++        // decorator call bindings, computed-name cache temps and every other
++        // hoisted temporary of the class definition declare in its IIFE.
++        self.start_lexical_environment();
+         let class_decorators = self.decorator_expressions(data.modifiers)?;
+         let explicit_class_name_node = data.name.map(|name| self.node(name));
+         let explicit_class_name = if let Some(name) = data.name {
+@@ -1354,7 +1352,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         continue;
+                     }
+                     let is_private = self.name_is_private(member_data.name)?;
+-                    let (name, computed_temp_name, computed_expression) =
++                    let (name, computed_expression) =
+                         self.decorator_property_name(member_data.name)?;
+                     let is_static =
+                         self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)?;
+@@ -1401,7 +1399,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         extra_initializers_name,
+                         descriptor_name,
+                         backing_name,
+-                        computed_temp_name,
++                        computed_temp: None,
+                         computed_expression,
+                     });
+                 }
+@@ -1442,10 +1440,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         // temporaries therefore precede every member's.
+         let mut class_definition_bindings = DecoratorDefinitionBindings::default();
+         if let Some(class_plan) = class_decoration.as_mut() {
+-            class_plan.decorators = self.transform_decorator_expressions(
+-                &class_plan.decorators,
+-                &mut class_definition_bindings,
+-            )?;
++            class_plan.decorators = self.transform_decorator_expressions(&class_plan.decorators)?;
+         }
+         let class_super = self.prepare_class_super(&mut data.heritage_clauses)?;
+         // The class-this identity exists before any class element is
+@@ -1664,7 +1659,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                 method_plans_by_node: &method_plans_by_node,
+                 pending_initializers: &mut pending_initializers,
+                 transformed_members: &mut transformed_members,
+-                class_definition_bindings: &mut class_definition_bindings,
+                 class_decoration: class_decoration.as_ref(),
+                 explicit_class_name: explicit_class_name.as_deref(),
+                 explicit_class_name_node,
+@@ -1701,19 +1695,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         // mergeLexicalEnvironment: the hoisted temporaries precede the class
+         // definition statements, and `_outerThis` (unshifted by the pending
+         // expression visitor) comes right after them.
++        let temporaries = self.end_lexical_environment();
+         let mut prologue = Vec::new();
+-        if !class_definition_bindings.temporaries.is_empty() {
+-            let mut declarations = Vec::with_capacity(class_definition_bindings.temporaries.len());
+-            for (name, binding) in &class_definition_bindings.temporaries {
+-                let identifier = self.create_identifier(name)?;
+-                if let Some(binding) = binding {
+-                    binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+-                }
+-                declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
+-            }
+-            prologue.push(
+-                self.create_variable_statement_from_declarations(declarations, NodeFlags::NONE)?,
+-            );
++        if let Some(declaration) = self.create_hoisted_declarations(temporaries)? {
++            prologue.push(declaration);
+         }
+         if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
+             let initializer = self.create_this()?;
+@@ -1888,8 +1873,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             self.set_original_only(call, original)?;
+         }
+         self.used_names = class_scope_names;
+-        self.computed_temp_bindings = class_scope_temp_bindings;
+-        self.computed_temp_ordinal = enclosing_temp_ordinal;
+         Ok(call)
+     }
+ 
+@@ -2093,25 +2076,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         // anonymous decorated class initializer precedes the element work.
+         let name_previsited = if let NodeData::PropertyDeclaration(data) = &member_data {
+             let decorated = state.plans_by_node.contains_key(&member.node());
+-            self.prepare_property_named_evaluation(
+-                member,
+-                data,
+-                decorated,
+-                state.class_definition_bindings,
+-            )?
++            self.prepare_property_named_evaluation(member, data, decorated)?
+         } else {
+             false
+         };
+         if let Some(index) = state.plans_by_node.get(&member.node()).copied() {
+-            self.partial_transform_property_plan(
+-                &mut state.plans[index],
+-                state.class_definition_bindings,
+-            )?;
++            self.partial_transform_property_plan(&mut state.plans[index])?;
+         } else if let Some(index) = state.method_plans_by_node.get(&member.node()).copied() {
+-            self.partial_transform_method_plan(
+-                &mut state.method_plans[index],
+-                state.class_definition_bindings,
+-            )?;
++            self.partial_transform_method_plan(&mut state.method_plans[index])?;
+         } else if !name_previsited {
+             self.previsit_class_element_name(member)?;
+         }
+@@ -2244,14 +2216,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn partial_transform_property_plan(
+         &mut self,
+         plan: &mut PropertyPlan,
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<(), TransformError> {
+-        plan.decorators = self.transform_decorator_expressions(&plan.decorators, bindings)?;
++        plan.decorators = self.transform_decorator_expressions(&plan.decorators)?;
+         self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
+         if let Some(expression) = plan.computed_expression {
+-            let (temporary_name, name) =
+-                self.visit_referenced_property_name(plan.data.name, expression, bindings)?;
+-            plan.computed_temp_name = Some(temporary_name);
++            let (temporary, name) =
++                self.visit_referenced_property_name(plan.data.name, expression)?;
++            plan.computed_temp = Some(temporary);
+             plan.data.name = Some(name.node());
+         } else {
+             self.previsit_class_element_name(plan.original)?;
+@@ -2264,17 +2235,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn partial_transform_method_plan(
+         &mut self,
+         plan: &mut MethodPlan,
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<(), TransformError> {
+-        plan.decorators = self.transform_decorator_expressions(&plan.decorators, bindings)?;
++        plan.decorators = self.transform_decorator_expressions(&plan.decorators)?;
+         self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
+         if let Some(expression) = plan.computed_expression {
+             let original_name = self
+                 .declaration_property_name(plan.original)?
+                 .map(TransformNode::node);
+-            let (temporary_name, name) =
+-                self.visit_referenced_property_name(original_name, expression, bindings)?;
+-            plan.computed_temp_name = Some(temporary_name);
++            let (temporary, name) =
++                self.visit_referenced_property_name(original_name, expression)?;
++            plan.computed_temp = Some(temporary);
+             plan.emitted_name = Some(name.node());
+         } else {
+             self.previsit_class_element_name(plan.original)?;
+@@ -2307,14 +2277,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         &mut self,
+         original_name: Option<NodeId>,
+         expression: NodeId,
+-        bindings: &mut DecoratorDefinitionBindings,
+-    ) -> Result<(String, TransformNode), TransformError> {
+-        let temporary_name = self.allocate_computed_temp_name();
+-        let temporary_binding =
+-            TargetBinding::allocate_planned(self.context, temporary_name.clone())?;
+-        self.computed_temp_bindings
+-            .insert(temporary_name.clone(), temporary_binding.clone());
+-        bindings.record_generated_temporary(temporary_name.clone(), temporary_binding.clone());
++    ) -> Result<(TargetBinding, TransformNode), TransformError> {
++        let temporary_binding = self.hoist_temp_variable(true)?;
+         self.request_prop_key_helper()?;
+         self.enter_receiver_name();
+         let visited = self.visit(expression);
+@@ -2330,8 +2294,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             .factory()?
+             .create_unscoped_helper_identifier(self.source, EmitHelperName::PropKey)?;
+         let key = self.create_call(helper, vec![expression])?;
+-        let temporary = self.create_identifier(&temporary_name)?;
+-        temporary_binding.write_generated_metadata(self.context.arena_mut()?, temporary);
++        let temporary = self.create_binding_identifier(&temporary_binding)?;
+         let assignment = self.create_assignment(temporary, key)?;
+         let injected = self.inject_pending_expressions(assignment)?;
+         // updateComputedPropertyName(node, …): the parsed name node is
+@@ -2359,7 +2322,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             }
+             _ => self.create_computed_property_name(injected)?,
+         };
+-        Ok((temporary_name, name))
++        Ok((temporary_binding, name))
+     }
+ 
+     /// tsc-port: injectPendingExpressions / injectPendingExpressionsCommon @6.0.3
+@@ -2445,7 +2408,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn transform_decorator_expressions(
+         &mut self,
+         decorators: &[TransformNode],
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<Vec<TransformNode>, TransformError> {
+         let mut output = Vec::with_capacity(decorators.len());
+         for decorator in decorators {
+@@ -2456,7 +2418,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                     parent: SyntaxKind::Decorator,
+                     field: "expression",
+                 })?;
+-            output.push(self.bind_decorator_expression(visited, bindings)?);
++            output.push(self.bind_decorator_expression(visited)?);
+         }
+         Ok(output)
+     }
+@@ -2464,7 +2426,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn bind_decorator_expression(
+         &mut self,
+         expression: TransformNode,
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<TransformNode, TransformError> {
+         let data = self.context.arena().node(expression)?.data.clone();
+         let (target, receiver) = match data {
+@@ -2475,7 +2436,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         parent: SyntaxKind::ParenthesizedExpression,
+                         field: "expression",
+                     })?;
+-                let bound = self.bind_decorator_expression(self.node(inner), bindings)?;
++                let bound = self.bind_decorator_expression(self.node(inner))?;
+                 data.expression = Some(bound.node());
+                 return self.update_decorator_outer_expression(
+                     expression,
+@@ -2489,7 +2450,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         parent: SyntaxKind::PartiallyEmittedExpression,
+                         field: "expression",
+                     })?;
+-                let bound = self.bind_decorator_expression(self.node(inner), bindings)?;
++                let bound = self.bind_decorator_expression(self.node(inner))?;
+                 data.expression = Some(bound.node());
+                 return self.update_decorator_outer_expression(
+                     expression,
+@@ -2504,8 +2465,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         field: "expression",
+                     })?;
+                 let receiver = self.node(receiver);
+-                let (bound_receiver, this_arg) =
+-                    self.bind_decorator_receiver(receiver, bindings)?;
++                let (bound_receiver, this_arg) = self.bind_decorator_receiver(receiver)?;
+                 data.expression = Some(bound_receiver.node());
+                 let flags = flags_after_update(
+                     self.context.arena(),
+@@ -2527,8 +2487,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         field: "expression",
+                     })?;
+                 let receiver = self.node(receiver);
+-                let (bound_receiver, this_arg) =
+-                    self.bind_decorator_receiver(receiver, bindings)?;
++                let (bound_receiver, this_arg) = self.bind_decorator_receiver(receiver)?;
+                 data.expression = Some(bound_receiver.node());
+                 let flags = flags_after_update(
+                     self.context.arena(),
+@@ -2560,7 +2519,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn bind_decorator_receiver(
+         &mut self,
+         receiver: TransformNode,
+-        bindings: &mut DecoratorDefinitionBindings,
+     ) -> Result<(TransformNode, TransformNode), TransformError> {
+         if self.decorator_receiver_is_super(receiver)? {
+             return Ok((receiver, self.create_this()?));
+@@ -2569,12 +2527,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             return Ok((receiver, receiver));
+         }
+ 
+-        let receiver_name = self.allocate_computed_temp_name();
+-        bindings.record_temporary(receiver_name.clone());
+-        let temporary = self.create_identifier(&receiver_name)?;
+-        // createCallBinding: `setTextRange(createAssignment(thisArg,
+-        // callee.expression), callee.expression)`, and the parentheses
++        // createCallBinding(..., cacheIdentifiers = true): the receiver temp
++        // is hoisted by the innermost lexical environment;
++        // `setTextRange(createAssignment(thisArg, callee.expression),
++        // callee.expression)`, and the parentheses
+         // parenthesizeLeftSideOfAccess adds take the same range.
++        let binding = self.hoist_temp_variable(false)?;
++        let temporary = self.create_binding_identifier(&binding)?;
+         let assignment = self.create_assignment(temporary, receiver)?;
+         self.context
+             .factory()?
+@@ -2583,7 +2542,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         self.context
+             .factory()?
+             .set_text_range(assignment, receiver)?;
+-        let this_arg = self.create_identifier(&receiver_name)?;
++        let this_arg = self.create_binding_identifier(&binding)?;
+         Ok((assignment, this_arg))
+     }
+ 
+@@ -3186,8 +3145,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             "field"
+         };
+         let kind = self.create_string_literal(kind)?;
+-        let name = if let Some(temporary) = plan.computed_temp_name.as_deref() {
+-            self.create_identifier(temporary)?
++        let name = if let Some(temporary) = plan.computed_temp.as_ref() {
++            self.create_binding_identifier(temporary)?
+         } else {
+             self.create_string_literal(&plan.name)?
+         };
+@@ -3206,7 +3165,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             true,
+             true,
+             plan.is_private,
+-            plan.computed_temp_name.as_deref(),
++            plan.computed_temp.as_ref(),
+             source_name,
+         )?;
+         let metadata = self.create_identifier(metadata_name)?;
+@@ -3228,8 +3187,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     ) -> Result<TransformNode, TransformError> {
+         let source_name = self.declaration_property_name(plan.original)?;
+         let kind = self.create_string_literal(plan.kind.context_name())?;
+-        let name = if let Some(temporary) = plan.computed_temp_name.as_deref() {
+-            self.create_identifier(temporary)?
++        let name = if let Some(temporary) = plan.computed_temp.as_ref() {
++            self.create_binding_identifier(temporary)?
+         } else {
+             self.create_string_literal(&plan.name)?
+         };
+@@ -3248,7 +3207,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             plan.kind != MethodKind::Setter,
+             plan.kind == MethodKind::Setter,
+             plan.is_private,
+-            plan.computed_temp_name.as_deref(),
++            plan.computed_temp.as_ref(),
+             source_name,
+         )?;
+         let metadata = self.create_identifier(metadata_name)?;
+@@ -3269,12 +3228,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         include_get: bool,
+         include_set: bool,
+         is_private: bool,
+-        computed_temp_name: Option<&str>,
++        computed_temp: Option<&TargetBinding>,
+         source_name: Option<TransformNode>,
+     ) -> Result<TransformNode, TransformError> {
+         let obj = self.create_parameter("obj")?;
+-        let property = if let Some(temporary) = computed_temp_name {
+-            self.create_identifier(temporary)?
++        let property = if let Some(temporary) = computed_temp {
++            self.create_binding_identifier(temporary)?
+         } else if is_private {
+             source_name.unwrap_or(self.create_private_identifier(name)?)
+         } else {
+@@ -3287,8 +3246,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         if include_get {
+             let obj = self.create_parameter("obj")?;
+             let obj_expression = self.create_identifier("obj")?;
+-            let get_body = if let Some(temporary) = computed_temp_name {
+-                let name = self.create_identifier(temporary)?;
++            let get_body = if let Some(temporary) = computed_temp {
++                let name = self.create_binding_identifier(temporary)?;
+                 self.create_element_access(obj_expression, name)?
+             } else {
+                 let name = match source_name {
+@@ -3305,8 +3264,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             let obj = self.create_parameter("obj")?;
+             let value = self.create_parameter("value")?;
+             let obj_expression = self.create_identifier("obj")?;
+-            let target = if let Some(temporary) = computed_temp_name {
+-                let name = self.create_identifier(temporary)?;
++            let target = if let Some(temporary) = computed_temp {
++                let name = self.create_binding_identifier(temporary)?;
+                 self.create_element_access(obj_expression, name)?
+             } else {
+                 let name = match source_name {
+@@ -3335,13 +3294,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         receiver: &DecoratorInitializerReceiver,
+     ) -> Result<TransformNode, TransformError> {
+         let initializer = if let Some(initializer) = plan.data.initializer {
+-            let visited = self
+-                .visit(initializer)?
+-                .ok_or(TransformError::RequiredChildRemoved {
++            self.visit_property_initializer(Some(initializer))?.ok_or(
++                TransformError::RequiredChildRemoved {
+                     parent: SyntaxKind::PropertyDeclaration,
+                     field: "initializer",
+-                })?;
+-            self.node(visited)
++                },
++            )?
+         } else {
+             self.create_void_zero()?
+         };
+@@ -3585,8 +3543,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                 .metadata_mut(field)
+                 .class_field_initializer_comment_source = Some(plan.original);
+         }
+-        let setter_name = if let Some(temporary) = plan.computed_temp_name.as_deref() {
+-            let temporary = self.create_identifier(temporary)?;
++        let setter_name = if let Some(temporary) = plan.computed_temp.as_ref() {
++            let temporary = self.create_binding_identifier(temporary)?;
+             self.create_computed_property_name(temporary)?.node()
+         } else {
+             name
+@@ -3795,10 +3753,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             self.create_this()?
+         };
+         let name = match class_name {
+-            DecoratedClassRuntimeName::AssignedReference { name, binding } => {
+-                let reference = self.create_identifier(name)?;
+-                binding.write_generated_metadata(self.context.arena_mut()?, reference);
+-                reference
++            DecoratedClassRuntimeName::AssignedReference(binding) => {
++                self.create_binding_identifier(binding)?
+             }
+             other => self.create_string_literal(other.text())?,
+         };
+@@ -4271,9 +4227,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             }),
+             TransformFlags::NONE,
+         )?;
+-        if let Some(binding) = self.computed_temp_bindings.get(text).cloned() {
+-            binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+-        }
++        Ok(identifier)
++    }
++
++    /// An identifier that references a generated binding: the provisional
++    /// spelling is printed only if no finalizer ever names the binding.
++    fn create_binding_identifier(
++        &mut self,
++        binding: &TargetBinding,
++    ) -> Result<TransformNode, TransformError> {
++        let identifier = self.create_identifier(binding.provisional_name())?;
++        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+         Ok(identifier)
+     }
+ 
+@@ -4830,13 +4794,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                             .map(|name| DecoratedClassRuntimeName::Declared(name.to_owned())));
+                     }
+                 }
+-                if let Some((name, binding)) =
+-                    self.inferred_class_name_references.get(&class_like.node())
+-                {
+-                    return Ok(Some(DecoratedClassRuntimeName::AssignedReference {
+-                        name: name.clone(),
+-                        binding: binding.clone(),
+-                    }));
++                if let Some(binding) = self.inferred_class_name_references.get(&class_like.node()) {
++                    return Ok(Some(DecoratedClassRuntimeName::AssignedReference(
++                        binding.clone(),
++                    )));
+                 }
+                 Ok(assigned_name
+                     .map(|name| DecoratedClassRuntimeName::Assigned(name.to_owned()))
+@@ -5015,6 +4976,67 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         self.context.factory()?.set_multi_line(block, multi_line)
+     }
+ 
++    /// tsc-port: visitFunctionBody @6.0.3 — a function-like body (arrow,
++    /// function, method, accessor, class static block) is visited inside its
++    /// own lexical environment; temporaries hoisted meanwhile are declared at
++    /// the start of its block (a concise arrow body becomes a block).
++    fn visit_function_like_body(
++        &mut self,
++        original: TransformNode,
++        data: NodeData,
++    ) -> Result<NodeId, TransformError> {
++        self.start_lexical_environment();
++        let updated = self.update_generic(original, data);
++        let temporaries = self.end_lexical_environment();
++        let updated = updated?;
++        if temporaries.is_empty() {
++            return Ok(updated);
++        }
++        let updated_node = self.node(updated);
++        let mut data = self.context.arena().node(updated_node)?.data.clone();
++        let body = match &data {
++            NodeData::ArrowFunction(data) => data.body,
++            NodeData::FunctionExpression(data) => data.body,
++            NodeData::FunctionDeclaration(data) => data.body,
++            NodeData::MethodDeclaration(data) => data.body,
++            NodeData::GetAccessor(data) => data.body,
++            NodeData::SetAccessor(data) => data.body,
++            NodeData::ClassStaticBlockDeclaration(data) => data.body,
++            _ => None,
++        };
++        let Some(body) = body else {
++            return Err(TransformError::RequiredChildRemoved {
++                parent: self.context.arena().node(updated_node)?.kind,
++                field: "body for hoisted temporaries",
++            });
++        };
++        let body = self.node(body);
++        let block = if matches!(self.context.arena().node(body)?.data, NodeData::Block(_)) {
++            body
++        } else {
++            // converToFunctionBlock(body, /*multiLine*/ true)
++            let return_statement = self.create_return_statement(body)?;
++            self.create_block(vec![return_statement], true)?
++        };
++        let merged = self.merge_block_environment(block, temporaries)?;
++        match &mut data {
++            NodeData::ArrowFunction(data) => data.body = Some(merged.node()),
++            NodeData::FunctionExpression(data) => data.body = Some(merged.node()),
++            NodeData::FunctionDeclaration(data) => data.body = Some(merged.node()),
++            NodeData::MethodDeclaration(data) => data.body = Some(merged.node()),
++            NodeData::GetAccessor(data) => data.body = Some(merged.node()),
++            NodeData::SetAccessor(data) => data.body = Some(merged.node()),
++            NodeData::ClassStaticBlockDeclaration(data) => data.body = Some(merged.node()),
++            _ => {}
++        }
++        let flags = flags_after_update(self.context.arena(), updated_node, &data)?;
++        Ok(self
++            .context
++            .factory()?
++            .update_node(updated_node, data, flags)?
++            .node())
++    }
++
+     fn update_generic(
+         &mut self,
+         original: TransformNode,
+@@ -5168,16 +5190,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     fn decorator_property_name(
+         &mut self,
+         name: Option<NodeId>,
+-    ) -> Result<(String, Option<String>, Option<NodeId>), TransformError> {
++    ) -> Result<(String, Option<NodeId>), TransformError> {
+         let name = name.ok_or(TransformError::RequiredChildRemoved {
+             parent: SyntaxKind::PropertyDeclaration,
+             field: "name",
+         })?;
+         match &self.context.arena().node(self.node(name))?.data {
+-            NodeData::Identifier(data) => Ok((data.text.clone(), None, None)),
+-            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None, None)),
+-            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, None)),
+-            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None, None)),
++            NodeData::Identifier(data) => Ok((data.text.clone(), None)),
++            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None)),
++            NodeData::StringLiteral(data) => Ok((data.text.clone(), None)),
++            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None)),
+             NodeData::ComputedPropertyName(data) => {
+                 let expression = data
+                     .expression
+@@ -5186,7 +5208,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         field: "expression",
+                     })?;
+                 let expression = self.node(expression).node();
+-                Ok(("member".to_owned(), None, Some(expression)))
++                Ok(("member".to_owned(), Some(expression)))
+             }
+             _ => Err(TransformError::UnsupportedSyntax {
+                 feature: UnsupportedTransformFeature::Decorators,
+@@ -5261,19 +5283,159 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         }
+     }
+ 
+-    fn allocate_computed_temp_name(&mut self) -> String {
++    fn start_lexical_environment(&mut self) {
++        self.lexical_environments
++            .push(DecoratorLexicalEnvironment::default());
++    }
++
++    fn end_lexical_environment(&mut self) -> Vec<TargetBinding> {
++        self.lexical_environments
++            .pop()
++            .map(|environment| environment.temporaries)
++            .unwrap_or_default()
++    }
++
++    /// tsc-port: createTempVariable(hoistVariableDeclaration) @6.0.3
++    ///
++    /// A generated binding declared by the innermost lexical environment.
++    /// The provisional spelling follows makeTempVariableName's sequence
++    /// (`_a`…`_z`, `_0`…, skipping `_i` and `_n`) per environment; the
++    /// finalizer assigns the printed name per scope in traversal order.
++    /// `getGeneratedNameForNode(computedPropertyName)` temps are reserved in
++    /// nested scopes (generateNameForNode @6.0.3); call-binding and super
++    /// temps are not.
++    fn hoist_temp_variable(
++        &mut self,
++        reserve_in_nested_scopes: bool,
++    ) -> Result<TargetBinding, TransformError> {
++        let ordinal = {
++            let environment = self.lexical_environments.last_mut().ok_or(
++                TransformError::RequiredChildRemoved {
++                    parent: SyntaxKind::ClassExpression,
++                    field: "lexical environment for a hoisted temporary",
++                },
++            )?;
++            let ordinal = environment.temp_ordinal;
++            environment.temp_ordinal += 1;
++            ordinal
++        };
++        let provisional = Self::temp_spelling(ordinal);
++        let binding = if reserve_in_nested_scopes {
++            TargetBinding::allocate_reserved_in_nested_scopes(self.context, provisional)?
++        } else {
++            TargetBinding::allocate(self.context, provisional)?
++        };
++        if let Some(environment) = self.lexical_environments.last_mut() {
++            environment.temporaries.push(binding.clone());
++        }
++        Ok(binding)
++    }
++
++    fn temp_spelling(ordinal: usize) -> String {
++        // Count in tsc's temp sequence, which skips `_i` (8) and `_n` (13).
++        let mut count = 0usize;
++        let mut remaining = ordinal;
+         loop {
+-            let ordinal = self.computed_temp_ordinal;
+-            self.computed_temp_ordinal += 1;
+-            let candidate = if ordinal < 26 {
+-                format!("_{}", char::from(b'a' + ordinal as u8))
+-            } else {
+-                format!("_{}", ordinal - 26)
+-            };
+-            if self.used_names.insert(candidate.clone()) {
+-                return candidate;
++            if count != 8 && count != 13 {
++                if remaining == 0 {
++                    break;
++                }
++                remaining -= 1;
+             }
++            count += 1;
++        }
++        if count < 26 {
++            format!("_{}", char::from(b'a' + count as u8))
++        } else {
++            format!("_{}", count - 26)
++        }
++    }
++
++    /// `var` declaration for the temporaries an environment hoisted, in
++    /// declaration order.
++    fn create_hoisted_declarations(
++        &mut self,
++        temporaries: Vec<TargetBinding>,
++    ) -> Result<Option<TransformNode>, TransformError> {
++        if temporaries.is_empty() {
++            return Ok(None);
++        }
++        let mut declarations = Vec::with_capacity(temporaries.len());
++        for binding in &temporaries {
++            let identifier = self.create_binding_identifier(binding)?;
++            declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
+         }
++        Ok(Some(self.create_variable_statement_from_declarations(
++            declarations,
++            NodeFlags::NONE,
++        )?))
++    }
++
++    /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
++    ///
++    /// Declares the temporaries hoisted while visiting a block body at the
++    /// start of that block (static block and function-like bodies have no
++    /// prologue directives here).
++    fn merge_block_environment(
++        &mut self,
++        body: TransformNode,
++        temporaries: Vec<TargetBinding>,
++    ) -> Result<TransformNode, TransformError> {
++        let Some(declaration) = self.create_hoisted_declarations(temporaries)? else {
++            return Ok(body);
++        };
++        let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() else {
++            return Err(TransformError::RequiredChildRemoved {
++                parent: SyntaxKind::Block,
++                field: "block body for hoisted temporaries",
++            });
++        };
++        let mut statements = self.array_nodes(data.statements)?;
++        statements.insert(0, declaration);
++        let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
++            self.context
++                .factory()?
++                .update_node_array(original, statements)?
++        } else {
++            self.context
++                .factory()?
++                .create_node_array(self.source, statements)?
++        };
++        data.statements = Some(statements.array());
++        let flags = flags_after_update(self.context.arena(), body, &NodeData::Block(data.clone()))?;
++        self.context
++            .factory()?
++            .update_node(body, NodeData::Block(data), flags)
++    }
++
++    /// tsc-port: visitPropertyDeclaration @6.0.3 (the initializer's lexical
++    /// environment): temporaries hoisted by a property initializer wrap it
++    /// in `(() => { var …; return initializer; })()`. The result is memoized
++    /// under the parsed initializer so a later generic child visit reuses it.
++    fn visit_property_initializer(
++        &mut self,
++        initializer: Option<NodeId>,
++    ) -> Result<Option<TransformNode>, TransformError> {
++        let Some(initializer) = initializer else {
++            return Ok(None);
++        };
++        self.start_lexical_environment();
++        let visited = self.visit(initializer);
++        let temporaries = self.end_lexical_environment();
++        let Some(visited) = visited? else {
++            return Ok(None);
++        };
++        let visited = self.node(visited);
++        let Some(declaration) = self.create_hoisted_declarations(temporaries)? else {
++            return Ok(Some(visited));
++        };
++        let return_statement = self.create_return_statement(visited)?;
++        let body = self.create_block(vec![declaration, return_statement], true)?;
++        let arrow = self.create_arrow(Vec::new(), body)?;
++        let arrow = self.create_parenthesized(arrow)?;
++        let wrapped = self.create_call(arrow, Vec::new())?;
++        self.nodes.insert(initializer, Some(wrapped.node()));
++        Ok(Some(wrapped))
+     }
+ 
+     fn allocate_generated_reference_name(&mut self, base: &str) -> String {
+@@ -6209,6 +6371,9 @@ impl StandardDecoratorVisitor<'_> {
+             NodeData::PropertyDeclaration(mut data) => {
+                 let modifiers = data.modifiers;
+                 data.modifiers = self.strip_decorators(data.modifiers)?;
++                // The initializer owns a lexical environment; the memoized
++                // result is what the generic child visit picks up.
++                self.visit_property_initializer(data.initializer)?;
+                 (NodeData::PropertyDeclaration(data), Some(modifiers))
+             }
+             NodeData::MethodDeclaration(mut data) => {
+-- 
+2.50.1 (Apple Git-155)
+

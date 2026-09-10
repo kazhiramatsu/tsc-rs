@@ -1,0 +1,37 @@
+From 5af111fea4c9a2ecda49137d2866b6196939ff21 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:38:28 +0900
+Subject: [PATCH] draft(A6-41 item 4, follow-up): emitted computed names are
+ never re-entered
+
+The memo audit fired on outer-this-computed-name: a decorated static
+property's rewritten computed name carries pending expressions that were
+visited under earlier members' frames (a method decorator keeps lexical
+this), and the property update re-visited that name under the static
+element frame; the node-id memo happened to return the earlier result, but
+tsc's updateComputedPropertyName never re-enters the name. The emitted name
+is now memoized as visited, so no already-projected subtree is re-entered
+under another receiver context (a synthesized this receiver of a super
+decorator would otherwise be rewritten).
+---
+ crates/emitter/src/builtins/standard_decorators.rs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index afdc2fcf8..75a58353f 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -2442,6 +2442,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             }
+             _ => self.create_computed_property_name(injected)?,
+         };
++        // The emitted name holds already-visited pending expressions (visited
++        // under their own members' frames); tsc never re-enters it, so the
++        // member update must not visit it again under this element's frame.
++        self.nodes.insert(name.node(), Some(name.node()));
+         Ok((temporary_binding, name))
+     }
+ 
+-- 
+2.50.1 (Apple Git-155)
+

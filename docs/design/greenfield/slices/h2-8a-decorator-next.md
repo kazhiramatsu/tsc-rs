@@ -204,3 +204,294 @@ ES2022/define `two-phase-constructor` exact. Residuals: `_outerThis` numbering
 (item 3b), the class-fields cache handoff (item 3c) and, at ES2015, the
 `__propKey`/`__setFunctionName` helper order (the explicitly named class's
 `__setFunctionName` is a class-fields-pass helper upstream).
+
+### Item 2 — `super` paths of decorated static contexts (commit `72087e15c`)
+
+Cause: the candidate projected only `this`; every `super` form in a decorated
+class's static initializers and static blocks was left untouched (the
+baseline `super-read-call-tag` emitted `super.x` where tsc emits
+`Reflect.get(_classSuper, "x", _classThis)`).
+
+Changes (`standard_decorators.rs`, port of `_tsc.js:100154-100480`): the
+class and class-element frames carry `classSuper` (the `_classSuper` name of
+a decorated derived class) and `updateState` derives the receiver pair; the
+visitor gained tsc's value-use split (`visitor` / `discardedValueVisitor`)
+for expression statements, for-statement initializers and incrementors,
+comma lists, parentheses and partially emitted expressions;
+`visitPropertyAccessExpression` / `visitElementAccessExpression` →
+`Reflect.get` with original and range of the `super` token;
+`visitCallExpression` → `.call(_classThis, …)`; `visitTaggedTemplateExpression`
+→ `.bind(_classThis)`; `visitBinaryExpression` → destructuring patterns and
+`Reflect.set` (compound and logical operators through a stabilized key temp,
+a hoisted result temp when the value is used); pre/postfix updates through
+`expandPreOrPostfixIncrementOrDecrementExpression`; destructuring targets
+through `createAssignmentTargetWrapper` (`({ set value(_a) { Reflect.set(…)
+} }).value`, the parameter a non-hoisted temp named in its own scope). All
+temporaries hoist into the innermost lexical environment of item 3a, which
+is what produces `static assign = (() => { var _a, …; return […]; })()` and
+`static { var _a, …; … }`.
+
+Result: decorator-super-paths 7/42 → 34/42 exact twice
+(`target/dec-next-runs/item2-r1/`); every ES2022 and ESNext command exact,
+including evaluation order and count of `super[key()]` keys, receivers and
+right-hand sides. ES2015 residuals: the two adjacent controls
+(`super-undecorated-control`, `super-member-decorated-only`) fail identically
+at the baseline — the class-fields ES2015 `Reflect` lowering's source maps —
+and are out of this owner's scope; `super-destructuring` differs only in three
+map segments that the ES2015 destructuring flattener records for the
+pattern's `{`, rest element and `}` (upstream records none) — out of scope
+(flatten_destructuring / es2015 owner), evidence in the run captures;
+`super-lexical-boundaries` allocated a spurious `(_a = _classSuper)` alias in
+the ES2015 class-fields lowering, fixed by the item 3c follow-up
+(`ClassWasDecorated`).
+
+### Item 3b — `_outerThis` numbering and the FileLevel census (commit `29248861f`)
+
+Causes: `_outerThis` was a transform-time string (`allocate_name`) restored
+per class, so sibling and nested classes all printed `_outerThis` where tsc's
+non-scoped optimistic `makeUniqueName` numbers them file-wide in print order
+(`_outerThis`, `_outerThis_1`, `_outerThis_2`); the FileLevel collision set
+came from the transform arena (synthetic nodes included) instead of
+`SourceFile.identifiers`.
+
+Changes: `generated_bindings.rs` gains `allocate_planned_file_wide_optimistic`
+(the file-wide `generatedNames` domain; source identifiers and every earlier
+file-wide generated name collide, never reused by sibling or nested scopes);
+`target_bindings.rs` gains `TargetBinding::allocate_preferred_optimistic`
+and routes non-reserved scoped-optimistic bindings — a combination no
+producer used before — to it, plus `ParsedSourceIdentifierNames::into_names`;
+`standard_decorators.rs` makes `_outerThis` such a binding and takes the
+FileLevel census from `ParsedSourceIdentifierNames`. Reason for touching the
+two binding files: the name owner is the print-time finalizer (print order),
+which the transform cannot reproduce with strings; the boundary is the
+existing `PreferredNameDomain` policy table.
+
+Not changed: FileLevel helper names (`_classThis`, `_metadata`, `_classSuper`,
+`_classDecorators`, …) and the ReservedInNestedScopes helper variables stay
+transform-time strings; `hasGlobalName` is consulted only by the bundle print
+path today (`print_javascript_with_global_names`), so the cross-file global
+witness remains open (see the name-owners results below).
+
+### Item 3c — class-fields handoff on comma-list computed names (commits `65f73c33d`, `0e4ea3b7a`)
+
+Causes: item 1 makes a decorated member's computed name `[(…, _a =
+__propKey(expr))]` (an update of the parsed name, so the internal
+`GENERATED_COMPUTED_PROPERTY_NAME` signal the class-fields owners use was
+lost); the ES2022 class-fields owner allocated a second binding for the
+lowered field key (`this[_d]` for `_b`), the ES2015 owner matched only a
+direct `[temp = expr]` assignment and hoisted its own `_a = (…)`, and the
+ES2015 owner allocated a super alias for a decorated class whose remaining
+`super` sits in a nested class. Also `__setFunctionName` of an explicitly
+named class preceded `__propKey` at ES2015 (upstream requests it from the
+class-fields pass).
+
+Changes: `standard_decorators.rs` keeps the internal flag on updated names and
+requests the explicitly named class's `__setFunctionName` after the members'
+helpers; `class_fields.rs` reuses the cache assignment's binding
+(`find_computed_name_cache` + `binding_of_generated_identifier`) for the
+lowered key; `class_fields/downlevel.rs` locates the cache through
+`find_computed_property_name_cache` (parentheses and comma chains) and
+treats a class expression carrying a decorated `classThis` as
+`ClassWasDecorated` on its class-expression path. These are the two
+class-fields owners named by the receiver-frame review; the changes are
+handoff-only (no new lowering policy).
+
+### Item 4 — visit cache and receiver identity (commit `a2784933e`)
+
+**Global node-id memo.** `visit_with_value_use` memoizes by node id. The
+assumption "a node is never visited under two receiver contexts" was checked
+two ways. (a) Producers: the transforms that run before `transformESDecorators`
+are the TypeScript transform (and, below ESNext, the ES-next transform); the
+subtrees they synthesize before this pass (parameter properties, enum and
+namespace lowering, `using` lowering, named-evaluation helper blocks) are
+created fresh per site (`create_node`/`update_node`), and this pass's own
+synthesized nodes (`Reflect.*` calls, wrappers, pending assignments) are
+created once each and never re-entered. The one deliberate reuse is the class
+element name: `partialTransformClassElement` visits it once under the name
+frame and the element visit reuses that result (`previsit_property_name`
+memoizes under the parsed name id). (b) Measurement: in debug builds the
+visitor records the `(classThis, classSuper)` context of the first visit of
+every node whose subtree contains lexical `this` or `super` and fails a debug
+assertion on a memo hit under a different context, exempting the element
+name previsit. The witness runs and the 530 regression run below execute
+that debug binary; a violation would surface as a failed command.
+
+**`clone_receiver_class_this` versus the actual identity.** tsc's
+`visitThisExpression` returns the single `classThis` identifier node; the
+Rust port returns a clone per use (same text, same emit flags, no range). The
+downstream readers of the class-this identity were enumerated:
+`class_fields.rs` (retained facts, the class-this assignment block
+recognition, decorated class-declaration expansion) and
+`class_fields/downlevel.rs` (`class_this_binding`, the private-static static
+block and the class-this block position) all read `metadata.class_this` of
+the class or static-block node — the identity transported by
+`create_class_this_assignment_block` — or the identifier's text; none
+compares an initializer's `this` replacement by node identity, and the
+replacements are ordinary identifiers whose binding is the FileLevel string
+name. The 530 commands and the 126 witnesses prove the observed outputs
+(JS, maps, diagnostics, callbacks) for both strategies; identity equivalence
+for every downstream consumer is not claimed beyond that enumeration.
+
+**Audit finding (commit `5af111fea`).** The combined run of all 126 witnesses
+(`target/dec-next-runs/all-r1/`, 103 exact, 23 failed including 5 aborts)
+made the debug assertion fire on every lowered configuration of
+`outer-this-computed-name`: a decorated static property's rewritten computed
+name carries pending expressions visited under earlier members' frames (the
+method decorator `((_a = this).dec.bind(_a))` keeps lexical `this`), and
+`update_decorated_property` re-visited that name under the static element
+frame. The memo returned the earlier result — the outputs had been exact —
+but tsc's `updateComputedPropertyName` never re-enters the name, and a
+synthesized `this` receiver (the `super` decorator form of `createCallBinding`)
+would have been rewritten. The emitted name is now memoized as visited;
+the targeted rerun (`target/dec-next-runs/item4-r2/`, 6/6) and the final runs
+below execute the audit without a violation.
+
+### Item 1 follow-up — named-evaluation target (commit `306930ab7`)
+
+`source-identifier-collisions` showed `__setFunctionName(this, "inner")` for
+a nested anonymous decorated class with a static private member; the helper
+block injected by `injectClassNamedEvaluationHelperBlockIfMissing` is visited
+under the class-element frame, so its receiver is `_classThis_2`. Only an
+explicitly named class lowered by the class-fields pass (ES2022 with static
+private/accessor members) keeps `__setFunctionName(this, name)`.
+
+## Source → Rust → witness map
+
+| `_tsc.js` (6.0.3) | Rust (`crates/emitter/src/builtins/…`) | witness source (fixture group) | commit |
+| --- | --- | --- | --- |
+| `updateState` 98973, `enterClass`/`exitClass`, `enterClassElement`, `enterName`, `enterOther`/`exitOther` (pendingExpressions save/restore) | `standard_decorators.rs` `DecoratorReceiverFrame`, `update_receiver_state`, `enter_receiver_class`/`exit_receiver_class`, `enter_receiver_other`/`exit_receiver_other`, `pending_expressions` | `pending-into-undecorated-names`, `outer-this-static-block`, `nested-class-in-computed-name` (transform-order) | `65f688302` |
+| `transformClassLike` 99319 (class decorators → heritage → members, two passes, leftover pending → leading static block, `_outerThis` after hoisted `var`) | `transform_class_like`, `create_decoration_block`, `create_hoisted_declarations`, `rewrite_decorator_lexical_this` | `class-decorator-before-heritage`, `two-phase-constructor`, `outer-this-static-block`, `outer-this-nested-numbering` (transform-order) | `65f688302`, `68f2a4f93`, `29248861f` |
+| `safeExtendsExpression` (`(0, expr)`) | `prepare_class_super` | `heritage-safe-extends` (transform-order) | `65f688302` |
+| `partialTransformClassElement` 99831, `visitReferencedPropertyName`, `visitPropertyNameOfClassElement`, `visitComputedPropertyName`, `injectPendingExpressions` | `transform_class_member`, `visit_referenced_property_name`, `previsit_property_name`, `inject_pending_expressions`, `queue_member_decorators_assignment`, `mark_generated_computed_property_name` | `decorated-computed-fields`, `outer-this-computed-name`, `nested-class-in-computed-name` (transform-order); `computed-temp-shared-binding` (name-owners) | `65f688302`, `65f73c33d`, `0e4ea3b7a`, `5af111fea` |
+| `isNamedEvaluation` 15917–15985, `transformNamedEvaluation` 93715–93960 (`__setFunctionName`, `__propKey` cache temp) | `visit_with_value_use` named-evaluation arms, `prepare_property_named_evaluation`, `DecoratedClassRuntimeName::AssignedReference` | `decorated-class-expression-positions`, `two-phase-constructor` (transform-order); `source-identifier-collisions` (name-owners) | `65f688302`, `306930ab7` |
+| `createTempVariable(hoistVariableDeclaration)`, `getGeneratedNameForNode` (ReservedInNestedScopes), `startLexicalEnvironment`/`endLexicalEnvironment`, `mergeLexicalEnvironment` | `DecoratorLexicalEnvironment`, `start_lexical_environment`/`end_lexical_environment`, `hoist_temp_variable`, `visit_property_initializer`, `visit_function_like_body`; `class_fields.rs` `binding_of_generated_identifier`; `downlevel.rs` `find_computed_property_name_cache` | `class-decorator-before-heritage`, `outer-this-nested-numbering` (transform-order); `sibling-classes-reuse`, `computed-temp-shared-binding` (name-owners) | `68f2a4f93`, `65f73c33d`, `0e4ea3b7a` |
+| `makeUniqueName` optimistic non-scoped (`_outerThis` print-order numbering), `isFileLevelUniqueName` (`SourceFile.identifiers`, `hasGlobalName`) | `generated_bindings.rs` `allocate_planned_file_wide_optimistic`/`reserve_file_wide`; `target_bindings.rs` `TargetBinding::allocate_preferred_optimistic`, `ParsedSourceIdentifierNames::into_names`; `standard_decorators.rs` `DecoratorLexicalThisRewriter` | `outer-this-nested-numbering` (transform-order); `source-identifier-collisions`, `cross-file-global-names` (name-owners; the latter open) | `29248861f` |
+| `visitThisExpression` 100151 | `clone_receiver_class_this` (identity analysis in item 4) | every lowered witness; 530 regression commands | `a2784933e` (record only) |
+| `visitCallExpression` / `visitTaggedTemplateExpression` / `visitPropertyAccessExpression` / `visitElementAccessExpression` 100154–100248 (`Reflect.get`, `.call`, `.bind`) | `visit_call_expression`, `visit_tagged_template_expression`, `visit_property_access_expression`, `visit_element_access_expression`, `create_reflect_get_call`, `create_function_call_call`, `create_function_bind_call` | `super-read-call-tag`, `super-lexical-boundaries` (super-paths) | `72087e15c` |
+| `visitBinaryExpression` / `visitPreOrPostfixUnaryExpression` / `visitExpressionStatement` / `visitForStatement` / `visitCommaListExpression` / `visitParenthesizedExpression` / `visitPartiallyEmittedExpression` 100249–100393 (`Reflect.set`, value used vs discarded, `expandPreOrPostfixIncrementOrDecrementExpression`) | `visit_binary_expression`, `lower_super_assignment`, `visit_update_expression`, `expand_pre_or_postfix_increment_or_decrement`, `visit_discarded`, `create_reflect_set_call` | `super-assignment-used`, `super-assignment-discarded` (super-paths) | `72087e15c` |
+| `visitAssignmentPattern` / `visitArrayAssignmentElement` / `visitObjectAssignmentElement` / `visitAssignmentRestElement` / `createAssignmentTargetWrapper` 100394–100480 | `visit_assignment_pattern`, `visit_object_assignment_element`, `visit_assignment_rest_element`, `create_assignment_target_wrapper` | `super-destructuring` (super-paths; ES2015 maps open) | `72087e15c` |
+| `visitStaticPropertyDeclaration` decorator receivers (`createCallBinding` with `setTextRange`) | `bind_decorator_receiver` | `outer-this-computed-name`, `decorated-computed-fields` (transform-order) | `65f688302` |
+| global node-id memo assumption (no upstream counterpart; the visitor caches by node) | `audit_memo_first_visit`, `audit_memo_hit` (debug builds) | all 126 witnesses and the 530 commands run on the audited binary | `a2784933e`, `5af111fea` |
+
+## Open rows (not closed by this candidate)
+
+Measured (witness commands still failing at the final head):
+
+- `decorator-name-owners/*/cross-file-global-names` (5 of 6): `hasGlobalName`
+  is consulted only by the bundle print path
+  (`print_javascript_with_global_names`); single-file JavaScript emit
+  finalizes names without the resolver oracle, and the esDecorators FileLevel
+  helper names (`_classThis`, `_metadata`, `_classSuper`, `_classDecorators`,
+  …) and ReservedInNestedScopes helper variables are still transform-time
+  strings, so a global `var _classThis` in another file does not renumber
+  them and global `_a` does not shift the temp sequence. Closing it needs
+  (a) those names as generated bindings in the FileLevel/scoped domains of
+  `target_bindings.rs` and (b) the oracle on the single-file print path
+  (`execute.rs`), a cross-cutting change to every JavaScript emit.
+- `decorator-name-owners/{es2022,esnext}/set/sibling-classes-reuse` and
+  `…/set/source-identifier-collisions`: a class with static private members
+  and a public static field under set semantics is routed to the
+  ES2015-style lowering at ES2022/ESNext, which allocates a class alias and
+  emits `_a.self = _classThis` / `_b.inner = …` after the class where tsc
+  emits `static { this.self = _classThis; }` static blocks (and numbers the
+  temporaries accordingly); class-fields owner (private-static route), not
+  touched here.
+- `decorator-super-paths/es2015/*/super-undecorated-control` and
+  `super-member-decorated-only` (controls): the class-fields ES2015 `Reflect`
+  lowering's source maps differ from tsc for the same JavaScript; failing
+  identically at the baseline, outside this owner.
+- `decorator-super-paths/es2015/*/super-destructuring`: JavaScript exact;
+  three map segments recorded by the ES2015 destructuring flattener for the
+  object pattern's `{`, rest element and `}` are absent upstream
+  (flatten_destructuring / es2015 owner).
+
+Source-level rows without a failing witness (need a witness before a claim):
+
+- A decorated computed property whose initializer is a decorated anonymous
+  class: tsc hoists the same generated name twice (`var _b, _b`).
+- Literal computed names on decorated members (`@dec ["x"]`) take the
+  `__propKey` temp path instead of `{ computed: true, name: "x" }` with
+  element-access `access`.
+- Object-literal computed property names inside decorated static contexts do
+  not absorb the pending queue (tsc's `visitor` reaches
+  `visitComputedPropertyName` for every computed name).
+- Non-literal computed property names of undecorated classes' properties
+  with a decorated class initializer (the hoist belongs to the enclosing
+  function's lexical environment, which this transform does not own).
+- ReservedInNestedScopes helper-variable names (`_x_decorators`, unique
+  `_classThis`) are transform-time strings; nested/sibling numbering matched
+  every witness, but the print-order model is not proven beyond them.
+
+## Results and evidence
+
+Final head of the draft branch: see the receipts below (`head`). Runs are
+debug binaries with the item 4 audit active; every run is demoted
+(`taskpolicy -b nice -n 15`, `CARGO_BUILD_JOBS=2`, own target dir
+`target/dec-next-artifacts`), one heavy run at a time.
+
+| run | scope | result | evidence |
+| --- | --- | --- | --- |
+| baseline-context | existing receiver-context 36 on the start point | 36/36 exact twice | `target/dec-next-runs/baseline-context/` |
+| baseline-witnesses-v3 | 126 witnesses on the unmodified candidate (`c9ba0380b`) | 27/126 exact twice (4 typed errors) | `target/dec-next-runs/baseline-witnesses-v3/` |
+| item1-r3 | transform-order after item 1 | 32/60 | `target/dec-next-runs/item1-r3/` |
+| item3a-r1 | transform-order after item 3a | 38/60 | `target/dec-next-runs/item3a-r1/` |
+| item2-r1 | super-paths after item 2 | 34/42 | `target/dec-next-runs/item2-r1/` |
+| all-r1 | 126 witnesses after items 3b/3c/4 | 103/126 (5 audit aborts, see item 4) | `target/dec-next-runs/all-r1/` |
+| item4-r2 | outer-this-computed-name after the re-entry fix | 6/6 | `target/dec-next-runs/item4-r2/` |
+| all-r2 | 126 witnesses at the final head | **109/126 exact twice, 0 inconsistent, 0 audit violations** | `target/dec-next-runs/all-r2/`, receipt `ratchets/h2-8a-decorator-next-witnesses.v1.json` |
+| full530-r1 | the 530 complete commands at the final head, compared with full62 | **530/530 exact twice, 0 failed, 0 inconsistent; 0 changed / 0 missing / 0 extra versus the full62 captures**, exit 0 | `target/dec-next-runs/full530-r1/`, receipt `ratchets/h2-8a-decorator-next-full530.v1.json` |
+| emitter-suites-r1 | existing `tsc-rs-emitter` lib + contracts suites at the final head (`cargo test --offline -p tsc-rs-emitter --lib --test contracts -- --test-threads=1`) | **494 lib + 452 contracts passed, 0 failed**, exit 0 (the attempt65 counts, unchanged) | `target/dec-next-runs/emitter-suites-r1/run.log` |
+
+Per witness source at the final head (exact twice / 6): transform-order 60/60
+(all ten sources); super-paths 34/42 (`super-read-call-tag`,
+`super-assignment-used`, `super-assignment-discarded` 6/6; `super-destructuring`,
+`super-lexical-boundaries`, `super-member-decorated-only`,
+`super-undecorated-control` 4/6, all ES2015); name-owners 15/24
+(`computed-temp-shared-binding` 6/6, `source-identifier-collisions` and
+`sibling-classes-reuse` 4/6, `cross-file-global-names` 1/6). The 17 failing
+commands are exactly the open rows above; every failure is attributed to an
+owner outside this transform or to the cross-file global-name row.
+
+Receipts (`scripts/freeze-decorator-next-evidence.py`; each binds the
+worktree head, the five production file hashes, the fixture hashes, the
+executed test binary and its hash, the log hash, the actual exit code and
+every capture with its outcome):
+
+| receipt | SHA-256 | head | binary |
+| --- | --- | --- | --- |
+| `ratchets/h2-8a-decorator-next-witnesses.v1.json` (126 witnesses, 109 exact twice) | `9e07360300a6b19da7ced1438bf60674c40efdf3592aba3ee20a27997d7b5558` | `306930ab7` | `contracts-cabf44d19c2beb96` |
+| `ratchets/h2-8a-decorator-next-full530.v1.json` (530 commands, 530 exact twice) | `6dfb5c31be377c6f744f3656015f5b935343afbbdfaf03d96519f8ed09f2a1ff` | `306930ab7` | `contracts-cabf44d19c2beb96` (SHA-256 `092e15a654f29072e5e57e7724b6b3178c26a178e480a7135983b7400c98b688`) |
+
+The full62 comparison (`target/dec-next-runs/tools/compare-with-full62.py`
+against the attempt62 captures under
+`/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-comma-printer-design-experiment-9ud1vmdy/captures`,
+1060 files) reports `{"cases": 530, "exact_twice": 530, "failed": 0,
+"inconsistent": 0, "changed_vs_full62": 0, "missing_vs_full62": 0,
+"extra_vs_full62": 0}`: every one of the 530 complete tuples (JavaScript,
+maps, diagnostics, emit result, write callbacks, status, exit) is byte-equal
+to the full62 observation, so the previously passing 530 are unchanged and
+there is no regression. No production file was edited after the final
+measurement: the `crates/` tree is clean at `306930ab7` for the witness run,
+the 530 run and the emitter-suite run (`git status --short -- crates` empty,
+recorded in `target/dec-next-runs/emitter-suites-r1/crates-status.txt`), and
+the evidence commit on top of it changes only documentation, receipts,
+scripts and patches.
+
+Added tests: one contracts test function
+(`decorator_next_witnesses_match_complete_typescript_observations` in
+`crates/compiler/tests/contracts.rs`) covering 126 new complete commands
+(60 + 42 + 24), compared as full tuples like the existing 530; it is not
+counted into the 494/452 emitter suites above, and it currently fails on the
+17 open commands by design (the receipt is the accepted state, not the test
+exit). No existing fixture or expectation was rewritten.
+
+Candidate patches (one per cause, `git format-patch` of the draft commits on
+top of the start point `cb4e5f3e8`, plus the cumulative production diff):
+`docs/design/greenfield/slices/h2-8a-decorator-next-NN-*.candidate.patch`
+and `h2-8a-decorator-next-production.cumulative.patch`. Scripts:
+`scripts/generate-decorator-next-witness-inputs.py`,
+`scripts/observe-decorator-next-witnesses.mjs`,
+`scripts/freeze-decorator-next-evidence.py`,
+`scripts/export-decorator-next-candidates.sh`; the capture analyzers used
+during the work (`analyze-witnesses.py`, `compare-with-full62.py`,
+`mapdiff.py`) are copied under `target/dec-next-runs/tools/`.

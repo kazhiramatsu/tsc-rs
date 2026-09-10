@@ -1,0 +1,232 @@
+From 29248861f58e4fa1c407c178f276acf17e4c7230 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:27:36 +0900
+Subject: [PATCH] draft(A6-41 item 3b): _outerThis is a file-wide optimistic
+ binding; FileLevel census is the parsed one
+
+generated_bindings.rs: allocate_planned_file_wide_optimistic = tsc
+makeUniqueName(base, isUniqueName, optimistic, scoped=false): the name is
+recorded in the file-wide generatedNames domain (source scope), collides with
+source identifiers and every earlier file-wide generated name, and is never
+reused by sibling or nested scopes.
+target_bindings.rs: TargetBinding::allocate_preferred_optimistic (preferred
+base, not reserved in nested scopes); the finalizer routes non-reserved
+scoped-optimistic bindings to the file-wide allocation (no producer used that
+combination before); ParsedSourceIdentifierNames::into_names.
+standard_decorators.rs: _outerThis is such a binding (one per class, named
+in print order: _outerThis, _outerThis_1, ...); the FileLevel collision set
+is ParsedSourceIdentifierNames (SourceFile.identifiers) instead of the
+transform arena census that includes synthetic nodes.
+---
+ .../src/builtins/generated_bindings.rs        | 40 +++++++++++++++++
+ .../src/builtins/standard_decorators.rs       | 44 ++++++++++++++-----
+ .../emitter/src/builtins/target_bindings.rs   | 41 ++++++++++++++---
+ 3 files changed, 108 insertions(+), 17 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/generated_bindings.rs b/crates/emitter/src/builtins/generated_bindings.rs
+index 9985ca9d3..51cf4a499 100644
+--- a/crates/emitter/src/builtins/generated_bindings.rs
++++ b/crates/emitter/src/builtins/generated_bindings.rs
+@@ -402,6 +402,46 @@ impl GeneratedBindingScopes {
+         }
+     }
+ 
++    /// tsc-port: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
++    ///
++    /// An optimistic name that is neither `FileLevel` nor
++    /// `ReservedInNestedScopes` (`_outerThis`): tsc records it in the
++    /// file-wide `generatedNames` set, so it collides with source identifiers
++    /// and with every earlier file-wide generated name regardless of scope,
++    /// and is never reused by a sibling or nested scope. The planned spelling
++    /// is kept when free; otherwise the ordinal continues from it.
++    pub(super) fn allocate_planned_file_wide_optimistic(
++        &mut self,
++        preferred: &str,
++        planned: String,
++    ) -> String {
++        if self.reserve_file_wide(planned.clone()) {
++            return planned;
++        }
++        let prefix = format!("{preferred}_");
++        let mut suffix = planned
++            .strip_prefix(&prefix)
++            .and_then(|suffix| suffix.parse::<usize>().ok())
++            .map_or(1, |suffix| suffix + 1);
++        loop {
++            let candidate = format!("{preferred}_{suffix}");
++            if self.reserve_file_wide(candidate.clone()) {
++                return candidate;
++            }
++            suffix += 1;
++        }
++    }
++
++    fn reserve_file_wide(&mut self, candidate: String) -> bool {
++        if !self.reserve_in_source(candidate.clone()) {
++            return false;
++        }
++        if self.current != GeneratedBindingScopeId(0) {
++            self.scopes[self.current.0].names.push(candidate);
++        }
++        true
++    }
++
+     /// Commits a file-level optimistic name that was planned from the parsed
+     /// source identifier snapshot.
+     ///
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 0aadbae04..fb6368bb8 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -15,8 +15,10 @@ use crate::{
+ };
+ 
+ use super::{
+-    constructor_prologue, flags_after_update, system::collect_identifier_texts,
+-    target_bindings::TargetBinding, ConstructorPrologue,
++    constructor_prologue, flags_after_update,
++    system::collect_identifier_texts,
++    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
++    ConstructorPrologue,
+ };
+ 
+ const ES_DECORATE_HELPER_TEXT: &str = r#"var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
+@@ -568,7 +570,9 @@ impl ClassPendingDecoratorInitializers {
+ /// makes it impossible to create a cached receiver without also declaring it.
+ #[derive(Default)]
+ struct DecoratorDefinitionBindings {
+-    outer_this_name: Option<String>,
++    /// `createUniqueName("_outerThis", Optimistic)`: one binding per class,
++    /// named file-wide in print order by the finalizer.
++    outer_this: Option<TargetBinding>,
+ }
+ 
+ /// tsc-port: startLexicalEnvironment/endLexicalEnvironment @6.0.3
+@@ -683,7 +687,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         target: ScriptTarget,
+     ) -> Self {
+         let used_names = collect_identifier_texts(context.arena(), source);
+-        let file_level_names = used_names.clone();
++        // isFileLevelUniqueName consults `SourceFile.identifiers`: the parsed
++        // identifier census, not the transform arena's synthetic nodes.
++        let file_level_names = ParsedSourceIdentifierNames::collect(context.arena(), source)
++            .map(ParsedSourceIdentifierNames::into_names)
++            .unwrap_or_else(|_| used_names.clone());
+         Self {
+             context,
+             source,
+@@ -1782,9 +1790,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         if let Some(declaration) = self.create_hoisted_declarations(temporaries)? {
+             prologue.push(declaration);
+         }
+-        if let Some(name) = class_definition_bindings.outer_this_name.as_deref() {
++        if let Some(binding) = class_definition_bindings.outer_this.as_ref() {
++            let name = self.create_binding_identifier(binding)?;
+             let initializer = self.create_this()?;
+-            prologue.push(self.create_let(name, Some(initializer))?);
++            let declaration =
++                self.create_variable_declaration_with_name(name, Some(initializer))?;
++            prologue.push(
++                self.create_variable_statement_from_declarations(
++                    vec![declaration],
++                    NodeFlags::LET,
++                )?,
++            );
+         }
+         definitions.splice(0..0, prologue);
+         if class_fields_owns_set_function_name {
+@@ -5860,15 +5876,19 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
+         let original = self.visitor.node(id);
+         let record = self.visitor.context.arena().node(original)?.clone();
+         let rewritten = if record.kind == SyntaxKind::ThisKeyword {
+-            let name = match self.bindings.outer_this_name.as_ref() {
+-                Some(name) => name.clone(),
++            let binding = match self.bindings.outer_this.as_ref() {
++                Some(binding) => binding.clone(),
+                 None => {
+-                    let name = self.visitor.allocate_name("_outerThis");
+-                    self.bindings.outer_this_name = Some(name.clone());
+-                    name
++                    let binding = TargetBinding::allocate_preferred_optimistic(
++                        self.visitor.context,
++                        "_outerThis".to_owned(),
++                        "_outerThis".to_owned(),
++                    )?;
++                    self.bindings.outer_this = Some(binding.clone());
++                    binding
+                 }
+             };
+-            self.visitor.create_identifier(&name)?.node()
++            self.visitor.create_binding_identifier(&binding)?.node()
+         } else if matches!(&record.data, NodeData::Token)
+             || Self::establishes_this_boundary(record.kind)
+         {
+diff --git a/crates/emitter/src/builtins/target_bindings.rs b/crates/emitter/src/builtins/target_bindings.rs
+index 59d65de0d..2d74be1df 100644
+--- a/crates/emitter/src/builtins/target_bindings.rs
++++ b/crates/emitter/src/builtins/target_bindings.rs
+@@ -91,6 +91,10 @@ impl ParsedSourceIdentifierNames {
+         self.0.contains(name)
+     }
+ 
++    pub(super) fn into_names(self) -> BTreeSet<String> {
++        self.0
++    }
++
+     pub(super) fn optimistic_candidate(&self, preferred: &str) -> String {
+         if !self.0.contains(preferred) {
+             return preferred.to_owned();
+@@ -314,6 +318,27 @@ impl TargetBinding {
+         })
+     }
+ 
++    /// tsc `createUniqueName(base, GeneratedIdentifierFlags.Optimistic)`
++    /// without `FileLevel`/`ReservedInNestedScopes`: named file-wide in print
++    /// order (`allocate_planned_file_wide_optimistic`).
++    pub(super) fn allocate_preferred_optimistic(
++        context: &mut TransformationContext,
++        preferred_base: String,
++        provisional_name: String,
++    ) -> Result<Self, TransformError> {
++        Ok(Self {
++            id: context.allocate_generated_binding_id()?,
++            provisional_name,
++            numbered_base: None,
++            preferred_base: Some(preferred_base),
++            preferred_role_suffix: None,
++            preferred_name_domain: Some(PreferredNameDomain::ScopedOptimistic),
++            ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
++            reserve_in_nested_scopes: false,
++            derived_from: None,
++        })
++    }
++
+     pub(super) fn allocate_preferred_reserved_in_nested_scopes(
+         context: &mut TransformationContext,
+         preferred_base: String,
+@@ -731,11 +756,17 @@ fn finalize_generated_binding_names_with_policy(
+                             reserve_in_nested_scopes,
+                         ),
+                         (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
+-                            scopes.allocate_planned_preferred_with_policy(
+-                                &base,
+-                                planned_name,
+-                                reserve_in_nested_scopes,
+-                            )
++                            if reserve_in_nested_scopes {
++                                scopes.allocate_planned_preferred_with_policy(
++                                    &base,
++                                    planned_name,
++                                    reserve_in_nested_scopes,
++                                )
++                            } else {
++                                // A non-reserved optimistic name is tsc's
++                                // non-scoped makeUniqueName: file-wide.
++                                scopes.allocate_planned_file_wide_optimistic(&base, planned_name)
++                            }
+                         }
+                         (Some(base), None, None, None) => {
+                             // Pre-assigned in phase 2 (scope-pass
+-- 
+2.50.1 (Apple Git-155)
+
