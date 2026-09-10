@@ -1183,6 +1183,180 @@ the same v10 candidate is next, comparing all complete tuples to v7; these
 focused and adjacent successes do not establish whole A40 readiness or global
 emitter completion.
 
+Full36 on v10 is now complete: **477/530 exact twice**,53 failures, exit101
+in1239.712 seconds. Its
+[full receipt](../../../../ratchets/h2-8a-list-format-flags-design-experiment.v1.json)
+retains997 copied inputs,109 vendor inputs and the executed binary. All530
+full tuples, including errors and partial writes, are identical to v7; all80
+required repairs and477 prior successes remain preserved, with no typed
+failure or regression. The mapped-member/list-format repairs improve their
+direct witnesses but do not reduce the53 successor failures in this separate
+population. No full-emitter convergence claim follows from this result.
+
+### Import-type attribute hint and pipeline phase amendment
+
+Pinned TypeScript6.0.3 `_tsc.js:118163-118182` emits import-type attributes
+through pipelineEmit(ImportTypeNodeAttributes), not the ordinary attribute
+worker. `pipelineEmitWithHintWorker:117236-117259` selects the specialized
+worker after notification, substitution, comments and maps. That worker
+(`119305-119315`, hashc2028e6703acc1bf61520b1e7d35939630903c14182894f429a798dc396a8486)
+writes the outer `{ with: ... }`/`{ assert: ... }` wrapper and calls emitList
+with format526226. Its list uses exactly the common ImportAttributes policies;
+parent EmitFlags.MultiLine adds PreferNewLine and multiLine is ignored.
+
+Native EmitHint::ImportTypeNodeAttributes exists in transform.rs but was not
+used by the printer. The import-type caller directly invokes its private
+worker, bypassing the attribute's notification, substitution, ordinary
+comments, NoNestedComments extent and node-map boundaries. Its private
+emit_import_attribute_elements also routes through a compact comma helper,
+omitting the common preserved-line/cursor/positional-comment phases.
+
+Fresh source observer `observe-import-type-attributes.mjs --check` fixes84
+controls in `fixtures/import-type-attributes.json` (SHA-256
+56dbdad5fed18af927e304830d7238e593de9b99f673cf49b5541471d985b528):
+four layouts (including Unicode), with/assert, parsed/clone/created/ranged
+attribute provenance, parent flags0/2, comment suppression/JSDoc controls and
+four actual attribute substitutions. The full parent/attribute/list/child
+tree state, complete output bytes/final UTF16 coordinates and enabled
+attribute hook events are recorded twice. Replacements use a fresh reversed
+member array and fresh attributes; both original and replacement provenance
+are observed. Native mirrors the same factory recipes with declaration
+syntax and StandaloneNode printing, and an internal Transformer enabling
+only the ImportAttributes hooks. No external custom-transformer API is
+activated by these internal seam controls.
+
+The source hook events are **substitute, before, after**. This is established
+by `getPipelinePhase:117185-117216` and
+`pipelineEmitWithNotification:117219-117222`: selecting the next phase invokes
+substituteNode (and the parenthesizer for a changed node) before entering the
+notification callback. All seven native selection sites currently call
+before_emit_node first: source root/statement pairs in original-text, JSON
+and canonical routes, plus the common node pipeline. The independent source
+observer `observe-emit-pipeline-phases.mjs --check` fixes8 ASCII/Unicode
+controls in `fixtures/emit-pipeline-phases.json`, SHA-256
+ee930248d3000c051fd4dc146f338c2c0242fb6b3f8ec2337086d4b6be519ba9.
+Those controls enable SourceFile/ExpressionStatement hooks and, for the
+standalone route, Identifier hooks, checking complete ordered traces and
+writer outputs. Existing fields and expected artifacts are unchanged.
+
+The cumulative candidate remains confined to printer.rs plus v7's existing
+bundle receiver hunk, applied in an isolated workspace while A40 is open:
+
+1. Carry the existing EmitHint by value through the common substituted-node
+   comment adapter and transformed-node map/notification adapter. Manual
+   source statements supply Unspecified. The virtual no-ASI whole-node
+   wrapper forwards its incoming hint; nested children keep their own hints.
+   This is node-local call data, never a printer-global field or an inherited
+   child context. No reset/invalidation protocol is added.
+2. At the node worker selection point, ImportTypeNodeAttributes dispatches
+   to the specialized worker, retaining kind validation there. All other
+   hints keep their current ordinary worker path; unimplemented mapped-type
+   parameter/identifier-specific validation remains an explicit open owner.
+   The attribute caller enters emit_optional_ordinary_child with its special
+   hint and complete source-comment extent, so substitution changes the
+   actual comment/map/worker owner before emission.
+3. Pass the actual attribute handle to its worker, validate/clone its data,
+   and replace its sole manual list helper with emit_formatted_node_list,
+   Curly/IMPORT_ATTRIBUTES/Unspecified and parent EmitFlags.MultiLine.
+   Remove the now-unused private compact attribute helper. Preserve the
+   wrapper's before/after spaces and tokens.
+4. Reorder substitution selection before before_emit_node at all seven
+   current entry sites. In the common node path, select grammar parentheses
+   before entering notification, then retain the existing scoped restoration
+   and primary-error precedence. A substitution failure has not entered any
+   notification; it must not invoke after. No transform trait or public ABI
+   changes are needed. Full callback-failure, reentrant replacement and
+   parenthesizer failure traces remain unresolved obligations; successful
+   trace controls alone cannot qualify those branches.
+5. Freeze native-before on unchanged v10 after full36 has terminated and its
+   evidence is archived. Execute all previous1057 plus the92 new controls,
+   retaining complete failures and tree states. Then freeze/execute the
+   candidate, resolve measured differences and run adjacent494/451/1350 plus
+   full530 against the strongest completed predecessor. No fixtures may be
+   rewritten to hide new output/trace regressions, and all80 required fixes
+   and previously exact full530 tuples remain individually gated.
+
+The source-only fixtures are new files created while full36 runs; they were
+not copied or executed in36 and supply no credit to that run. Production,
+whole A40 readiness, H2.8a-e and hosted activation remain incomplete.
+
+Native-before37 on unchanged v10 completed with exit101 in14.700 seconds:
+**1057/1149 exact twice**,92 failures, all1057 previous controls preserved.
+The [before receipt](../../../../ratchets/h2-8a-import-type-attributes-direct-before.v1.json)
+retains all2298 attempts across six binaries, all572 tree states and508 factory
+states exact. All84 attribute controls lack their expected events;76 also
+differ in text. All8 phase controls have an event-order difference; one also
+differs in text. Those distinct observations remain recorded, including the
+text difference not explained by event order alone.
+
+The cumulative candidate v11 is frozen in
+`h2-8a-list-intervening-printer.candidate-v11.patch`, SHA-256
+c9f84f82ccf3ba8eadcb50bb585342693c7a8128e91a8c4190581e55298e6805.
+Applied printer SHA-256 is
+2f8be33e6f35b9e512c49b813dd06f245be9fa492924c86e9f99f240498d8d3d;
+the existing v7 bundle hunk remains unchanged. The next execution is
+`python3 scripts/run-comma-printer-design-experiment.py 38 factory-direct --factory --list-owner`,
+followed by `python3 scripts/analyze-list-intervening-design-experiment.py 38`.
+The full comparator pins v11 to completed full36, the strongest predecessor.
+No v11 execution success is claimed by this candidate freeze.
+
+Attempt38 is a compilation failure (exit101,5.857 seconds, no executed
+binaries): `bundle.rs:263` still called emit_transformed_node without its
+new hint. Its complete compiler output and frozen inputs are retained in
+`ratchets/h2-8a-import-type-attributes-compile-attempt.v1.json`; it earns no
+runtime credit. The bundle caller census therefore adds an eighth selection
+site, write_bundle_prologue, to the seven in printer.rs. Upstream
+emitPrologueDirectives (`_tsc.js:119789-119811`) calls ordinary emit(statement)
+after writeLine; it shares the same substitution-before-notification order.
+The Rust change is to select substitution before before_emit_node here too,
+and pass EmitHint::Unspecified through the common worker adapter. The existing
+bundle file is already an allowed candidate file; no new production file is
+required. Failure/reentry behavior remains open as above.
+
+Fresh `node scripts/observe-emit-pipeline-bundle.mjs --check` freezes two
+ASCII/Unicode one-file bundles with a prologue and a following statement in
+`fixtures/emit-pipeline-bundle.json`, SHA-256
+f9f5d2f37f7060ba36ab119991f86d9939af94c59fc6e9db7fc2ebf3d69e7c98.
+Native uses TransformBundle and PrintRequest::Bundle, observing all enabled
+statement/root events and complete text twice. Attempt39 repeats native-before
+on v10 with these added controls (1151 total), preserving the unchanged1149
+observations. A new cumulative v12 will repair the omitted bundle caller;
+published/executed v11 bytes remain immutable.
+
+Attempt39 completed on v10:1057/1151 exact twice,94 failures, exit101 in12.044
+seconds. Both added bundle controls differ only in events; every1149 previous
+observation is unchanged. The expanded native-before is retained in
+`ratchets/h2-8a-import-type-attributes-bundle-before.v1.json`.
+Cumulative v12 is frozen as `h2-8a-list-intervening-printer.candidate-v12.patch`
+(SHA-256 c787c9e6ab327bd355b2ae9d8a9ac47e761324c93d1032569053c5bc8464f50a).
+Its printer bytes equal v11; its applied bundle SHA-256 is
+2cf673e2048236f7aae0ce2aef2d7ea655546e4c327748b688158c88051aad61.
+Attempt40 will run factory-direct with --factory --list-owner on these bytes.
+
+Attempt40 is now complete: **1150/1151 exact twice**, one JSON Unicode text
+difference, exit101 in26.831 seconds. All84 import-type attribute controls and
+all94 ordered event traces are exact; all1057 previously exact controls remain
+preserved, as do572 tree states and508 factory states. The
+[after receipt](../../../../ratchets/h2-8a-import-type-attributes-direct-after.v1.json)
+retains every result and all six executed binaries. The remaining JSON case
+prints a literal emoji while TypeScript prints escaped UTF16 surrogate units.
+A source probe locates canUseOriginalText (`_tsc.js:13689-13702`): absent
+node.parent prevents reuse of original literal spelling. parseJsonText does
+not populate parent links; calling setParentRecursive on the same TS tree
+changes its output to the literal emoji. Rust NodeArena finalization always
+populates structural parents. The representation of optional upstream parent
+provenance, and the literal worker's broader original-text eligibility, are
+open findings; no JSON/path-specific escaping workaround is authorized.
+
+Adjacent41 on the same v12 candidate passes494 units,451 contracts and all1350
+declaration reprint rows, exit0 in38.493 seconds with no warnings. The
+[adjacent receipt](../../../../ratchets/h2-8a-import-type-attributes-emitter-checks.v1.json)
+retains1002 copied inputs,109 vendor inputs and both executed binaries.
+Full530 comparison to v10/full36 is next; the focused and adjacent results
+do not establish whole-emitter completion or cover callback-failure/reentry.
+All eleven direct source observers were freshly checked against their frozen
+artifacts after adjacent41. No expected output was changed.
+
 1. Mechanically close and disposition the whole upstream owner/caller/predicate
    graph, including named constructor references, statement-list results,
    function child-table ordering, constructor's two visitation phases,

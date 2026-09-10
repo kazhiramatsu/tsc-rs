@@ -124,7 +124,7 @@ def main():
         retained = Path(binary['retained_path'])
         assert retained.stat().st_size == binary['size']
         assert sha(retained.read_bytes()) == binary['sha256']
-    assert len(terminal['binaries']) == 4
+    assert len(terminal['binaries']) == 6
     source_archive = archive / 'source-and-inputs.tar.gz'
     assert sha(source_archive.read_bytes()) == pre['source_archive_sha256']
     fixtures = [
@@ -136,6 +136,9 @@ def main():
         ('ratchets/h2-8a-list-cursor-lifecycle.v1.json', 11),
         ('crates/emitter/tests/fixtures/mapped-type-members.json', 328),
         ('crates/emitter/tests/fixtures/list-format-flags.json', 160),
+        ('crates/emitter/tests/fixtures/import-type-attributes.json', 84),
+        ('crates/emitter/tests/fixtures/emit-pipeline-phases.json', 8),
+        ('crates/emitter/tests/fixtures/emit-pipeline-bundle.json', 2),
     ]
     cases = {}
     artifacts = []
@@ -165,13 +168,13 @@ def main():
         failures[key] = actual
     # The catch-unwind loop's final list includes early typed failures as
     # well as assertion differences; refuse an unparsed panic or missing row.
-    final_lists = re.findall(r'(?:comma argument factory|comma list printer|list cursor|mapped type members|list format flags) failures: (\[[^\n]*\])', log)
+    final_lists = re.findall(r'(?:comma argument factory|comma list printer|list cursor|mapped type members|list format flags|import type attributes|emit pipeline phases) failures: (\[[^\n]*\])', log)
     final_failures = {entry for rendered in final_lists for entry in json.loads(rendered)}
     assert final_failures == {f'{case_id} repetition {rep}' for case_id, rep in failures}
-    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript', 'list_cursor_lifecycle_matches_typescript', 'mapped_type_members_matches_typescript', 'list_format_flags_matches_typescript']:
+    for test in ['comma_argument_factory_matches_typescript', 'comma_list_printer_matches_typescript', 'list_cursor_lifecycle_matches_typescript', 'mapped_type_members_matches_typescript', 'list_format_flags_matches_typescript', 'import_type_attributes_matches_typescript', 'emit_pipeline_phases_matches_typescript']:
         assert f'test {test} ...' in log
     assert terminal['actual_exit'] == (101 if failures else 0)
-    assert len(re.findall(r'test result: (?:ok|FAILED)\.', log)) == 4
+    assert len(re.findall(r'test result: (?:ok|FAILED)\.', log)) == 6
     rows = []
     for case_id, case in cases.items():
         pair = [failures.get((case_id, rep)) for rep in range(2)]
@@ -185,6 +188,8 @@ def main():
             row['factory_state_exact_twice'] = True
         if 'tree_state' in case['typescript_observation']:
             row['tree_state_exact_twice'] = pair[0] is None or pair[0]['tree_state'] == case['typescript_observation']['tree_state']
+        if 'events' in case['typescript_observation']:
+            row['events_exact_twice'] = pair[0] is None or pair[0]['events'] == case['typescript_observation']['events']
         rows.append(row)
     result = {
         'version': 1, 'attempt': attempt,
@@ -196,7 +201,8 @@ def main():
         'summary': {'controls': len(rows), 'exact_twice': sum(row['exact_twice'] for row in rows),
                     'failed_twice': len(failures) // 2, 'native_attempts': len(rows) * 2,
                     'factory_state_exact_twice': sum(row.get('factory_state_exact_twice', False) for row in rows),
-                    'tree_state_exact_twice': sum(row.get('tree_state_exact_twice', False) for row in rows)},
+                    'tree_state_exact_twice': sum(row.get('tree_state_exact_twice', False) for row in rows),
+                    'events_exact_twice': sum(row.get('events_exact_twice', False) for row in rows)},
         'results': rows,
     }
     with output.open('x') as stream:

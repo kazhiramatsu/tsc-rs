@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "route": "direct-factory-and-printer",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "834a4bfca930bbfa5f4c16a89a56a8344948c0464e0a910cbfe88d0015cfd4c2",
+  "cases": [
+    {
+      "case_id": "emit-pipeline-bundle/false",
+      "route": "bundle",
+      "text": "\"use strict\";\r\nvalue;\r\n",
+      "typescript_observation": {
+        "events": [
+          {
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 13
+          },
+          {
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 13
+          },
+          {
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 13
+          },
+          {
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 23
+          },
+          {
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 23
+          },
+          {
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 13,
+            "end": 21
+          },
+          {
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 13,
+            "end": 21
+          },
+          {
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 13,
+            "end": 21
+          },
+          {
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 23
+          }
+        ],
+        "text": "\"use strict\";\r\nvalue;\r\n",
+        "utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFsdWU7DQo=",
+        "utf8_bytes": 23,
+        "end_utf16": {
+          "position": 23,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "emit-pipeline-bundle/true",
+      "route": "bundle",
+      "text": "\"é😀\";\r\nvalue;\r\n",
+      "typescript_observation": {
+        "events": [
+          {
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 6
+          },
+          {
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 6
+          },
+          {
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 0,
+            "end": 6
+          },
+          {
+            "phase": "substitute",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 16
+          },
+          {
+            "phase": "before",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 16
+          },
+          {
+            "phase": "substitute",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 6,
+            "end": 14
+          },
+          {
+            "phase": "before",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 6,
+            "end": 14
+          },
+          {
+            "phase": "after",
+            "hint": "Unspecified",
+            "kind": 245,
+            "pos": 6,
+            "end": 14
+          },
+          {
+            "phase": "after",
+            "hint": "SourceFile",
+            "kind": 308,
+            "pos": 0,
+            "end": 16
+          }
+        ],
+        "text": "\"é😀\";\r\nvalue;\r\n",
+        "utf8_base64": "IsOp8J+YgCI7DQp2YWx1ZTsNCg==",
+        "utf8_bytes": 19,
+        "end_utf16": {
+          "position": 16,
+          "line": 2,
+          "column": 0
+        }
+      }
+    }
+  ]
+}
