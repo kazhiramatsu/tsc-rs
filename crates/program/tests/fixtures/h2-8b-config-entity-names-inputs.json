@@ -1,0 +1,448 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1g",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "moduleResolution",
+    "ignoreDeprecations",
+    "noLib",
+    "types",
+    "strictPropertyInitialization",
+    "strictNullChecks",
+    "strict",
+    "exactOptionalPropertyTypes",
+    "isolatedModules",
+    "outFile",
+    "verbatimModuleSyntax",
+    "isolatedDeclarations",
+    "allowJs",
+    "declaration",
+    "composite",
+    "sourceMap",
+    "inlineSourceMap",
+    "mapRoot",
+    "inlineSources",
+    "sourceRoot",
+    "declarationMap",
+    "incremental",
+    "declarationDir",
+    "lib",
+    "preserveConstEnums",
+    "emitDeclarationOnly",
+    "resolveJsonModule",
+    "checkJs",
+    "emitDecoratorMetadata",
+    "experimentalDecorators",
+    "jsxFactory",
+    "reactNamespace",
+    "jsx",
+    "jsxFragmentFactory",
+    "jsxImportSource",
+    "allowImportingTsExtensions",
+    "noEmit",
+    "rewriteRelativeImportExtensions",
+    "resolvePackageJsonExports",
+    "resolvePackageJsonImports",
+    "customConditions",
+    "paths"
+  ],
+  "cases": [
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-plain",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-middle-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A /* x */ .B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-leading-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"/*x*/ A.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-line-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.// x\\nB\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-escaped-first",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"\\\\u0041.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-escaped-part",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.\\\\u0042\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-extended-escape",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.\\\\u{42}\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-reserved",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"default.this\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-double-dot",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A..B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-unterminated",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A /*unterminated\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-invalid-escape",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.\\\\u00xx\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-numeric",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.1\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-trailing-expression",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"A.B()\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-unicode",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"α.β\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-empty-space",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\" \\n \"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-js-whitespace",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"﻿A. B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-plain",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-middle-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A /* x */ .B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-leading-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"/*x*/ A.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-line-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.// x\\nB\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-escaped-first",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"\\\\u0041.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-escaped-part",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.\\\\u0042\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-extended-escape",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.\\\\u{42}\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-reserved",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"default.this\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-double-dot",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A..B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-unterminated",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A /*unterminated\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-invalid-escape",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.\\\\u00xx\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-numeric",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.1\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-trailing-expression",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"A.B()\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-unicode",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"α.β\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-empty-space",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\" \\n \"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-js-whitespace",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsxFragmentFactory\":\"﻿A. B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-comment",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"/*x*/ A\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-escaped",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"\\\\u0041\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-reserved",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"default\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-dotted",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"A.B\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    }
+  ]
+}

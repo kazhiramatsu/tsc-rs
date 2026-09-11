@@ -1,0 +1,7927 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1g",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "anchors": [
+      {
+        "symbol": "verifyCompilerOptions",
+        "start_line": 124751,
+        "end_line": 125027,
+        "sha256": "e47279a97febaf4dbb6d039e4b5655ab2d2829abee7c5c75ffaf06f52ea44925"
+      },
+      {
+        "symbol": "createDiagnosticForOption",
+        "start_line": 125337,
+        "end_line": 125424,
+        "sha256": "f0bb55056716cffb5fb14d72f45c809092d8afafa37496114d5b83b1b8ad3070"
+      },
+      {
+        "symbol": "parseJsonSourceFileConfigFileContent",
+        "start_line": 38973,
+        "end_line": 39171,
+        "sha256": "07f1b78d7a64e7de9a0242477b0f035046682d3dea94128b82f5a3d8e477a7f2"
+      }
+    ]
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "dfff8d606cb8ddcfa729f3d8a5b60376fd1ef95fba87d23f0e4008b5823c0742",
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-config-entity-names-inputs.json",
+    "sha256": "ef7a1d7132e85dd08721440d2ed2c4590b3aa2de894bb96c59196fb77e2069c4"
+  },
+  "repetitions": 2,
+  "program_executions": 72,
+  "config_parse_executions": 72,
+  "cases": [
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-plain",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-middle-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A /* x */ .B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A /* x */ .B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-leading-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "/*x*/ A.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "/*x*/ A.B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-line-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.// x\nB"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.// x\nB"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-escaped-first",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "\\u0041.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "\\u0041.B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-escaped-part",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.\\u0042"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.\\u0042"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-extended-escape",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.\\u{42}"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.\\u{42}"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-reserved",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "default.this"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "default.this"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-double-dot",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 6,
+            "message": "Invalid value for 'jsxFactory'. 'A..B' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A..B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A..B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-unterminated",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 18,
+            "message": "Invalid value for 'jsxFactory'. 'A /*unterminated' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A /*unterminated"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A /*unterminated"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-invalid-escape",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 11,
+            "message": "Invalid value for 'jsxFactory'. 'A.\\u00xx' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.\\u00xx"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.\\u00xx"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-numeric",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 5,
+            "message": "Invalid value for 'jsxFactory'. 'A.1' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.1"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.1"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-trailing-expression",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 7,
+            "message": "Invalid value for 'jsxFactory'. 'A.B()' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "A.B()"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "A.B()"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-unicode",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "α.β"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "α.β"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-empty-space",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5067,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 146,
+            "length": 6,
+            "message": "Invalid value for 'jsxFactory'. ' \n ' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": " \n "
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": " \n "
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFactory-js-whitespace",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "﻿A. B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "﻿A. B"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-plain",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-middle-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A /* x */ .B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A /* x */ .B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-leading-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "/*x*/ A.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "/*x*/ A.B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-line-comment",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.// x\nB"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.// x\nB"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-escaped-first",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "\\u0041.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "\\u0041.B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-escaped-part",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.\\u0042"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.\\u0042"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-extended-escape",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.\\u{42}"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.\\u{42}"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-reserved",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "default.this"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "default.this"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-double-dot",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 6,
+            "message": "Invalid value for 'jsxFragmentFactory'. 'A..B' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A..B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A..B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-unterminated",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 18,
+            "message": "Invalid value for 'jsxFragmentFactory'. 'A /*unterminated' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A /*unterminated"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A /*unterminated"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-invalid-escape",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 11,
+            "message": "Invalid value for 'jsxFragmentFactory'. 'A.\\u00xx' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.\\u00xx"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.\\u00xx"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-numeric",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 5,
+            "message": "Invalid value for 'jsxFragmentFactory'. 'A.1' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.1"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.1"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-trailing-expression",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 7,
+            "message": "Invalid value for 'jsxFragmentFactory'. 'A.B()' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "A.B()"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "A.B()"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-unicode",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "α.β"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "α.β"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-empty-space",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 18035,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 171,
+            "length": 6,
+            "message": "Invalid value for 'jsxFragmentFactory'. ' \n ' is not a valid identifier or qualified-name.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": " \n "
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": " \n "
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/jsxFragmentFactory-js-whitespace",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "jsxFactory": "h",
+            "jsxFragmentFactory": "﻿A. B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "value",
+            "value": "h"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "absent"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "value",
+            "value": "﻿A. B"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-comment",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5059,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 150,
+            "length": 9,
+            "message": "Invalid value for '--reactNamespace'. '/*x*/ A' is not a valid identifier.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "reactNamespace": "/*x*/ A"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "absent"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "value",
+            "value": "/*x*/ A"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-escaped",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5059,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 150,
+            "length": 9,
+            "message": "Invalid value for '--reactNamespace'. '\\u0041' is not a valid identifier.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "reactNamespace": "\\u0041"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "absent"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "value",
+            "value": "\\u0041"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-reserved",
+      "typescript_observation": {
+        "option_diagnostics": [],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "reactNamespace": "default"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "absent"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "value",
+            "value": "default"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "H2.8b-CFG1g/reactNamespace-dotted",
+      "typescript_observation": {
+        "option_diagnostics": [
+          {
+            "code": 5059,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 150,
+            "length": 5,
+            "message": "Invalid value for '--reactNamespace'. 'A.B' is not a valid identifier.",
+            "related_information": []
+          }
+        ],
+        "raw": {
+          "compilerOptions": {
+            "target": "es2020",
+            "module": "esnext",
+            "moduleResolution": "node",
+            "ignoreDeprecations": "6.0",
+            "noLib": true,
+            "types": [],
+            "reactNamespace": "A.B"
+          },
+          "files": [
+            "main.d.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.d.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "moduleResolution",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "ignoreDeprecations",
+            "state": "value",
+            "value": "6.0"
+          },
+          {
+            "name": "noLib",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "strictPropertyInitialization",
+            "state": "absent"
+          },
+          {
+            "name": "strictNullChecks",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "exactOptionalPropertyTypes",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedModules",
+            "state": "absent"
+          },
+          {
+            "name": "outFile",
+            "state": "absent"
+          },
+          {
+            "name": "verbatimModuleSyntax",
+            "state": "absent"
+          },
+          {
+            "name": "isolatedDeclarations",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "composite",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "mapRoot",
+            "state": "absent"
+          },
+          {
+            "name": "inlineSources",
+            "state": "absent"
+          },
+          {
+            "name": "sourceRoot",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "incremental",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "preserveConstEnums",
+            "state": "absent"
+          },
+          {
+            "name": "emitDeclarationOnly",
+            "state": "absent"
+          },
+          {
+            "name": "resolveJsonModule",
+            "state": "absent"
+          },
+          {
+            "name": "checkJs",
+            "state": "absent"
+          },
+          {
+            "name": "emitDecoratorMetadata",
+            "state": "absent"
+          },
+          {
+            "name": "experimentalDecorators",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFactory",
+            "state": "absent"
+          },
+          {
+            "name": "reactNamespace",
+            "state": "value",
+            "value": "A.B"
+          },
+          {
+            "name": "jsx",
+            "state": "absent"
+          },
+          {
+            "name": "jsxFragmentFactory",
+            "state": "absent"
+          },
+          {
+            "name": "jsxImportSource",
+            "state": "absent"
+          },
+          {
+            "name": "allowImportingTsExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "rewriteRelativeImportExtensions",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonExports",
+            "state": "absent"
+          },
+          {
+            "name": "resolvePackageJsonImports",
+            "state": "absent"
+          },
+          {
+            "name": "customConditions",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    }
+  ]
+}

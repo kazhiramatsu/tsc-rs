@@ -53,3 +53,6 @@ mod h2_8b_config_root_boundaries;
 
 #[path = "integration/h2_8b_config_reuse.rs"]
 mod h2_8b_config_reuse;
+
+#[path = "integration/h2_8b_config_entity_names.rs"]
+mod h2_8b_config_entity_names;
