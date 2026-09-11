@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1a",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-commands/direct-recursive-order",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/extends-recursive-order",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./config/base.json\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"../src\",\"outDir\":\"../dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"include\":[\"../src/**/*.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/reversed-include-buckets",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"include\":[\"src/b/**/*.ts\",\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/explicit-files-keep-order",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/b/child.ts\",\"src/z.ts\",\"src/a/child.ts\",\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/inherited-config-dir-template",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./config/base.json\",\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"${configDir}/src\",\"outDir\":\"${configDir}/dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/multiple-base-output-origin",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a/base.json\",\"./b/base.json\"],\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        },
+        {
+          "path": "/project/a/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"../src\",\"outDir\":\"discarded\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}"
+        },
+        {
+          "path": "/project/b/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"${configDir}/dist\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/inherited-compile-on-save-false",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":false}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-commands/last-base-compile-on-save-false",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a.json\",\"./b.json\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const main = 1;\n"
+        },
+        {
+          "path": "/project/src/z.ts",
+          "text": "export const z = 2;\n"
+        },
+        {
+          "path": "/project/src/a/child.ts",
+          "text": "export const a = 3;\n"
+        },
+        {
+          "path": "/project/src/b/child.ts",
+          "text": "export const b = 4;\n"
+        },
+        {
+          "path": "/project/dist/stale.ts",
+          "text": "export const stale = 5;\n"
+        },
+        {
+          "path": "/project/a.json",
+          "text": "{\"compileOnSave\":true}"
+        },
+        {
+          "path": "/project/b.json",
+          "text": "{\"compileOnSave\":false}"
+        }
+      ]
+    }
+  ]
+}

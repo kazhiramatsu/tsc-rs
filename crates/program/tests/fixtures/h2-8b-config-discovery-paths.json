@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "program_executions": 0,
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-config-discovery-paths-inputs.json",
+    "sha256": "5734ea516dbedcfac2985efae582e1ed6e41b081ba3c0c221cad0ba3aa3de5f3"
+  },
+  "observer_sha256": "82b2c323bab8ccb8e14c73cf718fcdb773c1a8ecbf3fb5f2269a4c4748a3511c",
+  "source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "cases": [
+    {
+      "case_id": "no-includes",
+      "directory": "/project/app",
+      "includes": null,
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app"
+      ]
+    },
+    {
+      "case_id": "empty-includes",
+      "directory": "/project/app",
+      "includes": [],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app"
+      ]
+    },
+    {
+      "case_id": "parent-preserves-first",
+      "directory": "/project/app",
+      "includes": [
+        "../**/*.ts",
+        "../shared/deep/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project"
+      ]
+    },
+    {
+      "case_id": "candidate-prefix-boundary",
+      "directory": "/project/app",
+      "includes": [
+        "../app-extra/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project/app-extra"
+      ]
+    },
+    {
+      "case_id": "sorted-and-covered",
+      "directory": "/project/app",
+      "includes": [
+        "../z/deep/*.ts",
+        "../a/*.ts",
+        "../z/**/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project/a",
+        "/project/z"
+      ]
+    },
+    {
+      "case_id": "utf16-order",
+      "directory": "/project/app",
+      "includes": [
+        "..//*.ts",
+        "../𐀀/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project/𐀀",
+        "/project/"
+      ]
+    },
+    {
+      "case_id": "sensitive-case",
+      "directory": "/project/app",
+      "includes": [
+        "../Z/*.ts",
+        "../a/*.ts",
+        "../A/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project/A",
+        "/project/Z",
+        "/project/a"
+      ]
+    },
+    {
+      "case_id": "insensitive-case",
+      "directory": "/project/app",
+      "includes": [
+        "../Z/*.ts",
+        "../a/*.ts",
+        "../A/*.ts"
+      ],
+      "case_sensitive": false,
+      "base_paths": [
+        "/project/app",
+        "/project/a",
+        "/project/Z"
+      ]
+    },
+    {
+      "case_id": "insensitive-coverage",
+      "directory": "/project/app",
+      "includes": [
+        "/PROJECT/APP/src/*.ts",
+        "../Shared/*.ts",
+        "../shared/deep/*.ts"
+      ],
+      "case_sensitive": false,
+      "base_paths": [
+        "/project/app",
+        "/project/Shared"
+      ]
+    },
+    {
+      "case_id": "drive-root-case",
+      "directory": "C:/project/app",
+      "includes": [
+        "c:/project/app/src/*.ts",
+        "D:/outside/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "C:/project/app",
+        "D:/outside"
+      ]
+    },
+    {
+      "case_id": "unc-roots",
+      "directory": "//server/share/app",
+      "includes": [
+        "//SERVER/share/app/src/*.ts",
+        "../shared/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "//server/share/app",
+        "//server/share/shared"
+      ]
+    },
+    {
+      "case_id": "url-roots",
+      "directory": "https://host/project/app",
+      "includes": [
+        "../shared/*.ts",
+        "https://other/shared/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "https://host/project/app",
+        "https://host/project/shared",
+        "https://other/shared"
+      ]
+    },
+    {
+      "case_id": "rooted-dot-spelling",
+      "directory": "/project/app",
+      "includes": [
+        "/project/shared/../other/**/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project/shared/../other"
+      ]
+    },
+    {
+      "case_id": "rooted-backslash-spelling",
+      "directory": "/project/app",
+      "includes": [
+        "C:\\shared\\**\\*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app"
+      ]
+    },
+    {
+      "case_id": "root-wildcard-empty-base",
+      "directory": "/project/app",
+      "includes": [
+        "/*.ts"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app"
+      ]
+    },
+    {
+      "case_id": "dotted-directory-file-rule",
+      "directory": "/project/app",
+      "includes": [
+        "../shared.d",
+        "../shared.d/"
+      ],
+      "case_sensitive": true,
+      "base_paths": [
+        "/project/app",
+        "/project"
+      ]
+    }
+  ]
+}

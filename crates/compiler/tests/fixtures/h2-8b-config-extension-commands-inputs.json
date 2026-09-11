@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1c",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-extension-commands/declaration-ts-extension",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":true,\"emitDeclarationOnly\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export { value } from \"./dep.ts\";\n"
+        },
+        {
+          "path": "/project/src/dep.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extension-commands/emit-ts-extension-diagnostic",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export { value } from \"./dep.ts\";\n"
+        },
+        {
+          "path": "/project/src/dep.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extension-commands/ts-extension-no-emit-on-error",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export { value } from \"./dep.ts\";\n"
+        },
+        {
+          "path": "/project/src/dep.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extension-commands/ts-extension-disabled",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":false},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export { value } from \"./dep.ts\";\n"
+        },
+        {
+          "path": "/project/src/dep.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

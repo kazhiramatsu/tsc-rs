@@ -1,0 +1,426 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1d",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "strict",
+    "outDir",
+    "rootDir",
+    "baseUrl",
+    "paths",
+    "pathsBasePath",
+    "rootDirs",
+    "typeRoots",
+    "moduleSuffixes",
+    "lib",
+    "types",
+    "noEmit",
+    "noLib",
+    "allowJs",
+    "declaration",
+    "sourceMap",
+    "declarationMap",
+    "declarationDir"
+  ],
+  "watch_option_keys": [
+    "watchFile",
+    "watchDirectory",
+    "fallbackPolling",
+    "synchronousWatchDirectory",
+    "excludeDirectories",
+    "excludeFiles"
+  ],
+  "acquisition_option_keys": [
+    "enable",
+    "include",
+    "exclude",
+    "disableFilenameBasedTypeAcquisition"
+  ],
+  "cases": [
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-fixedpollinginterval",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"fixedpollinginterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-prioritypollinginterval",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"prioritypollinginterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-dynamicprioritypolling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"dynamicprioritypolling\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-fixedchunksizepolling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"fixedchunksizepolling\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-usefsevents",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"usefsevents\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchFile-usefseventsonparentdirectory",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"usefseventsonparentdirectory\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchDirectory-usefsevents",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchDirectory\":\"usefsevents\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchDirectory-fixedpollinginterval",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchDirectory\":\"fixedpollinginterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchDirectory-dynamicprioritypolling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchDirectory\":\"dynamicprioritypolling\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watchDirectory-fixedchunksizepolling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchDirectory\":\"fixedchunksizepolling\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/fallbackPolling-fixedinterval",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"fallbackPolling\":\"fixedinterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/fallbackPolling-priorityinterval",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"fallbackPolling\":\"priorityinterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/fallbackPolling-dynamicpriority",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"fallbackPolling\":\"dynamicpriority\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/fallbackPolling-fixedchunksize",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"fallbackPolling\":\"fixedchunksize\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-invalid-parent-glob",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeDirectories\":[\"good\",\"**/../bad\",\"**/x/../../bad2\"],\"excludeFiles\":[\"**/../bad.ts\",\"ok.ts\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-trailing-recursion",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeDirectories\":[\"**\",\"out/**\"],\"excludeFiles\":[\"**\",\"a/**\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-invalid-windows-glob",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeDirectories\":[\"**\\\\..\\\\bad\",\"a\\\\b\"],\"excludeFiles\":[\"**\\\\..\\\\bad.ts\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-template-inherited",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./config/base.json\",\"watchOptions\":{\"excludeFiles\":[\"${configDir}/own.ts\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"watchOptions\":{\"excludeDirectories\":[\"${configDir}/cache\",\"relative\"],\"excludeFiles\":[\"${configDir}/base.ts\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/acquisition-duplicate",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"enable\":true,\"include\":[\"one\"]},\"typeAcquisition\":{\"include\":[\"two\"],\"exclude\":[\"no\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-prototype",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"__proto__\":{\"watchFile\":\"useFsEvents\"}},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/acquisition-prototype",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"__proto__\":{\"enable\":true}},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/mixed-diagnostic-order",
+      "config_path": "/project/tsconfig.json",
+      "config": "{watchOptions:{watchFile:wrong,excludeFiles:[invalid,3]},compilerOptions:{target:3},typeAcquisition:{include:[wrong,1],enable:\"bad\"},compileOnSave:\"x\",files:[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/mixed-diagnostic-order-reversed",
+      "config_path": "/project/tsconfig.json",
+      "config": "{compileOnSave:wrong,typeAcquisition:{enable:wrong,include:[3,wrong]},compilerOptions:{target:wrong},watchOptions:{watchFile:\"wrong\",excludeFiles:[3,wrong]},files:[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-multiple-bases",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a.json\",\"./b.json\"],\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/a.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\",\"watchDirectory\":\"useFsEvents\",\"excludeFiles\":[\"a.ts\"]}}"
+        },
+        {
+          "path": "/project/b.json",
+          "text": "{\"watchOptions\":{\"watchDirectory\":\"fixedPollingInterval\",\"excludeDirectories\":[\"b\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-invalid-base",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"watchOptions\":{\"watchFile\":null},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"bad\",\"excludeFiles\":[\"**/../bad.ts\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-diamond",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./left.json\",\"./right.json\"],\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/left.json",
+          "text": "{\"extends\":\"./shared.json\",\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\"}}"
+        },
+        {
+          "path": "/project/right.json",
+          "text": "{\"extends\":\"./shared.json\",\"watchOptions\":{\"watchDirectory\":\"fixedPollingInterval\"}}"
+        },
+        {
+          "path": "/project/shared.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\",\"excludeFiles\":[\"s.ts\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/compile-save-duplicate",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":\"bad\",\"compileOnSave\":false,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/compile-save-duplicate-reversed",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":false,\"compileOnSave\":\"bad\",\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/jsconfig-uppercase",
+      "config_path": "/project/JSCONFIG.json",
+      "config": "{\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-empty-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"watchOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/watch-unknown-only",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"unknown\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-boundaries/acquisition-invalid-defaults",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"enable\":null,\"include\":null,\"exclude\":false},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

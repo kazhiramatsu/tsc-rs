@@ -429,25 +429,30 @@ fn lib_replacement_uses_the_config_directory_for_package_subpaths() {
     )
     .expect("resolve the DOM iterable package subpath beside the config");
 
-    assert_library_prefix(
-        &program,
-        &[
-            "/typescript/lib/lib.es6.d.ts",
-            "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
-            replacement,
-        ],
-    );
+    // Equal-priority replacements retain discovery order: the root's
+    // iterable reference was processed before lib.es6's DOM reference.
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/h2-8b-library-loader-order.json"
+    ))
+    .expect("upstream loader order observation");
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let expected = &artifact["typescript_observation"];
+    let expected_libraries = expected["library_files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|path| path.as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_library_prefix(&program, &expected_libraries);
     assert_eq!(
         source_paths(&program),
-        [
-            "/typescript/lib/lib.es6.d.ts",
-            "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
-            replacement,
-            "/somepath/index.ts",
-        ]
-        .into_iter()
-        .map(Path::new)
-        .collect::<Vec<_>>()
+        expected["source_files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|path| Path::new(path.as_str().unwrap()))
+            .collect::<Vec<_>>()
     );
     assert!(program.diagnostics().program().is_empty());
 }

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "f19b267e8bd6d8a62327fc3ce929fd3fb2c1f80f67b85c3bad14a263c7d5e94f",
+  "input": {
+    "case_id": "config-directory-package-subpaths",
+    "current_directory": "/workspace",
+    "roots": [
+      "/somepath/index.ts"
+    ],
+    "options": {
+      "target": 2,
+      "noEmit": true,
+      "types": [],
+      "libReplacement": true,
+      "configFilePath": "/somepath/tsconfig.json"
+    },
+    "library_directory": "/typescript/lib",
+    "files": [
+      {
+        "path": "/somepath/index.ts",
+        "text": "/// <reference lib=\"dom.iterable\" />\nconst value: DOMIterable = {};\n"
+      },
+      {
+        "path": "/somepath/node_modules/@typescript/lib-dom/iterable.d.ts",
+        "text": "interface DOMIterable {}\n"
+      },
+      {
+        "path": "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
+        "text": "// replacement DOM\n"
+      },
+      {
+        "path": "/typescript/lib/lib.dom.iterable.d.ts",
+        "text": "interface CatalogDOMIterable { fallback: true }\n"
+      },
+      {
+        "path": "/typescript/lib/lib.es6.d.ts",
+        "text": "/// <reference lib=\"dom\" />\n/// <reference lib=\"dom.iterable\" />\n"
+      }
+    ]
+  },
+  "typescript_observation": {
+    "source_files": [
+      "/typescript/lib/lib.es6.d.ts",
+      "/somepath/node_modules/@typescript/lib-dom/iterable.d.ts",
+      "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
+      "/somepath/index.ts"
+    ],
+    "library_files": [
+      "/typescript/lib/lib.es6.d.ts",
+      "/somepath/node_modules/@typescript/lib-dom/iterable.d.ts",
+      "/somepath/node_modules/@typescript/lib-dom/index.d.ts"
+    ],
+    "root_names": [
+      "/somepath/index.ts"
+    ]
+  }
+}

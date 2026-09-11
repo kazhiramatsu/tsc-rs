@@ -140,10 +140,6 @@ fn validate_emit_options(
             "verbatimModuleSyntax",
         ),
         (
-            options.allow_importing_ts_extensions == Some(true),
-            "allowImportingTsExtensions",
-        ),
-        (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),

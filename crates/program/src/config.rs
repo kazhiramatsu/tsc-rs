@@ -62,8 +62,8 @@ use crate::option_validation::{
 use crate::path::ProgramPath;
 use crate::prepared::{
     PathMapping, PathsOptionDiagnosticLocation, PathsOptionValidationPlan, PathsOptionViolation,
-    PathsOptionViolationKind, PreparedProgram, ProgramConfigFile, ProgramConfigSpan,
-    ProgramOptions,
+    PathsOptionViolationKind, PreparedAuxiliaryFile, PreparedProgram, ProgramConfigFile,
+    ProgramConfigSpan, ProgramOptions,
 };
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
@@ -775,8 +775,16 @@ impl ConfigOptionBag {
         &mut self,
         config_base_path: &str,
     ) -> Result<(), ConfigParseError> {
+        self.finalize_group_config_dir_templates(config_base_path, ConfigOptionGroup::Compiler)
+    }
+
+    fn finalize_group_config_dir_templates(
+        &mut self,
+        config_base_path: &str,
+        group: ConfigOptionGroup,
+    ) -> Result<(), ConfigParseError> {
         for option in &mut self.typed_entries {
-            let Some(declaration) = compiler_option_declaration(&option.name) else {
+            let Some(declaration) = group.declaration(&option.name) else {
                 continue;
             };
             match (declaration.value_kind(), &mut option.value) {
@@ -928,11 +936,13 @@ pub struct ConfigRootPlan {
     /// TypeScript does not inherit them through `extends`.
     references: Option<Value>,
     project_references: Option<Vec<ConfigProjectReference>>,
-    /// These root schemas are inherited by `extends` and retained as raw
-    /// recovered values for the ParsedCommandLine-facing boundary. The
-    /// no-emit loader still rejects truthy values before source loading.
+    /// Converted root schema projections. Watch options merge through
+    /// extends; type acquisition keeps this config's own defaults. The H0
+    /// loader separately retains its explicit root-scope validation.
     watch_options: Option<Value>,
     type_acquisition: Option<Value>,
+    watch_option_bag: Option<ConfigOptionBag>,
+    type_acquisition_option_bag: ConfigOptionBag,
     compile_on_save: Option<Value>,
     /// Truthy root-level schemas which the single-project no-emit loader does
     /// not consume. Keep this separate from `raw`: `raw` is intentionally a
@@ -1006,14 +1016,31 @@ impl ConfigRootPlan {
         self.project_references.as_deref()
     }
 
-    /// Effective raw `watchOptions` after `extends` merging.
+    /// JSON projection of converted, merged watch options. Undefined values
+    /// are omitted; use `watch_option_bag` to preserve their presence.
     pub fn watch_options(&self) -> Option<&Value> {
         self.watch_options.as_ref()
     }
 
-    /// Effective raw `typeAcquisition` after `extends` merging.
+    /// JSON projection of converted type acquisition options, including
+    /// tsconfig/jsconfig defaults. These options do not inherit from extends.
     pub fn type_acquisition(&self) -> Option<&Value> {
         self.type_acquisition.as_ref()
+    }
+
+    pub fn watch_option_bag(&self) -> Option<&ConfigOptionBag> {
+        self.watch_option_bag.as_ref()
+    }
+
+    pub fn type_acquisition_option_bag(&self) -> &ConfigOptionBag {
+        &self.type_acquisition_option_bag
+    }
+
+    /// ParsedCommandLine.compileOnSave uses the raw value's truthiness.
+    pub fn compile_on_save_enabled(&self) -> bool {
+        self.compile_on_save
+            .as_ref()
+            .is_some_and(json_value_is_truthy)
     }
 
     /// Effective raw `compileOnSave` after `extends` merging.
@@ -1359,20 +1386,21 @@ fn validate_config_plan_for_mode(
     emitting: bool,
 ) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
-    // but still constructs and checks the program. Keep those non-fatal rows
-    // out of the source-loading gate; malformed option values and structural
-    // validation diagnostics remain fatal and fail closed before host work.
+    // Ordinary emit creates the Program before reporting option relations;
+    // noEmitOnError checks option/syntax/global/semantic diagnostics, while
+    // config conversion diagnostics are reported separately and do not block
+    // writes. H0 retains its explicit validation gate.
     let options = plan
         .option_diagnostics()
         .iter()
         .filter(|diagnostic| {
-            !(is_non_fatal_option_diagnostic(diagnostic)
+            !(emitting
+                || is_non_fatal_option_diagnostic(diagnostic)
                 || force_no_emit && diagnostic.code() == 5096)
         })
         .cloned()
         .collect::<Vec<_>>();
-    if !config.is_empty() || !options.is_empty() {
+    if !emitting && (!config.is_empty() || !options.is_empty()) {
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
@@ -1543,16 +1571,41 @@ struct ParsedConfigNode {
     inheritable_include: Option<Vec<ConfigSpec>>,
     inheritable_exclude: Option<Vec<ConfigSpec>>,
     references: Option<Value>,
-    watch_options: Option<Value>,
-    type_acquisition: Option<Value>,
+    watch_options: Option<ConfigOptionBag>,
+    type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<String>,
 }
 
+/// Caller-owned cache of extended configs, matching TypeScript's optional
+/// extendedConfigCache. Reuse retains source snapshots until `clear` is called.
+/// A fresh parse without this object performs every read again.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ConfigExtendedCache {
+    entries: BTreeMap<String, CachedExtendedConfig>,
+}
+
+impl ConfigExtendedCache {
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct CachedExtendedConfig {
+    file_name: String,
+    source: Option<ConfigSourceText>,
+    node: Option<Box<ParsedConfigNode>>,
+    // Source parse/read diagnostics replay on a hit; option conversion
+    // diagnostics belong only to the first parse's error collection.
+    read_parse_diagnostics: Vec<Diagnostic>,
+}
+
 struct ParseContext<'a> {
     host: &'a dyn ConfigParseHost,
+    extended_cache: Option<&'a mut ConfigExtendedCache>,
     stack: Vec<String>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -1583,10 +1636,29 @@ pub fn parse_config_root_plan(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, None)
+}
+
+/// Parse with the caller's extended-config cache. The root is always parsed
+/// afresh. Cache hits preserve the first source spelling and conversion result.
+pub fn parse_config_root_plan_with_cache(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+    cache: &mut ConfigExtendedCache,
+) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, Some(cache))
+}
+
+fn parse_config_root_plan_inner(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+    extended_cache: Option<&mut ConfigExtendedCache>,
+) -> Result<ConfigRootPlan, ConfigParseError> {
     let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
     let config_base = directory_name(&config_file_name);
     let mut context = ParseContext {
         host,
+        extended_cache,
         stack: Vec::new(),
         root_parse_diagnostics: Vec::new(),
         errors: Vec::new(),
@@ -1600,9 +1672,14 @@ pub fn parse_config_root_plan(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     node.options.finalize_config_dir_templates(&config_base)?;
+    if let Some(watch) = &mut node.watch_options {
+        watch.finalize_group_config_dir_templates(&config_base, ConfigOptionGroup::Watch)?;
+        watch.restore_public_entry_order();
+    }
+    node.type_acquisition.restore_public_entry_order();
     let paths_option_validation = paths_option_validation_plan(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
-    let module_resolution_options = config_module_resolution_options(
+    let mut module_resolution_options = config_module_resolution_options(
         &node.options,
         &discovery_options,
         &config_file_name,
@@ -1654,6 +1731,25 @@ pub fn parse_config_root_plan(
         .exclude
         .as_ref()
         .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let config_diagnostics = context
+        .root_parse_diagnostics
+        .iter()
+        .chain(&context.errors)
+        .cloned()
+        .collect();
+    let config_sources = node
+        .extended_sources
+        .iter()
+        .map(|source| {
+            Ok(PreparedAuxiliaryFile::from_snapshot(
+                config_program_path(&source.file_name, host.use_case_sensitive_file_names())?,
+                Arc::clone(source.snapshot()),
+            ))
+        })
+        .collect::<Result<Vec<_>, ConfigParseError>>()?;
+    module_resolution_options.program_options = module_resolution_options
+        .program_options
+        .with_config_parsing_diagnostics(config_diagnostics, config_sources);
     Ok(ConfigRootPlan {
         config_file_name,
         source: node.source,
@@ -1668,8 +1764,10 @@ pub fn parse_config_root_plan(
         exclude,
         references: node.references,
         project_references,
-        watch_options: node.watch_options,
-        type_acquisition: node.type_acquisition,
+        watch_options: node.watch_options.as_ref().map(typed_option_bag_json),
+        type_acquisition: Some(typed_option_bag_json(&node.type_acquisition)),
+        watch_option_bag: node.watch_options,
+        type_acquisition_option_bag: node.type_acquisition,
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
@@ -1702,7 +1800,7 @@ fn unsupported_config_scope(
         }
     }
 
-    if let Some(scope) = unsupported_root_scopes.into_iter().next() {
+    if let Some(scope) = unsupported_root_scopes.into_iter().find(|_| !emitting) {
         let scope = scope.as_ref();
         let detail = match scope {
             "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
@@ -1714,6 +1812,11 @@ fn unsupported_config_scope(
     }
 
     for option in options.entries() {
+        // Unknown names have already produced config conversion diagnostics
+        // and do not request a feature in the converted options.
+        if emitting && compiler_option_declaration(&option.name).is_none() {
+            continue;
+        }
         if !(config_option_is_supported_by_h0(&option.name)
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)
@@ -1767,12 +1870,12 @@ fn derive_wildcard_directories(
     discovery: &ConfigDiscoveryOptions,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
-    // A `files` property disables wildcard discovery.  Otherwise TypeScript
-    // supplies the implicit `**/*` include when `include` is absent.
-    let includes = if config.files.is_some() {
-        Vec::new()
-    } else if let Some(includes) = &config.include {
+    // getWildcardDirectories consumes validated include specs even when
+    // `files` is present. Only the implicit **/* depends on files being absent.
+    let includes = if let Some(includes) = &config.include {
         includes.clone()
+    } else if config.files.is_some() {
+        Vec::new()
     } else {
         vec![ConfigSpec {
             text: "**/*".to_owned(),
@@ -2069,7 +2172,87 @@ fn config_value_requests_feature(value: &Value) -> bool {
     }
 }
 
+fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigParseError> {
+    match json_parser_preflight(source.text()) {
+        JsonParserPreflight::Safe => {}
+        JsonParserPreflight::UnsafeSyntax => {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::Unsupported,
+                Some(source.file_name.clone()),
+                "config source uses syntax outside the bounded JSONC grammar",
+            ));
+        }
+        JsonParserPreflight::ResourceLimit => {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::ResourceLimit,
+                Some(source.file_name.clone()),
+                "config JSON nesting exceeds the 256-level parser limit",
+            ));
+        }
+    }
+    Ok(tsc_syntax::parse_json_text_from_snapshot(
+        &source.file_name,
+        Arc::clone(source.snapshot()),
+    ))
+}
+
 impl ParseContext<'_> {
+    // tsc-port: getExtendedConfig @6.0.3
+    // tsc-hash: 545d6ab16e97cc943150aa4dd577a88bb693aa81ca82a86f7a75328b37d9084f
+    // tsc-span: _tsc.js:39460-39500
+    fn extended_config(&mut self, path: &str) -> Result<CachedExtendedConfig, ConfigParseError> {
+        let key = canonical_key(path, self.host.use_case_sensitive_file_names());
+        if let Some(entry) = self
+            .extended_cache
+            .as_ref()
+            .and_then(|cache| cache.entries.get(&key))
+            .cloned()
+        {
+            self.errors
+                .extend(entry.read_parse_diagnostics.iter().cloned());
+            return Ok(entry);
+        }
+        let mut entry = CachedExtendedConfig {
+            file_name: path.to_owned(),
+            source: None,
+            node: None,
+            read_parse_diagnostics: Vec::new(),
+        };
+        match self.host.read_file(path) {
+            Ok(Some(text)) => {
+                let source = ConfigSourceText::new(path, text);
+                let parsed = parse_config_source(&source)?;
+                entry.read_parse_diagnostics = parsed.parse_diagnostics.to_vec();
+                entry.source = Some(source.clone());
+                entry.node = self
+                    .parse_node_from_source(source, parsed, path, &directory_name(path), false)?
+                    .map(Box::new);
+            }
+            Ok(None) => {
+                entry.read_parse_diagnostics.push(config_diagnostic(
+                    &gen::Cannot_read_file_0,
+                    &[path.to_owned()],
+                    None,
+                ));
+                self.errors
+                    .extend(entry.read_parse_diagnostics.iter().cloned());
+            }
+            Err(error) => {
+                entry.read_parse_diagnostics.push(config_diagnostic(
+                    &gen::Cannot_read_file_0_1,
+                    &[path.to_owned(), error.detail().to_owned()],
+                    None,
+                ));
+                self.errors
+                    .extend(entry.read_parse_diagnostics.iter().cloned());
+            }
+        }
+        if let Some(cache) = &mut self.extended_cache {
+            cache.entries.insert(key, entry.clone());
+        }
+        Ok(entry)
+    }
+
     fn parse_node(
         &mut self,
         source: ConfigSourceText,
@@ -2077,27 +2260,18 @@ impl ParseContext<'_> {
         base_path: &str,
         is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
-        match json_parser_preflight(source.text()) {
-            JsonParserPreflight::Safe => {}
-            JsonParserPreflight::UnsafeSyntax => {
-                return Err(ConfigParseError::new(
-                    ConfigParseErrorKind::Unsupported,
-                    Some(source.file_name.clone()),
-                    "config source uses syntax outside the bounded JSONC grammar",
-                ));
-            }
-            JsonParserPreflight::ResourceLimit => {
-                return Err(ConfigParseError::new(
-                    ConfigParseErrorKind::ResourceLimit,
-                    Some(source.file_name.clone()),
-                    "config JSON nesting exceeds the 256-level parser limit",
-                ));
-            }
-        }
-        let parsed = tsc_syntax::parse_json_text_from_snapshot(
-            &source.file_name,
-            Arc::clone(source.snapshot()),
-        );
+        let parsed = parse_config_source(&source)?;
+        self.parse_node_from_source(source, parsed, normalized_file_name, base_path, is_root)
+    }
+
+    fn parse_node_from_source(
+        &mut self,
+        source: ConfigSourceText,
+        parsed: SourceFile,
+        normalized_file_name: &str,
+        base_path: &str,
+        is_root: bool,
+    ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
         if !parsed.parse_diagnostics.is_empty() {
             if is_root {
                 self.root_parse_diagnostics
@@ -2201,18 +2375,21 @@ impl ParseContext<'_> {
         let mut unsupported_root_scopes = BTreeSet::new();
         let own_references =
             config_property_get(object, &raw_property_names, "references").cloned();
-        let own_watch_options_present = raw_property_names.contains("watchOptions");
-        let own_watch_options =
+        let raw_watch_options =
             config_property_get(object, &raw_property_names, "watchOptions").cloned();
-        let own_type_acquisition_present = raw_property_names.contains("typeAcquisition");
-        let own_type_acquisition =
+        let raw_type_acquisition =
             config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
         let own_compile_on_save_present = raw_property_names.contains("compileOnSave");
         let own_compile_on_save =
             config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
-        let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
+        let mut converted_own_options = config_option_group(
+            base_path,
+            ConfigOptionGroup::Compiler,
+            &parsed,
+            &mut own_errors,
+        )?;
         // parseConfig records the declaring config directory beside every
         // truthy own `paths` value before extends are merged. An invalid or
         // null own value masks inherited paths but deliberately leaves an
@@ -2227,6 +2404,22 @@ impl ParseContext<'_> {
             );
         }
         own_options.extend_from(&converted_own_options);
+        let own_watch_options = config_option_group(
+            base_path,
+            ConfigOptionGroup::Watch,
+            &parsed,
+            &mut own_errors,
+        )?;
+        let own_watch_options =
+            (!own_watch_options.typed_entries.is_empty()).then_some(own_watch_options);
+        let mut type_acquisition = default_type_acquisition(normalized_file_name);
+        type_acquisition.extend_from(&config_option_group(
+            base_path,
+            ConfigOptionGroup::Acquisition,
+            &parsed,
+            &mut own_errors,
+        )?);
+        validate_compile_on_save(&parsed, base_path, &mut own_errors)?;
         let own_files = specs("files", base_path, &parsed, &mut own_errors);
         let own_include = specs("include", base_path, &parsed, &mut own_errors);
         let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
@@ -2255,8 +2448,7 @@ impl ParseContext<'_> {
         let mut inherited_files = None;
         let mut inherited_include = None;
         let mut inherited_exclude = None;
-        let mut inherited_watch_options = None;
-        let mut inherited_type_acquisition = None;
+        let mut inherited_watch_options: Option<ConfigOptionBag> = None;
         let mut inherited_compile_on_save = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
@@ -2297,36 +2489,16 @@ impl ParseContext<'_> {
         }
         self.errors.extend(own_errors);
         for extended_path in extended_paths.into_iter().flatten() {
-            if seen_source_files.insert(extended_path.clone()) {
-                extended_source_files.push(extended_path.clone());
+            let entry = self.extended_config(&extended_path)?;
+            if seen_source_files.insert(entry.file_name.clone()) {
+                extended_source_files.push(entry.file_name);
             }
-            let text = match self.host.read_file(&extended_path) {
-                Ok(Some(text)) => text,
-                Ok(None) => {
-                    self.errors.push(config_diagnostic(
-                        &gen::Cannot_read_file_0,
-                        std::slice::from_ref(&extended_path),
-                        None,
-                    ));
-                    continue;
+            if let Some(source) = entry.source {
+                if seen_sources.insert(source.file_name.clone()) {
+                    extended_sources.push(source);
                 }
-                Err(error) => {
-                    self.errors.push(config_diagnostic(
-                        &gen::Cannot_read_file_0_1,
-                        &[extended_path.clone(), error.detail().to_owned()],
-                        None,
-                    ));
-                    continue;
-                }
-            };
-            let extended_base = directory_name(&extended_path);
-            let extended_source = ConfigSourceText::new(extended_path.clone(), text);
-            if seen_sources.insert(extended_path.clone()) {
-                extended_sources.push(extended_source.clone());
             }
-            let Some(extended) =
-                self.parse_node(extended_source, &extended_path, &extended_base, false)?
-            else {
+            let Some(extended) = entry.node else {
                 continue;
             };
             inherited_options.extend_from(&extended.options);
@@ -2361,11 +2533,10 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
-            if extended.watch_options.is_some() {
-                inherited_watch_options = extended.watch_options.clone();
-            }
-            if extended.type_acquisition.is_some() {
-                inherited_type_acquisition = extended.type_acquisition.clone();
+            if let Some(watch) = &extended.watch_options {
+                inherited_watch_options
+                    .get_or_insert_with(ConfigOptionBag::default)
+                    .extend_from(watch);
             }
             if extended.compile_on_save.is_some() {
                 inherited_compile_on_save = extended.compile_on_save.clone();
@@ -2381,29 +2552,30 @@ impl ParseContext<'_> {
             .and_then(|node| config_location(&parsed, node));
         let include = own_include.or(inherited_include);
         let exclude = own_exclude.or(inherited_exclude);
-        let watch_options = if own_watch_options_present {
-            own_watch_options
-        } else {
-            inherited_watch_options
-        };
-        let type_acquisition = if own_type_acquisition_present {
-            own_type_acquisition
-        } else {
-            inherited_type_acquisition
-        };
+        let mut watch_options = inherited_watch_options;
+        if let Some(own) = own_watch_options {
+            watch_options
+                .get_or_insert_with(ConfigOptionBag::default)
+                .extend_from(&own);
+        }
         let compile_on_save = if own_compile_on_save_present {
             own_compile_on_save
         } else {
-            inherited_compile_on_save
+            // parseConfig preserves the last base value, but copies it into
+            // the child's raw config only when that value is truthy.
+            inherited_compile_on_save.filter(json_value_is_truthy)
         };
         for (name, value) in [
-            ("watchOptions", watch_options.as_ref()),
-            ("typeAcquisition", type_acquisition.as_ref()),
+            ("watchOptions", raw_watch_options.as_ref()),
+            ("typeAcquisition", raw_type_acquisition.as_ref()),
             ("compileOnSave", compile_on_save.as_ref()),
         ] {
             if value.is_some_and(json_value_is_truthy) {
                 unsupported_root_scopes.insert(name.to_owned());
             }
+        }
+        if watch_options.is_some() {
+            unsupported_root_scopes.insert("watchOptions".to_owned());
         }
         let raw_object = raw
             .as_object_mut()
@@ -2428,16 +2600,10 @@ impl ParseContext<'_> {
                 }
             }
         }
-        for (name, value) in [
-            ("watchOptions", watch_options.as_ref()),
-            ("typeAcquisition", type_acquisition.as_ref()),
-            ("compileOnSave", compile_on_save.as_ref()),
-        ] {
-            if !raw_property_names.contains(name) {
-                if let Some(value) = value {
-                    raw_object.insert(name.to_owned(), value.clone());
-                    raw_property_names.insert(name.to_owned());
-                }
+        if !raw_property_names.contains("compileOnSave") {
+            if let Some(value) = &compile_on_save {
+                raw_object.insert("compileOnSave".to_owned(), value.clone());
+                raw_property_names.insert("compileOnSave".to_owned());
             }
         }
         let inheritable_files =
@@ -2579,7 +2745,7 @@ fn order_config_conversion_and_notifier_diagnostics(
     // runs its option notifier. A compacted list can therefore publish a
     // notifier diagnostic at an earlier AST element than a conversion-time
     // diagnostic which must still precede it. Group diagnostics by the direct
-    // root/compiler-option property and order the two phases explicitly.
+    // root/schema-option property and order the two phases explicitly.
     // This replaces the former adjacent-swap repair, whose inversion count
     // could make a large invalid list quadratic.
     let diagnostic_owners = config_diagnostic_owners(source);
@@ -2621,7 +2787,10 @@ fn config_diagnostic_owners(source: &SourceFile) -> Vec<ConfigLocation> {
         if let Some(owner) = config_property_owner_location(source, &property) {
             owners.push(owner);
         }
-        if property.name == "compilerOptions" {
+        if matches!(
+            property.name.as_str(),
+            "compilerOptions" | "watchOptions" | "typeAcquisition"
+        ) {
             owners.extend(
                 config_object_properties(source, property.initializer)
                     .into_iter()
@@ -3132,13 +3301,30 @@ fn option_relationship_diagnostics(
     let parsed =
         tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let compiler_properties = config_compiler_option_properties(&parsed);
-    // Relationship diagnostics whose option is absent are compiler-level
-    // rows in TypeScript, not diagnostics attached to the compilerOptions
-    // object. Property-backed rows still use their exact value/key span.
-    let no_fallback = None;
+    // createCompilerOptionsDiagnostic falls back to the root compilerOptions
+    // property name when an effective (possibly inherited) option is absent.
+    let fallback = config_property(&parsed, "compilerOptions")
+        .and_then(|property| config_location(&parsed, property.name_node));
     let projected = CompilerOptions {
         allow_js: config_option_bool(options, "allowJs")
             .unwrap_or_else(|| config_option_bool(options, "checkJs").unwrap_or(false)),
+        no_emit: config_option_bool(options, "noEmit"),
+        allow_importing_ts_extensions: config_option_bool(options, "allowImportingTsExtensions"),
+        rewrite_relative_import_extensions: config_option_bool(
+            options,
+            "rewriteRelativeImportExtensions",
+        ),
+        resolve_package_json_exports: config_option_bool(options, "resolvePackageJsonExports"),
+        resolve_package_json_imports: config_option_bool(options, "resolvePackageJsonImports"),
+        custom_conditions: config_option_string_list(options, "customConditions"),
+        check_js: config_option_bool(options, "checkJs"),
+        isolated_modules: config_option_bool(options, "isolatedModules"),
+        verbatim_module_syntax: config_option_bool(options, "verbatimModuleSyntax"),
+        preserve_const_enums: config_option_bool(options, "preserveConstEnums"),
+        incremental: config_option_bool(options, "incremental"),
+        emit_decorator_metadata: config_option_bool(options, "emitDecoratorMetadata"),
+        experimental_decorators: config_option_bool(options, "experimentalDecorators")
+            == Some(true),
         target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
@@ -3166,8 +3352,6 @@ fn option_relationship_diagnostics(
         declaration_map: config_option_bool(options, "declarationMap"),
         ..CompilerOptions::default()
     };
-    let module_kind = projected.emit_module_kind();
-    let module_resolution = projected.emit_module_resolution_kind();
     let mut diagnostics = Vec::new();
 
     for violation in validate_compiler_options(&projected) {
@@ -3175,128 +3359,8 @@ fn option_relationship_diagnostics(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             &violation,
-        );
-    }
-
-    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &no_fallback,
-            "moduleResolution",
-            false,
-            &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
-            &["bundler".to_owned()],
-        );
-    }
-
-    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
-        let module_resolution_name = if module_resolution == 99 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &no_fallback,
-            "module",
-            false,
-            &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
-            &[
-                module_resolution_name.to_owned(),
-                module_resolution_name.to_owned(),
-            ],
-        );
-    } else if (100..=199).contains(&module_kind)
-        && options.typed_value("moduleResolution").is_some()
-        && !(3..=99).contains(&module_resolution)
-    {
-        let module_kind_name = if module_kind == 199 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &no_fallback,
-            "moduleResolution",
-            false,
-            &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
-            &[
-                module_kind_name.to_owned(),
-                module_kind_name.to_owned(),
-            ],
-        );
-    }
-
-    let package_maps_supported = (3..=99).contains(&module_resolution) || module_resolution == 100;
-    if !package_maps_supported {
-        for name in ["resolvePackageJsonExports", "resolvePackageJsonImports"] {
-            if config_option_bool(options, name) == Some(true) {
-                emit_option_diagnostic_for_properties(
-                    &mut diagnostics,
-                    &parsed,
-                    &compiler_properties,
-                    &no_fallback,
-                    name,
-                    true,
-                    &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
-                    &[name.to_owned()],
-                );
-            }
-        }
-        if matches!(
-            options.typed_value_state("customConditions"),
-            ConfigOptionValueState::List(_)
-        ) {
-            emit_option_diagnostic_for_properties(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &no_fallback,
-                "customConditions",
-                true,
-                &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
-                &["customConditions".to_owned()],
-            );
-        }
-    }
-
-    if config_option_bool(options, "verbatimModuleSyntax") == Some(true)
-        && matches!(module_kind, 0 | 2..=4)
-    {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &no_fallback,
-            "verbatimModuleSyntax",
-            true,
-            &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
-            &[],
-        );
-    }
-
-    if config_option_bool(options, "allowImportingTsExtensions") == Some(true)
-        && config_option_bool(options, "noEmit") != Some(true)
-        && config_option_bool(options, "rewriteRelativeImportExtensions") != Some(true)
-    {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &no_fallback,
-            "allowImportingTsExtensions",
-            true,
-            &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set,
-            &[],
         );
     }
 
@@ -3343,7 +3407,8 @@ fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyN
     };
     config_object_properties(source, root)
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .find(|property| property.name == "compilerOptions")
+        .into_iter()
         .flat_map(|property| config_object_properties(source, property.initializer))
         .collect()
 }
@@ -3699,7 +3764,7 @@ enum ConfigJsonConversionContext {
     /// The ordinary top-level tsconfig option map.
     Root,
     /// The `compilerOptions` object and its known declaration lookup.
-    CompilerOptions,
+    Options(ConfigOptionGroup),
     /// A currently owned scalar option. Its direct invalid value is diagnosed
     /// by the existing notifier conversion, while nested structures lose that
     /// scalar schema and use ordinary JSON conversion diagnostics.
@@ -3792,7 +3857,7 @@ fn config_json_conversion_diagnostics_from_root(
                         }
                         ConfigJsonConversionContext::Generic
                         | ConfigJsonConversionContext::Root
-                        | ConfigJsonConversionContext::CompilerOptions
+                        | ConfigJsonConversionContext::Options(_)
                         | ConfigJsonConversionContext::KnownValue
                         | ConfigJsonConversionContext::StringListElement(_)
                         | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
@@ -3834,7 +3899,9 @@ fn config_json_conversion_diagnostics_from_root(
                                 ConfigJsonConversionContext::Root => match property_name.as_deref()
                                 {
                                     Some("compilerOptions") => {
-                                        ConfigJsonConversionContext::CompilerOptions
+                                        ConfigJsonConversionContext::Options(
+                                            ConfigOptionGroup::Compiler,
+                                        )
                                     }
                                     Some("files") => {
                                         ConfigJsonConversionContext::StringList("files")
@@ -3848,15 +3915,23 @@ fn config_json_conversion_diagnostics_from_root(
                                     Some("extends") => {
                                         ConfigJsonConversionContext::StringOrList("extends")
                                     }
-                                    Some(
-                                        "watchOptions" | "typeAcquisition" | "references"
-                                        | "compileOnSave",
-                                    ) => ConfigJsonConversionContext::Unported,
+                                    Some("watchOptions") => ConfigJsonConversionContext::Options(
+                                        ConfigOptionGroup::Watch,
+                                    ),
+                                    Some("typeAcquisition") => {
+                                        ConfigJsonConversionContext::Options(
+                                            ConfigOptionGroup::Acquisition,
+                                        )
+                                    }
+                                    Some("compileOnSave") => {
+                                        ConfigJsonConversionContext::KnownValue
+                                    }
+                                    Some("references") => ConfigJsonConversionContext::Unported,
                                     Some(_) | None => ConfigJsonConversionContext::Generic,
                                 },
-                                ConfigJsonConversionContext::CompilerOptions => match property_name
+                                ConfigJsonConversionContext::Options(group) => match property_name
                                     .as_deref()
-                                    .and_then(compiler_option_declaration)
+                                    .and_then(|name| group.declaration(name))
                                 {
                                     Some(declaration) => match declaration.value_kind() {
                                         CompilerOptionValueKind::List(descriptor) => {
@@ -4991,7 +5066,8 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     }
     for compiler_options in root_properties
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .find(|property| property.name == "compilerOptions")
+        .into_iter()
     {
         if let Some(span) = config_span(&parsed, compiler_options.name_node) {
             config_file = config_file
@@ -5073,8 +5149,158 @@ fn computed_resolve_json_module(options: &ConfigOptionBag) -> bool {
     }
 }
 
-fn compiler_options(
+fn typed_option_bag_json(bag: &ConfigOptionBag) -> Value {
+    let mut object = Map::new();
+    for entry in &bag.typed_entries {
+        let Some(value) = &entry.value else {
+            continue;
+        };
+        let value = match value {
+            ConfigTypedOptionValue::Json(value) => value.clone(),
+            ConfigTypedOptionValue::Object(value) => value.json_projection(),
+            ConfigTypedOptionValue::List(values) => Value::Array(
+                values
+                    .iter()
+                    .map(|element| match element {
+                        ConfigTypedListElement::Undefined => Value::Null,
+                        ConfigTypedListElement::Value(value) => value.clone(),
+                    })
+                    .collect(),
+            ),
+            ConfigTypedOptionValue::PositiveInfinity | ConfigTypedOptionValue::NegativeInfinity => {
+                Value::Null
+            }
+        };
+        object.insert(entry.name.clone(), value);
+    }
+    Value::Object(object)
+}
+
+fn default_type_acquisition(file_name: &str) -> ConfigOptionBag {
+    let mut bag = ConfigOptionBag::default();
+    for (name, value) in [
+        (
+            "enable",
+            Value::Bool(file_name.rsplit('/').next() == Some("jsconfig.json")),
+        ),
+        ("include", Value::Array(Vec::new())),
+        ("exclude", Value::Array(Vec::new())),
+    ] {
+        let typed = if value.is_array() {
+            ConfigTypedOptionValue::List(Vec::new())
+        } else {
+            ConfigTypedOptionValue::Json(value.clone())
+        };
+        bag.insert(ConfigOption {
+            name: name.to_owned(),
+            value,
+            base_path: String::new(),
+        });
+        bag.insert_typed(name, Some(typed));
+    }
+    bag
+}
+
+fn validate_compile_on_save(
+    source: &SourceFile,
     base_path: &str,
+    errors: &mut Vec<Diagnostic>,
+) -> Result<(), ConfigParseError> {
+    for property in config_root_object(source)
+        .into_iter()
+        .flat_map(|root| config_object_properties(source, root))
+        .filter(|p| p.name == "compileOnSave")
+    {
+        match convert_recoverable_json_node_to_value(source, property.initializer) {
+            Some(RecoverableJsonValue::Defined(value)) => {
+                convert_compiler_option_value(
+                    crate::config_options::COMPILE_ON_SAVE_DECLARATION,
+                    "compileOnSave",
+                    &value,
+                    CompilerOptionConversionContext {
+                        source,
+                        value_node: property.initializer,
+                        base_path,
+                        value_location: config_location(source, property.initializer),
+                        name_location: config_location(source, property.name_node),
+                    },
+                    errors,
+                )?;
+            }
+            Some(RecoverableJsonValue::Undefined) => errors.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &["compileOnSave".to_owned(), "boolean".to_owned()],
+                config_location(source, property.initializer),
+            )),
+            None => {}
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ConfigOptionGroup {
+    Compiler,
+    Watch,
+    Acquisition,
+}
+
+impl ConfigOptionGroup {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Compiler => "compilerOptions",
+            Self::Watch => "watchOptions",
+            Self::Acquisition => "typeAcquisition",
+        }
+    }
+    fn declaration(
+        self,
+        name: &str,
+    ) -> Option<&'static crate::config_options::CompilerOptionDeclaration> {
+        match self {
+            Self::Compiler => compiler_option_declaration(name),
+            Self::Watch => crate::config_options::WATCH_OPTION_DECLARATIONS
+                .iter()
+                .find(|d| d.name() == name),
+            Self::Acquisition => crate::config_options::ACQUISITION_OPTION_DECLARATIONS
+                .iter()
+                .find(|d| d.name() == name),
+        }
+    }
+    fn unknown(self, name: &str) -> (&'static DiagnosticMessage, Vec<String>) {
+        let (plain, suggested, suggestion) = match self {
+            Self::Compiler => (
+                &gen::Unknown_compiler_option_0,
+                &gen::Unknown_compiler_option_0_Did_you_mean_1,
+                compiler_option_spelling_suggestion(name),
+            ),
+            Self::Watch => (
+                &gen::Unknown_watch_option_0,
+                &gen::Unknown_watch_option_0_Did_you_mean_1,
+                crate::config_options::option_spelling_suggestion(
+                    name,
+                    crate::config_options::WATCH_OPTION_DECLARATIONS,
+                ),
+            ),
+            Self::Acquisition => (
+                &gen::Unknown_type_acquisition_option_0,
+                &gen::Unknown_type_acquisition_option_0_Did_you_mean_1,
+                crate::config_options::option_spelling_suggestion(
+                    name,
+                    crate::config_options::ACQUISITION_OPTION_DECLARATIONS,
+                ),
+            ),
+        };
+        suggestion.map_or_else(
+            || (plain, vec![name.to_owned()]),
+            |d| (suggested, vec![name.to_owned(), d.name().to_owned()]),
+        )
+    }
+}
+
+fn config_option_group(
+    base_path: &str,
+    group: ConfigOptionGroup,
     source: &SourceFile,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<ConfigOptionBag, ConfigParseError> {
@@ -5084,7 +5310,7 @@ fn compiler_options(
     };
     for compiler_options in config_object_properties(source, root)
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .filter(|property| property.name == group.name())
     {
         let Some(value) =
             convert_recoverable_json_node_to_value(source, compiler_options.initializer)
@@ -5094,7 +5320,7 @@ fn compiler_options(
         let RecoverableJsonValue::Defined(value) = value else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["compilerOptions".to_owned(), "object".to_owned()],
+                &[group.name().to_owned(), "object".to_owned()],
                 config_location(source, compiler_options.initializer),
             ));
             continue;
@@ -5111,7 +5337,7 @@ fn compiler_options(
         let Some(options) = value.as_object() else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["compilerOptions".to_owned(), "object".to_owned()],
+                &[group.name().to_owned(), "object".to_owned()],
                 config_location(source, compiler_options.initializer),
             ));
             continue;
@@ -5137,7 +5363,7 @@ fn compiler_options(
             }
             let value_location = config_location(source, property.initializer);
             let name_location = config_location(source, property.name_node);
-            if let Some(declaration) = compiler_option_declaration(name) {
+            if let Some(declaration) = group.declaration(name) {
                 let typed = match value {
                     Some(RecoverableJsonValue::Defined(value)) => convert_compiler_option_value(
                         *declaration,
@@ -5174,15 +5400,7 @@ fn compiler_options(
                 };
                 bag.insert_typed(name, typed);
             } else {
-                let (message, args) = compiler_option_spelling_suggestion(name).map_or_else(
-                    || (&gen::Unknown_compiler_option_0, vec![name.to_owned()]),
-                    |suggestion| {
-                        (
-                            &gen::Unknown_compiler_option_0_Did_you_mean_1,
-                            vec![name.to_owned(), suggestion.name().to_owned()],
-                        )
-                    },
-                );
+                let (message, args) = group.unknown(name);
                 errors.push(config_diagnostic(message, &args, name_location));
             }
         }
@@ -5530,6 +5748,14 @@ fn convert_compiler_option_list_element(
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
             };
+            if descriptor.validate_file_spec() && invalid_dot_dot_after_recursive_wildcard(written)
+            {
+                errors.push(config_diagnostic(
+                    &gen::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_0,
+                    &[written.to_owned()], location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            }
             if matches!(
                 descriptor.element_kind(),
                 CompilerOptionListElementKind::FilePath
@@ -5882,7 +6108,7 @@ fn extends_values_from_value(
                 text: text.to_owned(),
                 location,
             });
-        } else if !value.is_null() {
+        } else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
                 &["extends".to_owned(), "string".to_owned()],

@@ -1,0 +1,568 @@
+{
+  "version": 1,
+  "slice": "H2.8b-LR2",
+  "status": "seven LR1 ordering failures repaired; witnessed comparisons exact",
+  "recorded_at_utc": "2026-09-11T12:58:20.278716+00:00",
+  "branch": "work/h2-8b-library-replacement",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1",
+  "start": {
+    "version": 1,
+    "head": "958198427925b5b549592e6669261da27db91c47",
+    "tree": "d796784411bec975528d0b1e29843490bec535c7",
+    "run_dir": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z",
+    "recorded_at_utc": "2026-09-11T12:18:02.610580+00:00",
+    "source_sha256": {
+      "crates/program/src/library.rs": "46c106aabd109225fcee045fb049d62c7264f5ee62c3fada5d4b4bb6813e709a",
+      "crates/program/src/loader.rs": "bdae1ac0a665f9dd7889c430940f5eca78c06d324450076509b6dad35441d149",
+      "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+      "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+      "crates/compiler/tests/fixtures/h2-8b-library-replacement.json": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d",
+      "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb",
+      "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "c9332037a63761ae27dfe88c90d865197dbc01b2aa7f7fe6fa11999b9392cd6b"
+    }
+  },
+  "measured_head": "96796f4f0dfcc105cc0d29aab7b94c9cc6431e92",
+  "measured_tree": "9a13787d36f73c80299ab446594ff7f9313d0505",
+  "production_sha256": {
+    "crates/program/src/library.rs": "5c9feb7f21ee53c2d7d0bcd2be742611ca7eb8b41e97e98b7c71580e6b07a32d",
+    "crates/program/src/loader.rs": "8b03398eebc467b4940b6fe80e8c851bd715e4777830aa0af9631a917e861e9b"
+  },
+  "source_changes": [
+    "crates/compiler/tests/fixtures/h2-8b-library-order-inputs.json",
+    "crates/compiler/tests/fixtures/h2-8b-library-order.json",
+    "crates/compiler/tests/integration/h2_8b_library_replacement.rs",
+    "crates/program/src/library.rs",
+    "crates/program/src/loader.rs",
+    "crates/program/tests/fixtures/h2-8b-library-loader-order.json",
+    "crates/program/tests/fixtures/h2-8b-library-priority-inputs.json",
+    "crates/program/tests/fixtures/h2-8b-library-priority.json",
+    "crates/program/tests/integration/library_program_loader_contract.rs",
+    "crates/program/tests/unit/library/tests.rs",
+    "docs/design/greenfield/slices/h2-8b-library-order-fix.md",
+    "scripts/observe-h2-8b-library-loader.mjs",
+    "scripts/observe-h2-8b-library-order.mjs",
+    "scripts/observe-h2-8b-library-priority.mjs"
+  ],
+  "prior_baseline": {
+    "path": "ratchets/h2-8b-library-replacement-baseline.v1.json",
+    "sha256": "4986e73aa3b51fb54db9d5bf171afefc506fadf83cdc0b9922571869f5cb244e"
+  },
+  "repaired_case_ids": [
+    "h2-8b-library-replacement/enabled-package",
+    "h2-8b-library-replacement/duplicate-lib-reference",
+    "h2-8b-library-replacement/config-directory-anchor",
+    "h2-8b-library-replacement/package-subpath",
+    "h2-8b-library-replacement/module-suffixes-isolated",
+    "h2-8b-library-replacement/package-exports-isolated",
+    "h2-8b-library-replacement/root-promoted-to-library"
+  ],
+  "commands": [
+    {
+      "phase": "library-units",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--lib",
+        "library::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "started_at_utc": "2026-09-11T12:32:12.728798+00:00",
+      "head": "d2ad11cbfdeb0ecf6fba7173d206806b657a4d55",
+      "tree": "05efb3115e102ab3a47b9f95d08bb05418c5b58c",
+      "status": "",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T12:35:05.579633+00:00",
+      "exit_code": 0,
+      "log_sha256": "a22888fe0dbaa75ccb1945049c51eabcd56dc3154d930ada8f50528f0f3fcf94",
+      "inputs_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/library-units.run.json",
+        "sha256": "358cef47980e76866c4250377e2b556c9b502adc136e6992a8224b2279e0ae82"
+      }
+    },
+    {
+      "phase": "library-contracts",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "library_program_loader_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "started_at_utc": "2026-09-11T12:35:10.704546+00:00",
+      "head": "d2ad11cbfdeb0ecf6fba7173d206806b657a4d55",
+      "tree": "05efb3115e102ab3a47b9f95d08bb05418c5b58c",
+      "status": "",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T12:37:05.307165+00:00",
+      "exit_code": 101,
+      "log_sha256": "b83463b0a610f04fe30e6d767926409848d273bfad3b008313a93c496b0b1b7e",
+      "inputs_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/library-contracts.run.json",
+        "sha256": "f9fc34fa81c473150b6a14605c764d58b0fb15001d03f68f6b774c5b7a2bc675"
+      }
+    },
+    {
+      "phase": "library-contracts-r2",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "library_program_loader_contract",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "started_at_utc": "2026-09-11T12:39:38.468383+00:00",
+      "head": "96796f4f0dfcc105cc0d29aab7b94c9cc6431e92",
+      "tree": "9a13787d36f73c80299ab446594ff7f9313d0505",
+      "status": "",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T12:39:50.805986+00:00",
+      "exit_code": 0,
+      "log_sha256": "85f097eb9bd1b589f3cd20ef62bf73050956c4da4a5bdc7b468bc5440ba45eba",
+      "inputs_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/library-contracts-r2.run.json",
+        "sha256": "a7798d7ac303123ece1ca52bce7ebe4855a55af7f2c76759a1eb302bf1c2e8e9"
+      }
+    },
+    {
+      "phase": "compiler-r1",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8b_library_replacement",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "started_at_utc": "2026-09-11T12:39:55.952957+00:00",
+      "head": "96796f4f0dfcc105cc0d29aab7b94c9cc6431e92",
+      "tree": "9a13787d36f73c80299ab446594ff7f9313d0505",
+      "status": "",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T12:58:15.820323+00:00",
+      "exit_code": 0,
+      "log_sha256": "534df48ca2a5a9dae47fb0b8591076e177b7fccfe2edae5f8ffcd72ae0007d80",
+      "inputs_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/compiler-r1.run.json",
+        "sha256": "b1f657388cb98dce4e9cad01451b6eb054e02488d0abe37710bdfd0c530f764b"
+      }
+    }
+  ],
+  "executables": [
+    {
+      "phase": "library-units",
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/tsc_program-7f84b1b1d1568f1b",
+      "sha256": "8c591bdab8595467b760ddad67eaa2bec12a4b98429a8ec16a307783dfd693af",
+      "captured_at_utc": "2026-09-11T12:58:20.201805+00:00"
+    },
+    {
+      "phase": "library-contracts",
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+      "sha256": null,
+      "capture_status": "not captured before the corrected contract rebuilt the same executable path; retained log and input hashes identify the failed run"
+    },
+    {
+      "phase": "library-contracts-r2",
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+      "sha256": "42efc2a75f7ed6d31e6d096e731d46848724e8849556a170885d00b1783b7253",
+      "captured_at_utc": "2026-09-11T12:58:20.208989+00:00"
+    },
+    {
+      "phase": "compiler-r1",
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-cabf44d19c2beb96",
+      "sha256": "8f286fcf909781de853f536fde77919d466c18dabff1c96d11d5705ec2afc028",
+      "captured_at_utc": "2026-09-11T12:58:20.261814+00:00"
+    }
+  ],
+  "totals": {
+    "original_cases": 12,
+    "repaired_cases": 7,
+    "original_complete_command_exact_twice": 12,
+    "original_program_facts_exact_twice": 12,
+    "additional_cases": 6,
+    "additional_complete_command_exact_twice": 6,
+    "additional_program_facts_exact_twice": 6,
+    "native_prepared_programs_in_final_compiler_run": 72,
+    "compiler_tests_passed": 4,
+    "compiler_tests_failed": 0,
+    "library_unit_tests_passed": 5,
+    "library_contract_tests_passed": 20
+  },
+  "cases": [
+    {
+      "case_id": "h2-8b-library-replacement/enabled-package",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/disabled-package",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/omitted-option",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-package-fallback",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/config-directory-anchor",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 2,
+      "reported_diagnostic_codes": [
+        6059,
+        5011
+      ],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-subpath",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-exports-isolated",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/no-lib-gate",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/two-replacements-forward",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/two-replacements-reverse",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/promoted-reference-multiple",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/outside-catalog-basename",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/inside-catalog-other-basename",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-order/catalog-prefix-neighbor",
+      "disposition": "exact",
+      "complete_command_repetitions": 2,
+      "program_membership_repetitions": 2,
+      "command_exit": 0,
+      "reported_diagnostic_codes": [],
+      "write_count": 4
+    }
+  ],
+  "oracle_checks": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "node",
+        "scripts/observe-h2-8b-library-replacement.mjs",
+        "library-replacement",
+        "--check"
+      ],
+      "started_at_utc": "2026-09-11T12:40:33.347794+00:00",
+      "completed_at_utc": "2026-09-11T12:40:39.721105+00:00",
+      "exit_code": 0,
+      "log_path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/oracle-check-0.log",
+      "log_sha256": "b983593030f91b06c7da5b7fe924e9eaef7e1b0b4a9f4a9de6740e0954df691a"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "node",
+        "scripts/observe-h2-8b-library-order.mjs",
+        "library-order",
+        "--check"
+      ],
+      "started_at_utc": "2026-09-11T12:40:39.721425+00:00",
+      "completed_at_utc": "2026-09-11T12:40:43.473048+00:00",
+      "exit_code": 0,
+      "log_path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/oracle-check-1.log",
+      "log_sha256": "98c212f81dd610273d0257fe1c2f1d7e06aa87d92c7c64843cba856e93c4337d"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "node",
+        "scripts/observe-h2-8b-library-priority.mjs",
+        "--check"
+      ],
+      "started_at_utc": "2026-09-11T12:40:43.473380+00:00",
+      "completed_at_utc": "2026-09-11T12:40:45.053611+00:00",
+      "exit_code": 0,
+      "log_path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/oracle-check-2.log",
+      "log_sha256": "2ba1795f358010130dfa8ca9000eab364ff8ef35b781fc603187c08db1366973"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "node",
+        "scripts/observe-h2-8b-library-loader.mjs",
+        "--check"
+      ],
+      "started_at_utc": "2026-09-11T12:40:45.053884+00:00",
+      "completed_at_utc": "2026-09-11T12:40:46.195037+00:00",
+      "exit_code": 0,
+      "log_path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/oracle-check-3.log",
+      "log_sha256": "e665cec21094770db0ef1935209af4cab17154b69adad6b294f1a30e7b41ef37"
+    }
+  ],
+  "review_checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "started_at_utc": "2026-09-11T12:50:39.314417+00:00",
+      "completed_at_utc": "2026-09-11T12:50:42.553119+00:00",
+      "exit_code": 0,
+      "log": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/format.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "958198427",
+        "HEAD"
+      ],
+      "started_at_utc": "2026-09-11T12:50:42.553188+00:00",
+      "completed_at_utc": "2026-09-11T12:50:42.583791+00:00",
+      "exit_code": 0,
+      "log": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/whitespace.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "resource_policy": {
+    "utc": "2026-09-11T12:32:07.673498+00:00",
+    "policy": "one local compiler job, background I/O, nice 19, separate target; allow overlap with existing acceptance",
+    "reason": "Long-running external acceptance; 10 CPU cores and 54 percent memory free before starting",
+    "memory_bytes": 34359738368,
+    "cpu_cores": 10,
+    "memory_free_percent": 54,
+    "cargo_build_jobs": 1,
+    "native_test_threads": 1,
+    "external_jobs_modified": false
+  },
+  "expected_value_correction": {
+    "test": "lib_replacement_uses_the_config_directory_for_package_subpaths",
+    "first_post_fix_test_exit": 101,
+    "reason": "The former literal assertion sorted equal-priority replacement libraries by logical catalog names; replay of the same input in TypeScript confirms iterable before DOM.",
+    "observation_path": "crates/program/tests/fixtures/h2-8b-library-loader-order.json",
+    "observation_sha256": "87b7ee25dc07daca99c5714e6b9a0cbcc503b37ba289d3bddf8aa114adef2cf5"
+  },
+  "captures": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/start.json",
+      "sha256": "d1e358f2516150e2bcc92dc3bf12ca44624262b0529032a9fbd19e887b0b8559"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/compiler-r1.log",
+      "sha256": "534df48ca2a5a9dae47fb0b8591076e177b7fccfe2edae5f8ffcd72ae0007d80"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/final-program-facts.json",
+      "sha256": "dbc0122178915e24699f66cd8b0a227bf19f5ea1a01e74fdb7b65e1399bba7a7"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/final-native-events.jsonl",
+      "sha256": "f966648d2b8795c181b963eaae22fe7b0ddfd7ae2cbb8dc8ce12918fd4b6f005"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-order-runs/20260911T121700Z/priority-affix-observation.json",
+      "sha256": "0ed85787c52cc565f1f2bba6a5a3cac092451ad11d50f51c52f24660dae51908"
+    }
+  ],
+  "original_expectations_unchanged": true,
+  "preserved_baseline_sha256": {
+    "crates/compiler/tests/fixtures/h2-8b-library-replacement-inputs.json": "26cab27f14d09ec3c5a3164c5f050d1e1dbcece56d20f036342e8390189c7089",
+    "crates/compiler/tests/fixtures/h2-8b-library-replacement.json": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d",
+    "scripts/observe-h2-8b-library-replacement.mjs": "a8d9982a704bedaab872d80bae5a80e882e2ce59cc34ebb501cbb1eeca8f4054",
+    "ratchets/h2-8b-library-replacement-baseline.v1.json": "4986e73aa3b51fb54db9d5bf171afefc506fadf83cdc0b9922571869f5cb244e"
+  },
+  "shared_comparators_unchanged": true,
+  "profile_activation": false,
+  "limitations": [
+    "No new hosted acceptance run for this repair branch.",
+    "General non-prefix library membership layouts and unobserved host hooks remain outside this repair.",
+    "Complete command tuples use the unchanged comparator; separate native tuple JSON is not captured.",
+    "The first failing loader-contract executable was overwritten before its binary hash was captured; its source and log hashes remain available."
+  ]
+}

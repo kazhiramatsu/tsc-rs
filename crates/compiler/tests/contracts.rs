@@ -83,6 +83,11 @@ mod h2_7c_strip_internal;
 #[path = "integration/h2_7c_declaration_blocking.rs"]
 mod h2_7c_declaration_blocking;
 
+#[path = "integration/h2_8b_config_commands.rs"]
+mod h2_8b_config_commands;
+#[path = "integration/h2_8b_library_replacement.rs"]
+mod h2_8b_library_replacement;
+
 #[path = "integration/h2_7c_isolated_inference.rs"]
 mod h2_7c_isolated_inference;
 
@@ -259,3 +264,26 @@ mod h2_8a_retained_accessor_owners;
 
 #[path = "integration/h2_8a_object_property_owners.rs"]
 mod h2_8a_object_property_owners;
+
+#[path = "integration/h2_8b_config_discovery_commands.rs"]
+mod h2_8b_config_discovery_commands;
+
+#[path = "integration/h2_8b_config_diagnostic_commands.rs"]
+mod h2_8b_config_diagnostic_commands;
+
+#[path = "integration/h2_8b_config_extension_commands.rs"]
+mod h2_8b_config_extension_commands;
+
+#[path = "integration/h2_8b_config_root_commands.rs"]
+mod h2_8b_config_root_commands;
+
+#[path = "integration/h2_8b_config_conversion_commands.rs"]
+mod h2_8b_config_conversion_commands;
+
+#[path = "integration/h2_8b_config_source_commands.rs"]
+mod h2_8b_config_source_commands;
+#[path = "integration/h2_8b_config_source_span_commands.rs"]
+mod h2_8b_config_source_span_commands;
+
+#[path = "integration/h2_8b_config_entity_commands.rs"]
+mod h2_8b_config_entity_commands;

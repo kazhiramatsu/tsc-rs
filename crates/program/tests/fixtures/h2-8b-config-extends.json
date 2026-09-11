@@ -1,0 +1,3727 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1a",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "anchors": [
+      {
+        "symbol": "parseJsonSourceFileConfigFileContent",
+        "start_line": 38973,
+        "end_line": 38991,
+        "sha256": "5562196ffbd81e2c40f410f046ea370539ba34a555ad4f39919ada38ea79a0b2"
+      },
+      {
+        "symbol": "parseJsonConfigFileContentWorker",
+        "start_line": 39004,
+        "end_line": 39171,
+        "sha256": "de61436607132561f752e44ac9170e9a51089bca81f8a0ce594c19473a63e328"
+      },
+      {
+        "symbol": "handleOptionConfigDirTemplateSubstitution",
+        "start_line": 39175,
+        "end_line": 39239,
+        "sha256": "f7fd83b533c19f241360531da2bbbd8279c7d1f956af6e8d43ff488e9ee8143c"
+      },
+      {
+        "symbol": "parseConfig",
+        "start_line": 39272,
+        "end_line": 39330,
+        "sha256": "1f07635fad8d6fc935271b45fea3dc451ccb10e65298a000fa858f5d5c2cd883"
+      },
+      {
+        "symbol": "parseOwnConfigOfJsonSourceFile",
+        "start_line": 39379,
+        "end_line": 39435,
+        "sha256": "3fcba2287729ac4bed96a5d9a4aa0c6d28736f435a868806e898131d4a304e13"
+      },
+      {
+        "symbol": "getExtendedConfig",
+        "start_line": 39460,
+        "end_line": 39499,
+        "sha256": "d6a0778d1dedcc271c83111fc4ca4971c2678229cb046c61059c326889ff6f7c"
+      }
+    ]
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "9686b56d4b5be879e5a90088a030d8a8c2a4099721110dd4f275067ede22e5e9",
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-config-extends-inputs.json",
+    "sha256": "5941132c41002e4bc5f554dc4c8c1d1126a4facd50e55274759f016fd97736ff"
+  },
+  "repetitions": 2,
+  "program_executions": 0,
+  "config_parse_executions": 56,
+  "cases": [
+    {
+      "case_id": "h2-8b-config-extends/single-base-paths",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base/a.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/a.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/a.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/base/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/base/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/multiple-base-forward",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./a/base.json",
+            "./b/base.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/a/base.json",
+          "/project/b/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+          },
+          {
+            "file_name": "/project/b/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"build\",\"strict\":false,\"rootDirs\":[\"src\",\"generated\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 9
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/b/build"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/a/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/b/src"
+              },
+              {
+                "state": "value",
+                "value": "/project/b/generated"
+              }
+            ]
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/a/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/multiple-base-reverse",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./b/base.json",
+            "./a/base.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/b/base.json",
+          "/project/a/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/b/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"build\",\"strict\":false,\"rootDirs\":[\"src\",\"generated\"]}}"
+          },
+          {
+            "file_name": "/project/a/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/a/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/a/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/b/src"
+              },
+              {
+                "state": "value",
+                "value": "/project/b/generated"
+              }
+            ]
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/a/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/diamond-shared-base",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./left/config.json",
+            "./right/config.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/left/config.json",
+          "/project/shared/base.json",
+          "/project/right/config.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/left/config.json",
+            "text": "{\"extends\":\"../shared/base.json\",\"compilerOptions\":{\"target\":\"es2020\"}}"
+          },
+          {
+            "file_name": "/project/shared/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"out\",\"baseUrl\":\".\",\"paths\":{\"shared/*\":[\"src/*\"]},\"types\":[]}}"
+          },
+          {
+            "file_name": "/project/right/config.json",
+            "text": "{\"extends\":\"../shared/base.json\",\"compilerOptions\":{\"module\":\"esnext\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "value",
+            "value": 99
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/shared/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "value",
+            "value": "/project/shared"
+          },
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "shared/*": [
+                "src/*"
+              ]
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project/shared"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-base-reference",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./base.json",
+            "./base.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"out\",\"baseUrl\":\".\",\"paths\":{\"shared/*\":[\"src/*\"]},\"types\":[]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "value",
+            "value": "/project"
+          },
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "shared/*": [
+                "src/*"
+              ]
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/nested-config-dir-template",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./middle/config.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/middle/config.json",
+          "/project/base/config.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/middle/config.json",
+            "text": "{\"extends\":\"../base/config.json\"}"
+          },
+          {
+            "file_name": "/project/base/config.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"${configDir}/dist\",\"rootDir\":\"${configDir}/src\",\"paths\":{\"alias/*\":[\"${configDir}/src/*\"]},\"rootDirs\":[\"${configDir}/src\",\"../plain\"],\"typeRoots\":[\"${configDir}/types\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/dist"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "value",
+            "value": {
+              "alias/*": [
+                "/project/src/*"
+              ]
+            }
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "value",
+            "value": "/project/base"
+          },
+          {
+            "name": "rootDirs",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/src"
+              },
+              {
+                "state": "value",
+                "value": "/project/plain"
+              }
+            ]
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-null-masks-inherited-options",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {
+            "outDir": null,
+            "strict": null,
+            "types": null
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"base-out\",\"strict\":true,\"types\":[\"node\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "undefined"
+          },
+          {
+            "name": "outDir",
+            "state": "undefined"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "undefined"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-invalid-masks-inherited-options",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {
+            "outDir": 42,
+            "strict": 42,
+            "types": 42
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"base-out\",\"strict\":true,\"types\":[\"node\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "undefined"
+          },
+          {
+            "name": "outDir",
+            "state": "undefined"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "undefined"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 53,
+            "length": 2,
+            "message": "Compiler option 'outDir' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 65,
+            "length": 2,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 76,
+            "length": 2,
+            "message": "Compiler option 'types' requires a value of type Array.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 53,
+            "length": 2,
+            "message": "Compiler option 'outDir' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 65,
+            "length": 2,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 76,
+            "length": 2,
+            "message": "Compiler option 'types' requires a value of type Array.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-compiler-options",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {
+            "strict": false,
+            "outDir": "second"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "undefined"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/second"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 53,
+            "length": 5,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 53,
+            "length": 5,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-extends-last-effective",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/types"
+              }
+            ]
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-empty-files",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "files": []
+        },
+        "file_names": [],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"files\":[\"main.ts\"]}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-null-files-inherits",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"files\":[\"main.ts\"]}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-empty-include",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "include": []
+        },
+        "file_names": [],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"include\":[\"src/**/*.ts\"]}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 18003,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[]' and 'exclude' paths were '[]'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 18003,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[]' and 'exclude' paths were '[]'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-include-exclude-outdir",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./config/base.json",
+          "include": [
+            "config/../**/*.ts"
+          ],
+          "exclude": [
+            "config/../src/nested"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts",
+          "/project/dist/generated.ts",
+          "/project/src/main.ts"
+        ],
+        "wildcard_directories": [
+          {
+            "path": "/project",
+            "recursive": true
+          }
+        ],
+        "extended_source_files": [
+          "/project/config/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"../dist\"},\"include\":[\"../**/*.ts\"],\"exclude\":[\"../src/nested\"]}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/dist"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/child-outdir-overrides-origin",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./config/base.json",
+          "compilerOptions": {
+            "outDir": "src/nested"
+          },
+          "include": [
+            "config/../src/**/*.ts"
+          ]
+        },
+        "file_names": [
+          "/project/src/main.ts"
+        ],
+        "wildcard_directories": [
+          {
+            "path": "/project/src",
+            "recursive": true
+          }
+        ],
+        "extended_source_files": [
+          "/project/config/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"../dist\"},\"include\":[\"../src/**/*.ts\"]}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/src/nested"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/nested-relative-rootdir",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./middle/base.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/middle/base.json",
+          "/project/config/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/middle/base.json",
+            "text": "{\"extends\":\"../config/base.json\",\"compilerOptions\":{\"outDir\":\"build\"}}"
+          },
+          {
+            "file_name": "/project/config/base.json",
+            "text": "{\"compilerOptions\":{\"rootDir\":\"../src\",\"rootDirs\":[\"../src\",\"../generated\"],\"moduleSuffixes\":[\".native\",\"\"]}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/middle/build"
+          },
+          {
+            "name": "rootDir",
+            "state": "value",
+            "value": "/project/src"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/src"
+              },
+              {
+                "state": "value",
+                "value": "/project/generated"
+              }
+            ]
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": ".native"
+              },
+              {
+                "state": "value",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/invalid-base-continues-sibling",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./bad.json",
+            "./good.json"
+          ],
+          "compilerOptions": {
+            "target": "wrong"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/bad.json",
+          "/project/good.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/bad.json",
+            "text": "{\"compilerOptions\":{\"strict\":\"wrong\",\"unknownFlag\":true}}"
+          },
+          {
+            "file_name": "/project/good.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"out\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "undefined"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "undefined"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 68,
+            "length": 7,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 29,
+            "length": 7,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5023,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 37,
+            "length": 13,
+            "message": "Unknown compiler option 'unknownFlag'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 68,
+            "length": 7,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 29,
+            "length": 7,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5023,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 37,
+            "length": 13,
+            "message": "Unknown compiler option 'unknownFlag'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/missing-base-continues-sibling",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./missing.json",
+            "./good.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/missing.json",
+          "/project/good.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/good.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2022\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 9
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5083,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot read file '/project/missing.json'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5083,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot read file '/project/missing.json'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/root-parse-before-conversion",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./bad.json",
+          "compilerOptions": {
+            "target": "bad"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/bad.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/bad.json",
+            "text": "{\"compilerOptions\":{\"strict\":\"wrong\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "undefined"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "undefined"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [
+          {
+            "code": 1005,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 59,
+            "length": 7,
+            "message": "',' expected.",
+            "related_information": []
+          }
+        ],
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 52,
+            "length": 5,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 29,
+            "length": 7,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 1005,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 59,
+            "length": 7,
+            "message": "',' expected.",
+            "related_information": []
+          },
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 52,
+            "length": 5,
+            "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 29,
+            "length": 7,
+            "message": "Compiler option 'strict' requires a value of type boolean.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/extended-syntax-atomic-sibling",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./bad.json",
+            "./good.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/bad.json",
+          "/project/good.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/bad.json",
+            "text": "{\"compilerOptions\":{\"strict\":true} \"files\":[\"lost.ts\"]}"
+          },
+          {
+            "file_name": "/project/good.json",
+            "text": "{\"compilerOptions\":{\"outDir\":\"out\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "value",
+            "value": "/project/out"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 1005,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 35,
+            "length": 7,
+            "message": "',' expected.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 1005,
+            "category": "error",
+            "file": "/project/bad.json",
+            "start": 35,
+            "length": 7,
+            "message": "',' expected.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/cycle-continues-sibling",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./loop.json",
+            "./good.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/loop.json",
+          "/project/tsconfig.json",
+          "/project/good.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/loop.json",
+            "text": "{\"extends\":\"./tsconfig.json\",\"compilerOptions\":{\"strict\":true}}"
+          },
+          {
+            "file_name": "/project/tsconfig.json",
+            "text": "{\"extends\":[\"./loop.json\",\"./good.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}"
+          },
+          {
+            "file_name": "/project/good.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2020\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 7
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 18000,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/loop.json -> /project/tsconfig.json",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 18000,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/loop.json -> /project/tsconfig.json",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/invalid-extends-array-entries",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            42,
+            "./missing.json",
+            "./good.json",
+            null
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/missing.json",
+          "/project/good.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/good.json",
+            "text": "{\"compilerOptions\":{\"target\":\"es2022\"}}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "value",
+            "value": 9
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 12,
+            "length": 2,
+            "message": "Compiler option 'extends' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 46,
+            "length": 4,
+            "message": "Compiler option 'extends' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5083,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot read file '/project/missing.json'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 12,
+            "length": 2,
+            "message": "Compiler option 'extends' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 46,
+            "length": 4,
+            "message": "Compiler option 'extends' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5083,
+            "category": "error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot read file '/project/missing.json'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-compile-on-save-false",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compileOnSave\":false}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-compile-on-save-true",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/compile-on-save-true-then-false",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./a.json",
+            "./b.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/a.json",
+          "/project/b.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "{\"compileOnSave\":true}"
+          },
+          {
+            "file_name": "/project/b.json",
+            "text": "{\"compileOnSave\":false}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/compile-on-save-false-then-true",
+      "typescript_observation": {
+        "raw": {
+          "extends": [
+            "./a.json",
+            "./b.json"
+          ],
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/a.json",
+          "/project/b.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/a.json",
+            "text": "{\"compileOnSave\":false}"
+          },
+          {
+            "file_name": "/project/b.json",
+            "text": "{\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-compile-on-save-false",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": false
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-compile-on-save-null",
+      "typescript_observation": {
+        "raw": {
+          "extends": "./base.json",
+          "compilerOptions": {},
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": null
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base.json",
+            "text": "{\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    }
+  ]
+}

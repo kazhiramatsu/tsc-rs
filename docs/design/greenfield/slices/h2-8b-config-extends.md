@@ -1,0 +1,94 @@
+# H2.8b-CFG1a config extends の変換・継承
+
+2026-09-11。ユーザーの「次のスライスに進んでください」により、LR2最終
+`2b2423041796938091568cea1a756ec1d186b46e`から`work/h2-8b-config`で着手する。
+CFG1 outlineを、まず既存config parserの変換・継承に沿うこの単位へ具体化する。
+原計画・LR1/LR2の観測と受領証は開始時点の記録として保存する。
+
+## 対象とsource
+
+`parse_config_root_plan`、`ParseContext::parse_node/parse_node_uncached`と既存
+`CompilerConfigHost`を通して28個のfresh config graphを比較する。
+sourceはTypeScript 6.0.3の`parseJsonSourceFileConfigFileContent`、
+`parseJsonConfigFileContentWorker`、`parseConfig`、`parseOwnConfigOfJsonSourceFile`、
+`getExtendedConfig`。全bundleと行範囲のSHAを観測artifactに固定する。
+
+- 単一・多重・逆順・diamond・重複のextendsと、path-valued optionの宣言元ディレクトリ。
+- `${configDir}`の最終置換、null/invalidなown optionによる継承値のmask。
+- `files/include/exclude`と出力ディレクトリの継承・上書き・空配列。
+- root/extended configの構文エラー、option変換エラー、欠落・循環・後続siblingの順序。
+- `compileOnSave`の継承境界（false/true、複数base、own false/null）。
+
+これは28入力のconfig plan比較であり、全`ParsedCommandLine`や通常emitの完全比較ではない。
+比較面はraw JSON、fileNames、wildcardDirectories、extendedSourceFilesとsource text、
+20種のtyped optionのabsent/undefined/value/list状態、root parse / parsed errors /
+compiler-visible config diagnosticsの3列である。診断はcode/category/file/span/message/relatedを照合する。
+pathの出所は上流の解決後option値とextended sourceの順序から検査する。
+
+この28件はconfig APIの観測として固定し、通常emitとの接続は後述の別8件で検査する。
+option relationship diagnosticsの系統的な照合・CLI表示・watch/typeAcquisitionの全変換・
+config cache/oldProgram再利用・任意のhost hookは後続単位。
+H2.8a-closeを前提とするBのprofile activationには進めない。
+
+## 入力・上流観測・native比較
+
+- 入力：`crates/program/tests/fixtures/h2-8b-config-extends-inputs.json`。
+- 上流：`scripts/observe-h2-8b-config-extends.mjs --write|--check`。
+- 凍結観測：`crates/program/tests/fixtures/h2-8b-config-extends.json`。
+- native：`crates/program/tests/integration/h2_8b_config_extends.rs`。
+
+上流は専用の仮想file/directory表から`ts.matchFiles`を呼び、実機filesystemへfallbackしない。
+Rustは同じfile表を`MemoryCompilerHost`へ載せ、既存`CompilerConfigHost`の実際のenumerationを使う。
+それぞれ各caseで2回freshに構築し、比較は順序を含む。callback回数・host logの同一性は対象外。
+nativeは不一致があっても28件×2回すべて記録し、最後に通常assertで実exit101にする。
+失敗をignore/expected-failureへ変更せず、期待値の修正で通過させない。
+
+baselineで再現した差をsource分岐へ帰属させてから、必要な既存productionだけを修正する。
+主な編集候補は`crates/program/src/config.rs`。host/matcherに差があれば別に原因を記録する。
+emitter、printer、metadata、共有comparator、xtask/profileはこの単位の編集候補ではない。
+
+## 受入
+
+28/28を各2回一致させ、通常testをexit0にする。各caseの全actual recordを保存する。
+productionを修正した場合は、既存config契約群、関係するoption unit、LR2のlibrary契約も実行する。
+既存artifact・既存期待値を維持し、source不変なら不要な追加productionを作らない。
+実HEAD、入力/上流/source SHA、実exit、log/capture/binary SHAを新規受領証に記録する。
+
+前回と同じ専用targetをこの作業だけで使い、1 build job、1 test thread、background I/O、nice19。
+別worktreeのacceptanceと重なる場合は使用状況を確認して記録し、他のprocessは変更しない。
+新規hosted acceptance・walk・chain-walk・full `cargo xtask ci`はこのfocused作業には追加しない。
+
+## baselineから確定した修正
+
+`9fb990decb1733be85506c60d9cfa6e45bca9ffe`で24/28一致×2、4件不一致×2、実exit101。
+[baseline受領証](../../../../ratchets/h2-8b-config-extends-baseline.v1.json)に全56回を記録した。
+初回はJSON Numberの`42`/`42.0`をserdeの表現差で不一致とする比較側の問題が1件あったため、
+既存config oracle比較と同じJavaScript Number値による照合へ直してproduction不変で再測定した。
+
+1. `inherited-include-exclude-outdir`：`CompilerConfigHost::walk_directory`はファイルとdirectoryを
+   混ぜた名前順で再帰していた。`matchFiles.visitDirectory`（`_tsc.js:18539–18571`）に合わせ、
+   現directoryのfileを集めてから子directoryへ進む。`CompilerHost::read_directory`のUTF-16順契約を使い、
+   同じ分類内の順序とinclude別bucketを維持する。編集ownerは`config_host.rs`まで広がる。
+2. `invalid-extends-array-entries`：`getExtendsConfigPathOrArray`（39342–39378）はnullを含む
+   非string要素すべてにTS5024を出す。`extends_values_from_value`のnull除外だけを取り除く。
+3. `inherited-compile-on-save-false` / `compile-on-save-true-then-false`：`parseConfig`の
+   `result.compileOnSave`は最後のbase値を保持するが、childのrawへ追加するのはtruthyのときだけ。
+   継承値を採用する最終段でこの条件を再現し、own false/nullと後勝ちの順序を維持する。
+
+この3原因を修正して同じ28入力・期待値を再検査する。既存config契約群とlibrary契約に加え、
+host adapterの順序変更は通常emitへも到達するため、compiler側の関連回帰を確認する。
+
+## 通常emit controlsと完了結果
+
+`h2-8b-config-commands-inputs.json` / `h2-8b-config-commands.json`を別groupとして追加した。
+上流observerは実際のvirtual directory表と`ts.matchFiles`を使い、root列挙結果を固定値で代用しない。
+8件はrecursive include、継承include、逆順include buckets、明示files順、`${configDir}`、
+複数baseの出力先、compileOnSave falseの継承を含む。各16 writes・診断0・command exit0。
+production修正後のcontrolであり、その8件の修正前emit失敗数は主張しない。
+
+修正後28/28 config plansが各2回一致。既存の完全command comparatorを変更せず、追加8件と
+LR2の18件は完全commandとordered Program factsが各2回一致した（104 prepared Programs）。
+program config filterは144 passed / 1 existing ignored、program units 26件、library contracts 20件、
+compiler tests 6件は実exit0で通過した。
+[完了報告](h2-8b-config-extends-report.md)と
+[最終受領証](../../../../ratchets/h2-8b-config-extends-final.v1.json)に実HEAD・SHA・実exitを記録した。

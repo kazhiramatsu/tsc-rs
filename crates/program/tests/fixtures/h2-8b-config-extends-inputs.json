@@ -1,0 +1,828 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1a",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "strict",
+    "outDir",
+    "rootDir",
+    "baseUrl",
+    "paths",
+    "pathsBasePath",
+    "rootDirs",
+    "typeRoots",
+    "moduleSuffixes",
+    "lib",
+    "types",
+    "noEmit",
+    "noLib",
+    "allowJs",
+    "declaration",
+    "sourceMap",
+    "declarationMap",
+    "declarationDir"
+  ],
+  "cases": [
+    {
+      "case_id": "h2-8b-config-extends/single-base-paths",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/a.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base/a.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/multiple-base-forward",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a/base.json\",\"./b/base.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/a/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+        },
+        {
+          "path": "/project/b/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"build\",\"strict\":false,\"rootDirs\":[\"src\",\"generated\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/multiple-base-reverse",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./b/base.json\",\"./a/base.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/a/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+        },
+        {
+          "path": "/project/b/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"build\",\"strict\":false,\"rootDirs\":[\"src\",\"generated\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/diamond-shared-base",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./left/config.json\",\"./right/config.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/shared/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"out\",\"baseUrl\":\".\",\"paths\":{\"shared/*\":[\"src/*\"]},\"types\":[]}}"
+        },
+        {
+          "path": "/project/left/config.json",
+          "text": "{\"extends\":\"../shared/base.json\",\"compilerOptions\":{\"target\":\"es2020\"}}"
+        },
+        {
+          "path": "/project/right/config.json",
+          "text": "{\"extends\":\"../shared/base.json\",\"compilerOptions\":{\"module\":\"esnext\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-base-reference",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./base.json\",\"./base.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"out\",\"baseUrl\":\".\",\"paths\":{\"shared/*\":[\"src/*\"]},\"types\":[]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/nested-config-dir-template",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./middle/config.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/middle/config.json",
+          "text": "{\"extends\":\"../base/config.json\"}"
+        },
+        {
+          "path": "/project/base/config.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"${configDir}/dist\",\"rootDir\":\"${configDir}/src\",\"paths\":{\"alias/*\":[\"${configDir}/src/*\"]},\"rootDirs\":[\"${configDir}/src\",\"../plain\"],\"typeRoots\":[\"${configDir}/types\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-null-masks-inherited-options",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{\"outDir\":null,\"strict\":null,\"types\":null},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"base-out\",\"strict\":true,\"types\":[\"node\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-invalid-masks-inherited-options",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{\"outDir\":42,\"strict\":42,\"types\":42},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"base-out\",\"strict\":true,\"types\":[\"node\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-compiler-options",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{\"target\":\"bad\",\"outDir\":\"first\"},\"compilerOptions\":{\"strict\":false,\"outDir\":\"second\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/duplicate-extends-last-effective",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./missing.json\",\"extends\":\"./base.json\",\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"rootDir\":\"src\",\"outDir\":\"out\",\"strict\":true,\"typeRoots\":[\"types\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-empty-files",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":[]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"files\":[\"main.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-null-files-inherits",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":null}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"files\":[\"main.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-empty-include",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"include\":[]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"include\":[\"src/**/*.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-include-exclude-outdir",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./config/base.json\"}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"../dist\"},\"include\":[\"../**/*.ts\"],\"exclude\":[\"../src/nested\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/child-outdir-overrides-origin",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./config/base.json\",\"compilerOptions\":{\"outDir\":\"src/nested\"}}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"../dist\"},\"include\":[\"../src/**/*.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/nested-relative-rootdir",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./middle/base.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/middle/base.json",
+          "text": "{\"extends\":\"../config/base.json\",\"compilerOptions\":{\"outDir\":\"build\"}}"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\"compilerOptions\":{\"rootDir\":\"../src\",\"rootDirs\":[\"../src\",\"../generated\"],\"moduleSuffixes\":[\".native\",\"\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/invalid-base-continues-sibling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./bad.json\",\"./good.json\"],\"compilerOptions\":{\"target\":\"wrong\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/bad.json",
+          "text": "{\"compilerOptions\":{\"strict\":\"wrong\",\"unknownFlag\":true}}"
+        },
+        {
+          "path": "/project/good.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2022\",\"outDir\":\"out\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/missing-base-continues-sibling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./missing.json\",\"./good.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/good.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2022\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/root-parse-before-conversion",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./bad.json\",\"compilerOptions\":{\"target\":\"bad\"} \"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/bad.json",
+          "text": "{\"compilerOptions\":{\"strict\":\"wrong\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/extended-syntax-atomic-sibling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./bad.json\",\"./good.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/bad.json",
+          "text": "{\"compilerOptions\":{\"strict\":true} \"files\":[\"lost.ts\"]}"
+        },
+        {
+          "path": "/project/good.json",
+          "text": "{\"compilerOptions\":{\"outDir\":\"out\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/cycle-continues-sibling",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./loop.json\",\"./good.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/loop.json",
+          "text": "{\"extends\":\"./tsconfig.json\",\"compilerOptions\":{\"strict\":true}}"
+        },
+        {
+          "path": "/project/good.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/invalid-extends-array-entries",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[42,\"./missing.json\",\"./good.json\",null],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/good.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2022\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-compile-on-save-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":false}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/inherited-compile-on-save-true",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/compile-on-save-true-then-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a.json\",\"./b.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/a.json",
+          "text": "{\"compileOnSave\":true}"
+        },
+        {
+          "path": "/project/b.json",
+          "text": "{\"compileOnSave\":false}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/compile-on-save-false-then-true",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":[\"./a.json\",\"./b.json\"],\"compilerOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/a.json",
+          "text": "{\"compileOnSave\":false}"
+        },
+        {
+          "path": "/project/b.json",
+          "text": "{\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-compile-on-save-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"],\"compileOnSave\":false}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-extends/own-compile-on-save-null",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{},\"files\":[\"main.ts\"],\"compileOnSave\":null}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const source = 2;\n"
+        },
+        {
+          "path": "/project/src/nested/helper.ts",
+          "text": "export const helper = 3;\n"
+        },
+        {
+          "path": "/project/dist/generated.ts",
+          "text": "export const generated = 4;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":true}"
+        }
+      ]
+    }
+  ]
+}

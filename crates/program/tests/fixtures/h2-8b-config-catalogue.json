@@ -1,0 +1,2241 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "960bb54425b72ae27054342f5d627a1e07e47e5a94a356c61b5c1a86ed70dfa3",
+  "groups": {
+    "compiler": [
+      {
+        "name": "help",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "help",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "watch",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "preserveWatchOutput",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "listFiles",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "explainFiles",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "listEmittedFiles",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "pretty",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "traceResolution",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "diagnostics",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "extendedDiagnostics",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "generateCpuProfile",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "generateTrace",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "incremental",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "declaration",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "declarationMap",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "emitDeclarationOnly",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "sourceMap",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "inlineSourceMap",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noCheck",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noEmit",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "assumeChangesOnlyAffectDirectDependencies",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "locale",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "all",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "version",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "init",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "project",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "showConfig",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "listFilesOnly",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "ignoreConfig",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": true,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "target",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "es3",
+              0
+            ],
+            [
+              "es5",
+              1
+            ],
+            [
+              "es6",
+              2
+            ],
+            [
+              "es2015",
+              2
+            ],
+            [
+              "es2016",
+              3
+            ],
+            [
+              "es2017",
+              4
+            ],
+            [
+              "es2018",
+              5
+            ],
+            [
+              "es2019",
+              6
+            ],
+            [
+              "es2020",
+              7
+            ],
+            [
+              "es2021",
+              8
+            ],
+            [
+              "es2022",
+              9
+            ],
+            [
+              "es2023",
+              10
+            ],
+            [
+              "es2024",
+              11
+            ],
+            [
+              "es2025",
+              12
+            ],
+            [
+              "esnext",
+              99
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "module",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "none",
+              0
+            ],
+            [
+              "commonjs",
+              1
+            ],
+            [
+              "amd",
+              2
+            ],
+            [
+              "system",
+              4
+            ],
+            [
+              "umd",
+              3
+            ],
+            [
+              "es6",
+              5
+            ],
+            [
+              "es2015",
+              5
+            ],
+            [
+              "es2020",
+              6
+            ],
+            [
+              "es2022",
+              7
+            ],
+            [
+              "esnext",
+              99
+            ],
+            [
+              "node16",
+              100
+            ],
+            [
+              "node18",
+              101
+            ],
+            [
+              "node20",
+              102
+            ],
+            [
+              "nodenext",
+              199
+            ],
+            [
+              "preserve",
+              200
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "lib",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "lib",
+            "type": {
+              "kind": "named",
+              "values": [
+                [
+                  "es5",
+                  "lib.es5.d.ts"
+                ],
+                [
+                  "es6",
+                  "lib.es2015.d.ts"
+                ],
+                [
+                  "es2015",
+                  "lib.es2015.d.ts"
+                ],
+                [
+                  "es7",
+                  "lib.es2016.d.ts"
+                ],
+                [
+                  "es2016",
+                  "lib.es2016.d.ts"
+                ],
+                [
+                  "es2017",
+                  "lib.es2017.d.ts"
+                ],
+                [
+                  "es2018",
+                  "lib.es2018.d.ts"
+                ],
+                [
+                  "es2019",
+                  "lib.es2019.d.ts"
+                ],
+                [
+                  "es2020",
+                  "lib.es2020.d.ts"
+                ],
+                [
+                  "es2021",
+                  "lib.es2021.d.ts"
+                ],
+                [
+                  "es2022",
+                  "lib.es2022.d.ts"
+                ],
+                [
+                  "es2023",
+                  "lib.es2023.d.ts"
+                ],
+                [
+                  "es2024",
+                  "lib.es2024.d.ts"
+                ],
+                [
+                  "es2025",
+                  "lib.es2025.d.ts"
+                ],
+                [
+                  "esnext",
+                  "lib.esnext.d.ts"
+                ],
+                [
+                  "dom",
+                  "lib.dom.d.ts"
+                ],
+                [
+                  "dom.iterable",
+                  "lib.dom.iterable.d.ts"
+                ],
+                [
+                  "dom.asynciterable",
+                  "lib.dom.asynciterable.d.ts"
+                ],
+                [
+                  "webworker",
+                  "lib.webworker.d.ts"
+                ],
+                [
+                  "webworker.importscripts",
+                  "lib.webworker.importscripts.d.ts"
+                ],
+                [
+                  "webworker.iterable",
+                  "lib.webworker.iterable.d.ts"
+                ],
+                [
+                  "webworker.asynciterable",
+                  "lib.webworker.asynciterable.d.ts"
+                ],
+                [
+                  "scripthost",
+                  "lib.scripthost.d.ts"
+                ],
+                [
+                  "es2015.core",
+                  "lib.es2015.core.d.ts"
+                ],
+                [
+                  "es2015.collection",
+                  "lib.es2015.collection.d.ts"
+                ],
+                [
+                  "es2015.generator",
+                  "lib.es2015.generator.d.ts"
+                ],
+                [
+                  "es2015.iterable",
+                  "lib.es2015.iterable.d.ts"
+                ],
+                [
+                  "es2015.promise",
+                  "lib.es2015.promise.d.ts"
+                ],
+                [
+                  "es2015.proxy",
+                  "lib.es2015.proxy.d.ts"
+                ],
+                [
+                  "es2015.reflect",
+                  "lib.es2015.reflect.d.ts"
+                ],
+                [
+                  "es2015.symbol",
+                  "lib.es2015.symbol.d.ts"
+                ],
+                [
+                  "es2015.symbol.wellknown",
+                  "lib.es2015.symbol.wellknown.d.ts"
+                ],
+                [
+                  "es2016.array.include",
+                  "lib.es2016.array.include.d.ts"
+                ],
+                [
+                  "es2016.intl",
+                  "lib.es2016.intl.d.ts"
+                ],
+                [
+                  "es2017.arraybuffer",
+                  "lib.es2017.arraybuffer.d.ts"
+                ],
+                [
+                  "es2017.date",
+                  "lib.es2017.date.d.ts"
+                ],
+                [
+                  "es2017.object",
+                  "lib.es2017.object.d.ts"
+                ],
+                [
+                  "es2017.sharedmemory",
+                  "lib.es2017.sharedmemory.d.ts"
+                ],
+                [
+                  "es2017.string",
+                  "lib.es2017.string.d.ts"
+                ],
+                [
+                  "es2017.intl",
+                  "lib.es2017.intl.d.ts"
+                ],
+                [
+                  "es2017.typedarrays",
+                  "lib.es2017.typedarrays.d.ts"
+                ],
+                [
+                  "es2018.asyncgenerator",
+                  "lib.es2018.asyncgenerator.d.ts"
+                ],
+                [
+                  "es2018.asynciterable",
+                  "lib.es2018.asynciterable.d.ts"
+                ],
+                [
+                  "es2018.intl",
+                  "lib.es2018.intl.d.ts"
+                ],
+                [
+                  "es2018.promise",
+                  "lib.es2018.promise.d.ts"
+                ],
+                [
+                  "es2018.regexp",
+                  "lib.es2018.regexp.d.ts"
+                ],
+                [
+                  "es2019.array",
+                  "lib.es2019.array.d.ts"
+                ],
+                [
+                  "es2019.object",
+                  "lib.es2019.object.d.ts"
+                ],
+                [
+                  "es2019.string",
+                  "lib.es2019.string.d.ts"
+                ],
+                [
+                  "es2019.symbol",
+                  "lib.es2019.symbol.d.ts"
+                ],
+                [
+                  "es2019.intl",
+                  "lib.es2019.intl.d.ts"
+                ],
+                [
+                  "es2020.bigint",
+                  "lib.es2020.bigint.d.ts"
+                ],
+                [
+                  "es2020.date",
+                  "lib.es2020.date.d.ts"
+                ],
+                [
+                  "es2020.promise",
+                  "lib.es2020.promise.d.ts"
+                ],
+                [
+                  "es2020.sharedmemory",
+                  "lib.es2020.sharedmemory.d.ts"
+                ],
+                [
+                  "es2020.string",
+                  "lib.es2020.string.d.ts"
+                ],
+                [
+                  "es2020.symbol.wellknown",
+                  "lib.es2020.symbol.wellknown.d.ts"
+                ],
+                [
+                  "es2020.intl",
+                  "lib.es2020.intl.d.ts"
+                ],
+                [
+                  "es2020.number",
+                  "lib.es2020.number.d.ts"
+                ],
+                [
+                  "es2021.promise",
+                  "lib.es2021.promise.d.ts"
+                ],
+                [
+                  "es2021.string",
+                  "lib.es2021.string.d.ts"
+                ],
+                [
+                  "es2021.weakref",
+                  "lib.es2021.weakref.d.ts"
+                ],
+                [
+                  "es2021.intl",
+                  "lib.es2021.intl.d.ts"
+                ],
+                [
+                  "es2022.array",
+                  "lib.es2022.array.d.ts"
+                ],
+                [
+                  "es2022.error",
+                  "lib.es2022.error.d.ts"
+                ],
+                [
+                  "es2022.intl",
+                  "lib.es2022.intl.d.ts"
+                ],
+                [
+                  "es2022.object",
+                  "lib.es2022.object.d.ts"
+                ],
+                [
+                  "es2022.string",
+                  "lib.es2022.string.d.ts"
+                ],
+                [
+                  "es2022.regexp",
+                  "lib.es2022.regexp.d.ts"
+                ],
+                [
+                  "es2023.array",
+                  "lib.es2023.array.d.ts"
+                ],
+                [
+                  "es2023.collection",
+                  "lib.es2023.collection.d.ts"
+                ],
+                [
+                  "es2023.intl",
+                  "lib.es2023.intl.d.ts"
+                ],
+                [
+                  "es2024.arraybuffer",
+                  "lib.es2024.arraybuffer.d.ts"
+                ],
+                [
+                  "es2024.collection",
+                  "lib.es2024.collection.d.ts"
+                ],
+                [
+                  "es2024.object",
+                  "lib.es2024.object.d.ts"
+                ],
+                [
+                  "es2024.promise",
+                  "lib.es2024.promise.d.ts"
+                ],
+                [
+                  "es2024.regexp",
+                  "lib.es2024.regexp.d.ts"
+                ],
+                [
+                  "es2024.sharedmemory",
+                  "lib.es2024.sharedmemory.d.ts"
+                ],
+                [
+                  "es2024.string",
+                  "lib.es2024.string.d.ts"
+                ],
+                [
+                  "es2025.collection",
+                  "lib.es2025.collection.d.ts"
+                ],
+                [
+                  "es2025.float16",
+                  "lib.es2025.float16.d.ts"
+                ],
+                [
+                  "es2025.intl",
+                  "lib.es2025.intl.d.ts"
+                ],
+                [
+                  "es2025.iterator",
+                  "lib.es2025.iterator.d.ts"
+                ],
+                [
+                  "es2025.promise",
+                  "lib.es2025.promise.d.ts"
+                ],
+                [
+                  "es2025.regexp",
+                  "lib.es2025.regexp.d.ts"
+                ],
+                [
+                  "esnext.asynciterable",
+                  "lib.es2018.asynciterable.d.ts"
+                ],
+                [
+                  "esnext.symbol",
+                  "lib.es2019.symbol.d.ts"
+                ],
+                [
+                  "esnext.bigint",
+                  "lib.es2020.bigint.d.ts"
+                ],
+                [
+                  "esnext.weakref",
+                  "lib.es2021.weakref.d.ts"
+                ],
+                [
+                  "esnext.object",
+                  "lib.es2024.object.d.ts"
+                ],
+                [
+                  "esnext.regexp",
+                  "lib.es2024.regexp.d.ts"
+                ],
+                [
+                  "esnext.string",
+                  "lib.es2024.string.d.ts"
+                ],
+                [
+                  "esnext.float16",
+                  "lib.es2025.float16.d.ts"
+                ],
+                [
+                  "esnext.iterator",
+                  "lib.es2025.iterator.d.ts"
+                ],
+                [
+                  "esnext.promise",
+                  "lib.es2025.promise.d.ts"
+                ],
+                [
+                  "esnext.array",
+                  "lib.esnext.array.d.ts"
+                ],
+                [
+                  "esnext.collection",
+                  "lib.esnext.collection.d.ts"
+                ],
+                [
+                  "esnext.date",
+                  "lib.esnext.date.d.ts"
+                ],
+                [
+                  "esnext.decorators",
+                  "lib.esnext.decorators.d.ts"
+                ],
+                [
+                  "esnext.disposable",
+                  "lib.esnext.disposable.d.ts"
+                ],
+                [
+                  "esnext.error",
+                  "lib.esnext.error.d.ts"
+                ],
+                [
+                  "esnext.intl",
+                  "lib.esnext.intl.d.ts"
+                ],
+                [
+                  "esnext.sharedmemory",
+                  "lib.esnext.sharedmemory.d.ts"
+                ],
+                [
+                  "esnext.temporal",
+                  "lib.esnext.temporal.d.ts"
+                ],
+                [
+                  "esnext.typedarrays",
+                  "lib.esnext.typedarrays.d.ts"
+                ],
+                [
+                  "decorators",
+                  "lib.decorators.d.ts"
+                ],
+                [
+                  "decorators.legacy",
+                  "lib.decorators.legacy.d.ts"
+                ]
+              ]
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowJs",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "checkJs",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "jsx",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "preserve",
+              1
+            ],
+            [
+              "react-native",
+              3
+            ],
+            [
+              "react-jsx",
+              4
+            ],
+            [
+              "react-jsxdev",
+              5
+            ],
+            [
+              "react",
+              2
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "outFile",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "outDir",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "rootDir",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "composite",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "tsBuildInfoFile",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "removeComments",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "importHelpers",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "importsNotUsedAsValues",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "remove",
+              0
+            ],
+            [
+              "preserve",
+              1
+            ],
+            [
+              "error",
+              2
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "downlevelIteration",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "isolatedModules",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "verbatimModuleSyntax",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "isolatedDeclarations",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "erasableSyntaxOnly",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "libReplacement",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strict",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noImplicitAny",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strictNullChecks",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strictFunctionTypes",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strictBindCallApply",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strictPropertyInitialization",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "strictBuiltinIteratorReturn",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "stableTypeOrdering",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noImplicitThis",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "useUnknownInCatchVariables",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "alwaysStrict",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noUnusedLocals",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noUnusedParameters",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "exactOptionalPropertyTypes",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noImplicitReturns",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noFallthroughCasesInSwitch",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noUncheckedIndexedAccess",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noImplicitOverride",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noPropertyAccessFromIndexSignature",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "moduleResolution",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "node10",
+              2
+            ],
+            [
+              "node",
+              2
+            ],
+            [
+              "classic",
+              1
+            ],
+            [
+              "node16",
+              3
+            ],
+            [
+              "nodenext",
+              99
+            ],
+            [
+              "bundler",
+              100
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "baseUrl",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "paths",
+        "type": {
+          "kind": "object",
+          "config_dir": true
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "rootDirs",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "rootDirs",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": true,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": true
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "typeRoots",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "typeRoots",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": true,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": true
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "types",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "types",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowSyntheticDefaultImports",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "esModuleInterop",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "preserveSymlinks",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowUmdGlobalAccess",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "moduleSuffixes",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "suffix",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": true,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowImportingTsExtensions",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "rewriteRelativeImportExtensions",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "resolvePackageJsonExports",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "resolvePackageJsonImports",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "customConditions",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "condition",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noUncheckedSideEffectImports",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "sourceRoot",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "mapRoot",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "inlineSources",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "experimentalDecorators",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "emitDecoratorMetadata",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "jsxFactory",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "jsxFragmentFactory",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "jsxImportSource",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "resolveJsonModule",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowArbitraryExtensions",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "out",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "reactNamespace",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "skipDefaultLibCheck",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "charset",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "emitBOM",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "newLine",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "crlf",
+              0
+            ],
+            [
+              "lf",
+              1
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noErrorTruncation",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noLib",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noResolve",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "stripInternal",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "disableSizeLimit",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "disableSourceOfProjectReferenceRedirect",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "disableSolutionSearching",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "disableReferencedProjectLoad",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "noImplicitUseStrict",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noEmitHelpers",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noEmitOnError",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "preserveConstEnums",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "declarationDir",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": true,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "skipLibCheck",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowUnusedLabels",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "allowUnreachableCode",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "suppressExcessPropertyErrors",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "suppressImplicitAnyIndexErrors",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "forceConsistentCasingInFileNames",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "maxNodeModuleJsDepth",
+        "type": {
+          "kind": "number"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "noStrictGenericChecks",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "useDefineForClassFields",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "preserveValueImports",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "keyofStringsOnly",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "plugins",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "plugin",
+            "type": {
+              "kind": "object",
+              "config_dir": false
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": true,
+        "extra_validation": false
+      },
+      {
+        "name": "moduleDetection",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "auto",
+              2
+            ],
+            [
+              "legacy",
+              1
+            ],
+            [
+              "force",
+              3
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "ignoreDeprecations",
+        "type": {
+          "kind": "string"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      }
+    ],
+    "watch": [
+      {
+        "name": "watchFile",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "fixedpollinginterval",
+              0
+            ],
+            [
+              "prioritypollinginterval",
+              1
+            ],
+            [
+              "dynamicprioritypolling",
+              2
+            ],
+            [
+              "fixedchunksizepolling",
+              3
+            ],
+            [
+              "usefsevents",
+              4
+            ],
+            [
+              "usefseventsonparentdirectory",
+              5
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "watchDirectory",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "usefsevents",
+              0
+            ],
+            [
+              "fixedpollinginterval",
+              1
+            ],
+            [
+              "dynamicprioritypolling",
+              2
+            ],
+            [
+              "fixedchunksizepolling",
+              3
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "fallbackPolling",
+        "type": {
+          "kind": "named",
+          "values": [
+            [
+              "fixedinterval",
+              0
+            ],
+            [
+              "priorityinterval",
+              1
+            ],
+            [
+              "dynamicpriority",
+              2
+            ],
+            [
+              "fixedchunksize",
+              3
+            ]
+          ]
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "synchronousWatchDirectory",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "excludeDirectories",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "excludeDirectory",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": true,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": true
+          },
+          "preserve_falsy": false,
+          "config_dir": true
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "excludeFiles",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "excludeFile",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": true,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": true
+          },
+          "preserve_falsy": false,
+          "config_dir": true
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      }
+    ],
+    "acquisition": [
+      {
+        "name": "enable",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "include",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "include",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "exclude",
+        "type": {
+          "kind": "list",
+          "element": {
+            "name": "exclude",
+            "type": {
+              "kind": "string"
+            },
+            "file_path": false,
+            "command_line_only": false,
+            "tsconfig_only": false,
+            "extra_validation": false
+          },
+          "preserve_falsy": false,
+          "config_dir": false
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      },
+      {
+        "name": "disableFilenameBasedTypeAcquisition",
+        "type": {
+          "kind": "boolean"
+        },
+        "file_path": false,
+        "command_line_only": false,
+        "tsconfig_only": false,
+        "extra_validation": false
+      }
+    ]
+  }
+}

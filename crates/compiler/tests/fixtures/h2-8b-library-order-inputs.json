@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "description": "Physical library priority, stable ties, promotion, and directory boundary controls",
+  "cases": [
+    {
+      "case_id": "h2-8b-library-order/two-replacements-forward",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "interface ReplacementDOM {}\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-webworker/index.d.ts",
+          "text": "interface ReplacementWorker {}\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"webworker\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-order/two-replacements-reverse",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "interface ReplacementDOM {}\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-webworker/index.d.ts",
+          "text": "interface ReplacementWorker {}\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"webworker\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-order/promoted-reference-multiple",
+      "roots": [
+        "/project/node_modules/@typescript/lib-webworker/index.d.ts",
+        "/project/main.ts",
+        "/project/node_modules/@typescript/lib-dom/index.d.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "/// <reference lib=\"dom\" />\n/// <reference lib=\"webworker\" />\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "interface ReplacementDOM {}\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-webworker/index.d.ts",
+          "text": "interface ReplacementWorker {}\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"webworker\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/node_modules/@typescript/lib-webworker/index.d.ts\", \"/project/main.ts\", \"/project/node_modules/@typescript/lib-dom/index.d.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-order/outside-catalog-basename",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/package.json",
+          "text": "{\"types\":\"lib.dom.d.ts\"}"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/lib.dom.d.ts",
+          "text": "interface ExternalNamedDOM {}\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"es2015.core\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-order/inside-catalog-other-basename",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/package.json",
+          "text": "{\"types\":\"/lib/lib.es2015.collection.d.ts\"}"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"es2015.core\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-order/catalog-prefix-neighbor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/package.json",
+          "text": "{\"types\":\"/lib-extra/lib.dom.d.ts\"}"
+        },
+        {
+          "path": "/lib-extra/lib.dom.d.ts",
+          "text": "interface PrefixNeighborDOM {}\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"es2015.core\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "description": "Fresh-Program library replacement full-command and Program-membership witnesses; no custom resolver hook, oldProgram, or trace claim.",
+  "cases": [
+    {
+      "case_id": "h2-8b-library-replacement/enabled-package",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/disabled-package",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": false}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/omitted-option",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-package-fallback",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "/// <reference lib=\"dom\" />\nexport const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/config-directory-anchor",
+      "roots": [
+        "/project/src/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/config/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"wrong-cwd\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/config/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/src/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-subpath",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/iterable.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom.iterable\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true, \"moduleSuffixes\": [\".unavailable\"]}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-exports-isolated",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/package.json",
+          "text": "{\"name\":\"@typescript/lib-dom\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\",\"exports\":\"./wrong.d.ts\"}"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/wrong.d.ts",
+          "text": "declare const libraryMarker: \"wrong-exports\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true, \"moduleResolution\": \"bundler\"}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+      "roots": [
+        "/project/node_modules/@typescript/lib-dom/index.d.ts",
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = libraryMarker;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/node_modules/@typescript/lib-dom/index.d.ts\", \"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"lib\": [\"es5\", \"dom.iterable\"], \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true}, \"files\": [\"/project/main.ts\"]}"
+    },
+    {
+      "case_id": "h2-8b-library-replacement/no-lib-gate",
+      "roots": [
+        "/project/main.ts",
+        "/project/globals.d.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/node_modules/@typescript/lib-dom/index.d.ts",
+          "text": "declare const libraryMarker: \"replacement\";\n"
+        },
+        {
+          "path": "/project/globals.d.ts",
+          "text": "interface Boolean {}\ninterface Function {}\ninterface CallableFunction {}\ninterface NewableFunction {}\ninterface IArguments {}\ninterface Number {}\ninterface Object {}\ninterface RegExp {}\ninterface String {}\ninterface Array<T> { length: number; [n: number]: T; }\n"
+        }
+      ],
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\": {\"target\": \"es2015\", \"module\": \"esnext\", \"types\": [], \"strict\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"skipDefaultLibCheck\": true, \"outDir\": \"/project/out\", \"newLine\": \"crlf\", \"listEmittedFiles\": true, \"libReplacement\": true, \"noLib\": true}, \"files\": [\"/project/main.ts\", \"/project/globals.d.ts\"]}"
+    }
+  ]
+}
