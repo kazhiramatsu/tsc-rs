@@ -1,0 +1,119 @@
+{
+  "candidate_head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "measured_precommit_head": "f8e47ecf4ca38c1dd334049dd4a1d982dd75fc7e",
+  "measured_candidate_diff_sha256": "4b7275d9958ab10102820dca54d2bce748c35a603f6b70831d2a046d2498dd71",
+  "measured_inputs": {
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs": "120a553452a811377deeed536fd15b033aaca521b66b9c0b80a4170e29c0b722",
+    "ratchets/h2-5g-qualification.v1.json": "8666e68c50b098fcac015b523307ce71e4f39d689e9cb7f3b31d405cde9cacaa"
+  },
+  "source_bytes_match_committed_candidate": true,
+  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/pr-h2-5g-remainders-r1",
+  "prelaunch_sha256": "b1bd042c95ef259dda1204806226cdddf9b473984f6499113b77efa20df9a85e",
+  "receipts": [
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-xtask",
+        "--bin",
+        "xtask",
+        "h2_5g_generated_provenance_and_static_visits_keep_complete_observations",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "actual_exit": 0,
+      "log_sha256": "d512fec9856bb1821dce9f0985219508e35bb2f8807745c26543591652d1f6ec",
+      "inputs_unchanged": true,
+      "binary": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts/debug/deps/xtask-bb2314dfbb82fb35",
+      "binary_sha256": "90ccd1b196f144b96e6136cd7cdfe81a5d0ad74ac5636fc7cc9eb64cabf12fcb",
+      "receipt_sha256": "a7c7d2567527f37dde886e183239429ff7d118ae39093b2421e3971faa79aae1"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-emitter",
+        "--lib",
+        "--",
+        "--test-threads=1"
+      ],
+      "actual_exit": 0,
+      "log_sha256": "f0d382caa71ecfd8313a9542e1a2a992b9f0605a68ebaf3c58a98080925e2628",
+      "inputs_unchanged": true,
+      "binary": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts/debug/deps/tsc_emitter-4eacdde07688abea",
+      "binary_sha256": "bdfee077dfc075f9c91569a5bac57f58ab75bb476e7ac63c0d362ed47f35a480",
+      "receipt_sha256": "9035f5d80f5f49074ba07db2e9f5aecb66c4c4a7f8f6dadf747443b855259d57"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-emitter",
+        "--test",
+        "contracts",
+        "--",
+        "--test-threads=1"
+      ],
+      "actual_exit": 0,
+      "log_sha256": "fadc3baf55d1e6e7c5565a10d7d93b89aac1aac27efc6556c351432b5bd21804",
+      "inputs_unchanged": true,
+      "binary": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts/debug/deps/contracts-ac1b8aeedb2a27c7",
+      "binary_sha256": "db0d573d191582b2af7f818a24e2555fc2a7d61b290d8aa38ec5cf05c8c5a7af",
+      "receipt_sha256": "16ba8f473aded9a2278f2eed25cd8e74c995a195a480e53f8d6d6d4cea9902b3"
+    },
+    {
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "xtask",
+        "acceptance-slice",
+        "h2-5b"
+      ],
+      "actual_exit": 0,
+      "log_sha256": "3d17b0a9d504c6092a5ffb4dc73bd6ab9bcce67f4dd6b29131a1ecaa16f42b65",
+      "inputs_unchanged": true,
+      "binary": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts/debug/xtask",
+      "binary_sha256": "0404c2498be073a8feb762a88927fab4c78130e75c9e28bb5f96f273f08167a1",
+      "receipt_sha256": "5cdf2b7fd3fe3d5e30ce9bfebd654898e582172f60bdfc24f8c98a46b053a76a"
+    }
+  ],
+  "summary": {
+    "complete_commands": 4,
+    "repetitions": 2,
+    "emitter_lib_passed": 495,
+    "emitter_contracts_passed": 452,
+    "h2_5b": {
+      "candidates": 72,
+      "exact_twice": 68,
+      "h2_9_deferred": 4,
+      "exact_diagnostics": 48,
+      "exact_writes": 93
+    }
+  }
+}
