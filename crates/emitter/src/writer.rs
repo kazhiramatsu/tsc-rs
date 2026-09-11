@@ -75,23 +75,6 @@ impl GeneratedText {
         }
     }
 
-    /// The System helper owner obtains this byte boundary by searching ASCII
-    /// delimiters in the UTF8 view. Such a boundary also identifies a complete
-    /// UTF16 prefix, even when that prefix contains replacement projections.
-    pub(crate) fn insert_at_utf8_boundary(&mut self, offset: usize, inserted: &Self) {
-        let prefix = &self.utf8[..offset];
-        if self.utf16.is_none() && inserted.utf16.is_none() {
-            self.utf8.insert_str(offset, inserted.as_str());
-            return;
-        }
-        let unit_offset = prefix.encode_utf16().count();
-        let text = self
-            .utf16
-            .get_or_insert_with(|| self.utf8.encode_utf16().collect());
-        text.splice(unit_offset..unit_offset, inserted.units().iter().copied());
-        self.utf8 = String::from_utf16_lossy(text);
-    }
-
     fn clear(&mut self) {
         self.utf8.clear();
         self.utf16 = None;

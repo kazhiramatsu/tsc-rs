@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "description": "System helper placement with directives/shebang and map/declaration/helper options.",
+  "cases": [
+    {
+      "case_id": "decorator-system-helper-prologues/es2022/set/directives-shebang",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "#!/usr/bin/env node\n\"first\";\n\"second\";\nfunction dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-system-helper-prologues/es2022/set/no-emit-helpers",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": false,
+        "removeComments": false,
+        "noEmitHelpers": true
+      }
+    },
+    {
+      "case_id": "decorator-system-helper-prologues/es2022/set/without-declarations",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-system-helper-prologues/es2022/set/without-maps",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    }
+  ]
+}

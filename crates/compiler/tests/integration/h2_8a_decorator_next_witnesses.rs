@@ -56,10 +56,9 @@ const GROUPS: &[(&str, &[u8], usize)] = &[
     ),
     // Version 2 of the readers group: the CommonJS/AMD/UMD and
     // parameter-initializer commands of version 1 (byte-identical inputs and
-    // observations). Version 1's two System commands stay observed in
-    // `decorator-lexical-prologue-readers.json` only: their JavaScript is
-    // exact and their source map is the System module transform's, not the
-    // decorator pass's.
+    // observations). Version 1 remains immutable; its two System commands
+    // are now also covered by `system-map-followup`, alongside the System
+    // owner's map controls.
     (
         "lexical-prologue-readers-v2",
         include_bytes!("../fixtures/decorator-lexical-prologue-readers-v2.json"),
@@ -78,6 +77,11 @@ const GROUPS: &[(&str, &[u8], usize)] = &[
     (
         "system-map-followup",
         include_bytes!("../fixtures/decorator-system-map-followup.json"),
+        4,
+    ),
+    (
+        "system-helper-prologues",
+        include_bytes!("../fixtures/decorator-system-helper-prologues.json"),
         4,
     ),
 ];
