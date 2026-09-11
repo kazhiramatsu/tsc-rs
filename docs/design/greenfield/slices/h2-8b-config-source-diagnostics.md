@@ -17,3 +17,10 @@ Programのpostorderから最初の非ambient external moduleを選び、option d
 TS5074（configFilePath無しincremental）とTS6307（compositeのfile list）はbuilder側の境界。
 通常CFGからconfigFilePathは常に設定し、incremental/compositeの実emitは既存typed guardで拒否する。
 この区別は最終owner表に残し、builder製品をCFG完了に含めた扱いにはしない。
+
+修正前e62da34ab：14件中2一致/12失敗。うち10件はTS1148/TS6131の欠落、
+2件は既存isolatedModules/verbatimModuleSyntaxのemitter guardで拒否された。後者は
+H2.8c-MOD1の別ownerであることを実呼出で確認したため、凍結上流観測を保ったまま
+新規native adapterで既存のtyped-guard controlへ分類する（共有comparatorは不変）。
+2件は完全command一致数へ含めず、無書込の型付き拒否とProgram facts・TS1148不在を比較する。
+今回の完全command受入は12件。ガード自体は変更しない。

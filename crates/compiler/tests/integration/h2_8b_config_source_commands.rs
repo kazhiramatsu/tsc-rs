@@ -6,7 +6,7 @@ use tsc_program::{PreparedProgram, ProgramPath};
 use super::h2_7c_declaration_blocking::assert_cases_with_inspection;
 
 fn observations() -> Value {
-    let artifact: Value = serde_json::from_slice(include_bytes!(
+    let mut artifact: Value = serde_json::from_slice(include_bytes!(
         "../fixtures/h2-8b-config-source-commands.json"
     ))
     .expect("frozen config command observations");
@@ -14,11 +14,28 @@ fn observations() -> Value {
     assert_eq!(artifact["repetitions"], 2);
     assert_eq!(artifact["cases"].as_array().expect("cases").len(), 8);
     assert_eq!(artifact["upstream_failures"], json!([]));
+    for case in artifact["cases"].as_array_mut().expect("cases") {
+        if let Some(option) = module_boundary(case["case_id"].as_str().expect("case id")) {
+            case["rust_expected_unsupported_option"] = json!(option);
+        }
+    }
     artifact
 }
 
+// H2.8c-MOD1 owns activation of these existing emitter guards. The CFG
+// controls assert their typed refusal, no writes, and Program membership.
+fn module_boundary(case_id: &str) -> Option<&'static str> {
+    if case_id.ends_with("/none-isolated") {
+        Some("isolatedModules")
+    } else if case_id.ends_with("/none-verbatim") {
+        Some("verbatimModuleSyntax")
+    } else {
+        None
+    }
+}
+
 #[test]
-fn config_source_commands_match_complete_typescript_observations() {
+fn config_source_commands_match_observations_and_module_boundaries() {
     assert_every_case(record_attempt);
 }
 
@@ -49,7 +66,7 @@ fn assert_every_case(inspect: fn(&str, &PreparedProgram, &Value)) {
 fn record_attempt(case_id: &str, _: &PreparedProgram, _: &Value) {
     eprintln!(
         "H2.8b-CFG1f-command {}",
-        json!({"event": "prepared", "test": "complete-command", "case_id": case_id})
+        json!({"event": "prepared", "test": if module_boundary(case_id).is_some() { "module-boundary" } else { "complete-command" }, "case_id": case_id})
     );
 }
 
@@ -58,6 +75,18 @@ fn display_path(path: &ProgramPath) -> &str {
 }
 
 fn inspect_program_facts(case_id: &str, prepared: &PreparedProgram, expected: &Value) {
+    if module_boundary(case_id).is_some() {
+        assert!(!prepared
+            .diagnostics()
+            .options()
+            .iter()
+            .any(|d| d.code() == 1148));
+        assert!(!expected["reported_diagnostics"]
+            .as_array()
+            .expect("diagnostics")
+            .iter()
+            .any(|d| d["code"] == 1148));
+    }
     eprintln!(
         "H2.8b-CFG1f-command {}",
         json!({"event": "prepared", "test": "program-membership", "case_id": case_id})
