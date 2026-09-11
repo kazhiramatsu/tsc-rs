@@ -2197,6 +2197,9 @@ fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigPa
 }
 
 impl ParseContext<'_> {
+    // tsc-port: getExtendedConfig @6.0.3
+    // tsc-hash: 545d6ab16e97cc943150aa4dd577a88bb693aa81ca82a86f7a75328b37d9084f
+    // tsc-span: _tsc.js:39460-39500
     fn extended_config(&mut self, path: &str) -> Result<CachedExtendedConfig, ConfigParseError> {
         let key = canonical_key(path, self.host.use_case_sensitive_file_names());
         if let Some(entry) = self
