@@ -56,6 +56,30 @@ fn option_record(options: &ConfigOptionBag, name: &str) -> Value {
     }
 }
 
+// JSONC values follow JavaScript Number semantics. serde retains whether a
+// finite number was parsed as an integer or a float (for example 42 / 42.0).
+fn json_values_equivalent(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Number(left), Value::Number(right)) => left.as_f64() == right.as_f64(),
+        (Value::Array(left), Value::Array(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| json_values_equivalent(left, right))
+        }
+        (Value::Object(left), Value::Object(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(key, left)| {
+                    right
+                        .get(key)
+                        .is_some_and(|right| json_values_equivalent(left, right))
+                })
+        }
+        _ => left == right,
+    }
+}
+
 fn observe(case: &Value, option_keys: &[Value]) -> Value {
     let config_path = case["config_path"].as_str().expect("config path");
     let config = case["config"].as_str().expect("config source");
@@ -124,7 +148,7 @@ fn config_extends_matches_fresh_typescript_observations() {
         let case_id = case["case_id"].as_str().expect("case id");
         for repetition in 1..=2 {
             let actual = observe(case, option_keys);
-            let exact = actual == expected["typescript_observation"];
+            let exact = json_values_equivalent(&actual, &expected["typescript_observation"]);
             eprintln!(
                 "H2.8b-CFG1a {}",
                 json!({"case_id": case_id, "repetition": repetition, "exact": exact, "actual": actual})
@@ -134,7 +158,7 @@ fn config_extends_matches_fresh_typescript_observations() {
                     .as_object()
                     .expect("observed config record")
                     .iter()
-                    .filter(|(name, value)| actual[*name] != **value)
+                    .filter(|(name, value)| !json_values_equivalent(&actual[*name], value))
                     .map(|(name, _)| name.as_str())
                     .collect::<Vec<_>>();
                 failures.push(format!("{case_id} repetition {repetition}: {fields:?}"));
