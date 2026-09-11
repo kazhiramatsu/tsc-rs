@@ -214,17 +214,21 @@ fn discovery_base_paths(
     case_sensitive: bool,
 ) -> Result<Vec<String>, ConfigHostError> {
     let normalize = |path: &str| {
-        normalize_absolute_path(
-            Path::new(if path.is_empty() { directory } else { path }),
-            Some(directory),
-        )
-        .map_err(|error| {
-            ConfigHostError::new(
-                ConfigHostOperation::ReadDirectory,
-                directory,
-                error.to_string(),
-            )
-        })
+        let path = if path.is_empty() { directory } else { path };
+        let mut normalized =
+            normalize_absolute_path(Path::new(path), Some(directory)).map_err(|error| {
+                ConfigHostError::new(
+                    ConfigHostOperation::ReadDirectory,
+                    directory,
+                    error.to_string(),
+                )
+            })?;
+        // normalizePath preserves a trailing separator; the shared helper
+        // implements getNormalizedAbsolutePath, which can remove one.
+        if path.ends_with(['/', '\\']) && !normalized.ends_with('/') {
+            normalized.push('/');
+        }
+        Ok::<_, ConfigHostError>(normalized)
     };
     let mut bases = vec![normalize(directory)?];
     let mut candidates = Vec::new();
@@ -241,13 +245,7 @@ fn discovery_base_paths(
         };
         let base = if let Some(wildcard) = absolute.find(['*', '?']) {
             absolute[..absolute[..wildcard].rfind('/').unwrap_or(0)].to_owned()
-        } else if absolute
-            .replace('\\', "/")
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .is_some_and(|name| name.contains('.'))
-        {
+        } else if discovery_has_extension(&absolute) {
             let parent = directory_name(&absolute);
             parent.strip_suffix('/').unwrap_or(&parent).to_owned()
         } else {
@@ -278,6 +276,20 @@ fn discovery_base_paths(
         }
     }
     Ok(bases)
+}
+
+fn discovery_has_extension(path: &str) -> bool {
+    let slashed = path.replace('\\', "/");
+    if normalized_root_parts(&slashed).is_some_and(|(_, tail)| tail.is_empty()) {
+        return false;
+    }
+    // getBaseFileName removes one trailing separator, not all of them.
+    slashed
+        .strip_suffix('/')
+        .unwrap_or(&slashed)
+        .rsplit('/')
+        .next()
+        .is_some_and(|name| name.contains('.'))
 }
 
 fn discovery_path_contains(parent: &str, child: &str, case_sensitive: bool) -> bool {
