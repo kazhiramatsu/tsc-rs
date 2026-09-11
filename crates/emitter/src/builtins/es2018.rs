@@ -3630,15 +3630,21 @@ impl<'context> Es2018Visitor<'context> {
                     )?);
                 }
                 NodeData::PropertyAssignment(mut assignment) => {
-                    assignment.name = self.visit_optional_node(assignment.name)?;
                     assignment.initializer = self.visit_optional_node(assignment.initializer)?;
-                    let flags = flags_after_update(
-                        self.context.arena(),
-                        property,
-                        &NodeData::PropertyAssignment(assignment.clone()),
-                    )?;
-                    chunk.push(self.context.factory()?.update_node(
-                        property,
+                    // chunkObjectLiteralElements creates a fresh property:
+                    // its name keeps source ownership, while the property
+                    // itself has no parsed range or original parent.
+                    assignment.modifiers = None;
+                    assignment.question_token = None;
+                    assignment.exclamation_token = None;
+                    let flags = [assignment.name, assignment.initializer]
+                        .into_iter()
+                        .flatten()
+                        .fold(TransformFlags::NONE, |flags, child| {
+                            flags | self.context.arena().transform_flags(self.node(child))
+                        });
+                    chunk.push(self.context.factory()?.create_node(
+                        self.source,
                         NodeData::PropertyAssignment(assignment),
                         flags,
                     )?);

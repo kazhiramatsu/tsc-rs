@@ -906,3 +906,37 @@ commands match their unchanged complete observations twice (exit 0, log SHA-256
 Prelaunch source/fixture hashes, candidate diff, actual exits and archived test
 binaries are retained in that run directory. Final 126/530 measurements and
 hosted acceptance still determine the candidate's landing status.
+
+### PR admission design: four remaining H2.5g commands
+
+Hosted `34561303900` at `f8e47ecf4` ran the whole ordered H2.5g pipeline and
+reported four mismatches: `spreadIdenticalTypesRemoved.ts` (index 3946),
+`privateNameStaticFieldClassExpression.ts` (5039), and
+`jsxJsxsCjsTransformNestedSelfClosingChild.tsx` in react-jsx/react-jsxdev
+(7157/7158). The previous detached-header mismatch is absent. The fresh
+126/530 runs at this head both exit 0; they do not imply hosted acceptance.
+
+Before editing production, the source/Rust/witness mapping is:
+
+| Pinned `_tsc.js` source | Rust owner and planned repair | Complete witness |
+| --- | --- | --- |
+| `chunkObjectLiteralElements` 101979–102001 creates fresh PropertyAssignment nodes from the original name and visited initializer | `es2018.rs::visit_object_literal_expression` currently updates the parsed property, retaining its range and original parent. Create a fresh property with factory flags; keep the original name node and visit the initializer once. This restores synthetic property/comment/map ownership, rather than suppressing line breaks in the printer | index 3946, plus existing object-spread contracts |
+| `visitJsxOpeningLikeElementOrFragmentJSX` 104125–104162 gives an automatic JSX call a text range, but no original-node link | `jsx.rs::create_automatic_call` currently assigns both range and semantic original. Keep only the text range. Preserve the child start-on-new-line flag; `originalNodesHaveSameParent` then sees the actual call provenance | indices 7157/7158, plus existing JSX contracts |
+| `transformClassMembers` 97143–97240 omits downlevel static field initializers and static blocks from the first member visit; `visitClassExpressionInNewClassLexicalEnvironment` 97049–97129 transforms their expressions after members/constructor | `downlevel.rs::plan_members` eagerly visits static initializers and blocks before later methods. Queue their source operands, then visit the static operations in source order after instance operations, while the class private environment is still live. Preserve immediate in-class block lowering for the selective ES2022/ESNext path | index 5039, full H2.5b, and existing private/static class contracts |
+
+The two provenance repairs preserve `E-COMMENT-SCOPE-H` and the list printer's
+source-position predicates; no printer spacing override is introduced.
+The static operation visit phase is a `modified-requalify` class-fields
+subpath: computed-key planning stays in the initial member walk, method and
+constructor visitors keep their own lexical scopes, static initializer visits
+retain the existing static receiver frame, and static blocks retain their own
+generated-binding scope. Queue visitation must finish before popping the class
+private environment; materialization after that boundary consumes visited
+operands only. Helper ordering remains the stable priority/request ordering;
+do not sort `setFunctionName` and private helpers by spelling.
+
+Readiness covers these three concrete owner gaps and four frozen commands,
+with no unresolved owner in the repair. Preserve parsed inputs and complete
+TypeScript observations, check the pinned source spans, then run the four
+commands twice with adjacent owner tests. Requalify the final 126/530 source
+snapshot after the batch of repairs, then use hosted `cargo xtask acceptance`.
