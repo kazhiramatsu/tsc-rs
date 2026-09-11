@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "description": "System source map owner isolation, retaining the two original ordinary-source witnesses.",
+  "cases": [
+    {
+      "case_id": "decorator-system-map-followup/es2022/system/set/top-level-undecorated-property-hoist",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-system-map-followup/es2022/system/define/top-level-undecorated-property-hoist",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst fieldKey = \"x\";\nexport class Plain { [fieldKey] = @dec class {}; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-system-map-followup/es2022/define/constant",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-system-map-followup/es2022/define/function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export function make(x: number): number { return x + 1; }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 4,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

@@ -65,6 +65,21 @@ const GROUPS: &[(&str, &[u8], usize)] = &[
         include_bytes!("../fixtures/decorator-lexical-prologue-readers-v2.json"),
         16,
     ),
+    (
+        "parameter-binding",
+        include_bytes!("../fixtures/decorator-parameter-binding.json"),
+        36,
+    ),
+    (
+        "parameter-class-fields",
+        include_bytes!("../fixtures/decorator-parameter-class-fields.json"),
+        24,
+    ),
+    (
+        "system-map-followup",
+        include_bytes!("../fixtures/decorator-system-map-followup.json"),
+        4,
+    ),
 ];
 
 #[test]

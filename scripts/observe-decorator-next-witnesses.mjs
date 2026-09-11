@@ -14,7 +14,7 @@ const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 const GROUPS = { "transform-order": 60, "super-paths": 42, "name-owners": 24, "source-followup": 48, "source-followup-top-level": 18,
   "literal-member-kinds": 48, "literal-key-spelling": 48, "lexical-prologue": 24, "lexical-prologue-readers": 18,
-  "lexical-prologue-readers-v2": 16 };
+  "lexical-prologue-readers-v2": 16, "parameter-binding": 36, "parameter-class-fields": 24, "system-map-followup": 4 };
 const group = process.argv[2];
 assert.ok(Object.hasOwn(GROUPS, group), "unknown witness group");
 assert.ok(["--write", "--check"].includes(process.argv[3]));
