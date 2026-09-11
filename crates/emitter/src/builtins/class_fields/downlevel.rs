@@ -1916,6 +1916,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
         }
         self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+        self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -2121,6 +2122,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
         }
         self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+        self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -5343,7 +5345,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     // nested generated names must therefore be allocated in
                     // the constructor scope when the operation is
                     // materialized, not while the class-level plan is built.
-                    if is_static_member {
+                    if is_static_member && self.selectively_transforms_private_static_elements() {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
                     let operation = PrivateFieldOperation {
@@ -5533,7 +5535,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             .pending
                             .append_public_field_key_operands(evaluations);
                     }
-                    if receiver == FieldReceiver::Static {
+                    if receiver == FieldReceiver::Static
+                        && self.selectively_transforms_private_static_elements()
+                    {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
                     let parameter_property_local = if receiver == FieldReceiver::Instance {
@@ -5651,33 +5655,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                                 field: "named-evaluation expression",
                             },
                         )?;
-                        let expression = self
-                            .visit_static_node(expression, StaticThisSubstitution::Early)?
-                            .ok_or(TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::ExpressionStatement,
-                                field: "visited named-evaluation expression",
-                            })?;
                         operations.static_.push(StaticOperation::NamedEvaluation {
                             original: Some(member),
-                            expression,
+                            expression: self.node(expression),
                         });
                         continue;
                     }
-                    let (visited, bindings) = self.with_new_generated_scope(
-                        GeneratedBindingOwner::StaticEvaluation,
-                        |visitor| {
-                            visitor.visit_static_node(body.node(), StaticThisSubstitution::Early)
-                        },
-                    )?;
-                    let visited = visited.ok_or(TransformError::RequiredChildRemoved {
-                        parent: SyntaxKind::ClassStaticBlockDeclaration,
-                        field: "body",
-                    })?;
-                    let visited =
-                        self.prepend_generated_declarations_to_block(visited, bindings)?;
                     operations.static_.push(StaticOperation::Block {
                         original: member,
-                        body: visited,
+                        body,
                     });
                 }
                 data => {
@@ -6153,6 +6139,58 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             })
             .expect("instance operations always own a constructor");
         members[index] = constructor;
+        Ok(())
+    }
+
+    /// Downlevel static operands are visited after the retained members and
+    /// constructor, with the class private environment still active. The
+    /// selective native-block route already visits its in-class operands.
+    ///
+    /// tsc-port: transformClassMembers/visitClassExpressionInNewClassLexicalEnvironment @6.0.3
+    /// tsc-span: _tsc.js:97049-97129,97143-97240
+    fn visit_static_operations(
+        &mut self,
+        operations: &mut [StaticOperation],
+    ) -> Result<(), TransformError> {
+        for operation in operations {
+            match operation {
+                StaticOperation::Field(operation) => match &mut operation.value {
+                    FieldValuePlan::Declared { initializer }
+                    | FieldValuePlan::ParameterProperty {
+                        prefix: initializer,
+                        ..
+                    } => {
+                        *initializer = self.visit_optional_static_node(*initializer)?;
+                    }
+                },
+                StaticOperation::PrivateField(operation) => {
+                    operation.initializer =
+                        self.visit_optional_static_node(operation.initializer)?;
+                }
+                StaticOperation::NamedEvaluation { expression, .. } => {
+                    *expression = self
+                        .visit_static_node(expression.node(), StaticThisSubstitution::Early)?
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::ExpressionStatement,
+                            field: "visited named-evaluation expression",
+                        })?;
+                }
+                StaticOperation::Block { body, .. } => {
+                    let body_node = body.node();
+                    let (visited, bindings) = self.with_new_generated_scope(
+                        GeneratedBindingOwner::StaticEvaluation,
+                        |visitor| {
+                            visitor.visit_static_node(body_node, StaticThisSubstitution::Early)
+                        },
+                    )?;
+                    let visited = visited.ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassStaticBlockDeclaration,
+                        field: "body",
+                    })?;
+                    *body = self.prepend_generated_declarations_to_block(visited, bindings)?;
+                }
+            }
+        }
         Ok(())
     }
 
