@@ -2739,10 +2739,11 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             TransformFlags::NONE,
         )?;
         self.context.factory()?.set_text_range(node, container)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(node)
-            .set_starts_on_new_line(true);
+        let metadata = self.context.arena_mut()?.metadata_mut(node);
+        metadata.set_starts_on_new_line(true);
+        // The container range positions the generated constructor without
+        // transferring the class boundary's comments to that member.
+        metadata.set_comment_range(CommentRange::new(self.source, SourceRange::Synthesized));
         Ok(Some(node))
     }
 

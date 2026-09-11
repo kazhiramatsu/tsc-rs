@@ -790,3 +790,33 @@ H2.4b then exposed a separate production comment-ownership error in
 synthetic constructor. That failure is retained, not accepted or skipped
 (exit 1, log SHA-256
 `873194e4c89392ddb285d77dfc2b64b91f1d3738384508b9f260954402c8ec08`).
+
+### PR admission design: retained synthetic constructor comments
+
+Before editing production: `transformConstructor` in pinned `_tsc.js`
+97253–97289 gives a synthesized constructor the container text range but
+sets its original node to the absent source constructor. The range positions
+the generated member; it does not make that member own the class-leading
+comment. Rust's downlevel `create_synthetic_constructor` already represents
+this distinction with `CommentRange(SourceRange::Synthesized)`. The retained
+ES2022/ESNext constructor path in `class_fields.rs` copied the container range
+but omitted that comment ownership boundary.
+
+Apply the same explicit synthesized comment range only when that retained
+path creates a new constructor. Existing constructors keep their source
+comments; initializer statements keep each property's comment range. Keep
+the generated constructor's text/source-map placement unchanged. Extend the
+existing relocated-field comment regression across ES2015, ES2022 and ESNext
+set mode, checking both class-leading and field comments once, then compare
+the unchanged complete H2.4b observations again. This is a class-fields owner
+repair, separate from acceptance projection changes. The earlier v2 receipts
+remain evidence of their recorded seven-file source snapshot.
+
+Retained-constructor validation: the existing relocated-field comment test
+passes ES2015/ES2022/ESNext (test exit 0; log SHA-256
+`fdcaf564f89580addc29a4fdd4d0596e02ccaee3b60e20a95244320ebbd1ee59`). H2.4b passes all 44 dispositions:
+42 exact / 2 source-deferred, 150 exact diagnostics and 56 exact writes,
+repetitions=2, exit 0; log SHA-256
+`632d8fb49af6315ac306e76e0e7580368141628c773a234abd79406e789f59c2`. Both logs and actual exits are
+in `target/dec-next-runs/pr-retained-constructor-r1/`. The normal 126-command
+decorator witness test is rerun separately on the committed production change.

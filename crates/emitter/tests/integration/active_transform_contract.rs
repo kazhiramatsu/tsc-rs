@@ -449,44 +449,50 @@ fn invalid_react_namespace_option_value_is_retained_by_recovery_emit() {
 
 #[test]
 fn relocated_assignment_field_owns_its_leading_comment_once() {
-    let parsed = parse_source_file(
-        "assignment-field-comment.ts",
-        concat!(
-            "class C {\n",
-            "    // field comment\n",
-            "    field = 1;\n",
-            "}\n",
-        ),
-        ParseOptions::default(),
-        None,
-    );
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::PRESERVE.bits()),
-        use_define_for_class_fields: Some(false),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        get_script_transformers(&options, &NoConstantValueResolver).unwrap(),
-        false,
-    )
-    .expect("assignment-mode class field transform");
-    let text = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print assignment-mode class field")
-    .text()
-    .to_owned();
+    for target in [
+        ScriptTarget::ES2015,
+        ScriptTarget::ES2022,
+        ScriptTarget::ES_NEXT,
+    ] {
+        let parsed = parse_source_file(
+            "assignment-field-comment.ts",
+            concat!(
+                "// class comment\n",
+                "class C {\n",
+                "    // field comment\n",
+                "    field = 1;\n",
+                "}\n",
+            ),
+            ParseOptions::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(target.bits()),
+            module: Some(ModuleKind::PRESERVE.bits()),
+            use_define_for_class_fields: Some(false),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            get_script_transformers(&options, &NoConstantValueResolver).unwrap(),
+            false,
+        )
+        .expect("assignment-mode class field transform");
+        let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+            .print(&mut result, PrintRequest::SourceFile(source), None)
+            .expect("print assignment-mode class field")
+            .text()
+            .to_owned();
 
-    assert_eq!(text.matches("// field comment").count(), 1, "{text}");
-    assert!(text.contains("this.field = 1;"), "{text}");
-    assert!(!text.contains("this.\n"), "{text}");
+        assert_eq!(text.matches("// class comment").count(), 1, "{text}");
+        assert_eq!(text.matches("// field comment").count(), 1, "{text}");
+        assert!(text.contains("this.field = 1;"), "{text}");
+        assert!(!text.contains("this.\n"), "{text}");
+    }
 }
 
 fn transform_and_print_module(
