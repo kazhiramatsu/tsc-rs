@@ -936,9 +936,9 @@ pub struct ConfigRootPlan {
     /// TypeScript does not inherit them through `extends`.
     references: Option<Value>,
     project_references: Option<Vec<ConfigProjectReference>>,
-    /// These root schemas are inherited by `extends` and retained as raw
-    /// recovered values for the ParsedCommandLine-facing boundary. The
-    /// no-emit loader still rejects truthy values before source loading.
+    /// Converted root schema projections. Watch options merge through
+    /// extends; type acquisition keeps this config's own defaults. The H0
+    /// loader separately retains its explicit root-scope validation.
     watch_options: Option<Value>,
     type_acquisition: Option<Value>,
     watch_option_bag: Option<ConfigOptionBag>,
@@ -2219,7 +2219,7 @@ impl ParseContext<'_> {
             Ok(Some(text)) => {
                 let source = ConfigSourceText::new(path, text);
                 let parsed = parse_config_source(&source)?;
-                entry.read_parse_diagnostics = parsed.parse_diagnostics.iter().cloned().collect();
+                entry.read_parse_diagnostics = parsed.parse_diagnostics.to_vec();
                 entry.source = Some(source.clone());
                 entry.node = self
                     .parse_node_from_source(source, parsed, path, &directory_name(path), false)?
