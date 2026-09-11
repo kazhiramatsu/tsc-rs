@@ -1597,7 +1597,7 @@ impl ConfigExtendedCache {
 struct CachedExtendedConfig {
     file_name: String,
     source: Option<ConfigSourceText>,
-    node: Option<ParsedConfigNode>,
+    node: Option<Box<ParsedConfigNode>>,
     // Source parse/read diagnostics replay on a hit; option conversion
     // diagnostics belong only to the first parse's error collection.
     read_parse_diagnostics: Vec<Diagnostic>,
@@ -2221,13 +2221,9 @@ impl ParseContext<'_> {
                 let parsed = parse_config_source(&source)?;
                 entry.read_parse_diagnostics = parsed.parse_diagnostics.iter().cloned().collect();
                 entry.source = Some(source.clone());
-                entry.node = self.parse_node_from_source(
-                    source,
-                    parsed,
-                    path,
-                    &directory_name(path),
-                    false,
-                )?;
+                entry.node = self
+                    .parse_node_from_source(source, parsed, path, &directory_name(path), false)?
+                    .map(Box::new);
             }
             Ok(None) => {
                 entry.read_parse_diagnostics.push(config_diagnostic(
