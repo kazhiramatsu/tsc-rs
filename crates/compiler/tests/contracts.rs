@@ -287,3 +287,6 @@ mod h2_8b_config_source_span_commands;
 
 #[path = "integration/h2_8b_config_entity_commands.rs"]
 mod h2_8b_config_entity_commands;
+
+#[path = "integration/h2_8b_config_diagnostic_routing.rs"]
+mod h2_8b_config_diagnostic_routing;

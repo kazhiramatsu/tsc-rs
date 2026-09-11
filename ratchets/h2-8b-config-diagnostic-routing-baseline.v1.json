@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "head": "15b6a60387463b9f1ebeb7f5564dd140cb092b43",
+  "run": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/34657513765",
+  "command": "cargo xtask acceptance",
+  "conclusion": "failure",
+  "log_sha256": "17d2317504a52c8008be93e9ae6801b33473d27caa1746cc82b204dcd88ecab8",
+  "conformance": {
+    "matched": 49024,
+    "total": 49024,
+    "FP": 0,
+    "FN": 0
+  },
+  "new_h2_5h_diagnostic_divergences": [
+    "typescript-6.0.3/compiler/moduleNoneErrors.ts#target%3Des5",
+    "typescript-6.0.3/compiler/noErrorUsingImportExportModuleAugmentationInDeclarationFile2.ts#target%3Des5",
+    "typescript-6.0.3/compiler/noErrorUsingImportExportModuleAugmentationInDeclarationFile3.ts#target%3Des5"
+  ],
+  "diagnosis": "Source-owned TS1148 was stored among option diagnostics, so command reporting did not defer it behind option/global diagnostic phases."
+}
