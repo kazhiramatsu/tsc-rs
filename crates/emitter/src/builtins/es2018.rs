@@ -3186,7 +3186,10 @@ impl<'context> Es2018Visitor<'context> {
         } else {
             self.inline_expressions(expressions)?
         };
-        self.set_original_and_range(expression, original)
+        // flattenDestructuringAssignment returns inlineExpressions directly:
+        // each assignment owns its range, while the enclosing comma sequence
+        // is synthesized and must not introduce pattern-boundary mappings.
+        Ok(expression)
     }
 
     fn flatten_destructuring_binding(
@@ -3404,7 +3407,11 @@ impl<'context> Es2018Visitor<'context> {
             return Ok(());
         }
         let pattern = self.create_object_pattern(plan.mode, std::mem::take(retained))?;
-        self.set_original_and_range(pattern, original_pattern)?;
+        if plan.mode == DestructuringMode::Binding {
+            self.set_original_and_range(pattern, original_pattern)?;
+        }
+        // makeObjectAssignmentPattern creates a fresh object literal. Its
+        // chunk no longer spans the original rest element or closing brace.
         plan.push(pattern, value, original);
         Ok(())
     }

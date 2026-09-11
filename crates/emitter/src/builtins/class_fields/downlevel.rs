@@ -4045,7 +4045,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match access {
                 StaticSuperAccessResolution::Bound(access) => {
                     let expression = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(expression, original)?;
+                    let receiver = self.node(data.expression.expect("super property receiver"));
+                    self.set_original_and_range(expression, receiver)?;
                     return Ok(expression.node());
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated { .. } => {
@@ -4083,7 +4084,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match access {
                 StaticSuperAccessResolution::Bound(access) => {
                     let expression = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(expression, original)?;
+                    let receiver = self.node(data.expression.expect("super element receiver"));
+                    self.set_original_and_range(expression, receiver)?;
                     return Ok(expression.node());
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated { .. } => {
@@ -4876,8 +4878,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         access: &StaticSuperAccess,
     ) -> Result<TransformNode, TransformError> {
-        let key = self.context.factory()?.clone_node(access.key)?;
-        self.create_reflect_get(&access.super_alias, key, &access.class_receiver)
+        // This key was visited once by static_super_access. Cloning it drops
+        // the range of an element-key call, including its closing delimiter.
+        self.create_reflect_get(&access.super_alias, access.key, &access.class_receiver)
     }
 
     fn create_static_super_set(
@@ -4885,8 +4888,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         access: &StaticSuperAccess,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let key = self.context.factory()?.clone_node(access.key)?;
-        self.create_reflect_set(&access.super_alias, key, value, &access.class_receiver)
+        self.create_reflect_set(&access.super_alias, access.key, value, &access.class_receiver)
     }
 
     /// A key used for both `Reflect.get` and `Reflect.set` must be stabilized
@@ -4932,7 +4934,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
             let binary_operator = Self::non_assignment_operator(operator);
             let right = self.parenthesize_right_binary_operand(binary_operator, right)?;
-            self.create_binary(current, binary_operator, right)?
+            let expression = self.create_binary(current, binary_operator, right)?;
+            self.context.factory()?.set_text_range(expression, original)?;
+            expression
         } else {
             right
         };
@@ -4941,6 +4945,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .transpose()?;
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
+            self.context.factory()?.set_text_range(result_target, original)?;
             value = self.create_assignment(result_target, value)?;
         }
         let mut expression = self.create_reflect_set(
@@ -4952,6 +4957,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         expression = self.set_original_and_range(expression, original)?;
         if let Some(binding) = &result_binding {
             let result = self.create_binding_identifier(binding)?;
+            self.context.factory()?.set_text_range(result, original)?;
             expression = self.inline_expressions(vec![expression, result])?;
             self.context
                 .factory()?
@@ -4971,12 +4977,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let (getter_key, setter_key) = self.split_static_super_key_for_read_write(access.key)?;
         let current =
             self.create_reflect_get(&access.super_alias, getter_key, &access.class_receiver)?;
+        let operand = match &self.context.arena().node(original)?.data {
+            NodeData::PrefixUnaryExpression(data) => data.operand,
+            NodeData::PostfixUnaryExpression(data) => data.operand,
+            _ => None,
+        }.ok_or(TransformError::RequiredChildRemoved {
+            parent: self.context.arena().node(original)?.kind,
+            field: "update operand",
+        })?;
+        let operand = self.node(operand);
+        let unwrapped_operand = self.skip_runtime_transparent_outer_expressions(operand)?;
+        self.context.factory()?.set_text_range(current, unwrapped_operand)?;
         let result_binding = (value_use == ExpressionValueUse::Required)
             .then(|| self.allocate_shadowable_temp_name())
             .transpose()?;
         let update_binding = self.allocate_shadowable_temp_name()?;
         let update_target = self.create_binding_identifier(&update_binding)?;
         let mut value = self.create_assignment(update_target, current)?;
+        self.context.factory()?.set_text_range(value, operand)?;
 
         let update_operand = self.create_binding_identifier(&update_binding)?;
         let mut operation = if is_prefix {
@@ -5004,13 +5022,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
             operation = self.create_assignment(result_target, operation)?;
+            self.context.factory()?.set_text_range(operation, original)?;
         }
         value = self.inline_expressions(vec![value, operation])?;
+        self.context.factory()?.set_text_range(value, original)?;
         if !is_prefix {
             let updated_value = self.create_binding_identifier(&update_binding)?;
             value = self.inline_expressions(vec![value, updated_value])?;
+            self.context.factory()?.set_text_range(value, original)?;
         }
-        let value = self.create_parenthesized(value)?;
         let mut expression = self.create_reflect_set(
             &access.super_alias,
             setter_key,
@@ -5517,7 +5537,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         name,
                         value,
                         range_static_expression_to_name: receiver == FieldReceiver::Static
-                            && !self.selectively_transforms_private_static_elements()
                             && self
                                 .private_environments
                                 .last()
