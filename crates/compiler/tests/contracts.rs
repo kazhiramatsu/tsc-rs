@@ -279,3 +279,8 @@ mod h2_8b_config_root_commands;
 
 #[path = "integration/h2_8b_config_conversion_commands.rs"]
 mod h2_8b_config_conversion_commands;
+
+#[path = "integration/h2_8b_config_source_commands.rs"]
+mod h2_8b_config_source_commands;
+#[path = "integration/h2_8b_config_source_span_commands.rs"]
+mod h2_8b_config_source_span_commands;
