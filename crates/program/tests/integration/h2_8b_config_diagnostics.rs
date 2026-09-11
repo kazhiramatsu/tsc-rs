@@ -3,14 +3,27 @@
 use std::path::Path;
 
 use serde_json::{json, Value};
-use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
+use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     parse_config_root_plan, CompilerConfigHost, ConfigOptionBag, ConfigOptionValueState,
     ConfigRootPlanRequest, ConfigTypedListElement,
 };
 
+fn flatten_message(chain: &MessageChain, indent: usize, output: &mut String) {
+    if indent != 0 {
+        output.push('\n');
+        output.push_str(&"  ".repeat(indent));
+    }
+    output.push_str(&chain.text);
+    for child in &chain.next {
+        flatten_message(child, indent + 1, output);
+    }
+}
+
 fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
+    let mut message = String::new();
+    flatten_message(&diagnostic.message, 0, &mut message);
     let category = match diagnostic.category() {
         DiagnosticCategory::Warning => "warning",
         DiagnosticCategory::Error => "error",
@@ -23,7 +36,7 @@ fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
         "file": diagnostic.file_name,
         "start": diagnostic.start,
         "length": diagnostic.length,
-        "message": diagnostic.message_text(),
+        "message": message,
         "related_information": diagnostic.related.iter().map(|related| diagnostic_record(
             &Diagnostic::new(related.file_name.clone(), related.start, related.length, related.message.clone())
         )).collect::<Vec<_>>(),
