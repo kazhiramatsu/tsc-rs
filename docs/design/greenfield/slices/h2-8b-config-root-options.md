@@ -1,0 +1,20 @@
+# CFG1d root option変換・継承
+
+CFG全体の残存項目。TypeScript 6.0.3のparseOwnConfigOfJsonSourceFileが生成する
+watchOptions/typeAcquisitionと、raw JSON、compileOnSaveを区別して照合する。
+40入力の上流観測を先に凍結済み。native baselineは既存のconfig projectionを比較し、
+変換後API追加時にwatch/typeAcquisitionの全既知keyのabsent/undefined/value/list状態も比較する。
+型の無い既存APIを変換済みだとみなして件数に加えない。
+
+sourceで確認した境界：watchOptionsは既知propertyを読むときに初めて生成され、extendsでは
+property単位にmergeする。typeAcquisitionはtsconfig/jsconfig別のdefaultを持ち、baseからは継承しない。
+rawにはbaseのwatchOptions/typeAcquisitionをコピーしない。compileOnSaveのparsed値はrawのtruthiness。
+そのbool変換で報告する診断とは別であり、invalid raw valueも消さない。
+
+実装では既存の型付きoption変換・list/prototype/JSONCの仕組みを共有する。
+watchのenum table、path-listのextraValidation、spelling suggestion、configDir置換は
+compilerOptionsとは異なるschemaとして保持する。旧raw accessorと変換済みaccessorの契約を明記し、
+sourceと矛盾する手書き期待値は新しい上流観測を根拠として訂正する。
+
+変換はwatch processやtype acquisition processを起動しない。通常one-shotからは変換済みplanを
+受け取り、watch/build製品側へ渡す契約までを確認する。

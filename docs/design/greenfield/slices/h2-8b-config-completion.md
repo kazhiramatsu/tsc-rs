@@ -24,3 +24,19 @@ H2.8b全体のprofile activation、独立HOST1/SYS1、build/watch製品全体は
 重い実行は専用target、taskpolicy -b nice -n 19、CARGO_BUILD_JOBS=1、1 test thread、1つずつ。
 既存凍結観測と共有comparatorは保持する。新しい観測で既存の手書きassertが上流と矛盾した場合は、
 その不一致とsource根拠を記録して修正する。期待値を実装に合わせるための変更はしない。
+
+## CFG1c 実測（継続中のCFG全体とは別に記録）
+
+`57e202e50`で76/76診断projection×2、通常commandは新規16件＋既存34件すべて
+complete tuple/ordered Program factsが各2回一致（計200 PreparedPrograms）。Program契約は
+472通過・失敗0・既存ignore5。`ratchets/h2-8b-config-diagnostics-final.v1.json`に実行を記録。
+最初の診断baselineにはmessage chainを先頭だけ読む比較側の問題があり、修正してproduction不変で
+50一致/26不一致×2を取り直した。通常commandの修正前は12件中6件失敗、追加拡張子4件中3件失敗。
+
+修正：既存option_validationへ純粋な制約を統合、key/valueとcompilerOptions fallbackを修正、
+root compilerOptionsの最初のsyntaxを診断に使用。通常emitのloaderはoption診断で止めず、
+noEmitOnErrorの出力判断へ渡す。H0の明示gateは維持。allowImportingTsExtensionsは既にcheckerと
+宣言specifierが読むoptionであり、emitterの一律拒否を削除し、実際の.ts exportで対照した。
+
+rootDir外file、入力とoutDirの衝突、TS6の暗黙rootDirレイアウト診断も通常commandで一致。
+root option40件の上流観測を準備した。変換・cache/host境界・最終source監査は依然未完。
