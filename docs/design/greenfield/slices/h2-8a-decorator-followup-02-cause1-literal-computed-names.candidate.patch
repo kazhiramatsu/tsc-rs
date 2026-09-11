@@ -1,0 +1,417 @@
+From 8b2660f1963fa0b76d4a4867568ffa21c55c9ef9 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 14:44:22 +0900
+Subject: [PATCH] fix(emitter): keep literal computed names of decorated
+ members as literals
+
+partialTransformClassElement (_tsc.js 99831) gives a decorated member whose
+computed name is a non-identifier property-name literal the context
+`{ computed: true, name: createStringLiteralFromNode(expression) }`: no
+`__propKey` cache temp, no hoist, element access `obj["x"]` and `"x" in obj`,
+and the pending decorator assignment stays for the next consumer because the
+literal is simply inlineable. The Rust plan routed every computed name through
+visitReferencedPropertyName. The plan now classifies such names
+(`computed_literal`), the context and access objects build the literal (string
+sources keep their spelling through `string_literal_text_source`, the
+textSourceNode branch), and the element name is visited under the name frame
+like an identifier name. The method/accessor branch of the same callee shares
+the change; it has no witness yet.
+
+Focused witnesses: literal-computed-decorated-field x6 and
+identifier-decorated-field-control x6 exact twice, exit 0
+(ratchets/h2-8a-decorator-followup-cause1-focused.v1.json).
+---
+ .../src/builtins/standard_decorators.rs       | 129 +++++++++++++++---
+ ...-decorator-followup-cause1-focused.v1.json | 124 +++++++++++++++++
+ 2 files changed, 235 insertions(+), 18 deletions(-)
+ create mode 100644 ratchets/h2-8a-decorator-followup-cause1-focused.v1.json
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 62615ea38..912441069 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -201,6 +201,20 @@ struct PropertyPlan {
+     /// access object and (for auto-accessors) the setter name.
+     computed_temp: Option<TargetBinding>,
+     computed_expression: Option<NodeId>,
++    /// `partialTransformClassElement`: a computed name whose expression is a
++    /// non-identifier property-name literal (`isPropertyNameLiteral(expression)
++    /// && !isIdentifier(expression)`) names the decorator context by
++    /// `createStringLiteralFromNode(expression)`; no cache temp, no hoist,
++    /// no `__propKey`.
++    computed_literal: Option<NodeId>,
++}
++
++/// The computed form of a decorator context's `access` object: an element
++/// access by the cache temp or by the literal key.
++#[derive(Clone, Copy)]
++enum ComputedAccessName<'a> {
++    Temp(&'a TargetBinding),
++    Literal(NodeId),
+ }
+ 
+ #[derive(Clone)]
+@@ -427,6 +441,8 @@ struct MethodPlan {
+     descriptor_name: Option<TargetBinding>,
+     computed_temp: Option<TargetBinding>,
+     computed_expression: Option<NodeId>,
++    /// See `PropertyPlan::computed_literal`.
++    computed_literal: Option<NodeId>,
+     emitted_name: Option<NodeId>,
+ }
+ 
+@@ -1320,7 +1336,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             return Ok(());
+         }
+         let is_private = self.name_is_private(name)?;
+-        let (name, computed_expression) = self.decorator_property_name(name)?;
++        let (name, computed_expression, computed_literal) = self.decorator_property_name(name)?;
+         let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
+         let static_prefix = if is_static { "static_" } else { "" };
+         let private_prefix = if is_private { "private_" } else { "" };
+@@ -1347,6 +1363,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             descriptor_name,
+             computed_temp: None,
+             computed_expression,
++            computed_literal,
+             emitted_name: None,
+         });
+         Ok(())
+@@ -1484,7 +1501,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         continue;
+                     }
+                     let is_private = self.name_is_private(member_data.name)?;
+-                    let (name, computed_expression) =
++                    let (name, computed_expression, computed_literal) =
+                         self.decorator_property_name(member_data.name)?;
+                     let is_static =
+                         self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)?;
+@@ -1535,6 +1552,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         backing_name,
+                         computed_temp: None,
+                         computed_expression,
++                        computed_literal,
+                     });
+                 }
+                 NodeData::MethodDeclaration(member_data) => self.collect_method_plan(
+@@ -3332,6 +3350,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         let kind = self.create_string_literal(kind)?;
+         let name = if let Some(temporary) = plan.computed_temp.as_ref() {
+             self.create_binding_identifier(temporary)?
++        } else if let Some(literal) = plan.computed_literal {
++            // `{ computed: true, name: createStringLiteralFromNode(expression) }`
++            self.create_string_literal_from_property_literal(self.node(literal))?
+         } else {
+             self.create_string_literal(&plan.name)?
+         };
+@@ -3350,7 +3371,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             true,
+             true,
+             plan.is_private,
+-            plan.computed_temp.as_ref(),
++            plan.computed_temp
++                .as_ref()
++                .map(ComputedAccessName::Temp)
++                .or(plan.computed_literal.map(ComputedAccessName::Literal)),
+             source_name,
+         )?;
+         let metadata = self.create_identifier(metadata_name)?;
+@@ -3374,6 +3398,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         let kind = self.create_string_literal(plan.kind.context_name())?;
+         let name = if let Some(temporary) = plan.computed_temp.as_ref() {
+             self.create_binding_identifier(temporary)?
++        } else if let Some(literal) = plan.computed_literal {
++            // `{ computed: true, name: createStringLiteralFromNode(expression) }`
++            self.create_string_literal_from_property_literal(self.node(literal))?
+         } else {
+             self.create_string_literal(&plan.name)?
+         };
+@@ -3392,7 +3419,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             plan.kind != MethodKind::Setter,
+             plan.kind == MethodKind::Setter,
+             plan.is_private,
+-            plan.computed_temp.as_ref(),
++            plan.computed_temp
++                .as_ref()
++                .map(ComputedAccessName::Temp)
++                .or(plan.computed_literal.map(ComputedAccessName::Literal)),
+             source_name,
+         )?;
+         let metadata = self.create_identifier(metadata_name)?;
+@@ -3413,12 +3443,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         include_get: bool,
+         include_set: bool,
+         is_private: bool,
+-        computed_temp: Option<&TargetBinding>,
++        computed: Option<ComputedAccessName<'_>>,
+         source_name: Option<TransformNode>,
+     ) -> Result<TransformNode, TransformError> {
+         let obj = self.create_parameter("obj")?;
+-        let property = if let Some(temporary) = computed_temp {
+-            self.create_binding_identifier(temporary)?
++        // createESDecorateClassElementAccessHasMethod: a computed name is the
++        // `in` operand itself (temp or literal).
++        let property = if let Some(computed) = computed {
++            self.create_computed_access_key(computed)?
+         } else if is_private {
+             source_name.unwrap_or(self.create_private_identifier(name)?)
+         } else {
+@@ -3431,8 +3463,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         if include_get {
+             let obj = self.create_parameter("obj")?;
+             let obj_expression = self.create_identifier("obj")?;
+-            let get_body = if let Some(temporary) = computed_temp {
+-                let name = self.create_binding_identifier(temporary)?;
++            let get_body = if let Some(computed) = computed {
++                let name = self.create_computed_access_key(computed)?;
+                 self.create_element_access(obj_expression, name)?
+             } else {
+                 let name = match source_name {
+@@ -3449,8 +3481,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             let obj = self.create_parameter("obj")?;
+             let value = self.create_parameter("value")?;
+             let obj_expression = self.create_identifier("obj")?;
+-            let target = if let Some(temporary) = computed_temp {
+-                let name = self.create_binding_identifier(temporary)?;
++            let target = if let Some(computed) = computed {
++                let name = self.create_computed_access_key(computed)?;
+                 self.create_element_access(obj_expression, name)?
+             } else {
+                 let name = match source_name {
+@@ -3470,6 +3502,50 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         self.create_object_literal(properties, false)
+     }
+ 
++    /// The `access` key of a computed decorator context: the cache temp's
++    /// binding identifier or the literal key as a string literal.
++    fn create_computed_access_key(
++        &mut self,
++        computed: ComputedAccessName<'_>,
++    ) -> Result<TransformNode, TransformError> {
++        match computed {
++            ComputedAccessName::Temp(binding) => self.create_binding_identifier(binding),
++            ComputedAccessName::Literal(literal) => {
++                self.create_string_literal_from_property_literal(self.node(literal))
++            }
++        }
++    }
++
++    /// tsc-port: createStringLiteralFromNode @6.0.3 for a computed name's
++    /// literal expression: the text is `getTextOfIdentifierOrLiteral`; a
++    /// string-literal source also supplies the emitted spelling
++    /// (`textSourceNode`, the source-string branch of
++    /// `getLiteralTextOfNode`).
++    fn create_string_literal_from_property_literal(
++        &mut self,
++        literal: TransformNode,
++    ) -> Result<TransformNode, TransformError> {
++        let (text, is_string) = match &self.context.arena().node(literal)?.data {
++            NodeData::StringLiteral(data) => (data.text.clone(), true),
++            NodeData::NumericLiteral(data) => (data.text.clone(), false),
++            NodeData::NoSubstitutionTemplateLiteral(data) => (data.text.clone(), false),
++            _ => {
++                return Err(TransformError::RequiredChildRemoved {
++                    parent: SyntaxKind::ComputedPropertyName,
++                    field: "literal expression",
++                });
++            }
++        };
++        let created = self.create_string_literal(&text)?;
++        if is_string {
++            self.context
++                .arena_mut()?
++                .literal_properties_mut(created)?
++                .set_string_literal_text_source(literal);
++        }
++        Ok(created)
++    }
++
+     /// tsc-port: partialTransformClassElement @6.0.3
+     /// tsc-hash: 46d06f1175b4bfd01fe5b4df1893f5f1164b80e7a9c94f3340604e4a6b06b912
+     /// tsc-span: _tsc.js:99831-99944
+@@ -5380,19 +5456,24 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         Ok(())
+     }
+ 
++    /// The helper-variable stem (`getHelperVariableName`: `member` for every
++    /// computed name), the computed expression that needs the `__propKey`
++    /// cache temp, and the literal expression of a computed name that
++    /// `partialTransformClassElement` keeps as `{ computed: true, name:
++    /// createStringLiteralFromNode(expression) }` instead.
+     fn decorator_property_name(
+         &mut self,
+         name: Option<NodeId>,
+-    ) -> Result<(String, Option<NodeId>), TransformError> {
++    ) -> Result<(String, Option<NodeId>, Option<NodeId>), TransformError> {
+         let name = name.ok_or(TransformError::RequiredChildRemoved {
+             parent: SyntaxKind::PropertyDeclaration,
+             field: "name",
+         })?;
+         match &self.context.arena().node(self.node(name))?.data {
+-            NodeData::Identifier(data) => Ok((data.text.clone(), None)),
+-            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None)),
+-            NodeData::StringLiteral(data) => Ok((data.text.clone(), None)),
+-            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None)),
++            NodeData::Identifier(data) => Ok((data.text.clone(), None, None)),
++            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None, None)),
++            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, None)),
++            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None, None)),
+             NodeData::ComputedPropertyName(data) => {
+                 let expression = data
+                     .expression
+@@ -5400,8 +5481,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         parent: SyntaxKind::ComputedPropertyName,
+                         field: "expression",
+                     })?;
+-                let expression = self.node(expression).node();
+-                Ok(("member".to_owned(), Some(expression)))
++                let expression_node = self.node(expression);
++                // isPropertyNameLiteral(expression) && !isIdentifier(expression)
++                let is_literal = matches!(
++                    self.context.arena().node(expression_node)?.data,
++                    NodeData::StringLiteral(_)
++                        | NodeData::NumericLiteral(_)
++                        | NodeData::NoSubstitutionTemplateLiteral(_)
++                );
++                let expression = expression_node.node();
++                if is_literal {
++                    Ok(("member".to_owned(), None, Some(expression)))
++                } else {
++                    Ok(("member".to_owned(), Some(expression), None))
++                }
+             }
+             _ => Err(TransformError::UnsupportedSyntax {
+                 feature: UnsupportedTransformFeature::Decorators,
+diff --git a/ratchets/h2-8a-decorator-followup-cause1-focused.v1.json b/ratchets/h2-8a-decorator-followup-cause1-focused.v1.json
+new file mode 100644
+index 000000000..136c0e59a
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-followup-cause1-focused.v1.json
+@@ -0,0 +1,124 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator source follow-up: cause 1 focused: literal computed names + identifier control",
++  "head": "b320bb3897b9130ba59602547222adbbb0be8bef",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause1-r1",
++  "group": "source-followup",
++  "case_filter": "-decorated-field",
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "45973ae5d5cd558c142c7db8d503a7ef608b878eac260ee9e32b07832ee00bd5",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "1051f6de500ae74efeff3b7ccc1db4c7e5eadaca6c1489613f74e11d59c361e9",
++  "runner_sha256": "b4173467d477f786ca9cb2ab57c578bfb34595e680692254cd28927aaf7b50af",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "source-followup",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause1-r1/captures",
++    "TSC_RS_DECORATOR_NEXT_CASE_FILTER": "-decorated-field"
++  },
++  "actual_exit": 0,
++  "finished_at": "2026-09-11T05:43:54.396850+00:00",
++  "log_sha256": "28bfa4d64c6ba8eeecd89ffee65be1bb15d05c664216207dfa23a8f990bba3bb",
++  "prelaunch_sha256": "fe92f6369174205ae11529f68d991cbbdf4bb61891b5bece8babd4ff4fe86112",
++  "archive_sha256": "e2323a3218e6eea4112dcb0db0fdd4efdd4b503601dc832c321f098d8b88d563",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "09cb1437da5a487d3d82f2a5039de5770ff93b2e45b7b3c1d4cdd851d0c2aa05",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause1-r1/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 12,
++    "exact_twice": 12,
++    "failed": 0,
++    "inconsistent": 0,
++    "capture_files": 24
++  },
++  "exact_twice": [
++    "decorator-source-followup/es2015/esnext/define/identifier-decorated-field-control",
++    "decorator-source-followup/es2015/esnext/define/literal-computed-decorated-field",
++    "decorator-source-followup/es2015/esnext/set/identifier-decorated-field-control",
++    "decorator-source-followup/es2015/esnext/set/literal-computed-decorated-field",
++    "decorator-source-followup/es2022/esnext/define/identifier-decorated-field-control",
++    "decorator-source-followup/es2022/esnext/define/literal-computed-decorated-field",
++    "decorator-source-followup/es2022/esnext/set/identifier-decorated-field-control",
++    "decorator-source-followup/es2022/esnext/set/literal-computed-decorated-field",
++    "decorator-source-followup/esnext/esnext/define/identifier-decorated-field-control",
++    "decorator-source-followup/esnext/esnext/define/literal-computed-decorated-field",
++    "decorator-source-followup/esnext/esnext/set/identifier-decorated-field-control",
++    "decorator-source-followup/esnext/esnext/set/literal-computed-decorated-field"
++  ],
++  "failed": [],
++  "inconsistent": [],
++  "captures": {
++    "2acfd05fc618001132c184bc07d67ec32bcd963a6d544c17fb53d7b1de16e584-0.json": "cdcbe39cd4b195b175033745905707218fb4870d99fc287c735a938d47e7d4ce",
++    "2acfd05fc618001132c184bc07d67ec32bcd963a6d544c17fb53d7b1de16e584-1.json": "299298b1e9c73b23e7a48ef5d297be9b1b0e07d0083c11b13cdd3f8681380aa2",
++    "2aeb46ce16d269e76bffdb54d6de4a3c90621f6eb5e2d6cc3d1d71b0b4da2fa8-0.json": "c49d2bb16ddfd65c1eec661994c924f2fea0bf8ef85979406783f8fa9a181071",
++    "2aeb46ce16d269e76bffdb54d6de4a3c90621f6eb5e2d6cc3d1d71b0b4da2fa8-1.json": "6c2a17d3c159f8a0e83a43fc6b6fb5334f460968c8dc71528d65f18a1a141c9f",
++    "69b4ae8e718d50a4585c3e6967a180f623c242d42a4b03a01040fea7a598df13-0.json": "9effc5f93a157d5b5de37105c977efa6258966676697f99024b70113a2f445c0",
++    "69b4ae8e718d50a4585c3e6967a180f623c242d42a4b03a01040fea7a598df13-1.json": "65cc551cb93eebd1dbac42c5e65c5325f2606b0f67dc34fee7b200a3e4ae4db7",
++    "763e75f773c837fe127f0063c04931b9d44dc4dccf777417f59f16dcd5bf7853-0.json": "036b55b6ca4136b3d600c5853655ead076a1a8a691089b550d77fdb8e548fa62",
++    "763e75f773c837fe127f0063c04931b9d44dc4dccf777417f59f16dcd5bf7853-1.json": "21e600706efd29b6b96ec04c69757cd8b57abe998001cb935f99d3a5caed73ff",
++    "7cfc5994c57554837136dded082dcf9e681670bd5f6a6b5c9faf7f9f2dc9f2f9-0.json": "9460771524ffdb9d22982a3bd8aa5f0f206fcbc6bc054c1fb9613ba0835e0918",
++    "7cfc5994c57554837136dded082dcf9e681670bd5f6a6b5c9faf7f9f2dc9f2f9-1.json": "a132b1c4068c349abaaf61ce9b32df22f47b256623f5ec84a6dbcb6ea557ae08",
++    "9b35e803b2ff3ec1c5212d5ec4fc479d20ccfa0e2e23efec64f129d973ce775c-0.json": "b397da65b940f8b1f5c870772eb8d20a38e46256286902ebb0299e96bfca6c7a",
++    "9b35e803b2ff3ec1c5212d5ec4fc479d20ccfa0e2e23efec64f129d973ce775c-1.json": "e6dfbd71318bc485562596162de3448f6fc2ec08dadf7046d7a2c980c74d7d61",
++    "aa066d19acdf0bbf82d38c35f3429df94ca4b7f13f295ca211cd4c9caf7b9e2a-0.json": "dfba87d3d02bde95505184300901a815c230331ee6807f52b3e88c732497b3e1",
++    "aa066d19acdf0bbf82d38c35f3429df94ca4b7f13f295ca211cd4c9caf7b9e2a-1.json": "1265f44ea224168a7830a40deca663ac13c142e665b06b116553b5eadf863916",
++    "b208b9dab05925d28eb97622c71072d84494501669a1d058c098d782f4fde31a-0.json": "2beba5ea120d8f572f316daf67d1afdfeb03da40fd31366cbb2ba9f43a1009bd",
++    "b208b9dab05925d28eb97622c71072d84494501669a1d058c098d782f4fde31a-1.json": "dcc5ff72c9bdde16cf42cac8670b441755781fdf2ed834156a09b3c2dd4dcfa3",
++    "b4d9837533048203bfd078cf0b6e1ac9cfc4fc928f5d302f4973e11d6beb54b2-0.json": "44f70e0b63e6e76dc0dca8b48e4bbd27daa8aac9e0a8732c80953c5c57a367ea",
++    "b4d9837533048203bfd078cf0b6e1ac9cfc4fc928f5d302f4973e11d6beb54b2-1.json": "3637740fe59f762e080d7e18f51e238a0e11ee496821820cc5e823a6cf4a1538",
++    "c087ad8141f6d6b4fb938e41bfd6027b2d18c9cc4124134e6f927e88ddd43b2c-0.json": "3202f8dc95d599ab26924be107f3d4cba9b4247c53b7252fc0e14800f51fbee8",
++    "c087ad8141f6d6b4fb938e41bfd6027b2d18c9cc4124134e6f927e88ddd43b2c-1.json": "b6b6b8fe54fbbb7431f97447d1c63fcdcec02e611aa2ffca8da162031f56350c",
++    "c4f173916cf5b91e3ebcf597a4291fcfca7c0c7b9ccc6ef0990ccca401670c49-0.json": "e1893dd52433d74607dcd040543d777c65cfca0bfe8af7585f6ec7ed349d5069",
++    "c4f173916cf5b91e3ebcf597a4291fcfca7c0c7b9ccc6ef0990ccca401670c49-1.json": "33df13383723f277f6cf3b329be69103c0f5fd3c3585204f5e7e1e09b38183a0",
++    "e99655410b4962701e5192376c93a37218077f82fd6afcb507164342d8dc8d97-0.json": "4b6415d452f7822350ae17bcff54d37068f832b4ec0f5a6692d3108bbbfd04b2",
++    "e99655410b4962701e5192376c93a37218077f82fd6afcb507164342d8dc8d97-1.json": "59d4f8da5cef62ed65d45c7b7548a67bc7f4c0bbebe0d293b75619647c506f43"
++  },
++  "log_exact_marker_count": 12,
++  "log_repeated_failure_count": 0,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+-- 
+2.50.1 (Apple Git-155)
+

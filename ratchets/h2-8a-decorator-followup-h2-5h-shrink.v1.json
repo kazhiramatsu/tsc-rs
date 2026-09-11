@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "slice": "H2.8a decorator source follow-up: H2.5h known-divergence manifest shrink",
+  "head_before_commit": "333f25f583c89b377a96be1b72d469df9cc74373",
+  "production_inputs": {
+    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
+    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834"
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "target/decorator-followup-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2"
+  },
+  "runs": [
+    {
+      "run_dir": "target/decorator-followup-runs/h2-5h-shrink-r2",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "xtask",
+        "h2-5h-acceptance"
+      ],
+      "manifest": "committed manifest minus blockScopedVariablesUseBeforeDef (single-row trial)",
+      "actual_exit": 1,
+      "log_sha256": "70b03385cc0c189ff4e815d8e1aee80d2f43de2c036a2b3fac0760898e36f1ce",
+      "result": "stops at the next stale row: classInConvertedLoopES5.ts#target=es5"
+    },
+    {
+      "run_dir": "target/decorator-followup-runs/h2-5h-shrink-r3",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "xtask",
+        "h2-5h-acceptance"
+      ],
+      "environment_extra": {
+        "TSRS_H2_5H_WRITE_DIVERGENCES": "1"
+      },
+      "actual_exit": 0,
+      "log_sha256": "c1f9cf4f2e6083c4e949d42c6af4d2acb5ce20e51bca25a675e7c097faaa8957",
+      "counts": {
+        "candidates": 932,
+        "exact": 860,
+        "known_diverging": 28,
+        "deferred": 44
+      },
+      "written_manifest_sha256": "268b588854be15822799dad8ed7355cf9ba00a4ebda5f00d30767aae240dd858"
+    },
+    {
+      "run_dir": "target/decorator-followup-runs/h2-5h-shrink-r4",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "xtask",
+        "h2-5h-acceptance"
+      ],
+      "manifest": "reconciled (28 committed rows, owners preserved)",
+      "actual_exit": 0,
+      "log_sha256": "98bbf7c766332f5a432f4216693dca5c8d700f6607d5299db8e9331e9c5ee349",
+      "counts": {
+        "candidates": 932,
+        "exact": 860,
+        "known_diverging": 28,
+        "deferred": 44
+      }
+    }
+  ],
+  "reconciliation": {
+    "committed": 50,
+    "written": 28,
+    "kept": 28,
+    "stale": [
+      "typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5",
+      "typescript-6.0.3/compiler/classInConvertedLoopES5.ts#target%3Des5",
+      "typescript-6.0.3/compiler/nestedLoops.ts#target%3Des5",
+      "typescript-6.0.3/compiler/newLexicalEnvironmentForConvertedLoop.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock9.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers3.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers4.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers7.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dfalse",
+      "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dtrue",
+      "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames12_ES5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/es6/newTarget/invalidNewTarget.es5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/es6/newTarget/newTarget.es5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target2.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target2.ts#target%3Des5",
+      "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Damd",
+      "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Dcommonjs"
+    ],
+    "new": [],
+    "changed": []
+  },
+  "manifest_sha256": {
+    "committed_before": "6266da78c2ec1869c5dac263a47527fc3c519d083640c597873f460d103898ff",
+    "after_shrink": "c76f400fb70f7918e9e5df33ceb88bc6790d25d3f12310fb66f254ac35fb9ceb"
+  },
+  "finished_at": "2026-09-11T08:22:49.372328+00:00"
+}

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "slice": "H2.8a decorator source follow-up: h2_slice_ratchet_join reports every manifest difference",
+  "xtask_sources": {
+    "crates/xtask/src/h2_2c_acceptance.rs": "6109c992885690a0d19af49d3575648040e1dbb4660e0f038f7a8d7af6fbc01b",
+    "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs": "171013f22abc46266449da3124843c14feb8ca163981eb08873f39fbd2dd6acd"
+  },
+  "production_unchanged": {
+    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4"
+  },
+  "unit_tests": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-xtask",
+      "--bin",
+      "xtask",
+      "h2_slice_ratchet_join"
+    ],
+    "exit": 0,
+    "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 307 filtered out; finished in 0.01s",
+    "log_sha256": "b507cb83c9b02b37d0e966d0708c0b6194db4fb229da4104579a2732b8c81123"
+  },
+  "clippy_D_warnings": {
+    "exit": 101,
+    "note": "fails only on three pre-existing lints in crates/emitter/src/builtins/class_fields.rs (254, 2013, 3453), a file unchanged since the start manifest",
+    "log_sha256": "6d6bd450bfd666f1dd7ce5f85837367a40ffa9d742a42e6763124b91e75803ef"
+  },
+  "live_two_stale_rows": {
+    "manifest": "committed 28 rows plus blockScopedVariablesUseBeforeDef and classInConvertedLoopES5 re-added (30 rows, restored afterwards)",
+    "exit": 1,
+    "stale_lines": 2,
+    "log_sha256": "78705a0b31f7906b9a7a75d2af41897cade26497fd32ca7bcd0a2d3731ce230a"
+  },
+  "live_committed_manifest": {
+    "exit": 0,
+    "line": "H2.5h emit acceptance: candidates=932 exact=860 known_diverging=28 deferred=44 repetitions=2",
+    "log_sha256": "0e685e76b96933ffd57915c7dacb1535775e6d3ecb75575abbf40047f3466f2c"
+  },
+  "manifest_restored_clean": true,
+  "finished_at": "2026-09-11T09:02:04.543164+00:00",
+  "unit_tests_after_expect_err": {
+    "exit": 0,
+    "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 307 filtered out; finished in 0.00s",
+    "log_sha256": "89e68258045d5cf4c8ea19ef0b77dad54c6a69fe8e030acc624609a9ea8b445e"
+  },
+  "clippy_scoped": {
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "tsc-rs-xtask",
+      "--tests"
+    ],
+    "exit": 0,
+    "warnings_in_edited_files": 0,
+    "log_sha256": "bdc3562a0551bfebaee8fa9bf147cddf085e928e4b8489c780f6b7257358e508"
+  }
+}

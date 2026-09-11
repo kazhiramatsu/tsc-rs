@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "slice": "H2.8a decorator source follow-up: H2.5h write-mode enumeration at the start head (attribution)",
+  "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "worktree": "target/decorator-followup-start-worktree (detached, removed after the run)",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "xtask",
+    "h2-5h-acceptance"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "target/decorator-followup-start-target",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSRS_H2_5H_WRITE_DIVERGENCES": "1"
+  },
+  "actual_exit": 0,
+  "log_sha256": "de63f0a0a0be63b21fae9df37c1d4916f743d0cd13ee9a830ddc569ffdef3588",
+  "counts": {
+    "candidates": 932,
+    "exact": 860,
+    "known_diverging": 28,
+    "deferred": 44
+  },
+  "written_manifest_sha256": "268b588854be15822799dad8ed7355cf9ba00a4ebda5f00d30767aae240dd858",
+  "candidate_head_written_manifest_sha256": "268b588854be15822799dad8ed7355cf9ba00a4ebda5f00d30767aae240dd858",
+  "identical_divergence_sets": true,
+  "finished_at": "2026-09-11T08:38:16.966755+00:00"
+}

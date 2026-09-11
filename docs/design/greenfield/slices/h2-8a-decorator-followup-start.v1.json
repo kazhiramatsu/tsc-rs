@@ -1,0 +1,132 @@
+{
+  "status": "Preparation only; no Rust qualification for new cases",
+  "start_head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "source_head_before_format": "6f916cd5e315aa5ef03ed8b9af780f2f460fba7a",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-dec-followup",
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "c0486540d7786cf6948635b9672d8a13c7740eb4b23d343cb9cd3329ed40b386",
+    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
+    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
+    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
+  },
+  "proposed_inputs": {
+    "path": "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json",
+    "sha256": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73"
+  },
+  "typescript_source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "source_families": 4,
+  "source_cases": 8,
+  "planned_commands": 48,
+  "upstream_observations": {
+    "path": "crates/compiler/tests/fixtures/decorator-source-followup.json",
+    "sha256": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
+    "typescript_version": "6.0.3",
+    "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+    "observer_sha256": "6e580d435c1f5dd0598c8fa4bc8c77533342e113f6b34fb3acc9d755e605056d",
+    "repetitions": 2,
+    "complete_commands": 48,
+    "program_executions": 96,
+    "exceptions": 0,
+    "reported_diagnostics": 0,
+    "exit_code": 0,
+    "log_path": "target/decorator-followup-prep/oracle-r2/run.log",
+    "log_sha256": "a9a2f2d81b2a4be688422b91192fc6e513e68a4eb2a4cfb34ead8549bba9f986"
+  },
+  "rejected_proposal": {
+    "reason": "24 commands reported TS1166 for class fields with a call-expression computed name; replaced with a constant identifier of literal type, retaining nonliteral computed-name syntax.",
+    "path": "target/decorator-followup-prep/oracle-r1",
+    "inputs_sha256": "1301471cf32ba93e643394c1a5de728bb474574023b8c19d818c3af98abf92dd",
+    "observations_sha256": "7ee678ac4068040f939534c09567cbd571f9d65272ad584c9c98421aa615d5c1"
+  },
+  "initial_preparation_head": "20be5c767048f87927b8e1a42cc06220b7b29b37",
+  "start_refresh_reason": "Include the four H2.5g repairs: fresh object-spread property provenance, automatic JSX text range without parsed-parent identity, and deferred downlevel static operand visits. Four frozen commands match twice; 495 emitter lib and 452 contracts pass. Final 126/530 and hosted checks for this head are pending. No new 48-case Rust qualification.",
+  "previous_work_verification_history": [
+    {
+      "head": "399360efc57eb6036b5a8170c308e941334be9cb",
+      "receipt_path": "ratchets/h2-8a-decorator-next-pr-witnesses.v1.json",
+      "receipt_sha256": "220f7ad347897d754ff97fc9cf2c97f51e385af92105895fbb8ddf1078f72e89",
+      "actual_exit": 0,
+      "summary": {
+        "cases": 126,
+        "exact_twice": 126,
+        "failed": 0,
+        "capture_files": 252
+      },
+      "executed_binary_sha256": "e5cef05b51423a99c49ce2f8e055ad78e68d4c99f7bbef12f125ef659b019e01"
+    },
+    {
+      "head": "8aa39f27705c76c3f72c356e299edc5f9d5c5d7f",
+      "receipt_path": "ratchets/h2-8a-decorator-next-pr-witnesses.v2.json",
+      "receipt_sha256": "0fdfff3614784edc4ffff2ef5922c6c8289f08a81391a79f72815300acd86aec",
+      "actual_exit": 0,
+      "summary": {
+        "cases": 126,
+        "exact_twice": 126,
+        "failed": 0,
+        "capture_files": 252
+      },
+      "executed_binary_sha256": "1c124f189ac4cb1995c0e338a1f04a305120ddadbf1db3c61dd03e9ccc9b0a82"
+    }
+  ],
+  "previous_work_final_verification": {
+    "head": "f8e47ecf4ca38c1dd334049dd4a1d982dd75fc7e",
+    "receipt_path": "ratchets/h2-8a-decorator-next-pr-witnesses.v3.json",
+    "receipt_sha256": "f997c1bbf11cb70165e40db1b33efbfabb9c18a48eef34b02f01071fb48de393",
+    "actual_exit": 0,
+    "summary": {
+      "cases": 126,
+      "exact_twice": 126,
+      "failed": 0,
+      "capture_files": 252
+    },
+    "executed_binary_sha256": "f4b6b72bbd5f6402d466169637da997b58d529a1ac2bf320f55dd12a539e487e"
+  },
+  "previous_work_full530_verification": {
+    "head": "f8e47ecf4ca38c1dd334049dd4a1d982dd75fc7e",
+    "receipt": {
+      "path": "ratchets/h2-8a-decorator-next-pr-full530.v1.json",
+      "sha256": "ee510d0ad8c3bce4d0500f446d7815cb6b1e2e2fe580df18245769138437dfc8"
+    },
+    "actual_exit": 0,
+    "summary": {
+      "cases": 530,
+      "exact_twice": 530,
+      "failed": 0,
+      "capture_files": 1060
+    },
+    "executed_binary_sha256": "f4b6b72bbd5f6402d466169637da997b58d529a1ac2bf320f55dd12a539e487e",
+    "full62_comparison_receipt": {
+      "path": "ratchets/h2-8a-decorator-next-pr-full530-full62.v1.json",
+      "sha256": "ae657b7cd602339ed01fe87465226f60b92b33de07cb904d51a130a6f58d67a0"
+    },
+    "full62_comparison": {
+      "cases": 530,
+      "exact_twice": 530,
+      "failed": 0,
+      "inconsistent": 0,
+      "changed_vs_full62": 0,
+      "missing_vs_full62": 0,
+      "extra_vs_full62": 0
+    }
+  },
+  "current_source_verification_pending": [
+    "H2.5b projection",
+    "126 decorator witnesses",
+    "530 existing commands and full62 comparison",
+    "hosted gates"
+  ],
+  "hosted_gates": {
+    "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+    "run_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/34565157958",
+    "status": "IN_PROGRESS",
+    "conclusion": null
+  }
+}

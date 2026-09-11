@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "slice": "H2.8a decorator source follow-up: emitter lib + contracts",
+  "head": "a4c089c7b1dff7f1c794d93bdcf15e7fb061770a",
+  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/final-emitter",
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
+    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
+    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
+    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
+  },
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-emitter",
+    "--lib",
+    "--test",
+    "contracts",
+    "--",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/final-emitter/captures"
+  },
+  "actual_exit": 0,
+  "finished_at": "2026-09-11T06:39:04.006401+00:00",
+  "log_sha256": "a4b8b55ad489da4433a8e85b95d7afb0ca30f102219894f5de26bcce9bf63d60",
+  "prelaunch_sha256": "dccae64d4bc8d2d5a86be0a74bda71bdd76c6c0e699f18dedcb787b355b7fa08",
+  "archive_sha256": "9f2af6742a4b8c7be91bfeab8e73d7f6c16b42f9eae14c7de6f567dfcfc432d1",
+  "suite_results": [
+    {
+      "status": "ok",
+      "passed": 495,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "status": "ok",
+      "passed": 452,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "executed_binaries": {
+    "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/tsc_emitter-4eacdde07688abea": "3112624208023921f4f0648f4e3d11f9eecfea1156c3aa86f575d4d0e063775b",
+    "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/contracts-ac1b8aeedb2a27c7": "48b85e07dceb07d0a196eb9b0d0cb05c800ef6e0e08b7e721c70467b7f0a7760"
+  },
+  "source_unchanged_after_run": true
+}
