@@ -2689,6 +2689,12 @@ fn h2_slice_ratchet_join(
     let mut deferred = 0u64;
     let mut exact = 0u64;
     let mut diverging: Vec<(String, H2_5hDivergence)> = Vec::new();
+    // The ordered pipeline has already executed every case. Collect every
+    // manifest difference (stale, new, changed facets) and fail once, so a
+    // shrink or a new-divergence review needs one run, not one run per row
+    // (the H2.5g and H2.6c/H2.7b joins' discipline). Execution errors still
+    // stop at the first one: they are infrastructure, not ratchet state.
+    let mut differences = Vec::new();
     for result in results {
         let outcome = result.map_err(failure)?;
         if outcome.deferred {
@@ -2696,39 +2702,38 @@ fn h2_slice_ratchet_join(
         } else if outcome.divergence.is_exact() {
             exact += 1;
             if !write_manifest && listed.contains_key(&outcome.case_id) {
-                return Err(failure(format!(
+                differences.push(format!(
                     "{slice} stale divergence-manifest entry: {} is exact now (shrink the manifest)",
                     outcome.case_id
-                )));
+                ));
             }
         } else {
             if !write_manifest {
                 match listed.get(&outcome.case_id) {
-                    None => {
-                        return Err(failure(format!(
-                            "{slice} NEW divergence (not in the manifest): {} writes={} diagnostics={} emit_result={} refused={}",
-                            outcome.case_id,
-                            outcome.divergence.writes_diverging,
-                            outcome.divergence.diagnostics_diverging,
-                            outcome.divergence.emit_result_diverging,
-                            outcome.divergence.emit_refused,
-                        )));
-                    }
-                    Some(expected) if *expected != outcome.divergence => {
-                        return Err(failure(format!(
-                            "{slice} divergence facets differ from the manifest for {}: observed writes={} diagnostics={} emit_result={} refused={}",
-                            outcome.case_id,
-                            outcome.divergence.writes_diverging,
-                            outcome.divergence.diagnostics_diverging,
-                            outcome.divergence.emit_result_diverging,
-                            outcome.divergence.emit_refused,
-                        )));
-                    }
+                    None => differences.push(format!(
+                        "{slice} NEW divergence (not in the manifest): {} writes={} diagnostics={} emit_result={} refused={}",
+                        outcome.case_id,
+                        outcome.divergence.writes_diverging,
+                        outcome.divergence.diagnostics_diverging,
+                        outcome.divergence.emit_result_diverging,
+                        outcome.divergence.emit_refused,
+                    )),
+                    Some(expected) if *expected != outcome.divergence => differences.push(format!(
+                        "{slice} divergence facets differ from the manifest for {}: observed writes={} diagnostics={} emit_result={} refused={}",
+                        outcome.case_id,
+                        outcome.divergence.writes_diverging,
+                        outcome.divergence.diagnostics_diverging,
+                        outcome.divergence.emit_result_diverging,
+                        outcome.divergence.emit_refused,
+                    )),
                     Some(_) => {}
                 }
             }
             diverging.push((outcome.case_id, outcome.divergence));
         }
+    }
+    if !differences.is_empty() {
+        return Err(failure(differences.join("\n")));
     }
     Ok((exact, deferred, diverging))
 }

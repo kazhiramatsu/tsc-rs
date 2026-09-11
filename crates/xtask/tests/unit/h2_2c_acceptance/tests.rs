@@ -870,3 +870,82 @@ fn h2_5h_async_numbered_parent_allocation_preserves_original_outputs() {
     assert!(!observed.deferred);
     assert!(observed.divergence.is_exact(), "{:?}", observed.divergence);
 }
+
+fn h2_5h_divergence(writes_diverging: u64) -> super::H2_5hDivergence {
+    super::H2_5hDivergence {
+        writes_diverging,
+        diagnostics_diverging: false,
+        emit_result_diverging: false,
+        emit_refused: false,
+    }
+}
+
+fn h2_5h_outcome(case_id: &str, writes_diverging: u64) -> super::H2_5hCaseOutcome {
+    super::H2_5hCaseOutcome {
+        case_id: case_id.to_owned(),
+        deferred: false,
+        divergence: h2_5h_divergence(writes_diverging),
+    }
+}
+
+/// The ordered pipeline has already executed every case, so the manifest
+/// join reports every stale, new and changed row in ONE failure (the H2.5g
+/// and H2.6c/H2.7b discipline) instead of one row per run.
+#[test]
+fn h2_slice_ratchet_join_reports_every_manifest_difference_in_one_failure() {
+    let listed = std::collections::HashMap::from([
+        ("stale".to_owned(), h2_5h_divergence(1)),
+        ("changed".to_owned(), h2_5h_divergence(1)),
+        ("known".to_owned(), h2_5h_divergence(1)),
+    ]);
+    let results = || {
+        vec![
+            Ok(h2_5h_outcome("stale", 0)),
+            Ok(h2_5h_outcome("new", 1)),
+            Ok(h2_5h_outcome("changed", 2)),
+            Ok(h2_5h_outcome("known", 1)),
+            Ok(h2_5h_outcome("exact", 0)),
+        ]
+    };
+    let error = super::h2_slice_ratchet_join("H2.5h", results(), &listed, false)
+        .expect_err("three manifest differences fail the join")
+        .to_string();
+    let lines: Vec<&str> = error.lines().collect();
+    assert_eq!(lines.len(), 3, "{error}");
+    assert!(lines[0].starts_with("H2.5h stale divergence-manifest entry: stale is exact now"));
+    assert!(lines[1].starts_with("H2.5h NEW divergence (not in the manifest): new writes=1"));
+    assert!(lines[2].starts_with(
+        "H2.5h divergence facets differ from the manifest for changed: observed writes=2"
+    ));
+    let (exact, deferred, diverging) =
+        super::h2_slice_ratchet_join("H2.5h", results(), &listed, true)
+            .expect("write mode enumerates without failing");
+    assert_eq!((exact, deferred), (2, 0));
+    assert_eq!(
+        diverging
+            .iter()
+            .map(|(id, _)| id.as_str())
+            .collect::<Vec<_>>(),
+        ["new", "changed", "known"]
+    );
+    let ok = vec![Ok(h2_5h_outcome("known", 1)), Ok(h2_5h_outcome("exact", 0))];
+    let (exact, deferred, diverging) = super::h2_slice_ratchet_join("H2.5h", ok, &listed, false)
+        .expect("a manifest that matches the results passes");
+    assert_eq!((exact, deferred, diverging.len()), (1, 0, 1));
+}
+
+/// Execution errors are infrastructure, not ratchet state: the join still
+/// stops at the first one and does not mix it with manifest differences.
+#[test]
+fn h2_slice_ratchet_join_stops_at_the_first_execution_error() {
+    let listed = std::collections::HashMap::from([("stale".to_owned(), h2_5h_divergence(1))]);
+    let results = vec![
+        Ok(h2_5h_outcome("stale", 0)),
+        Err("H2.5h case index 1: boom".to_owned()),
+        Ok(h2_5h_outcome("new", 1)),
+    ];
+    let error = super::h2_slice_ratchet_join("H2.5h", results, &listed, false)
+        .expect_err("an execution error fails the join")
+        .to_string();
+    assert_eq!(error, "H2.5h case index 1: boom");
+}
