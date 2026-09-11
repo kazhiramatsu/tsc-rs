@@ -159,17 +159,27 @@ impl Transformer for StandardDecoratorTransformer {
 /// spellings. A source identifier is never tagged by a text lookup.
 trait DecoratorIdentifier {
     fn identifier_text(&self) -> &str;
-    fn generated_binding(&self) -> Option<&TargetBinding> { None }
+    fn generated_binding(&self) -> Option<&TargetBinding> {
+        None
+    }
 }
 impl DecoratorIdentifier for str {
-    fn identifier_text(&self) -> &str { self }
+    fn identifier_text(&self) -> &str {
+        self
+    }
 }
 impl DecoratorIdentifier for String {
-    fn identifier_text(&self) -> &str { self }
+    fn identifier_text(&self) -> &str {
+        self
+    }
 }
 impl DecoratorIdentifier for TargetBinding {
-    fn identifier_text(&self) -> &str { self.provisional_name() }
-    fn generated_binding(&self) -> Option<&TargetBinding> { Some(self) }
+    fn identifier_text(&self) -> &str {
+        self.provisional_name()
+    }
+    fn generated_binding(&self) -> Option<&TargetBinding> {
+        Some(self)
+    }
 }
 
 #[derive(Clone)]
@@ -661,7 +671,13 @@ struct StandardDecoratorVisitor<'context> {
     /// (partialTransformClassElement visits them once, under the name
     /// frame, and the element visit reuses that result by design).
     #[cfg(debug_assertions)]
-    memo_receiver_audit: BTreeMap<NodeId, (Option<TransformNode>, Option<crate::transform::GeneratedBindingId>)>,
+    memo_receiver_audit: BTreeMap<
+        NodeId,
+        (
+            Option<TransformNode>,
+            Option<crate::transform::GeneratedBindingId>,
+        ),
+    >,
     #[cfg(debug_assertions)]
     memo_audit_exempt: BTreeSet<NodeId>,
     /// tsc `pendingExpressions`: member decorator array assignments and
@@ -1313,11 +1329,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let decorators_name = self.allocate_name(&format!(
             "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_decorators"
         ))?;
-        let descriptor_name = is_private.then(|| {
-            self.allocate_name(&format!(
-                "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_descriptor"
-            ))
-        }).transpose()?;
+        let descriptor_name = is_private
+            .then(|| {
+                self.allocate_name(&format!(
+                    "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_descriptor"
+                ))
+            })
+            .transpose()?;
         plans.push(MethodPlan {
             original,
             name,
@@ -1440,7 +1458,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 decorators: class_decorators,
                 decorators_name: self.allocate_file_level_name("_classDecorators")?,
                 descriptor_name: self.allocate_file_level_name("_classDescriptor")?,
-                extra_initializers_name: self.allocate_file_level_name("_classExtraInitializers")?,
+                extra_initializers_name: self
+                    .allocate_file_level_name("_classExtraInitializers")?,
                 // createClassInfo: `needsUniqueClassThis` selects
                 // ReservedInNestedScopes instead of FileLevel when a static
                 // private or auto-accessor member exists.
@@ -1483,11 +1502,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     let extra_initializers_name = self.allocate_name(&format!(
                         "_{static_prefix}{private_prefix}{helper_name}_extraInitializers"
                     ))?;
-                    let descriptor_name = (is_private && is_accessor).then(|| {
-                        self.allocate_name(&format!(
-                            "_{static_prefix}{private_prefix}{helper_name}_descriptor"
-                        ))
-                    }).transpose()?;
+                    let descriptor_name = (is_private && is_accessor)
+                        .then(|| {
+                            self.allocate_name(&format!(
+                                "_{static_prefix}{private_prefix}{helper_name}_descriptor"
+                            ))
+                        })
+                        .transpose()?;
                     // esDecorators lowers only private auto-accessors itself
                     // (`isPrivateIdentifierClassElementDeclaration(member) &&
                     // hasAccessorModifier(member)`); public ones stay `accessor`
@@ -1587,11 +1608,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let static_method_extra = method_plans
             .iter()
             .any(|plan| plan.is_static)
-            .then(|| self.allocate_file_level_name("_staticExtraInitializers")).transpose()?;
+            .then(|| self.allocate_file_level_name("_staticExtraInitializers"))
+            .transpose()?;
         let instance_method_extra = method_plans
             .iter()
             .any(|plan| !plan.is_static)
-            .then(|| self.allocate_file_level_name("_instanceExtraInitializers")).transpose()?;
+            .then(|| self.allocate_file_level_name("_instanceExtraInitializers"))
+            .transpose()?;
         let needs_descriptor_names = method_plans
             .iter()
             .any(|plan| plan.descriptor_name.is_some())
@@ -1702,11 +1725,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 && self.target >= ScriptTarget::ES2022
                 && has_static_private_class_elements;
             let target = (!class_fields_names_the_class)
-                .then(|| {
-                    class_decoration
-                        .as_ref()
-                        .map(|plan| &plan.class_this_name)
-                })
+                .then(|| class_decoration.as_ref().map(|plan| &plan.class_this_name))
                 .flatten();
             transformed_members
                 .push(self.create_set_function_name_block(runtime_class_name, target)?);
@@ -4385,7 +4404,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
-    fn create_identifier(&mut self, name: &(impl DecoratorIdentifier + ?Sized)) -> Result<TransformNode, TransformError> {
+    fn create_identifier(
+        &mut self,
+        name: &(impl DecoratorIdentifier + ?Sized),
+    ) -> Result<TransformNode, TransformError> {
         let text = name.identifier_text();
         let identifier = self.context.factory()?.create_node(
             self.source,
@@ -5442,7 +5464,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn allocate_name(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
         let planned = self.plan_helper_name(base);
-        TargetBinding::allocate_preferred_reserved_in_nested_scopes(self.context, base.to_owned(), planned)
+        TargetBinding::allocate_preferred_reserved_in_nested_scopes(
+            self.context,
+            base.to_owned(),
+            planned,
+        )
     }
 
     fn allocate_file_level_name(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
@@ -6184,7 +6210,10 @@ impl StandardDecoratorVisitor<'_> {
         {
             self.memo_receiver_audit.insert(
                 node.node(),
-                (self.receiver_class_this, self.receiver_class_super.as_ref().map(TargetBinding::id)),
+                (
+                    self.receiver_class_this,
+                    self.receiver_class_super.as_ref().map(TargetBinding::id),
+                ),
             );
         }
         Ok(())

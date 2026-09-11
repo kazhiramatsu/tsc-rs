@@ -2042,8 +2042,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // Both are ClassWasDecorated: their own static super references have
         // already been projected, so nested classes must not allocate a
         // redundant super alias for the enclosing class.
-        let class_was_decorated =
-            preferred_class_this.is_some() || decorated_declaration.is_some();
+        let class_was_decorated = preferred_class_this.is_some() || decorated_declaration.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
             preferred_class_this.is_some()
@@ -2058,8 +2057,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )?;
         // ClassWasDecorated suppresses NeedsClassSuperReference even when a
         // different fact allocated a usable constructor identity.
-        let needs_super_reference =
-            class_facts.static_facts.contains_super && !class_was_decorated;
+        let needs_super_reference = class_facts.static_facts.contains_super && !class_was_decorated;
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
@@ -2641,9 +2639,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let metadata = self.context.arena().metadata(class_this)?;
         Some(match metadata.generated_binding_id() {
             Some(id) => ClassBinding::Generated(TargetBinding::from_existing(
-                id, text,
+                id,
+                text,
                 metadata.generated_binding_base().map(str::to_owned),
-                metadata.generated_binding_preferred_base().map(str::to_owned),
+                metadata
+                    .generated_binding_preferred_base()
+                    .map(str::to_owned),
                 metadata.generated_binding_role_suffix().map(str::to_owned),
                 metadata.generated_binding_is_file_level_optimistic(),
                 metadata.generated_binding_planned_name_is_authoritative(),
@@ -4897,7 +4898,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         access: &StaticSuperAccess,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        self.create_reflect_set(&access.super_alias, access.key, value, &access.class_receiver)
+        self.create_reflect_set(
+            &access.super_alias,
+            access.key,
+            value,
+            &access.class_receiver,
+        )
     }
 
     /// A key used for both `Reflect.get` and `Reflect.set` must be stabilized
@@ -4944,7 +4950,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let binary_operator = Self::non_assignment_operator(operator);
             let right = self.parenthesize_right_binary_operand(binary_operator, right)?;
             let expression = self.create_binary(current, binary_operator, right)?;
-            self.context.factory()?.set_text_range(expression, original)?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
             expression
         } else {
             right
@@ -4954,7 +4962,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .transpose()?;
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
-            self.context.factory()?.set_text_range(result_target, original)?;
+            self.context
+                .factory()?
+                .set_text_range(result_target, original)?;
             value = self.create_assignment(result_target, value)?;
         }
         let mut expression = self.create_reflect_set(
@@ -4990,13 +5000,16 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             NodeData::PrefixUnaryExpression(data) => data.operand,
             NodeData::PostfixUnaryExpression(data) => data.operand,
             _ => None,
-        }.ok_or(TransformError::RequiredChildRemoved {
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
             parent: self.context.arena().node(original)?.kind,
             field: "update operand",
         })?;
         let operand = self.node(operand);
         let unwrapped_operand = self.skip_runtime_transparent_outer_expressions(operand)?;
-        self.context.factory()?.set_text_range(current, unwrapped_operand)?;
+        self.context
+            .factory()?
+            .set_text_range(current, unwrapped_operand)?;
         let result_binding = (value_use == ExpressionValueUse::Required)
             .then(|| self.allocate_shadowable_temp_name())
             .transpose()?;
@@ -5031,7 +5044,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
             operation = self.create_assignment(result_target, operation)?;
-            self.context.factory()?.set_text_range(operation, original)?;
+            self.context
+                .factory()?
+                .set_text_range(operation, original)?;
         }
         value = self.inline_expressions(vec![value, operation])?;
         self.context.factory()?.set_text_range(value, original)?;
@@ -5568,7 +5583,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             // observable own properties and are handled above.
                             if operation.value.has_runtime_value() {
                                 if self.selectively_transforms_private_static_elements() {
-                                    let block = self.materialize_public_static_field_block(&operation)?;
+                                    let block =
+                                        self.materialize_public_static_field_block(&operation)?;
                                     operations.retained_members.push(block);
                                 } else {
                                     operations.static_.push(StaticOperation::Field(operation));
@@ -7069,13 +7085,23 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             TransformFlags::NONE,
         )?;
         let record = self.context.arena().node(operation.original)?;
-        let positions = self.context.arena().source(self.source)?.syntax().positions();
+        let positions = self
+            .context
+            .arena()
+            .source(self.source)?
+            .syntax()
+            .positions();
         let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
-            TransformError::InvalidSourceRange { node: operation.original, error }
+            TransformError::InvalidSourceRange {
+                node: operation.original,
+                error,
+            }
         })?;
         let arena = self.context.arena_mut()?;
         arena.set_original_node(block, Some(operation.original))?;
-        arena.metadata_mut(block).set_comment_range(CommentRange::new(self.source, range));
+        arena
+            .metadata_mut(block)
+            .set_comment_range(CommentRange::new(self.source, range));
         let metadata = arena.metadata_mut(statement);
         metadata.set_comment_range(CommentRange::new(self.source, SourceRange::Synthesized));
         metadata.leading_comments.clear();

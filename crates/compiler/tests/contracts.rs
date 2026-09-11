@@ -252,10 +252,10 @@ mod h2_8a_token_comment_phases;
 #[path = "integration/h2_8a_ellipsis_comment_owners.rs"]
 mod h2_8a_ellipsis_comment_owners;
 
-#[path = "integration/h2_8a_retained_accessor_owners.rs"]
-mod h2_8a_retained_accessor_owners;
 #[path = "integration/h2_8a_decorator_next_witnesses.rs"]
 mod h2_8a_decorator_next_witnesses;
+#[path = "integration/h2_8a_retained_accessor_owners.rs"]
+mod h2_8a_retained_accessor_owners;
 
 #[path = "integration/h2_8a_object_property_owners.rs"]
 mod h2_8a_object_property_owners;

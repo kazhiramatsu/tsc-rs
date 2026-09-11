@@ -365,7 +365,9 @@ impl TargetBinding {
         provisional_name: String,
     ) -> Result<Self, TransformError> {
         let mut binding = Self::allocate_file_level_optimistic_reserved_in_nested_scopes(
-            context, preferred_base, provisional_name,
+            context,
+            preferred_base,
+            provisional_name,
         )?;
         binding.reserve_in_nested_scopes = false;
         Ok(binding)
@@ -771,7 +773,12 @@ fn finalize_generated_binding_names_with_policy(
                                 planned_name,
                                 reserve_in_nested_scopes,
                             ),
-                            (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
+                            (
+                                None,
+                                Some(base),
+                                None,
+                                Some(PreferredNameDomain::ScopedOptimistic),
+                            ) => {
                                 if reserve_in_nested_scopes {
                                     scopes.allocate_planned_preferred_with_policy(
                                         &base,
@@ -781,7 +788,8 @@ fn finalize_generated_binding_names_with_policy(
                                 } else {
                                     // A non-reserved optimistic name is tsc's
                                     // non-scoped makeUniqueName: file-wide.
-                                    scopes.allocate_planned_file_wide_optimistic(&base, planned_name)
+                                    scopes
+                                        .allocate_planned_file_wide_optimistic(&base, planned_name)
                                 }
                             }
                             (Some(base), None, None, None) => {
@@ -789,7 +797,9 @@ fn finalize_generated_binding_names_with_policy(
                                 // order); reaching this arm means the
                                 // binding escaped phase 1.
                                 let _ = (&base, &planned_name);
-                                unreachable!("source-numbered binding missed the scope-pass assignment")
+                                unreachable!(
+                                    "source-numbered binding missed the scope-pass assignment"
+                                )
                             }
                             (None, None, None, None) => allocate_ordinary_temp_name(
                                 &mut scopes,
@@ -912,14 +922,15 @@ impl TransformationContext {
         collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
         // Transformer-time finalization has no checker oracle. An actual
         // print with an oracle must reconcile even eagerly named bindings.
-        let requires_print_finalization = global_name_oracle.is_some() || events.iter().any(|event| {
-            matches!(
-                event,
-                BindingNameEvent::Identifier { binding, .. }
-                    if self.generated_binding_name(*binding).is_none()
-                        || self.generated_binding_was_finalized_for_print(*binding)
-            )
-        });
+        let requires_print_finalization = global_name_oracle.is_some()
+            || events.iter().any(|event| {
+                matches!(
+                    event,
+                    BindingNameEvent::Identifier { binding, .. }
+                        if self.generated_binding_name(*binding).is_none()
+                            || self.generated_binding_was_finalized_for_print(*binding)
+                )
+            });
         if !requires_print_finalization {
             return Ok(());
         }

@@ -973,11 +973,11 @@ pub fn emit_files_with_activity(
                     activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
                 }
                 let printed_result = printer.print_javascript_with_global_names(
-                        &mut transformation,
-                        print_request.clone(),
-                        recording_inputs.clone(),
-                        &ResolverGlobalNameOracle(resolver),
-                    );
+                    &mut transformation,
+                    print_request.clone(),
+                    recording_inputs.clone(),
+                    &ResolverGlobalNameOracle(resolver),
+                );
                 let (printed, fallback_source_map) = match printed_result {
                     Ok(printed) => (printed, None),
                     Err(crate::PrinterError::Unsupported(
