@@ -357,6 +357,20 @@ impl TargetBinding {
         })
     }
 
+    /// `createUniqueName(base, Optimistic | FileLevel)`: independent
+    /// identities may share this name, including in nested scopes.
+    pub(super) fn allocate_file_level_optimistic(
+        context: &mut TransformationContext,
+        preferred_base: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        let mut binding = Self::allocate_file_level_optimistic_reserved_in_nested_scopes(
+            context, preferred_base, provisional_name,
+        )?;
+        binding.reserve_in_nested_scopes = false;
+        Ok(binding)
+    }
+
     pub(super) fn allocate_file_level_optimistic_reserved_in_nested_scopes(
         context: &mut TransformationContext,
         preferred_base: String,
@@ -721,67 +735,80 @@ fn finalize_generated_binding_names_with_policy(
                 let name = if let Some(name) = assigned.get(&binding) {
                     name.clone()
                 } else {
-                    let name = match (
-                        numbered_base,
-                        preferred_base,
-                        preferred_role_suffix,
-                        preferred_name_domain,
-                    ) {
-                        (
-                            None,
-                            Some(base),
-                            None,
-                            Some(PreferredNameDomain::FileLevelOptimistic),
-                        ) => {
-                            let planned_name = file_level_unique_name(
-                                &reserved,
-                                &base,
-                                planned_name,
-                                global_name_oracle,
-                            )?;
-                            scopes.reserve_planned_file_level_optimistic_with_policy(
-                                planned_name,
-                                reserve_in_nested_scopes,
-                            )
-                        }
-                        (
-                            None,
-                            Some(base),
-                            Some(role_suffix),
-                            Some(PreferredNameDomain::ScopedOptimistic),
-                        ) => scopes.allocate_planned_preferred_with_role_suffix_with_policy(
-                            &base,
-                            &role_suffix,
-                            planned_name,
-                            reserve_in_nested_scopes,
-                        ),
-                        (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
-                            if reserve_in_nested_scopes {
-                                scopes.allocate_planned_preferred_with_policy(
+                    let name = loop {
+                        let planned_name = planned_name.clone();
+                        let candidate = match (
+                            numbered_base.clone(),
+                            preferred_base.clone(),
+                            preferred_role_suffix.clone(),
+                            preferred_name_domain,
+                        ) {
+                            (
+                                None,
+                                Some(base),
+                                None,
+                                Some(PreferredNameDomain::FileLevelOptimistic),
+                            ) => {
+                                let planned_name = file_level_unique_name(
+                                    &reserved,
                                     &base,
+                                    planned_name,
+                                    global_name_oracle,
+                                )?;
+                                scopes.reserve_planned_file_level_optimistic_with_policy(
                                     planned_name,
                                     reserve_in_nested_scopes,
                                 )
-                            } else {
-                                // A non-reserved optimistic name is tsc's
-                                // non-scoped makeUniqueName: file-wide.
-                                scopes.allocate_planned_file_wide_optimistic(&base, planned_name)
+                            }
+                            (
+                                None,
+                                Some(base),
+                                Some(role_suffix),
+                                Some(PreferredNameDomain::ScopedOptimistic),
+                            ) => scopes.allocate_planned_preferred_with_role_suffix_with_policy(
+                                &base,
+                                &role_suffix,
+                                planned_name,
+                                reserve_in_nested_scopes,
+                            ),
+                            (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
+                                if reserve_in_nested_scopes {
+                                    scopes.allocate_planned_preferred_with_policy(
+                                        &base,
+                                        planned_name,
+                                        reserve_in_nested_scopes,
+                                    )
+                                } else {
+                                    // A non-reserved optimistic name is tsc's
+                                    // non-scoped makeUniqueName: file-wide.
+                                    scopes.allocate_planned_file_wide_optimistic(&base, planned_name)
+                                }
+                            }
+                            (Some(base), None, None, None) => {
+                                // Pre-assigned in phase 2 (scope-pass
+                                // order); reaching this arm means the
+                                // binding escaped phase 1.
+                                let _ = (&base, &planned_name);
+                                unreachable!("source-numbered binding missed the scope-pass assignment")
+                            }
+                            (None, None, None, None) => allocate_ordinary_temp_name(
+                                &mut scopes,
+                                planned_name,
+                                reserve_in_nested_scopes,
+                                ordinary_temp_name_policy,
+                            ),
+                            _ => unreachable!("invalid target generated-name policy"),
+                        };
+                        if let Some(oracle) = global_name_oracle.filter(|_| {
+                            preferred_name_domain != Some(PreferredNameDomain::FileLevelOptimistic)
+                        }) {
+                            if oracle.has_global_name(&candidate)? {
+                                // Keep a rejected candidate reserved locally and
+                                // advance this binding's own name domain.
+                                continue;
                             }
                         }
-                        (Some(base), None, None, None) => {
-                            // Pre-assigned in phase 2 (scope-pass
-                            // order); reaching this arm means the
-                            // binding escaped phase 1.
-                            let _ = (&base, &planned_name);
-                            unreachable!("source-numbered binding missed the scope-pass assignment")
-                        }
-                        (None, None, None, None) => allocate_ordinary_temp_name(
-                            &mut scopes,
-                            planned_name,
-                            reserve_in_nested_scopes,
-                            ordinary_temp_name_policy,
-                        ),
-                        _ => unreachable!("invalid target generated-name policy"),
+                        break candidate;
                     };
                     assigned.insert(binding, name.clone());
                     name
@@ -853,7 +880,7 @@ fn file_level_unique_name(
     global_name_oracle: Option<&dyn GlobalNameOracle>,
 ) -> Result<String, TransformError> {
     let Some(global_name_oracle) = global_name_oracle else {
-        // The JavaScript lane keeps its existing no-oracle `true` decision.
+        // Low-level callers without a resolver retain the planned spelling.
         return Ok(planned);
     };
     if !global_name_oracle.has_global_name(&planned)? && !reserved.contains(&planned) {
@@ -883,7 +910,9 @@ impl TransformationContext {
         let source = root.source();
         let mut events = Vec::new();
         collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
-        let requires_print_finalization = events.iter().any(|event| {
+        // Transformer-time finalization has no checker oracle. An actual
+        // print with an oracle must reconcile even eagerly named bindings.
+        let requires_print_finalization = global_name_oracle.is_some() || events.iter().any(|event| {
             matches!(
                 event,
                 BindingNameEvent::Identifier { binding, .. }

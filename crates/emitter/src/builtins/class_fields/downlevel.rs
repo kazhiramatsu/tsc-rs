@@ -1842,9 +1842,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let class_name = data
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
-        let preferred_class_this = self
-            .class_this_binding(original)
-            .map(ClassBinding::existing);
+        let preferred_class_this = self.class_this_binding(original);
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
@@ -2001,9 +1999,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             None
         };
-        let preferred_class_this = self
-            .class_this_binding(original)
-            .map(ClassBinding::existing);
+        let preferred_class_this = self.class_this_binding(original);
         let has_transformable_static_member =
             self.class_has_transformable_static_member(data.members)?;
         let already_has_named_evaluation = self.class_has_named_evaluation_member(data.members)?;
@@ -2635,13 +2631,26 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
     }
 
-    fn class_this_binding(&self, class: TransformNode) -> Option<String> {
+    fn class_this_binding(&self, class: TransformNode) -> Option<ClassBinding> {
         let class_this = self
             .context
             .arena()
             .metadata(class)
             .and_then(|metadata| metadata.class_this)?;
-        self.identifier_text(class_this).map(str::to_owned)
+        let text = self.identifier_text(class_this)?.to_owned();
+        let metadata = self.context.arena().metadata(class_this)?;
+        Some(match metadata.generated_binding_id() {
+            Some(id) => ClassBinding::Generated(TargetBinding::from_existing(
+                id, text,
+                metadata.generated_binding_base().map(str::to_owned),
+                metadata.generated_binding_preferred_base().map(str::to_owned),
+                metadata.generated_binding_role_suffix().map(str::to_owned),
+                metadata.generated_binding_is_file_level_optimistic(),
+                metadata.generated_binding_planned_name_is_authoritative(),
+                metadata.generated_binding_reserved_in_nested_scopes(),
+            )),
+            None => ClassBinding::Existing(text),
+        })
     }
 
     fn variable_statement_expansion_owner(

@@ -155,6 +155,23 @@ impl Transformer for StandardDecoratorTransformer {
     }
 }
 
+/// Identifier construction keeps generated identities separate from literal
+/// spellings. A source identifier is never tagged by a text lookup.
+trait DecoratorIdentifier {
+    fn identifier_text(&self) -> &str;
+    fn generated_binding(&self) -> Option<&TargetBinding> { None }
+}
+impl DecoratorIdentifier for str {
+    fn identifier_text(&self) -> &str { self }
+}
+impl DecoratorIdentifier for String {
+    fn identifier_text(&self) -> &str { self }
+}
+impl DecoratorIdentifier for TargetBinding {
+    fn identifier_text(&self) -> &str { self.provisional_name() }
+    fn generated_binding(&self) -> Option<&TargetBinding> { Some(self) }
+}
+
 #[derive(Clone)]
 struct PropertyPlan {
     original: TransformNode,
@@ -164,10 +181,10 @@ struct PropertyPlan {
     is_private: bool,
     is_accessor: bool,
     decorators: Vec<TransformNode>,
-    decorators_name: String,
-    initializers_name: String,
-    extra_initializers_name: String,
-    descriptor_name: Option<String>,
+    decorators_name: TargetBinding,
+    initializers_name: TargetBinding,
+    extra_initializers_name: TargetBinding,
+    descriptor_name: Option<TargetBinding>,
     backing_name: Option<String>,
     /// `getGeneratedNameForNode(name)`: the hoisted `__propKey` cache temp
     /// shared by the emitted computed name, the decorator context name, the
@@ -180,10 +197,10 @@ struct PropertyPlan {
 struct ClassDecorationPlan {
     original: TransformNode,
     decorators: Vec<TransformNode>,
-    decorators_name: String,
-    descriptor_name: String,
-    extra_initializers_name: String,
-    class_this_name: String,
+    decorators_name: TargetBinding,
+    descriptor_name: TargetBinding,
+    extra_initializers_name: TargetBinding,
+    class_this_name: TargetBinding,
     reference: DecoratedClassReferenceBinding,
     has_static_initializers: bool,
 }
@@ -343,7 +360,8 @@ impl DecoratedClassRoute {
 
 #[derive(Clone)]
 enum StaticAccessorReceiver {
-    GeneratedBinding(String),
+    GeneratedBinding(TargetBinding),
+    ClassEvaluationName(String),
     ClassReference {
         text: String,
         original_name: TransformNode,
@@ -395,8 +413,8 @@ struct MethodPlan {
     is_private: bool,
     kind: MethodKind,
     decorators: Vec<TransformNode>,
-    decorators_name: String,
-    descriptor_name: Option<String>,
+    decorators_name: TargetBinding,
+    descriptor_name: Option<TargetBinding>,
     computed_temp: Option<TargetBinding>,
     computed_expression: Option<NodeId>,
     emitted_name: Option<NodeId>,
@@ -421,11 +439,11 @@ struct ClassMemberState<'a> {
 struct DecorationBlockInputs<'a> {
     plans: &'a [PropertyPlan],
     method_plans: &'a [MethodPlan],
-    static_method_extra: Option<&'a str>,
-    instance_method_extra: Option<&'a str>,
+    static_method_extra: Option<&'a TargetBinding>,
+    instance_method_extra: Option<&'a TargetBinding>,
     class_plan: Option<&'a ClassDecorationPlan>,
-    class_super_name: Option<&'a str>,
-    metadata_name: &'a str,
+    class_super_name: Option<&'a TargetBinding>,
+    metadata_name: &'a TargetBinding,
     leading_static_initializers: PendingDecoratorInitializerBatch,
     /// Leftover pending expressions (already projected through `_outerThis`),
     /// emitted right after the `_metadata` declaration.
@@ -441,22 +459,22 @@ enum DecoratorInitializerPlacement {
 #[derive(Clone, Debug)]
 enum DecoratorInitializerReceiver {
     LexicalThis,
-    ClassBinding(String),
+    ClassBinding(TargetBinding),
 }
 
 #[derive(Clone, Debug)]
 enum PendingDecoratorInitializer {
     MethodExtra {
-        initializers_name: String,
+        initializers_name: TargetBinding,
         class: TransformNode,
     },
     FieldExtra {
-        initializers_name: String,
+        initializers_name: TargetBinding,
     },
 }
 
 impl PendingDecoratorInitializer {
-    fn initializers_name(&self) -> &str {
+    fn initializers_name(&self) -> &TargetBinding {
         match self {
             Self::MethodExtra {
                 initializers_name, ..
@@ -635,7 +653,7 @@ struct StandardDecoratorVisitor<'context> {
     /// `classSuper` derived by `updateState`: set only while a static
     /// property initializer or static block of a decorated derived class
     /// is visited.
-    receiver_class_super: Option<String>,
+    receiver_class_super: Option<TargetBinding>,
     /// Debug audit of the global node-id memo: the receiver context under
     /// which a node containing lexical `this`/`super` was first visited, so
     /// a later memo hit under another context is reported instead of
@@ -643,7 +661,7 @@ struct StandardDecoratorVisitor<'context> {
     /// (partialTransformClassElement visits them once, under the name
     /// frame, and the element visit reuses that result by design).
     #[cfg(debug_assertions)]
-    memo_receiver_audit: BTreeMap<NodeId, (Option<TransformNode>, Option<String>)>,
+    memo_receiver_audit: BTreeMap<NodeId, (Option<TransformNode>, Option<crate::transform::GeneratedBindingId>)>,
     #[cfg(debug_assertions)]
     memo_audit_exempt: BTreeSet<NodeId>,
     /// tsc `pendingExpressions`: member decorator array assignments and
@@ -674,12 +692,12 @@ enum DecoratorReceiverFrame {
         class_this: Option<TransformNode>,
         /// `classInfo.classSuper`: the `_classSuper` name of a decorated
         /// class with an extends clause.
-        class_super: Option<String>,
+        class_super: Option<TargetBinding>,
         saved_pending: Vec<TransformNode>,
     },
     ClassElement {
         class_this: Option<TransformNode>,
-        class_super: Option<String>,
+        class_super: Option<TargetBinding>,
     },
     Name,
     /// `enterOther` at depth 0 saves the enclosing `pendingExpressions`;
@@ -1294,12 +1312,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let helper_name = name.trim_start_matches('#');
         let decorators_name = self.allocate_name(&format!(
             "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_decorators"
-        ));
+        ))?;
         let descriptor_name = is_private.then(|| {
             self.allocate_name(&format!(
                 "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_descriptor"
             ))
-        });
+        }).transpose()?;
         plans.push(MethodPlan {
             original,
             name,
@@ -1420,16 +1438,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
             Some(ClassDecorationPlan {
                 original,
                 decorators: class_decorators,
-                decorators_name: self.allocate_file_level_name("_classDecorators"),
-                descriptor_name: self.allocate_file_level_name("_classDescriptor"),
-                extra_initializers_name: self.allocate_file_level_name("_classExtraInitializers"),
+                decorators_name: self.allocate_file_level_name("_classDecorators")?,
+                descriptor_name: self.allocate_file_level_name("_classDescriptor")?,
+                extra_initializers_name: self.allocate_file_level_name("_classExtraInitializers")?,
                 // createClassInfo: `needsUniqueClassThis` selects
                 // ReservedInNestedScopes instead of FileLevel when a static
                 // private or auto-accessor member exists.
                 class_this_name: if has_static_private_class_elements {
-                    self.allocate_name("_classThis")
+                    self.allocate_name("_classThis")?
                 } else {
-                    self.allocate_file_level_name("_classThis")
+                    self.allocate_file_level_name("_classThis")?
                 },
                 reference,
                 has_static_initializers: self.class_has_static_initializers(data.members)?,
@@ -1458,18 +1476,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     let helper_name = name.trim_start_matches('#');
                     let decorators_name = self.allocate_name(&format!(
                         "_{static_prefix}{private_prefix}{helper_name}_decorators"
-                    ));
+                    ))?;
                     let initializers_name = self.allocate_name(&format!(
                         "_{static_prefix}{private_prefix}{helper_name}_initializers"
-                    ));
+                    ))?;
                     let extra_initializers_name = self.allocate_name(&format!(
                         "_{static_prefix}{private_prefix}{helper_name}_extraInitializers"
-                    ));
+                    ))?;
                     let descriptor_name = (is_private && is_accessor).then(|| {
                         self.allocate_name(&format!(
                             "_{static_prefix}{private_prefix}{helper_name}_descriptor"
                         ))
-                    });
+                    }).transpose()?;
                     // esDecorators lowers only private auto-accessors itself
                     // (`isPrivateIdentifierClassElementDeclaration(member) &&
                     // hasAccessorModifier(member)`); public ones stay `accessor`
@@ -1569,11 +1587,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let static_method_extra = method_plans
             .iter()
             .any(|plan| plan.is_static)
-            .then(|| self.allocate_file_level_name("_staticExtraInitializers"));
+            .then(|| self.allocate_file_level_name("_staticExtraInitializers")).transpose()?;
         let instance_method_extra = method_plans
             .iter()
             .any(|plan| !plan.is_static)
-            .then(|| self.allocate_file_level_name("_instanceExtraInitializers"));
+            .then(|| self.allocate_file_level_name("_instanceExtraInitializers")).transpose()?;
         let needs_descriptor_names = method_plans
             .iter()
             .any(|plan| plan.descriptor_name.is_some())
@@ -1590,7 +1608,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 || needs_descriptor_names,
             !method_plans.is_empty(),
         )?;
-        let metadata_name = self.allocate_file_level_name("_metadata");
+        let metadata_name = self.allocate_file_level_name("_metadata")?;
         let mut definitions = Vec::new();
         if let Some(class_plan) = class_decoration.as_ref() {
             let mut decorators = Vec::with_capacity(class_plan.decorators.len());
@@ -1613,11 +1631,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if let Some((name, initializer)) = class_super.as_ref() {
             definitions.push(self.create_let(name, Some(*initializer))?);
         }
-        if let Some(name) = static_method_extra.as_deref() {
+        if let Some(name) = static_method_extra.as_ref() {
             let empty = self.create_array_literal(Vec::new(), false)?;
             definitions.push(self.create_let(name, Some(empty))?);
         }
-        if let Some(name) = instance_method_extra.as_deref() {
+        if let Some(name) = instance_method_extra.as_ref() {
             let empty = self.create_array_literal(Vec::new(), false)?;
             definitions.push(self.create_let(name, Some(empty))?);
         }
@@ -1643,7 +1661,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             if is_method {
                 let plan = &method_plans[index];
                 definitions.push(self.create_let(&plan.decorators_name, None)?);
-                if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
+                if let Some(descriptor_name) = plan.descriptor_name.as_ref() {
                     definitions.push(self.create_let(descriptor_name, None)?);
                 }
             } else {
@@ -1653,7 +1671,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 definitions.push(self.create_let(&plan.initializers_name, Some(empty))?);
                 let empty = self.create_array_literal(Vec::new(), false)?;
                 definitions.push(self.create_let(&plan.extra_initializers_name, Some(empty))?);
-                if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
+                if let Some(descriptor_name) = plan.descriptor_name.as_ref() {
                     definitions.push(self.create_let(descriptor_name, None)?);
                 }
             }
@@ -1687,7 +1705,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .then(|| {
                     class_decoration
                         .as_ref()
-                        .map(|plan| plan.class_this_name.as_str())
+                        .map(|plan| &plan.class_this_name)
                 })
                 .flatten();
             transformed_members
@@ -1860,10 +1878,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let decoration_block = self.create_decoration_block(DecorationBlockInputs {
             plans: &plans,
             method_plans: &method_plans,
-            static_method_extra: static_method_extra.as_deref(),
-            instance_method_extra: instance_method_extra.as_deref(),
+            static_method_extra: static_method_extra.as_ref(),
+            instance_method_extra: instance_method_extra.as_ref(),
             class_plan: class_decoration.as_ref(),
-            class_super_name: class_super.as_ref().map(|(name, _)| name.as_str()),
+            class_super_name: class_super.as_ref().map(|(name, _)| name),
             metadata_name: &metadata_name,
             leading_static_initializers,
             pending_statements,
@@ -2064,7 +2082,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } else {
                 let static_receiver = (plans[index].is_static
                     && self.target < ScriptTarget::ES2022)
-                    .then(|| class_plan.map(|plan| plan.class_this_name.as_str()))
+                    .then(|| class_plan.map(|plan| &plan.class_this_name))
                     .flatten();
                 statements.push(self.create_es_decorate_statement(
                     &plans[index],
@@ -2079,7 +2097,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
         statements.push(self.create_metadata_definition(
             metadata_name,
-            class_plan.map(|plan| plan.class_this_name.as_str()),
+            class_plan.map(|plan| &plan.class_this_name),
         )?);
         statements
             .extend(self.materialize_pending_initializer_statements(leading_static_initializers)?);
@@ -2096,7 +2114,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn prepare_class_super(
         &mut self,
         heritage_clauses: &mut Option<NodeArrayId>,
-    ) -> Result<Option<(String, TransformNode)>, TransformError> {
+    ) -> Result<Option<(TargetBinding, TransformNode)>, TransformError> {
         let Some(clauses_id) = *heritage_clauses else {
             return Ok(None);
         };
@@ -2150,7 +2168,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } else {
                 initializer
             };
-            let name = self.allocate_file_level_name("_classSuper");
+            let name = self.allocate_file_level_name("_classSuper")?;
             let reference = self.create_identifier(&name)?;
             extends_data.expression = Some(reference.node());
             extends_data.type_arguments = None;
@@ -2276,7 +2294,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                             })
                         } else {
                             state.class_evaluation_binding_name.map(|name| {
-                                StaticAccessorReceiver::GeneratedBinding(name.to_owned())
+                                StaticAccessorReceiver::ClassEvaluationName(name.to_owned())
                             })
                         }
                     } else {
@@ -2381,7 +2399,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// `pendingExpressions.push(memberDecoratorsName = [decorators])`.
     fn queue_member_decorators_assignment(
         &mut self,
-        decorators_name: &str,
+        decorators_name: &TargetBinding,
         decorators: &[TransformNode],
     ) -> Result<(), TransformError> {
         let array = self.create_decorator_array(decorators)?;
@@ -2797,7 +2815,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_metadata_initializer(
         &mut self,
-        class_super_name: Option<&str>,
+        class_super_name: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let symbol = self.create_identifier("Symbol")?;
         let type_of_symbol = self.create_typeof(symbol)?;
@@ -2830,8 +2848,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_metadata_definition(
         &mut self,
-        metadata_name: &str,
-        target_name: Option<&str>,
+        metadata_name: &TargetBinding,
+        target_name: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let object = self.create_identifier("Object")?;
         let define = self.create_property_access(object, "defineProperty")?;
@@ -2875,8 +2893,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_es_decorate_statement(
         &mut self,
         plan: &PropertyPlan,
-        metadata_name: &str,
-        static_receiver: Option<&str>,
+        metadata_name: &TargetBinding,
+        static_receiver: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -2887,7 +2905,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } else {
             self.create_null()?
         };
-        let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
+        let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_ref() {
             let descriptor = self.create_private_accessor_descriptor(plan, static_receiver)?;
             let descriptor_name = self.create_identifier(descriptor_name)?;
             self.create_assignment(descriptor_name, descriptor)?
@@ -2909,15 +2927,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_method_es_decorate_statement(
         &mut self,
         plan: &MethodPlan,
-        metadata_name: &str,
-        extra_initializers_name: &str,
+        metadata_name: &TargetBinding,
+        extra_initializers_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::EsDecorate)?;
         let ctor = self.create_this()?;
-        let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
+        let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_ref() {
             let descriptor = self.create_private_method_descriptor(plan)?;
             let descriptor_name = self.create_identifier(descriptor_name)?;
             self.create_assignment(descriptor_name, descriptor)?
@@ -3011,7 +3029,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_private_accessor_descriptor(
         &mut self,
         plan: &PropertyPlan,
-        static_receiver: Option<&str>,
+        static_receiver: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let backing_name =
             plan.backing_name
@@ -3127,7 +3145,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.filter_modifiers(original_modifiers, |kind| kind == SyntaxKind::StaticKeyword)?;
         let descriptor_name =
             plan.descriptor_name
-                .as_deref()
+                .as_ref()
                 .ok_or(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ClassExpression,
                     field: "private method descriptor",
@@ -3232,7 +3250,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_class_decorate_statement(
         &mut self,
         plan: &ClassDecorationPlan,
-        metadata_name: &str,
+        metadata_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -3281,7 +3299,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_decorator_context(
         &mut self,
         plan: &PropertyPlan,
-        metadata_name: &str,
+        metadata_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let source_name = plan
             .data
@@ -3331,7 +3349,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_method_decorator_context(
         &mut self,
         plan: &MethodPlan,
-        metadata_name: &str,
+        metadata_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let source_name = self.declaration_property_name(plan.original)?;
         let kind = self.create_string_literal(plan.kind.context_name())?;
@@ -3460,7 +3478,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_run_initializers_for_receiver(
         &mut self,
-        initializers_name: &str,
+        initializers_name: &TargetBinding,
         value: Option<TransformNode>,
         receiver: &DecoratorInitializerReceiver,
     ) -> Result<TransformNode, TransformError> {
@@ -3701,14 +3719,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             name,
             backing.node(),
             modifiers,
-            plan.descriptor_name.as_deref(),
+            plan.descriptor_name.as_ref(),
             static_receiver,
         )?;
         let setter = self.create_set_accessor(
             setter_name,
             backing.node(),
             modifiers,
-            plan.descriptor_name.as_deref(),
+            plan.descriptor_name.as_ref(),
             static_receiver,
         )?;
         self.set_original_and_range(getter, plan.original)?;
@@ -3727,7 +3745,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         name: NodeId,
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
-        descriptor_name: Option<&str>,
+        descriptor_name: Option<&TargetBinding>,
         static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<TransformNode, TransformError> {
         let access = if let Some(descriptor_name) = descriptor_name {
@@ -3769,7 +3787,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         name: NodeId,
         backing: NodeId,
         modifiers: Option<NodeArrayId>,
-        descriptor_name: Option<&str>,
+        descriptor_name: Option<&TargetBinding>,
         static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<TransformNode, TransformError> {
         let parameter = self.create_parameter("value")?;
@@ -3815,7 +3833,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         receiver: &StaticAccessorReceiver,
     ) -> Result<TransformNode, TransformError> {
         match receiver {
-            StaticAccessorReceiver::GeneratedBinding(text) => self.create_identifier(text),
+            StaticAccessorReceiver::GeneratedBinding(binding) => self.create_identifier(binding),
+            StaticAccessorReceiver::ClassEvaluationName(text) => self.create_identifier(text),
             StaticAccessorReceiver::ClassReference {
                 text,
                 original_name,
@@ -3834,7 +3853,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_class_this_assignment_block(
         &mut self,
-        class_this_name: &str,
+        class_this_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let class_this = self.create_identifier(class_this_name)?;
         let this = self.create_this()?;
@@ -3889,7 +3908,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn create_set_function_name_block(
         &mut self,
         class_name: &DecoratedClassRuntimeName,
-        target_name: Option<&str>,
+        target_name: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -3915,7 +3934,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_run_initializers(
         &mut self,
-        initializers_name: &str,
+        initializers_name: &TargetBinding,
         value: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         self.create_run_initializers_with_target(initializers_name, value, None)
@@ -3926,9 +3945,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-span: _tsc.js:25715-25723
     fn create_run_initializers_with_target(
         &mut self,
-        initializers_name: &str,
+        initializers_name: &TargetBinding,
         value: Option<TransformNode>,
-        target_name: Option<&str>,
+        target_name: Option<&TargetBinding>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -3952,8 +3971,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-span: _tsc.js:25715-25723
     fn create_run_initializers_statement_with_target(
         &mut self,
-        target_name: &str,
-        initializers_name: &str,
+        target_name: &TargetBinding,
+        initializers_name: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -4297,7 +4316,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_let(
         &mut self,
-        name: &str,
+        name: &(impl DecoratorIdentifier + ?Sized),
         initializer: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         self.create_variable_statement(name, initializer, NodeFlags::LET)
@@ -4305,7 +4324,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_variable_statement(
         &mut self,
-        name: &str,
+        name: &(impl DecoratorIdentifier + ?Sized),
         initializer: Option<TransformNode>,
         flags: NodeFlags,
     ) -> Result<TransformNode, TransformError> {
@@ -4315,7 +4334,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_variable_declaration(
         &mut self,
-        name: &str,
+        name: &(impl DecoratorIdentifier + ?Sized),
         initializer: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let name = self.create_identifier(name)?;
@@ -4366,7 +4385,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
-    fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_identifier(&mut self, name: &(impl DecoratorIdentifier + ?Sized)) -> Result<TransformNode, TransformError> {
+        let text = name.identifier_text();
         let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
@@ -4375,6 +4395,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
+        if let Some(binding) = name.generated_binding() {
+            binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+        }
         Ok(identifier)
     }
 
@@ -5417,7 +5440,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(names)
     }
 
-    fn allocate_name(&mut self, base: &str) -> String {
+    fn allocate_name(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
+        let planned = self.plan_helper_name(base);
+        TargetBinding::allocate_preferred_reserved_in_nested_scopes(self.context, base.to_owned(), planned)
+    }
+
+    fn allocate_file_level_name(&mut self, base: &str) -> Result<TargetBinding, TransformError> {
+        let planned = self.plan_file_level_name(base);
+        TargetBinding::allocate_file_level_optimistic(self.context, base.to_owned(), planned)
+    }
+
+    fn plan_helper_name(&mut self, base: &str) -> String {
         if self.used_names.insert(base.to_owned()) {
             return base.to_owned();
         }
@@ -6151,7 +6184,7 @@ impl StandardDecoratorVisitor<'_> {
         {
             self.memo_receiver_audit.insert(
                 node.node(),
-                (self.receiver_class_this, self.receiver_class_super.clone()),
+                (self.receiver_class_this, self.receiver_class_super.as_ref().map(TargetBinding::id)),
             );
         }
         Ok(())
@@ -6173,7 +6206,7 @@ impl StandardDecoratorVisitor<'_> {
         if let Some((class_this, class_super)) = self.memo_receiver_audit.get(&id) {
             debug_assert!(
                 *class_this == self.receiver_class_this
-                    && *class_super == self.receiver_class_super,
+                    && *class_super == self.receiver_class_super.as_ref().map(TargetBinding::id),
                 "standard-decorator memo reused node {id:?} under a different receiver context"
             );
         }
@@ -6218,7 +6251,7 @@ impl StandardDecoratorVisitor<'_> {
     fn enter_receiver_class(
         &mut self,
         class_this: Option<TransformNode>,
-        class_super: Option<String>,
+        class_super: Option<TargetBinding>,
     ) {
         let saved_pending = std::mem::take(&mut self.pending_expressions);
         self.receiver_frames.push(DecoratorReceiverFrame::Class {
@@ -6378,7 +6411,7 @@ impl StandardDecoratorVisitor<'_> {
     /// nested decorated class reuses `_classDecorators`, `_metadata`, ...
     /// The chosen name is still recorded for later scoped allocations, as
     /// tsc adds it to `generatedNames`.
-    fn allocate_file_level_name(&mut self, base: &str) -> String {
+    fn plan_file_level_name(&mut self, base: &str) -> String {
         if !self.file_level_names.contains(base) {
             self.used_names.insert(base.to_owned());
             return base.to_owned();
@@ -6706,7 +6739,7 @@ impl StandardDecoratorVisitor<'_> {
 
     /// The receiver pair a super-property rewrite needs: `classThis` and
     /// `classSuper` of the current class-element frame.
-    fn super_receivers(&self) -> Option<(TransformNode, String)> {
+    fn super_receivers(&self) -> Option<(TransformNode, TargetBinding)> {
         match (self.receiver_class_this, self.receiver_class_super.as_ref()) {
             (Some(class_this), Some(class_super)) => Some((class_this, class_super.clone())),
             _ => None,
@@ -6743,7 +6776,7 @@ impl StandardDecoratorVisitor<'_> {
 
     fn create_reflect_get_call(
         &mut self,
-        class_super: &str,
+        class_super: &TargetBinding,
         key: TransformNode,
         receiver: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -6755,7 +6788,7 @@ impl StandardDecoratorVisitor<'_> {
 
     fn create_reflect_set_call(
         &mut self,
-        class_super: &str,
+        class_super: &TargetBinding,
         key: TransformNode,
         value: TransformNode,
         receiver: TransformNode,
@@ -7072,7 +7105,7 @@ impl StandardDecoratorVisitor<'_> {
         operator: SyntaxKind,
         mut setter_name: TransformNode,
         class_this: TransformNode,
-        class_super: &str,
+        class_super: &TargetBinding,
         value_use: DecoratorValueUse,
     ) -> Result<NodeId, TransformError> {
         let mut expression = self.visit_required(right, SyntaxKind::BinaryExpression, "right")?;

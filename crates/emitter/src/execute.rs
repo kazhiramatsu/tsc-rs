@@ -972,19 +972,12 @@ pub fn emit_files_with_activity(
                 } else if options.declaration == Some(true) {
                     activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
                 }
-                let printed_result = match &transformed_root {
-                    TransformRoot::Bundle(_) => printer.print_javascript_with_global_names(
+                let printed_result = printer.print_javascript_with_global_names(
                         &mut transformation,
                         print_request.clone(),
                         recording_inputs.clone(),
                         &ResolverGlobalNameOracle(resolver),
-                    ),
-                    TransformRoot::SourceFile(_) => printer.print(
-                        &mut transformation,
-                        print_request.clone(),
-                        recording_inputs.clone(),
-                    ),
-                };
+                    );
                 let (printed, fallback_source_map) = match printed_result {
                     Ok(printed) => (printed, None),
                     Err(crate::PrinterError::Unsupported(
@@ -996,7 +989,12 @@ pub fn emit_files_with_activity(
                         let TransformRoot::SourceFile(transform_source) = transformed_root else {
                             unreachable!()
                         };
-                        let printed = printer.print(&mut transformation, print_request, None)?;
+                        let printed = printer.print_javascript_with_global_names(
+                            &mut transformation,
+                            print_request,
+                            None,
+                            &ResolverGlobalNameOracle(resolver),
+                        )?;
                         let syntax = transformation.arena().source(transform_source)?.syntax();
                         let mut recording = crate::source_map::SourceMapRecording::new(
                             recording_inputs.expect("recording input matched above"),
