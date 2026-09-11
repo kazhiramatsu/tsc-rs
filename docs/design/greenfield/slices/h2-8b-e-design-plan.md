@@ -130,10 +130,14 @@ hostedは既存`cargo xtask acceptance`を維持し、walk/chain-walk/full `carg
 この計画のoutline表だけでそのgateを通したことにはしない。
 先行productionの変更で前提SHAが変わったら、依存するpacketだけをstaleへ戻して再確認する。
 
-## CFG1の実装済み小単位（2026-09-11）
+## CFG1の実装完了（2026-09-12）
 
-- [CFG1a config変換・継承](h2-8b-config-extends-report.md)：28 config cases ×2、通常command 8件。
-- [CFG1b config外の探索開始点](h2-8b-config-discovery-report.md)：24 config cases ×2、開始点計算22件 ×2、通常command 8件。
+[CFG1完了報告](h2-8b-config-completion-report.md)と[追跡表](h2-8b-config-completion.md)を参照。
+CFG1a–gの設定236件×2、cache/host26件（60 parse attempts）、path計算22件×2、
+全139 option定義、CFG68+LR回帰18の通常command×2を照合した。
+MOD1の2境界対照は完全command数へ含めず、全88件のProgram factsも各2回比較した。
+実filesystem CLI6件×2、Program/syntax/emitter回帰を含め、元CFG1の未解決3項目を解消した。
 
-いずれも報告書に定めた範囲の完了。CFG1/B全体のclosure・profile activationではない。
-次のCFG1c候補はoption relationship diagnosticsの優先順位とconfig由来位置情報。
+準備registryは当時の状態を保持する。今回の実装・ローカル検証は別のcompletion受領証と
+`check-h2-8b-config-completion.py`で検証する。HOST1/SYS1、MOD1/NC1、BLD1/W1の
+別owner境界とH2.8b-CLOSEのprofile activationは、完了報告で明示したとおり残る。

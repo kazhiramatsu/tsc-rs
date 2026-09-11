@@ -37,3 +37,7 @@ invalid-watchで停止したため後続4caseは未実行。nativeはexit2/stder
 absolute auxiliary identityに対応付かなかったためである。ProgramConfigFileの明示aliasを
 読む際にcanonical auxiliary sourceとsnapshot textの一致を検証する。source無し/別textの
 negative controlsも追加し、builderの所有権検証を保持する。
+
+最終ec509858eでは26/26×2・60 parse attemptsが一致し、実filesystem CLI6件も各2回一致。
+相対aliasのsource所有権negative controlsを含め、Program契約477件が通過した。
+最終受領証と別owner境界は[完了報告](h2-8b-config-completion-report.md)を参照。

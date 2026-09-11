@@ -37,3 +37,6 @@ config診断はPreparationDiagnostics.configへ、対応するbase sourceはauxi
 渡す。builderのdiagnostic source検証は維持する。H0は既存gateを保つ。
 さらに型エラー・unknown compiler option・回復可能JSON構文・empty files・missing extends・
 base内診断・invalid filesの8上流commandを固定し、通常emitへの接続を対照する。
+
+最終ec509858eでは72/72 projection×2、追加20通常commandもcomplete tuple/Program facts各2回一致。
+CFG全体の閉じた要件・最終回帰・受領証は[完了報告](h2-8b-config-completion-report.md)を参照。

@@ -24,3 +24,6 @@ H2.8c-MOD1の別ownerであることを実呼出で確認したため、凍結�
 新規native adapterで既存のtyped-guard controlへ分類する（共有comparatorは不変）。
 2件は完全command一致数へ含めず、無書込の型付き拒否とProgram facts・TS1148不在を比較する。
 今回の完全command受入は12件。ガード自体は変更しない。
+
+最終ec509858eでは12 complete commandsと2 MOD1 boundary controlsが各2回通過。
+14件すべてordered Program factsも各2回一致。全体の計数は[完了報告](h2-8b-config-completion-report.md)を参照。
