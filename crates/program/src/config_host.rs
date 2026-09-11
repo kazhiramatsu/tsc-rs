@@ -59,6 +59,10 @@ impl<'a> CompilerConfigHost<'a> {
             let path = directory.display().to_string();
             self.host_error(ConfigHostOperation::ReadDirectory, &path, error)
         })?;
+        // matchFiles.visitDirectory visits current files before child
+        // directories (_tsc.js:18539–18571). CompilerHost already supplies
+        // UTF-16 name order; partitioning preserves that order within each.
+        let mut child_directories = Vec::new();
         for entry in entries {
             let text = entry.to_str().ok_or_else(|| {
                 ConfigHostError::new(
@@ -72,33 +76,7 @@ impl<'a> CompilerConfigHost<'a> {
                 .directory_exists(&entry)
                 .map_err(|error| self.host_error(ConfigHostOperation::ReadDirectory, text, error))?
             {
-                if !includes.is_empty() && is_implicit_excluded_directory(&entry) {
-                    // A package directory is excluded by the implicit
-                    // recursive wildcard, but an explicit include such as
-                    // `node_modules/**/*.ts` must still be able to enter it.
-                    if !includes
-                        .iter()
-                        .any(|pattern| pattern.could_match_descendant(text))
-                    {
-                        continue;
-                    }
-                }
-                if !excludes.iter().any(|pattern| pattern.matches(text))
-                    && (includes.is_empty()
-                        || includes
-                            .iter()
-                            .any(|pattern| pattern.could_match_descendant(text)))
-                {
-                    self.walk_directory(
-                        &entry,
-                        extensions,
-                        includes,
-                        excludes,
-                        depth - 1,
-                        files,
-                        visited,
-                    )?;
-                }
+                child_directories.push(entry);
                 continue;
             }
             if !extensions.iter().any(|extension| text.ends_with(extension)) {
@@ -113,6 +91,36 @@ impl<'a> CompilerConfigHost<'a> {
                 includes.iter().position(|pattern| pattern.matches(text))
             {
                 files[include_index].push(text.to_owned());
+            }
+        }
+        for entry in child_directories {
+            let text = entry.to_str().expect("directory entry was validated above");
+            if !includes.is_empty() && is_implicit_excluded_directory(&entry) {
+                // A package directory is excluded by the implicit recursive
+                // wildcard, but an explicit include such as
+                // `node_modules/**/*.ts` must still be able to enter it.
+                if !includes
+                    .iter()
+                    .any(|pattern| pattern.could_match_descendant(text))
+                {
+                    continue;
+                }
+            }
+            if !excludes.iter().any(|pattern| pattern.matches(text))
+                && (includes.is_empty()
+                    || includes
+                        .iter()
+                        .any(|pattern| pattern.could_match_descendant(text)))
+            {
+                self.walk_directory(
+                    &entry,
+                    extensions,
+                    includes,
+                    excludes,
+                    depth - 1,
+                    files,
+                    visited,
+                )?;
             }
         }
         Ok(())

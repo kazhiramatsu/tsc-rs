@@ -2394,7 +2394,9 @@ impl ParseContext<'_> {
         let compile_on_save = if own_compile_on_save_present {
             own_compile_on_save
         } else {
-            inherited_compile_on_save
+            // parseConfig preserves the last base value, but copies it into
+            // the child's raw config only when that value is truthy.
+            inherited_compile_on_save.filter(json_value_is_truthy)
         };
         for (name, value) in [
             ("watchOptions", watch_options.as_ref()),
@@ -5882,7 +5884,7 @@ fn extends_values_from_value(
                 text: text.to_owned(),
                 location,
             });
-        } else if !value.is_null() {
+        } else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
                 &["extends".to_owned(), "string".to_owned()],
