@@ -1,5 +1,5 @@
 // Complete TypeScript Program commands for the H2.8a decorator-next witness groups
-// (transform-order, super-paths, name-owners, source-followup). One group per invocation:
+// (transform-order, super-paths, name-owners, source-followup, source-followup-top-level). One group per invocation:
 //   node scripts/observe-decorator-next-witnesses.mjs <group> --write|--check [destination]
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -10,7 +10,7 @@ import { createHermeticDirectoryOverlay } from "../crates/oracle/vfs-directory-o
 const root = path.resolve(import.meta.dirname, "..");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
-const GROUPS = { "transform-order": 60, "super-paths": 42, "name-owners": 24, "source-followup": 48 };
+const GROUPS = { "transform-order": 60, "super-paths": 42, "name-owners": 24, "source-followup": 48, "source-followup-top-level": 18 };
 const group = process.argv[2];
 assert.ok(Object.hasOwn(GROUPS, group), "unknown witness group");
 assert.ok(["--write", "--check"].includes(process.argv[3]));

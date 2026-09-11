@@ -2,7 +2,8 @@
 //! (visit order, super paths, generated-name owners, and the source
 //! follow-up: literal computed names, object-literal computed-name pending
 //! absorption, anonymous classes in decorated computed fields, and
-//! undecorated-outer computed-property hoists).
+//! undecorated-outer computed-property hoists, including the source-file
+//! owner of that hoist).
 use base64::Engine as _;
 use serde_json::{json, Value};
 use tsc_diagnostics::{Diagnostic, MessageChain};
@@ -28,6 +29,11 @@ const GROUPS: &[(&str, &[u8], usize)] = &[
         "source-followup",
         include_bytes!("../fixtures/decorator-source-followup.json"),
         48,
+    ),
+    (
+        "source-followup-top-level",
+        include_bytes!("../fixtures/decorator-source-followup-top-level.json"),
+        18,
     ),
 ];
 
