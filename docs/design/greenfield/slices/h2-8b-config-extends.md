@@ -56,3 +56,23 @@ productionを修正した場合は、既存config契約群、関係するoption 
 前回と同じ専用targetをこの作業だけで使い、1 build job、1 test thread、background I/O、nice19。
 別worktreeのacceptanceと重なる場合は使用状況を確認して記録し、他のprocessは変更しない。
 新規hosted acceptance・walk・chain-walk・full `cargo xtask ci`はこのfocused作業には追加しない。
+
+## baselineから確定した修正
+
+`9fb990decb1733be85506c60d9cfa6e45bca9ffe`で24/28一致×2、4件不一致×2、実exit101。
+[baseline受領証](../../../../ratchets/h2-8b-config-extends-baseline.v1.json)に全56回を記録した。
+初回はJSON Numberの`42`/`42.0`をserdeの表現差で不一致とする比較側の問題が1件あったため、
+既存config oracle比較と同じJavaScript Number値による照合へ直してproduction不変で再測定した。
+
+1. `inherited-include-exclude-outdir`：`CompilerConfigHost::walk_directory`はファイルとdirectoryを
+   混ぜた名前順で再帰していた。`matchFiles.visitDirectory`（`_tsc.js:18539–18571`）に合わせ、
+   現directoryのfileを集めてから子directoryへ進む。`CompilerHost::read_directory`のUTF-16順契約を使い、
+   同じ分類内の順序とinclude別bucketを維持する。編集ownerは`config_host.rs`まで広がる。
+2. `invalid-extends-array-entries`：`getExtendsConfigPathOrArray`（39342–39378）はnullを含む
+   非string要素すべてにTS5024を出す。`extends_values_from_value`のnull除外だけを取り除く。
+3. `inherited-compile-on-save-false` / `compile-on-save-true-then-false`：`parseConfig`の
+   `result.compileOnSave`は最後のbase値を保持するが、childのrawへ追加するのはtruthyのときだけ。
+   継承値を採用する最終段でこの条件を再現し、own false/nullと後勝ちの順序を維持する。
+
+この3原因を修正して同じ28入力・期待値を再検査する。既存config契約群とlibrary契約に加え、
+host adapterの順序変更は通常emitへも到達するため、compiler側の関連回帰を確認する。
