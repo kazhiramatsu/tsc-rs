@@ -101,7 +101,45 @@ directive の挿入順（原因 3）と `CUSTOM_PROLOGUE`（原因 4）は別 wi
 
 ### acceptance
 
-`cargo xtask acceptance`（handoff の環境、専用 target、chain 完了後に単独実行）の結果は次節の commit で記録します。
+`cargo xtask acceptance`（handoff の環境、専用 target、chain 完了後に単独実行、head `98666f2b7`、2026-09-11T12:22:37Z〜2026-09-11T13:57:41Z）：実 exit 0、ログ SHA `ad74840235b5…`、受領証 `ratchets/h2-8a-decorator-literal-prologue-acceptance.v1.json`。
+
+- `conformance band=all fixtures=5908 cases=7691 T0=100.0000% matched=49024/49024 FP=0 FN=0 mismatches=0`
+- `H1 emit acceptance: compatible=1 executed=1 exact=1 diagnostics=2 writes=1`
+- `H2.1a emit acceptance: candidates=295 exact=246 diagnostic_controls=0 source_deferred=49 exact_diagnostics=704 exact_writes=256 control_writes=0 repetitions=2`
+- `H2.1b emit acceptance: candidates=15 exact=10 source_deferred=5 exact_diagnostics=2 exact_writes=15 repetitions=2`
+- `H2.1c emit acceptance: candidates=8 exact=6 source_deferred=2 exact_diagnostics=6 exact_writes=12 repetitions=2`
+- `H2.1d emit acceptance: candidates=6 exact=5 source_deferred=1 exact_diagnostics=5 exact_writes=11 repetitions=2`
+- `H2.1e emit acceptance: candidates=6 exact=4 source_deferred=2 exact_diagnostics=6 exact_writes=8 repetitions=2`
+- `H2.2a emit acceptance: candidates=11 exact=6 source_deferred=5 exact_diagnostics=8 exact_writes=9 repetitions=2`
+- `H2.2b emit acceptance: candidates=18 exact=15 source_deferred=3 exact_diagnostics=59 exact_writes=72 repetitions=2`
+- `H2.2c emit acceptance: candidates=6 exact=6 source_deferred=0 exact_diagnostics=12 exact_writes=6 repetitions=2`
+- `H2.2d emit acceptance: candidates=9 exact=9 source_deferred=0 exact_diagnostics=36 exact_writes=13 repetitions=2`
+- `H2.3a emit acceptance: candidates=1 exact=1 source_deferred=0 exact_diagnostics=1 exact_writes=1 repetitions=2`
+- `H2.3b emit acceptance: candidates=6 exact=2 source_deferred=4 exact_diagnostics=4 exact_writes=2 repetitions=2`
+- `H2.3c emit acceptance: candidates=4 exact=4 source_deferred=0 exact_diagnostics=42 exact_writes=4 repetitions=2`
+- `H2.3d emit acceptance: candidates=0 exact=0 future_deferred=695 source_deferred=0 repetitions=2`
+- `H2.4a emit acceptance: candidates=10 exact=9 source_deferred=1 exact_diagnostics=8 exact_writes=9 repetitions=2`
+- `H2.4b emit acceptance: candidates=44 exact=42 source_deferred=2 exact_diagnostics=150 exact_writes=56 repetitions=2`
+- `H2.5a emit acceptance: candidates=172 exact=167 h2_8a_deferred=1 h2_9_deferred=4 exact_diagnostics=335 exact_writes=287 repetitions=2`
+- `H2.5b emit acceptance: candidates=72 exact=68 h2_9_deferred=4 exact_diagnostics=48 exact_writes=93 repetitions=2`
+- `H2.5c emit acceptance: candidates=15 exact=14 h2_9_deferred=1 exact_diagnostics=19 exact_writes=14 repetitions=2`
+- `H2.5d emit acceptance: candidates=24 exact=23 h2_9_deferred=1 exact_diagnostics=47 exact_writes=57 repetitions=2`
+- `H2.5e emit acceptance: candidates=41 exact=40 h2_9_deferred=1 exact_diagnostics=88 exact_writes=46 repetitions=2`
+- `H2.5f emit acceptance: candidates=8 exact=8 exact_diagnostics=20 exact_writes=8 repetitions=2`
+- `H2.5g ordered acceptance pipeline: cases=9027 workers=2`
+- `H2.5g emit acceptance: candidates=9027 exact=8511 h2_8a_deferred=6 h2_9_deferred=510 exact_diagnostics=26815 exact_writes=9466 repetitions=2`
+- `H2.5h ordered acceptance pipeline: cases=932 workers=2`
+- `H2.5h emit acceptance: candidates=932 exact=860 known_diverging=28 deferred=44 repetitions=2`
+- `H2.6a ordered acceptance pipeline: cases=177 workers=2`
+- `H2.6a emit acceptance: candidates=177 exact=171 known_diverging=4 deferred=2 repetitions=2`
+- `H2.6b ordered acceptance pipeline: cases=6 workers=2`
+- `H2.6b emit acceptance: candidates=6 exact=6 known_diverging=0 deferred=0 repetitions=2`
+- `H2.6c ordered acceptance pipeline: cases=643 workers=2`
+- `H2.6c emit acceptance: candidates=643 exact=631 known_diverging=8 deferred=4 current_migrated_refusals=1 repetitions=2`
+- `H2.7b ordered acceptance pipeline: cases=1593 workers=2 pre_flip=false`
+- `H2.7b emit acceptance: candidates=1593 exact=1557 known_diverging=0 deferred=36 repetitions=2 planned_declaration_members=2414 zero_member_controls=6 transform_blocked=28 preflight_blocked=5`
+
+stale／新規 divergence／facet／error 行：なし。H2.6c の migrated refusal 1 件・suite 要約・H2.7d の reference 3 行は開始 head の hosted run と同じ情報行で、全 band の計数も同一（H2.5g 9027/8511/6/510、H2.5h 932/860/28/44、H2.6a 177/171/4/2、H2.6b 6/6/0/0、H2.6c 643/631/8/4、H2.7b 1593/1557/0/36）。6 原因は band の disposition を変えていません。
 
 ## 6. 未判定・未主張の行
 
