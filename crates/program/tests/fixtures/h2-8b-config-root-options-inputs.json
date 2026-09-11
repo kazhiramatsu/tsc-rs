@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1d",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "strict",
+    "outDir",
+    "rootDir",
+    "baseUrl",
+    "paths",
+    "pathsBasePath",
+    "rootDirs",
+    "typeRoots",
+    "moduleSuffixes",
+    "lib",
+    "types",
+    "noEmit",
+    "noLib",
+    "allowJs",
+    "declaration",
+    "sourceMap",
+    "declarationMap",
+    "declarationDir"
+  ],
+  "watch_option_keys": [
+    "watchFile",
+    "watchDirectory",
+    "fallbackPolling",
+    "synchronousWatchDirectory",
+    "excludeDirectories",
+    "excludeFiles"
+  ],
+  "acquisition_option_keys": [
+    "enable",
+    "include",
+    "exclude",
+    "disableFilenameBasedTypeAcquisition"
+  ],
+  "cases": [
+    {
+      "case_id": "h2-8b-config-root-options/empty",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/jsconfig-default",
+      "config_path": "/project/jsconfig.json",
+      "config": "{\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-empty",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-file",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-directory",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchDirectory\":\"dynamicPriorityPolling\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-fallback",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"fallbackPolling\":\"priorityInterval\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-sync",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"synchronousWatchDirectory\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-paths",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeDirectories\":[\"../generated\",\"node_modules\"],\"excludeFiles\":[\"./temp.ts\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-template",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeDirectories\":[\"${configDir}/generated\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-invalid-enum",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"WRONG\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-enum-number",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":2},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-enum-case",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"USEFSEVENTS\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-unknown",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFiel\":\"useFsEvents\",\"thing\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-null",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":null,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":false,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-array",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":[],\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-null-values",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":null,\"synchronousWatchDirectory\":null,\"excludeFiles\":null},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-invalid-list",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"excludeFiles\":[\"\",42,null,\"temp.ts\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-empty",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-enable",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"enable\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-lists",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"include\":[\"jest\",\"node\"],\"exclude\":[\"foo\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-disable-name",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"disableFilenameBasedTypeAcquisition\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-null",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":null,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":false,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-array",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":[],\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"enable\":1,\"include\":[\"\",3,null,\"node\"]},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-unknown",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"typeAcquisition\":{\"enabel\":true},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-true",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":true,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":false,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-null",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":null,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":\"yes\",\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-number",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compileOnSave\":1,\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-no-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-watch-merge",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"],\"watchOptions\":{\"watchDirectory\":\"useFsEvents\",\"excludeFiles\":[\"own.ts\"]}}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-watch-null",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"],\"watchOptions\":null}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-acquisition-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"],\"typeAcquisition\":{\"exclude\":[\"own\"]}}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-save-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"],\"compileOnSave\":false}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-jsconfig",
+      "config_path": "/project/jsconfig.json",
+      "config": "{\"extends\":\"./base/base.json\",\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/duplicate-watch",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\"},\"watchOptions\":{\"watchDirectory\":\"useFsEvents\"},\"files\":[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-options/unquoted-watch",
+      "config_path": "/project/tsconfig.json",
+      "config": "{watchOptions:{watchFile:unknown,excludeFiles:[missing,\"x\"]},files:[\"main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

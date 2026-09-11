@@ -1,0 +1,6675 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1d",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "anchors": [
+      {
+        "symbol": "parseJsonConfigFileContentWorker",
+        "start_line": 39004,
+        "end_line": 39037,
+        "sha256": "5502c59602e7988cfff1e902ad41a8fea33657b2ab5d02eb4784f61b53f83b4d"
+      },
+      {
+        "symbol": "parseConfig",
+        "start_line": 39272,
+        "end_line": 39330,
+        "sha256": "1f07635fad8d6fc935271b45fea3dc451ccb10e65298a000fa858f5d5c2cd883"
+      },
+      {
+        "symbol": "parseOwnConfigOfJsonSourceFile",
+        "start_line": 39379,
+        "end_line": 39435,
+        "sha256": "3fcba2287729ac4bed96a5d9a4aa0c6d28736f435a868806e898131d4a304e13"
+      },
+      {
+        "symbol": "getDefaultTypeAcquisition",
+        "start_line": 39519,
+        "end_line": 39521,
+        "sha256": "7242c24bd5f0a08acc660f125398669958280f64ba92be870d81e2eabc0653d1"
+      }
+    ]
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "2b147017e59655bd7e46c8e47b7838904516e65f706c76fd8c0da25f6fd84bc5",
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-config-root-options-inputs.json",
+    "sha256": "fdb662a4e9834ad5825dc83068070674f5f123a2e8a517974b2de96684239ea7"
+  },
+  "repetitions": 2,
+  "program_executions": 0,
+  "config_parse_executions": 80,
+  "cases": [
+    {
+      "case_id": "h2-8b-config-root-options/empty",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/jsconfig-default",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-empty",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-file",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 4
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFile": "useFsEvents"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-directory",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "value",
+            "value": 2
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchDirectory": "dynamicPriorityPolling"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-fallback",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "value",
+            "value": 1
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "fallbackPolling": "priorityInterval"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-sync",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "synchronousWatchDirectory": true
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-paths",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/generated"
+              },
+              {
+                "state": "value",
+                "value": "/project/node_modules"
+              }
+            ]
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/temp.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "excludeDirectories": [
+              "../generated",
+              "node_modules"
+            ],
+            "excludeFiles": [
+              "./temp.ts"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-template",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/generated"
+              }
+            ]
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "excludeDirectories": [
+              "${configDir}/generated"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-invalid-enum",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "undefined"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFile": "WRONG"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 7,
+            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 6046,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 7,
+            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-enum-number",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "undefined"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFile": 2
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 1,
+            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 1,
+            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-enum-case",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 4
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFile": "USEFSEVENTS"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-unknown",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFiel": "useFsEvents",
+            "thing": true
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5079,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 11,
+            "message": "Unknown watch option 'watchFiel'. Did you mean 'watchFile'?",
+            "related_information": []
+          },
+          {
+            "code": 5078,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 43,
+            "length": 7,
+            "message": "Unknown watch option 'thing'.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5079,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 11,
+            "message": "Unknown watch option 'watchFiel'. Did you mean 'watchFile'?",
+            "related_information": []
+          },
+          {
+            "code": 5078,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 43,
+            "length": 7,
+            "message": "Unknown watch option 'thing'.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-null",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": null,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-false",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": false,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 16,
+            "length": 5,
+            "message": "Compiler option 'watchOptions' requires a value of type object.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 16,
+            "length": 5,
+            "message": "Compiler option 'watchOptions' requires a value of type object.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-array",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": [],
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-null-values",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "undefined"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "undefined"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "undefined"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchFile": null,
+            "synchronousWatchDirectory": null,
+            "excludeFiles": null
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/watch-invalid-list",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project"
+              },
+              {
+                "state": "value",
+                "value": "/project/temp.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "excludeFiles": [
+              "",
+              42,
+              null,
+              "temp.ts"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 36,
+            "length": 2,
+            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 36,
+            "length": 2,
+            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-empty",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {},
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-enable",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {
+            "enable": true
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-lists",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "jest"
+              },
+              {
+                "state": "value",
+                "value": "node"
+              }
+            ]
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "foo"
+              }
+            ]
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {
+            "include": [
+              "jest",
+              "node"
+            ],
+            "exclude": [
+              "foo"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-disable-name",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "value",
+            "value": true
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {
+            "disableFilenameBasedTypeAcquisition": true
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-null",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": null,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-false",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": false,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 19,
+            "length": 5,
+            "message": "Compiler option 'typeAcquisition' requires a value of type object.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 19,
+            "length": 5,
+            "message": "Compiler option 'typeAcquisition' requires a value of type object.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-array",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": [],
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-invalid",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "undefined"
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "node"
+              }
+            ]
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {
+            "enable": 1,
+            "include": [
+              "",
+              3,
+              null,
+              "node"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 1,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 1,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 1,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 1,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/acquisition-unknown",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "typeAcquisition": {
+            "enabel": true
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 17018,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 20,
+            "length": 8,
+            "message": "Unknown type acquisition option 'enabel'. Did you mean 'enable'?",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 17018,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 20,
+            "length": 8,
+            "message": "Unknown type acquisition option 'enabel'. Did you mean 'enable'?",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-true",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "compileOnSave": true,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-false",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "compileOnSave": false,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-null",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "compileOnSave": null,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-invalid",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "compileOnSave": "yes",
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 5,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 5,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/save-number",
+      "typescript_observation": {
+        "watch_options_present": false,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "absent"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "compileOnSave": 1,
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 1,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 17,
+            "length": 1,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-no-own",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/base.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-watch-merge",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/own.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "watchOptions": {
+            "watchDirectory": "useFsEvents",
+            "excludeFiles": [
+              "own.ts"
+            ]
+          },
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-watch-null",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/base.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "watchOptions": null,
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-acquisition-own",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/base.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "own"
+              }
+            ]
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "typeAcquisition": {
+            "exclude": [
+              "own"
+            ]
+          },
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-save-false",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/base.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": false
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/inherit-jsconfig",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/base/base.ts"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": true,
+        "raw": {
+          "extends": "./base/base.json",
+          "files": [
+            "main.ts"
+          ],
+          "compileOnSave": true
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [
+          "/project/base/base.json"
+        ],
+        "extended_sources": [
+          {
+            "file_name": "/project/base/base.json",
+            "text": "{\"watchOptions\":{\"watchFile\":\"fixedPollingInterval\",\"excludeFiles\":[\"base.ts\"]},\"typeAcquisition\":{\"enable\":true,\"include\":[\"base\"]},\"compileOnSave\":true}"
+          }
+        ],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "value",
+            "value": true
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/duplicate-watch",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "watchDirectory",
+            "state": "value",
+            "value": 0
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "absent"
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "watchDirectory": "useFsEvents"
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [],
+        "config_diagnostics": []
+      }
+    },
+    {
+      "case_id": "h2-8b-config-root-options/unquoted-watch",
+      "typescript_observation": {
+        "watch_options_present": true,
+        "watch_option_probes": [
+          {
+            "name": "watchFile",
+            "state": "undefined"
+          },
+          {
+            "name": "watchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "fallbackPolling",
+            "state": "absent"
+          },
+          {
+            "name": "synchronousWatchDirectory",
+            "state": "absent"
+          },
+          {
+            "name": "excludeDirectories",
+            "state": "absent"
+          },
+          {
+            "name": "excludeFiles",
+            "state": "list",
+            "elements": [
+              {
+                "state": "value",
+                "value": "/project/x"
+              }
+            ]
+          }
+        ],
+        "acquisition_option_probes": [
+          {
+            "name": "enable",
+            "state": "value",
+            "value": false
+          },
+          {
+            "name": "include",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "exclude",
+            "state": "list",
+            "elements": []
+          },
+          {
+            "name": "disableFilenameBasedTypeAcquisition",
+            "state": "absent"
+          }
+        ],
+        "compile_on_save": false,
+        "raw": {
+          "watchOptions": {
+            "excludeFiles": [
+              "x"
+            ]
+          },
+          "files": [
+            "main.ts"
+          ]
+        },
+        "file_names": [
+          "/project/main.ts"
+        ],
+        "wildcard_directories": [],
+        "extended_source_files": [],
+        "extended_sources": [],
+        "option_probes": [
+          {
+            "name": "target",
+            "state": "absent"
+          },
+          {
+            "name": "module",
+            "state": "absent"
+          },
+          {
+            "name": "strict",
+            "state": "absent"
+          },
+          {
+            "name": "outDir",
+            "state": "absent"
+          },
+          {
+            "name": "rootDir",
+            "state": "absent"
+          },
+          {
+            "name": "baseUrl",
+            "state": "absent"
+          },
+          {
+            "name": "paths",
+            "state": "absent"
+          },
+          {
+            "name": "pathsBasePath",
+            "state": "absent"
+          },
+          {
+            "name": "rootDirs",
+            "state": "absent"
+          },
+          {
+            "name": "typeRoots",
+            "state": "absent"
+          },
+          {
+            "name": "moduleSuffixes",
+            "state": "absent"
+          },
+          {
+            "name": "lib",
+            "state": "absent"
+          },
+          {
+            "name": "types",
+            "state": "absent"
+          },
+          {
+            "name": "noEmit",
+            "state": "absent"
+          },
+          {
+            "name": "noLib",
+            "state": "absent"
+          },
+          {
+            "name": "allowJs",
+            "state": "absent"
+          },
+          {
+            "name": "declaration",
+            "state": "absent"
+          },
+          {
+            "name": "sourceMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationMap",
+            "state": "absent"
+          },
+          {
+            "name": "declarationDir",
+            "state": "absent"
+          }
+        ],
+        "root_parse_diagnostics": [],
+        "parsed_errors": [
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 1,
+            "length": 12,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 15,
+            "length": 9,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 7,
+            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 33,
+            "length": 12,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 7,
+            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 61,
+            "length": 5,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 1,
+            "length": 12,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 15,
+            "length": 9,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 7,
+            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 33,
+            "length": 12,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 7,
+            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 1327,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 61,
+            "length": 5,
+            "message": "String literal with double quotes expected.",
+            "related_information": []
+          }
+        ]
+      }
+    }
+  ]
+}
