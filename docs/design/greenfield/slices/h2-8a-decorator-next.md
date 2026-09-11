@@ -725,3 +725,26 @@ The additional source promotion matches twice with one write and zero
 diagnostics; the old 246 directly exact / 49 source-deferred categories and
 their existing counts remain unchanged. The complete acceptance command is
 still required before reporting the PR gate as passing.
+
+### PR admission: direct AMD/UMD routing
+
+The full acceptance at `f1336dcc7` passed conformance, H1, H2.1a and
+H2.1b, then rejected H2.1c `importCallExpressionInAMD1.ts#default` solely
+on its H2.1a activity expectation. The exact diagnostics, emit result and
+writes had already compared successfully before that assertion.
+
+`get_module_transformer_kind` in `builtins.rs` selects the direct Module
+delegate for AMD/UMD. Only ImpliedNodeFormat records H2.1a activity; the
+direct delegate records H2.1b and H2.1c. The existing compiler AMD/UMD and
+filesystem-failure contracts already require H2.1a=0 for this routing.
+H2.1c acceptance now requires that same zero, retaining the per-source
+H2.1b/H2.1c counts, forbidden-owner checks, and every upstream observable.
+No production source or historical qualification was changed.
+
+Focused `cargo xtask acceptance-slice h2-1c` passed all 8 dispositions:
+6 exact / 2 source-deferred, 6 exact diagnostics and 12 exact writes,
+repetitions=2, exit 0. Log:
+`target/dec-next-runs/pr-h2-1c-routing-r1/run.log`, SHA-256
+`534f738db5a72112e2d8a0ff1209fdeae243ee5a948d5c1e747698ee86f8d4e6`.
+The preceding full run is retained in `pr-acceptance-r2/`, exit 1, log
+SHA-256 `1fa825e4ced33e6e253c10415778a8d1032bbc20fe45859de94bced5c24a0938`.
