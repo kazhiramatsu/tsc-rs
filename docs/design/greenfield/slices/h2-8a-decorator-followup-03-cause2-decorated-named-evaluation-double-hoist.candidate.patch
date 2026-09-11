@@ -1,0 +1,391 @@
+From 707704835daac7515c8899cfb3090f08aabce0e0 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 14:52:53 +0900
+Subject: [PATCH] fix(emitter): name anonymous classes in decorated computed
+ fields by the hoisted key
+
+visitPropertyDeclaration (_tsc.js 100041) runs the named evaluation of an
+anonymous decorated class initializer before the element work:
+getAssignedNameOfPropertyName hoists `getGeneratedNameForNode(name)` in the
+class IIFE environment and rewrites the name to `[_a = __propKey(expression)]`
+with the key expression unvisited; the class receives `__setFunctionName(this,
+_a)`. partialTransformClassElement then reaches visitReferencedPropertyName
+with that rewritten name, whose second getGeneratedNameForNode resolves to the
+same cached name (getNodeForGeneratedName walks `original`) and whose
+hoistVariableDeclaration declares it again: `var _a, _a`, and the assignment
+is wrapped once more, `_a = __propKey(_a = __propKey(fieldKey))`, before the
+pending decorator assignment is injected.
+
+The Rust named evaluation returned early for decorated members (an open row).
+It now hands the rewritten name, its cache assignment and the hoisted binding
+to the property plan; visit_referenced_property_name declares the same binding
+again (`hoist_existing_temp_variable`, no temp ordinal advance) instead of
+allocating a second one, visits the assignment under the name frame and wraps
+it. Undecorated members keep the previsit path.
+
+Focused witnesses: anonymous-in-decorated-computed-field x6 and
+named-in-decorated-computed-field-control x6 exact twice, exit 0
+(ratchets/h2-8a-decorator-followup-cause2-focused.v1.json).
+---
+ .../src/builtins/standard_decorators.rs       | 135 ++++++++++++++----
+ ...-decorator-followup-cause2-focused.v1.json | 124 ++++++++++++++++
+ 2 files changed, 230 insertions(+), 29 deletions(-)
+ create mode 100644 ratchets/h2-8a-decorator-followup-cause2-focused.v1.json
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 912441069..81b500131 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -207,6 +207,31 @@ struct PropertyPlan {
+     /// `createStringLiteralFromNode(expression)`; no cache temp, no hoist,
+     /// no `__propKey`.
+     computed_literal: Option<NodeId>,
++    /// `getAssignedNameOfPropertyName` hoisted this generated name for the
++    /// anonymous decorated class initializer; `visitReferencedPropertyName`
++    /// then requests `getGeneratedNameForNode` for the rewritten name, which
++    /// resolves to the same cached name, and hoists it again.
++    named_evaluation_temp: Option<TargetBinding>,
++}
++
++/// tsc-port: visitPropertyDeclaration named evaluation @6.0.3 — what
++/// `prepare_property_named_evaluation` did with an anonymous decorated class
++/// initializer before the element work.
++enum PropertyNamedEvaluation {
++    /// No such initializer, or a literal name recorded the assigned name; the
++    /// element name is visited by the caller.
++    NotRewritten,
++    /// Undecorated member: the name was rewritten to `[temp = __propKey(…)]`
++    /// and previsited under the name frame.
++    Previsited,
++    /// Decorated member: the rewritten name and its cache assignment reach
++    /// `visitReferencedPropertyName` unvisited, together with the hoisted
++    /// binding it declares again.
++    Decorated {
++        name: NodeId,
++        assignment: NodeId,
++        temporary: TargetBinding,
++    },
+ }
+ 
+ /// The computed form of a decorator context's `access` object: an element
+@@ -1098,43 +1123,40 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     ///
+     /// A class property whose initializer is an anonymous decorated class:
+     /// a literal name names it directly; a non-literal computed name hoists
+-    /// the `__propKey` cache temp (in the class IIFE, ahead of the member's
+-    /// own decorator temporaries), rewrites the property name to
+-    /// `[temp = __propKey(expression)]` (visited under the name frame and
+-    /// absorbing the pending expressions) and names the class by that temp.
+-    /// Returns whether the property name was already visited.
++    /// the `__propKey` cache temp (`getAssignedNameOfPropertyName`:
++    /// `getGeneratedNameForNode(name)` in the innermost lexical environment,
++    /// ahead of the member's own decorator temporaries), rewrites the name to
++    /// `[temp = __propKey(expression)]` with the key expression unvisited,
++    /// and names the class by that temp. An undecorated member's rewritten
++    /// name is then visited under the name frame (`partialTransformClassElement`
++    /// without class info); a decorated member's reaches
++    /// `visitReferencedPropertyName` through the plan.
+     fn prepare_property_named_evaluation(
+         &mut self,
+         member: TransformNode,
+         data: &tsc_syntax::nodes::PropertyDeclarationData,
+         decorated: bool,
+-    ) -> Result<bool, TransformError> {
++    ) -> Result<PropertyNamedEvaluation, TransformError> {
+         let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
+-            return Ok(false);
++            return Ok(PropertyNamedEvaluation::NotRewritten);
+         };
+         let Some(name) = data.name else {
+-            return Ok(false);
++            return Ok(PropertyNamedEvaluation::NotRewritten);
+         };
+         let name_node = self.node(name);
+         if let Some(text) = self.property_name_literal_text(name_node)? {
+             self.inferred_class_names
+                 .entry(class.node())
+                 .or_insert(text);
+-            return Ok(false);
++            return Ok(PropertyNamedEvaluation::NotRewritten);
+         }
+         let NodeData::ComputedPropertyName(computed) =
+             self.context.arena().node(name_node)?.data.clone()
+         else {
+-            return Ok(false);
++            return Ok(PropertyNamedEvaluation::NotRewritten);
+         };
+-        if decorated {
+-            // A decorated property with a non-literal computed name: tsc
+-            // hoists the same generated name twice (`var _b, _b`); not
+-            // reproduced here — recorded as an open row.
+-            return Ok(false);
+-        }
+         let Some(expression) = computed.expression else {
+-            return Ok(false);
++            return Ok(PropertyNamedEvaluation::NotRewritten);
+         };
+         let _ = member;
+         let temporary_binding = self.hoist_temp_variable(true)?;
+@@ -1162,9 +1184,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         )?;
+         self.mark_generated_computed_property_name(updated_name)?;
+         self.inferred_class_name_references
+-            .insert(class.node(), temporary_binding);
++            .insert(class.node(), temporary_binding.clone());
++        if decorated {
++            return Ok(PropertyNamedEvaluation::Decorated {
++                name: updated_name.node(),
++                assignment: assignment.node(),
++                temporary: temporary_binding,
++            });
++        }
+         self.previsit_property_name(updated_name.node(), name)?;
+-        Ok(true)
++        Ok(PropertyNamedEvaluation::Previsited)
+     }
+ 
+     fn visit_class_declaration(
+@@ -1553,6 +1582,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                         computed_temp: None,
+                         computed_expression,
+                         computed_literal,
++                        named_evaluation_temp: None,
+                     });
+                 }
+                 NodeData::MethodDeclaration(member_data) => self.collect_method_plan(
+@@ -2255,12 +2285,28 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     ) -> Result<(), TransformError> {
+         // tsc-port: visitPropertyDeclaration @6.0.3 — named evaluation of an
+         // anonymous decorated class initializer precedes the element work.
+-        let name_previsited = if let NodeData::PropertyDeclaration(data) = &member_data {
+-            let decorated = state.plans_by_node.contains_key(&member.node());
+-            self.prepare_property_named_evaluation(member, data, decorated)?
+-        } else {
+-            false
+-        };
++        let mut name_previsited = false;
++        if let NodeData::PropertyDeclaration(data) = &member_data {
++            let plan_index = state.plans_by_node.get(&member.node()).copied();
++            match self.prepare_property_named_evaluation(member, data, plan_index.is_some())? {
++                PropertyNamedEvaluation::NotRewritten => {}
++                PropertyNamedEvaluation::Previsited => name_previsited = true,
++                PropertyNamedEvaluation::Decorated {
++                    name,
++                    assignment,
++                    temporary,
++                } => {
++                    let index = plan_index.ok_or(TransformError::RequiredChildRemoved {
++                        parent: SyntaxKind::PropertyDeclaration,
++                        field: "decorated property plan",
++                    })?;
++                    let plan = &mut state.plans[index];
++                    plan.data.name = Some(name);
++                    plan.computed_expression = Some(assignment);
++                    plan.named_evaluation_temp = Some(temporary);
++                }
++            }
++        }
+         if let Some(index) = state.plans_by_node.get(&member.node()).copied() {
+             self.partial_transform_property_plan(&mut state.plans[index])?;
+         } else if let Some(index) = state.method_plans_by_node.get(&member.node()).copied() {
+@@ -2401,8 +2447,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         plan.decorators = self.transform_decorator_expressions(&plan.decorators)?;
+         self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
+         if let Some(expression) = plan.computed_expression {
+-            let (temporary, name) =
+-                self.visit_referenced_property_name(plan.data.name, expression)?;
++            let (temporary, name) = self.visit_referenced_property_name(
++                plan.data.name,
++                expression,
++                plan.named_evaluation_temp.as_ref(),
++            )?;
+             plan.computed_temp = Some(temporary);
+             plan.data.name = Some(name.node());
+         } else {
+@@ -2424,7 +2473,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
+                 .declaration_property_name(plan.original)?
+                 .map(TransformNode::node);
+             let (temporary, name) =
+-                self.visit_referenced_property_name(original_name, expression)?;
++                self.visit_referenced_property_name(original_name, expression, None)?;
+             plan.computed_temp = Some(temporary);
+             plan.emitted_name = Some(name.node());
+         } else {
+@@ -2458,8 +2507,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         &mut self,
+         original_name: Option<NodeId>,
+         expression: NodeId,
++        named_evaluation_temp: Option<&TargetBinding>,
+     ) -> Result<(TargetBinding, TransformNode), TransformError> {
+-        let temporary_binding = self.hoist_temp_variable(true)?;
++        let temporary_binding = match named_evaluation_temp {
++            // `getGeneratedNameForNode(updatedName)` resolves to the parsed
++            // name's cached generated name (getNodeForGeneratedName walks
++            // `original`); `hoistVariableDeclaration` declares it again:
++            // one binding, two declarators (`var _a, _a`).
++            Some(binding) => self.hoist_existing_temp_variable(binding)?,
++            None => self.hoist_temp_variable(true)?,
++        };
+         self.request_prop_key_helper()?;
+         self.enter_receiver_name();
+         let visited = self.visit(expression);
+@@ -5631,6 +5688,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         Ok(binding)
+     }
+ 
++    /// `hoistVariableDeclaration(name)` for a generated name the innermost
++    /// lexical environment already declares: tsc pushes another declarator
++    /// of the same name (no de-duplication), and the printed spelling stays
++    /// the cached one, so the binding is pushed again without advancing the
++    /// temp sequence.
++    fn hoist_existing_temp_variable(
++        &mut self,
++        binding: &TargetBinding,
++    ) -> Result<TargetBinding, TransformError> {
++        let environment =
++            self.lexical_environments
++                .last_mut()
++                .ok_or(TransformError::RequiredChildRemoved {
++                    parent: SyntaxKind::ClassExpression,
++                    field: "lexical environment for a hoisted temporary",
++                })?;
++        environment.temporaries.push(binding.clone());
++        Ok(binding.clone())
++    }
++
+     fn temp_spelling(ordinal: usize) -> String {
+         // Count in tsc's temp sequence, which skips `_i` (8) and `_n` (13).
+         let mut count = 0usize;
+diff --git a/ratchets/h2-8a-decorator-followup-cause2-focused.v1.json b/ratchets/h2-8a-decorator-followup-cause2-focused.v1.json
+new file mode 100644
+index 000000000..e39d888e0
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-followup-cause2-focused.v1.json
+@@ -0,0 +1,124 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator source follow-up: cause 2 focused: anonymous class in decorated computed field + named control",
++  "head": "8b2660f1963fa0b76d4a4867568ffa21c55c9ef9",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause2-r1",
++  "group": "source-followup",
++  "case_filter": "-in-decorated-computed-field",
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "0f8fdb22f106259ddc80546e4bb53463586d4a541c084294ab1c8006cb106bec",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "1051f6de500ae74efeff3b7ccc1db4c7e5eadaca6c1489613f74e11d59c361e9",
++  "runner_sha256": "b4173467d477f786ca9cb2ab57c578bfb34595e680692254cd28927aaf7b50af",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "source-followup",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause2-r1/captures",
++    "TSC_RS_DECORATOR_NEXT_CASE_FILTER": "-in-decorated-computed-field"
++  },
++  "actual_exit": 0,
++  "finished_at": "2026-09-11T05:52:25.951098+00:00",
++  "log_sha256": "459d14cd376ba146ecac2638d616f4625e2c1edab382ff44687c5116e243c4ae",
++  "prelaunch_sha256": "6d687a66541696f05a9e99976972ba7d85c3ade5b9a8e034964a0e69a4381de1",
++  "archive_sha256": "a167aa3f23475382c2abb0f82a1a8c4fc0f82d6f9e653e44760195c5121137e0",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "89a203e029acbb82a88246ef74ffa6cfea346831cd2b895225e43f84978ebae0",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause2-r1/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 12,
++    "exact_twice": 12,
++    "failed": 0,
++    "inconsistent": 0,
++    "capture_files": 24
++  },
++  "exact_twice": [
++    "decorator-source-followup/es2015/esnext/define/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/es2015/esnext/define/named-in-decorated-computed-field-control",
++    "decorator-source-followup/es2015/esnext/set/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/es2015/esnext/set/named-in-decorated-computed-field-control",
++    "decorator-source-followup/es2022/esnext/define/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/es2022/esnext/define/named-in-decorated-computed-field-control",
++    "decorator-source-followup/es2022/esnext/set/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/es2022/esnext/set/named-in-decorated-computed-field-control",
++    "decorator-source-followup/esnext/esnext/define/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/esnext/esnext/define/named-in-decorated-computed-field-control",
++    "decorator-source-followup/esnext/esnext/set/anonymous-in-decorated-computed-field",
++    "decorator-source-followup/esnext/esnext/set/named-in-decorated-computed-field-control"
++  ],
++  "failed": [],
++  "inconsistent": [],
++  "captures": {
++    "0e440e305f972c863988e6c89294cbdc29d032d1876c0bd4c3431358c128d0ec-0.json": "606240919d51ece623d3729202540f4130f8c7e16c56cdcf8dd205df1681371e",
++    "0e440e305f972c863988e6c89294cbdc29d032d1876c0bd4c3431358c128d0ec-1.json": "e2a06089aa307285666d2b404bbe872c864c36264911a73f8e218d771b51caab",
++    "1a121905543a67669fb3a6fe065298488325fe122ebc075b90aac6b1bb589b96-0.json": "07103198b03b9e9c114cba2549238f60bf7b088532572ffe68009693d849ce84",
++    "1a121905543a67669fb3a6fe065298488325fe122ebc075b90aac6b1bb589b96-1.json": "8d76f6c77ee32ac058c3f0777a1735ff71d8c83f9a3c078180455dcc397ee3db",
++    "1e276677fc2a3a3ddb5c69ff7f263cd19dcc19d9fc8df9feb8d5b585e7c93c9f-0.json": "6990af0bbae433fc736dbf035ef4dd6d30197aff3559b0e8940446c51599c0fa",
++    "1e276677fc2a3a3ddb5c69ff7f263cd19dcc19d9fc8df9feb8d5b585e7c93c9f-1.json": "8c8f52b729a0fc150b611137b1ab007c131e647efaa613926604a2f6fd923114",
++    "44d761bffd5d0e3e219eb7515337d55b8920956e0e9c57a80e51dacb83391bbd-0.json": "da24549c332765f8b4246d71fdc88337aa67e74876ffac85f0fc79459036126c",
++    "44d761bffd5d0e3e219eb7515337d55b8920956e0e9c57a80e51dacb83391bbd-1.json": "349fe25f7c7f777381fe1de3020edb0ca7df16bd724a71609eb571e2fd42d8a0",
++    "540c6c37f69f2e159820591e5cc602b860dd760f99b7601c00b4565de23c72e8-0.json": "b3228ddd872a86b0dc82791a373f1992c9cc8d19e06cd761951ca8607b369766",
++    "540c6c37f69f2e159820591e5cc602b860dd760f99b7601c00b4565de23c72e8-1.json": "8c76f8b52305e545aa8cc8c79eeb9bbf9399fa5d8b8d33673e58269da447d27b",
++    "628571ce8cf40a28c0832a3c25d91e44fe344157daf49d8cfdf8bc371d3372a3-0.json": "23e750c7eefaef03a2f347691ddbc1ab59f57413c96673a781737c0da5db46d1",
++    "628571ce8cf40a28c0832a3c25d91e44fe344157daf49d8cfdf8bc371d3372a3-1.json": "20ca2c3c7e248e55168dd6a84f943f97ac88d8f842ad9c704e3d5b2cfb237c68",
++    "781e2225301421d6cd5c4e5682eabcc22c8bba1fdac2e38fafc6119420c28c17-0.json": "e29329638b957fd3eaba456e6928378b398b5f6718785e001b74658965a3cf7e",
++    "781e2225301421d6cd5c4e5682eabcc22c8bba1fdac2e38fafc6119420c28c17-1.json": "902dc73fa2b37dcda4b001af291d6ad8699e160e7244d5f6ae8ae0d6f79b0cf4",
++    "7a635b2f6b06a94640fc5bce4c824b0856694d7b4aacbe413c2118dd5f2cd0f5-0.json": "420909d5e6818539339c6234a11362235cb594ac8443dfb05785e03310de32d2",
++    "7a635b2f6b06a94640fc5bce4c824b0856694d7b4aacbe413c2118dd5f2cd0f5-1.json": "c0cd27d05fb069755ee790985717b3d65377220cd8dacb61525deefb0474c7c3",
++    "7b9753d7e3816befac11299996321a75d6031c5a24b1295cb12822548b7d9691-0.json": "16814d5d7f8d321a4577b70d21b2e418df29fe83230638f37a3c2a9c22656299",
++    "7b9753d7e3816befac11299996321a75d6031c5a24b1295cb12822548b7d9691-1.json": "6306ab421cfb60f3bec84a5cbc374abeec1289a0189b8bf21d96ea1ecc3e774c",
++    "a39ec61360b131cb4c99cd487bae28407ba8bbb9c56dcefb434225f864549e39-0.json": "674bff8af7829755b1b6adac6f46f0f28d8a3585df51b4abb21ec2506457c187",
++    "a39ec61360b131cb4c99cd487bae28407ba8bbb9c56dcefb434225f864549e39-1.json": "8b0ad25d11196aaf6ed4f76c5c48fba66ea8373c19d79eb97f069177b2938c9e",
++    "aa2fc3acbbefc22962ba8b59d3ae05e0270eaeee81115609442d3e5051340317-0.json": "119e9d6627f76406fc2524a98a7dce23c596804ecada7178dcbb7ec823840a67",
++    "aa2fc3acbbefc22962ba8b59d3ae05e0270eaeee81115609442d3e5051340317-1.json": "abb574a6ce74f2fbcd30ffd2c72f8e7a4e629eafee27e94314f99b6523eab8a1",
++    "e742945ebdfe5dc98162eced8b76504ddb140970df80db8aa96b839e5b70019d-0.json": "d50c825f47ead7f8b7d31fe29b42bcf5795837888ba5d86523b09f4f2784c843",
++    "e742945ebdfe5dc98162eced8b76504ddb140970df80db8aa96b839e5b70019d-1.json": "b575d9b327b20ed3587351084db9d5017f48524d1ea2d64716cd0aaef5ee98f5"
++  },
++  "log_exact_marker_count": 12,
++  "log_repeated_failure_count": 0,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+-- 
+2.50.1 (Apple Git-155)
+

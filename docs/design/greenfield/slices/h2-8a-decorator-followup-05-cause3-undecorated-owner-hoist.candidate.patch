@@ -1,0 +1,486 @@
+From a4c089c7b1dff7f1c794d93bdcf15e7fb061770a Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 15:04:20 +0900
+Subject: [PATCH] fix(emitter): hoist undecorated classes' named-evaluation
+ keys into the enclosing environment
+
+The undecorated branch of visitClassDeclaration/visitClassExpression
+(_tsc.js 99628, `enterClass(undefined)`) still visits every member through
+classElementVisitor, so visitPropertyDeclaration performs the named evaluation
+of an anonymous decorated class initializer: getAssignedNameOfPropertyName
+hoists `getGeneratedNameForNode(name)` into the innermost lexical environment
+(the enclosing function body via visitFunctionBody, or the source file via
+visitEachChild(SourceFile) -> visitLexicalEnvironment) and rewrites the name to
+`[_a = __propKey(expression)]`; the class receives `__setFunctionName(this,
+_a)`, and class-fields lowering later reads the cache assignment as already
+transformed. The Rust member loop of undecorated classes recorded literal names
+only, and the source-file visit owned no lexical environment.
+
+`visit_class_members_generic` now runs `prepare_property_named_evaluation`
+inside the class-element frame (hoist, rewrite, previsit under the name frame),
+and `transform_root` starts the source-file environment around the visit and
+merges its hoisted `var` statement after the prologue directives and any
+custom-prologue hoisted functions (`merge_source_file_environment`,
+mergeLexicalEnvironment's `leftHoistedFunctionsEnd`). Function bodies keep
+`visit_function_like_body`'s environment.
+
+Focused witnesses: undecorated-outer-property-hoist x6 and
+decorated-outer-property-hoist-control x6 exact twice, exit 0
+(ratchets/h2-8a-decorator-followup-cause3-focused.v1.json); the 18 top-level
+commands (plain, `"use strict"` prologue, decorated control) exact twice, exit 0
+(ratchets/h2-8a-decorator-followup-top-level-focused.v1.json).
+---
+ .../src/builtins/standard_decorators.rs       | 137 +++++++++++++----
+ ...-decorator-followup-cause3-focused.v1.json | 126 +++++++++++++++
+ ...corator-followup-top-level-focused.v1.json | 143 ++++++++++++++++++
+ 3 files changed, 380 insertions(+), 26 deletions(-)
+ create mode 100644 ratchets/h2-8a-decorator-followup-cause3-focused.v1.json
+ create mode 100644 ratchets/h2-8a-decorator-followup-top-level-focused.v1.json
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 81b500131..8cd052bf5 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -122,13 +122,18 @@ impl Transformer for StandardDecoratorTransformer {
+         }
+         let current_root = context.arena().root(source)?;
+         let mut visitor = StandardDecoratorVisitor::new(context, source, self.target);
+-        let transformed =
+-            visitor
+-                .visit(current_root.node())?
+-                .ok_or(TransformError::RequiredChildRemoved {
+-                    parent: SyntaxKind::SourceFile,
+-                    field: "root",
+-                })?;
++        // tsc-port: visitEachChild(SourceFile) → visitLexicalEnvironment
++        // @6.0.3 — the source file owns the outermost lexical environment;
++        // temporaries hoisted there (named-evaluation keys of undecorated
++        // top-level classes) merge after its prologue directives.
++        visitor.start_lexical_environment();
++        let visited = visitor.visit(current_root.node());
++        let temporaries = visitor.end_lexical_environment();
++        let transformed = visited?.ok_or(TransformError::RequiredChildRemoved {
++            parent: SyntaxKind::SourceFile,
++            field: "root",
++        })?;
++        let transformed = visitor.merge_source_file_environment(transformed, temporaries)?;
+         if visitor.should_transform_private_static_elements_in_file {
+             let root = TransformNode::new(source, transformed);
+             let internal_flags = visitor
+@@ -5748,6 +5753,86 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         )?))
+     }
+ 
++    /// tsc-port: mergeLexicalEnvironment @6.0.3 for the source file: the
++    /// hoisted `var` statement splices at `leftHoistedFunctionsEnd`, after the
++    /// standard prologue directives and any custom-prologue hoisted function
++    /// declarations of earlier transforms.
++    fn merge_source_file_environment(
++        &mut self,
++        root: NodeId,
++        temporaries: Vec<TargetBinding>,
++    ) -> Result<NodeId, TransformError> {
++        let Some(declaration) = self.create_hoisted_declarations(temporaries)? else {
++            return Ok(root);
++        };
++        let root_node = self.node(root);
++        let NodeData::SourceFile(mut data) = self.context.arena().node(root_node)?.data.clone()
++        else {
++            return Err(TransformError::RequiredChildRemoved {
++                parent: SyntaxKind::SourceFile,
++                field: "source file for hoisted temporaries",
++            });
++        };
++        let mut statements = self.array_nodes(data.statements)?;
++        let mut index = 0;
++        while index < statements.len() && self.is_prologue_directive(statements[index])? {
++            index += 1;
++        }
++        while index < statements.len() && self.is_hoisted_function(statements[index])? {
++            index += 1;
++        }
++        statements.insert(index, declaration);
++        let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
++            self.context
++                .factory()?
++                .update_node_array(original, statements)?
++        } else {
++            self.context
++                .factory()?
++                .create_node_array(self.source, statements)?
++        };
++        data.statements = Some(statements.array());
++        let flags = flags_after_update(
++            self.context.arena(),
++            root_node,
++            &NodeData::SourceFile(data.clone()),
++        )?;
++        Ok(self
++            .context
++            .factory()?
++            .update_node(root_node, NodeData::SourceFile(data), flags)?
++            .node())
++    }
++
++    /// tsc-port: isPrologueDirective @6.0.3
++    fn is_prologue_directive(&self, node: TransformNode) -> Result<bool, TransformError> {
++        let arena = self.context.arena();
++        if let NodeData::ExpressionStatement(data) = &arena.node(node)?.data {
++            if let Some(expression) = data.expression {
++                return Ok(matches!(
++                    arena.node(self.node(expression))?.data,
++                    NodeData::StringLiteral(_)
++                ));
++            }
++        }
++        Ok(false)
++    }
++
++    /// tsc-port: isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&
++    /// isFunctionDeclaration(node)`)
++    fn is_hoisted_function(&self, node: TransformNode) -> Result<bool, TransformError> {
++        let custom_prologue = self
++            .context
++            .arena()
++            .metadata(node)
++            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE));
++        Ok(custom_prologue
++            && matches!(
++                self.context.arena().node(node)?.data,
++                NodeData::FunctionDeclaration(_)
++            ))
++    }
++
+     /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
+     ///
+     /// Declares the temporaries hoisted while visiting a block body at the
+@@ -6694,26 +6779,26 @@ impl StandardDecoratorVisitor<'_> {
+         let mut visited = Vec::with_capacity(nodes.len());
+         for member in nodes {
+             let member = self.node(member);
+-            // Named evaluation of a decorated class initializer with a
+-            // literal property name; a non-literal computed name would hoist
+-            // into the enclosing lexical environment, which this transform
+-            // does not own (open row).
+-            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
+-                if let (Some(name), Some(class)) = (
+-                    data.name,
+-                    self.anonymous_class_needing_assigned_name(data.initializer)?,
+-                ) {
+-                    if let Some(text) = self.property_name_literal_text(self.node(name))? {
+-                        self.inferred_class_names
+-                            .entry(class.node())
+-                            .or_insert(text);
+-                    }
+-                }
+-            }
++            let property = match &self.context.arena().node(member)?.data {
++                NodeData::PropertyDeclaration(data) => Some(data.clone()),
++                _ => None,
++            };
+             self.enter_receiver_class_element(member)?;
+-            let result = self
+-                .previsit_class_element_name(member)
+-                .and_then(|()| self.visit_class_element_generic(member));
++            // tsc-port: visitPropertyDeclaration @6.0.3 — the named evaluation
++            // of an anonymous decorated class initializer precedes the element
++            // name visit. An undecorated class starts no lexical environment
++            // (`enterClass(undefined)`), so the `__propKey` cache temp hoists
++            // into the innermost enclosing one: the function body
++            // (`visitFunctionBody`) or the source file
++            // (`visitLexicalEnvironment`).
++            let result = match property {
++                Some(data) => self
++                    .prepare_property_named_evaluation(member, &data, false)
++                    .map(|_| ()),
++                None => Ok(()),
++            }
++            .and_then(|()| self.previsit_class_element_name(member))
++            .and_then(|()| self.visit_class_element_generic(member));
+             self.exit_receiver_class_element();
+             visited.push(result?);
+         }
+diff --git a/ratchets/h2-8a-decorator-followup-cause3-focused.v1.json b/ratchets/h2-8a-decorator-followup-cause3-focused.v1.json
+new file mode 100644
+index 000000000..25512c013
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-followup-cause3-focused.v1.json
+@@ -0,0 +1,126 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator source follow-up: cause 3 focused: undecorated outer hoist + decorated control",
++  "head": "59bc7252e434fb554ce59b6e746f9311875e6cb7",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-r1",
++  "group": "source-followup",
++  "case_filter": "outer-property-hoist",
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json": "70ed0e80735f014779bf06a0fcd9effe72b48aa118ec493896906581f7ce2327",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level-inputs.json": "51c180344935e1488f31255fad66a3844f7c73fdc3f1aff43dea15b7ea46693e"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "49e0c4b2fe4de1fdec189c90c0548a308d8c350510d5f0fe066603ae6e7432a6",
++  "runner_sha256": "c4987a054a5efe787769e4f400065af91b1515cba77f625e0137941af60cd0e6",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "source-followup",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-r1/captures",
++    "TSC_RS_DECORATOR_NEXT_CASE_FILTER": "outer-property-hoist"
++  },
++  "actual_exit": 0,
++  "finished_at": "2026-09-11T06:03:09.606074+00:00",
++  "log_sha256": "95dcbd0e4f20032a34ab133b17c5b8b484dfa4b240e905003250820d9a0eebaf",
++  "prelaunch_sha256": "cd75fd1e43d230373fda23526e794be63b2845330a3b551b4d38cacbb92392c5",
++  "archive_sha256": "a11735877f6580027c66d2b86c36d44ed0802ab151f31abbd12bba2cc78782ff",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "081b095f4948a9b4d230e52cf0ff8090f0f287d93a6705e3130709f1437f136b",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-r1/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 12,
++    "exact_twice": 12,
++    "failed": 0,
++    "inconsistent": 0,
++    "capture_files": 24
++  },
++  "exact_twice": [
++    "decorator-source-followup/es2015/esnext/define/decorated-outer-property-hoist-control",
++    "decorator-source-followup/es2015/esnext/define/undecorated-outer-property-hoist",
++    "decorator-source-followup/es2015/esnext/set/decorated-outer-property-hoist-control",
++    "decorator-source-followup/es2015/esnext/set/undecorated-outer-property-hoist",
++    "decorator-source-followup/es2022/esnext/define/decorated-outer-property-hoist-control",
++    "decorator-source-followup/es2022/esnext/define/undecorated-outer-property-hoist",
++    "decorator-source-followup/es2022/esnext/set/decorated-outer-property-hoist-control",
++    "decorator-source-followup/es2022/esnext/set/undecorated-outer-property-hoist",
++    "decorator-source-followup/esnext/esnext/define/decorated-outer-property-hoist-control",
++    "decorator-source-followup/esnext/esnext/define/undecorated-outer-property-hoist",
++    "decorator-source-followup/esnext/esnext/set/decorated-outer-property-hoist-control",
++    "decorator-source-followup/esnext/esnext/set/undecorated-outer-property-hoist"
++  ],
++  "failed": [],
++  "inconsistent": [],
++  "captures": {
++    "1b7ef2730afcbd64d64a10b10079be250c476fc34255ada6c7b0605a698a4975-0.json": "b13d2792ac300ab84422f5dea5af93a932980ce89c0c9cdb2fad3521f5d87eee",
++    "1b7ef2730afcbd64d64a10b10079be250c476fc34255ada6c7b0605a698a4975-1.json": "23d4aea8bd9d51253f025277c64d9fa3e6d73d10b5e796243c075a1d387aca62",
++    "36b82d69e1fbeb47d3da5895267662d0ae566feac93ccebc9281f1899558ed3d-0.json": "777f4d28dc094f251703c2f675f23d6b045a9c5085debca4ebb8bcac6321aea0",
++    "36b82d69e1fbeb47d3da5895267662d0ae566feac93ccebc9281f1899558ed3d-1.json": "8463f7853b58bbc8887c4d709c37ae891b7f87958a7484efd678177eee524ee6",
++    "395225d633cd5827eb4a1128ba8beea454d986480259f8091e7096b508370351-0.json": "00c1a301c1d941b3eaeac59e17885dfccec1669628fdf77f932f2926b403eb4f",
++    "395225d633cd5827eb4a1128ba8beea454d986480259f8091e7096b508370351-1.json": "a3e6806fc3949466f0196ce1ce2917c9bc402276bff45d14d0d8d78256bcce7e",
++    "566ee88db24152b464715440336694eef834ba34ffb0c892d32488d859c52919-0.json": "c399442ba1b0cea9fd4a3daadfc97eefd4e2d8b476422409530c6c705984a970",
++    "566ee88db24152b464715440336694eef834ba34ffb0c892d32488d859c52919-1.json": "d49a2816946b8f091944a5814fa6adb54a6311dff23ea28f8d8740e41e385790",
++    "58192393f9f29815d594ccf61c3ab3435ed7b913f73e26512441784f87163ee7-0.json": "3bffd0cafead0218a8307dde934755990a524b6d012a632688f4a85ecfc84340",
++    "58192393f9f29815d594ccf61c3ab3435ed7b913f73e26512441784f87163ee7-1.json": "daf37828c5a20b743131f03758a1f96390ec1140159921a3fcc35eb83bdba311",
++    "5c3956bd1e58a8c34fce339aad33c02cf109756eb4d51cd51d1015f4d20f2c3a-0.json": "236476bec929dce639a4be7d2440455e4de6a189ee6131a2a6d59565f0530335",
++    "5c3956bd1e58a8c34fce339aad33c02cf109756eb4d51cd51d1015f4d20f2c3a-1.json": "2e8020ca1161c1b1314b8fcd11aa903dea46ba68be5ac6aa9a7a7a9cfd407915",
++    "6674fff948501ab9e0b5982545c2682a53659bdc8657e80bf68b6f39aa143ecd-0.json": "1dd9b2dd1a2d9ed6adebd4caba95504a9451d1a130f424f05fa8435dec89d4ad",
++    "6674fff948501ab9e0b5982545c2682a53659bdc8657e80bf68b6f39aa143ecd-1.json": "79e50de53ffede8ae4d94e596ffd47b20e027847fd9c67d4cba4fa7bfcfc458d",
++    "859d6ae8a8cc4a3ecdc035c40165e281992f52814b2a8b4287530b5b0d250494-0.json": "d14c5cc05aa9dc8320d51564b63608b22396f9cf97de1212e17a123360da5784",
++    "859d6ae8a8cc4a3ecdc035c40165e281992f52814b2a8b4287530b5b0d250494-1.json": "5b1850375876cda588bb2288219df2e9327b41b52d0f940bf9ba12272e7ab6c4",
++    "9fe3d2c891a082485a44455571aca2686be2e646281323d8fed4e33b5b914e42-0.json": "3296a138eb0fe1cf4c4617b826081785dbde077fe3ced6cda3ee96f392b44a34",
++    "9fe3d2c891a082485a44455571aca2686be2e646281323d8fed4e33b5b914e42-1.json": "abe4c623dc5d844c873b4e66ef363b589b55bfbdbb2e3b7889f9a20550d8f01c",
++    "a59d2cfb2380760f20cc67d861fae7201303ec78bdc23893e1df757e2121b623-0.json": "1639fda7e164f88240660a499829ec9d1d3b5a3a62770077caa1bd73059e51e1",
++    "a59d2cfb2380760f20cc67d861fae7201303ec78bdc23893e1df757e2121b623-1.json": "4d1676e685a2ba7f1a13a3f92c23eaaab80eeb8f795886b68cb4f8d11eb9b610",
++    "c5d361651ac5ee62d4b6938b45e0c00677967c5a49a5a86fd0d5cb3205880b29-0.json": "4016ef0f459197bf5e00fc97dcdc0e1a2b9585a8f9fb44ec7e1733293251c475",
++    "c5d361651ac5ee62d4b6938b45e0c00677967c5a49a5a86fd0d5cb3205880b29-1.json": "01443d8224ff8b0ef30d67c585b68704e0d6f585858317e929533e2fd4c9af30",
++    "eb4595a1490e5c384ad0f8003cb3d72b4779507d59ca660abd6d1cf63648797b-0.json": "f91a42ad1a146a53a8471edf7cb4d8eb9d7941f30aa552bc88661b42442a97dc",
++    "eb4595a1490e5c384ad0f8003cb3d72b4779507d59ca660abd6d1cf63648797b-1.json": "2248873b93497be1e7250f9454b477b31d64132fc1dc1312fc1869098a862bf8"
++  },
++  "log_exact_marker_count": 12,
++  "log_repeated_failure_count": 0,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+diff --git a/ratchets/h2-8a-decorator-followup-top-level-focused.v1.json b/ratchets/h2-8a-decorator-followup-top-level-focused.v1.json
+new file mode 100644
+index 000000000..e70b44826
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-followup-top-level-focused.v1.json
+@@ -0,0 +1,143 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator source follow-up: cause 3 focused: top-level group",
++  "head": "59bc7252e434fb554ce59b6e746f9311875e6cb7",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-toplevel-r1",
++  "group": "source-followup-top-level",
++  "case_filter": null,
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json": "70ed0e80735f014779bf06a0fcd9effe72b48aa118ec493896906581f7ce2327",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level-inputs.json": "51c180344935e1488f31255fad66a3844f7c73fdc3f1aff43dea15b7ea46693e"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "49e0c4b2fe4de1fdec189c90c0548a308d8c350510d5f0fe066603ae6e7432a6",
++  "runner_sha256": "c4987a054a5efe787769e4f400065af91b1515cba77f625e0137941af60cd0e6",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "source-followup-top-level",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-toplevel-r1/captures"
++  },
++  "actual_exit": 0,
++  "finished_at": "2026-09-11T06:03:51.651741+00:00",
++  "log_sha256": "1d0f230674f6ca5d47475dca2403966f6867dc892c98b15ef92fd1bec4aafe28",
++  "prelaunch_sha256": "c6ff9a2630932e7571754f55f6a817c3f3bb9ebf618f34a43c3df7c0744f149f",
++  "archive_sha256": "7215fb210bdfd872d98259d434d1c4436e7437c12ee166ef66cee80e4a2ec9a3",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "081b095f4948a9b4d230e52cf0ff8090f0f287d93a6705e3130709f1437f136b",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/cause3-toplevel-r1/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 18,
++    "exact_twice": 18,
++    "failed": 0,
++    "inconsistent": 0,
++    "capture_files": 36
++  },
++  "exact_twice": [
++    "decorator-source-followup-top-level/es2015/esnext/define/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/es2015/esnext/define/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2015/esnext/define/top-level-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2015/esnext/set/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/es2015/esnext/set/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2015/esnext/set/top-level-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2022/esnext/define/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/es2022/esnext/define/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2022/esnext/define/top-level-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2022/esnext/set/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/es2022/esnext/set/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/es2022/esnext/set/top-level-undecorated-property-hoist",
++    "decorator-source-followup-top-level/esnext/esnext/define/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/esnext/esnext/define/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/esnext/esnext/define/top-level-undecorated-property-hoist",
++    "decorator-source-followup-top-level/esnext/esnext/set/top-level-decorated-property-hoist-control",
++    "decorator-source-followup-top-level/esnext/esnext/set/top-level-prologue-undecorated-property-hoist",
++    "decorator-source-followup-top-level/esnext/esnext/set/top-level-undecorated-property-hoist"
++  ],
++  "failed": [],
++  "inconsistent": [],
++  "captures": {
++    "02ac7a500454cc341e5e565fc873c1d291e751b0ea4fe51dca9dbb8acf8addc9-0.json": "5dd9d2a0b207ecbb3df0bc3a51fa0642e221e0053c200e17ae6f8cc0392844ca",
++    "02ac7a500454cc341e5e565fc873c1d291e751b0ea4fe51dca9dbb8acf8addc9-1.json": "1f3e9742d23fd3ee11f23817dabddb770c59e6f5073b97f6aec6549744ff86a4",
++    "31ba82d4ed859120aea86d925a9da5dd1395f7b10a3502dac38e7004db224ac2-0.json": "cc5e717754c5faa92d7c5ba9ffc3544ad92e16933f9ee9cd44c5b47e590c8b08",
++    "31ba82d4ed859120aea86d925a9da5dd1395f7b10a3502dac38e7004db224ac2-1.json": "fc39dabd9d3166b011bed567e0874b324a4477e249da37cd0745b30d6f4b8fe5",
++    "376fdb02d0e98ba30e7f7f9e37dce8d3f0a5a926c21d435fcd9ff1ac7ac432f6-0.json": "39fe1356ce547fe36636998432d306ffd60889bff621178da6e3891ec1cf9ad9",
++    "376fdb02d0e98ba30e7f7f9e37dce8d3f0a5a926c21d435fcd9ff1ac7ac432f6-1.json": "78acf395cf8373d51d9fa4e85f6d310ab8193c044e9c4ccd38876e09a165a0ab",
++    "4219e8648c93d7a68521025351ff9116e24f2d464ee116e6e8f5622adce7d7a2-0.json": "a0ef70c8f279a7dd6d6c5e4c099e632f7fee168e6f80d281f597f9692f5cd43a",
++    "4219e8648c93d7a68521025351ff9116e24f2d464ee116e6e8f5622adce7d7a2-1.json": "b412ce36801d0969f5bb87343d2e4b849e499b538fa996f9d6ec13b4e6e9a764",
++    "692506d81c24449bf5c8b4f977d5dd0173e8010e8f4cecc05ef4d8df49b930d8-0.json": "7785beff9fcd42995a2acb00a138ea6446ee28eb629baec1cc00558d003c5d1d",
++    "692506d81c24449bf5c8b4f977d5dd0173e8010e8f4cecc05ef4d8df49b930d8-1.json": "d8de398b217bbd042c5623149ed46602b9a08e7b02ccbaf4e011cd21ef25bada",
++    "71ab61b6b2c44ee178e7e258cf4b71a68a05867eeeff2d272fe9b8f16cdd0ec7-0.json": "e6cb14c5d3739eb08f99f3935763d326e71b2592ad58638283bcfd7706d69399",
++    "71ab61b6b2c44ee178e7e258cf4b71a68a05867eeeff2d272fe9b8f16cdd0ec7-1.json": "4ed9486b2df2973068bda03defbebc228a2d7032137cf3c421013bd0fa5d65b5",
++    "83d4a4e3b1db3631763e9819d1bc0812852382a745627f1e6ce99b55eef36aaf-0.json": "d37eca0cdbb816366da64be50939658627feba77e671e8814f72117c4a099c67",
++    "83d4a4e3b1db3631763e9819d1bc0812852382a745627f1e6ce99b55eef36aaf-1.json": "169ad2720ecab98ad7d20149dcfdadbb32996efd0102bd0b862200f23589615d",
++    "8f3acbb598602f65c5304e7f08e777ef6f49bea8e55a3993711671fbbbeb86cb-0.json": "6e0dce16cf0e3b59d2b3416b0939e19a030ff3619a06cecae59998c2368d40fa",
++    "8f3acbb598602f65c5304e7f08e777ef6f49bea8e55a3993711671fbbbeb86cb-1.json": "9bfc899515301d65b74079dde0cbcb17461946dc10c45b1b6bfb55840b233a04",
++    "93627e3d558e6a28039143f994439abd7d3fb0a6b3120f1edad31f3eed9f9282-0.json": "f63c96cf60a0ba7df14cd76c68e52555a9372f2f1cb4fe14e3b480c7d6fb9cbd",
++    "93627e3d558e6a28039143f994439abd7d3fb0a6b3120f1edad31f3eed9f9282-1.json": "ff1f8de67ae871f6e7156f68e1146653b46ad55e997a0e35af54dec3c2f5d301",
++    "948d2d2038d099674ffb5410a1e34aacf8479f4dd598d03d50b9b0e48ba58ccf-0.json": "25fffba2d8149edb3bd5e802bd0867cad71f41473c3f95eb622f1bba4d1835b8",
++    "948d2d2038d099674ffb5410a1e34aacf8479f4dd598d03d50b9b0e48ba58ccf-1.json": "8716ce8a9cca6a63e2fe317e4433f175eb0749015cc4f12c69656289a5c9c25e",
++    "a5b9ce0d11e3f2d888c849d1287392647ff785918e86f33742f29d3a135d8af5-0.json": "60dae8383dd06915a787dddab97d874e722a24f46286ee494d1900be1a8c378c",
++    "a5b9ce0d11e3f2d888c849d1287392647ff785918e86f33742f29d3a135d8af5-1.json": "936407b93e6ea6c23c257ce5d236ee3c650741f87abf839eed2e71f1dd61e0a7",
++    "b7cf78083c8dc2cc32072521edbe6d9fe9a2904504ffc947458e1dc8b6745e56-0.json": "8a0ee487d77767ae11d526b448b131d4b5af04db647ef72d893b15c2c550b9b2",
++    "b7cf78083c8dc2cc32072521edbe6d9fe9a2904504ffc947458e1dc8b6745e56-1.json": "c60a0a68b46c0cb46c2b3b280d6347c9dd2c68531d8609460b0cc3b2716b28c1",
++    "d55fa1ca887bc48f34dd36a7984284968b807e5f4e9bd29c12af893d027f49f3-0.json": "3639890dd9b307195516d563dbc056718f822609debae19a6c2f6544043141ec",
++    "d55fa1ca887bc48f34dd36a7984284968b807e5f4e9bd29c12af893d027f49f3-1.json": "90bb5c722c32afcfdd0a77b07cc345152d2235578e9eb521d600fa6ce31fb496",
++    "d7af732b4976e58746f2f8f447c97a48e09b76c796006bccb76f078f9476d6c6-0.json": "1dcc73089bc4c82c1f515901bfd6e889bf03ccf5d56f409850d8280df15e6c9d",
++    "d7af732b4976e58746f2f8f447c97a48e09b76c796006bccb76f078f9476d6c6-1.json": "657fcdba95694d1a7c67dd0972a595631785e8950664a6e628da0651f9af641d",
++    "d8436c2732514eb1cabbeeaf2d99e8c57e2e069ca78edada3d1e7f8db3ffd4ff-0.json": "8ec9fcf18716a16b3a59e53b07c8848606369aab08b993c67a4e31a191a63dcc",
++    "d8436c2732514eb1cabbeeaf2d99e8c57e2e069ca78edada3d1e7f8db3ffd4ff-1.json": "b396e1f35c0241a98dfd45a445f9d7216abe47f56480874228a5fa8dbcb8ab69",
++    "d8fd6c6329e189a87008261917b3bbd130f3446f4873daa46006ab0b5caa8f09-0.json": "a8d07536177821b90b5d15d14c588397447e42028849c02ed2f4c7eb10adb52f",
++    "d8fd6c6329e189a87008261917b3bbd130f3446f4873daa46006ab0b5caa8f09-1.json": "493fb92a1b43d0e247e7d9d3099b1f8fb6c5cbafce82c2df5398ca30e72d07e6",
++    "e10b661036fd331fe35284aaf9803e9c5f0694ebdbdaeda377f8cf0ba714e4b2-0.json": "2a859e1bf38a0db0c3bb2d6d625e7f3a0885c1412a2574b117f3cb654cb99411",
++    "e10b661036fd331fe35284aaf9803e9c5f0694ebdbdaeda377f8cf0ba714e4b2-1.json": "78a2b59d1981ee95ff033fc535de075a34474158d2d17b399c3c326fd4bb5383",
++    "f46b8082161ae0ff5c2e928913be780f3177a6aa6402f2c6f05ed5046e53d948-0.json": "8d41a4a02fea924d77fc56817cde6e93cac9bcfdce97793b570f37121ec5855a",
++    "f46b8082161ae0ff5c2e928913be780f3177a6aa6402f2c6f05ed5046e53d948-1.json": "96466117bae346ac84a41d6ffdd55a5cda7aa66ec0676989cda108c519cfab28"
++  },
++  "log_exact_marker_count": 18,
++  "log_repeated_failure_count": 0,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+-- 
+2.50.1 (Apple Git-155)
+
