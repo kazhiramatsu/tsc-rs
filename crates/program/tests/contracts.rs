@@ -38,3 +38,6 @@ mod path_identity_contract;
 mod prepared_program_contract;
 #[path = "integration/typescript_library_catalog_contract.rs"]
 mod typescript_library_catalog_contract;
+
+#[path = "integration/h2_8b_config_discovery.rs"]
+mod h2_8b_config_discovery;
