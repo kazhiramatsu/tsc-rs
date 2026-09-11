@@ -13,6 +13,7 @@ use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
 use crate::config_matcher::ConfigFilePattern;
 use crate::decode_host_text;
+use crate::module_resolution::{directory_name, normalize_absolute_path, normalized_root_parts};
 
 const MAX_DIRECTORY_DEPTH: usize = 256;
 
@@ -190,17 +191,115 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
             .map(|_| Vec::new())
             .collect::<Vec<Vec<String>>>();
         let mut visited = BTreeSet::new();
-        self.walk_directory(
-            Path::new(directory),
-            extensions,
-            &include_patterns,
-            &exclude_patterns,
-            depth.unwrap_or(MAX_DIRECTORY_DEPTH),
-            &mut file_buckets,
-            &mut visited,
-        )?;
+        for base in discovery_base_paths(directory, includes, case_sensitive)? {
+            self.walk_directory(
+                Path::new(&base),
+                extensions,
+                &include_patterns,
+                &exclude_patterns,
+                depth.unwrap_or(MAX_DIRECTORY_DEPTH),
+                &mut file_buckets,
+                &mut visited,
+            )?;
+        }
         Ok(file_buckets.into_iter().flatten().collect())
     }
+}
+
+// getBasePaths/getIncludeBasePath (_tsc.js:18573–18596). Keep the config
+// directory first even when a later include adds one of its ancestors.
+fn discovery_base_paths(
+    directory: &str,
+    includes: Option<&[String]>,
+    case_sensitive: bool,
+) -> Result<Vec<String>, ConfigHostError> {
+    let normalize = |path: &str| {
+        normalize_absolute_path(
+            Path::new(if path.is_empty() { directory } else { path }),
+            Some(directory),
+        )
+        .map_err(|error| {
+            ConfigHostError::new(
+                ConfigHostOperation::ReadDirectory,
+                directory,
+                error.to_string(),
+            )
+        })
+    };
+    let mut bases = vec![normalize(directory)?];
+    let mut candidates = Vec::new();
+    for include in includes.unwrap_or(&[]) {
+        let slashed = include.replace('\\', "/");
+        let rooted_disk =
+            normalized_root_parts(&slashed).is_some_and(|(root, _)| !root.contains("://"));
+        // TypeScript preserves rooted disk spelling at this step; relative
+        // paths and URLs go through normalizePath(combinePaths(...)).
+        let absolute = if rooted_disk {
+            include.clone()
+        } else {
+            normalize(include)?
+        };
+        let base = if let Some(wildcard) = absolute.find(['*', '?']) {
+            absolute[..absolute[..wildcard].rfind('/').unwrap_or(0)].to_owned()
+        } else if absolute
+            .replace('\\', "/")
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .is_some_and(|name| name.contains('.'))
+        {
+            let parent = directory_name(&absolute);
+            parent.strip_suffix('/').unwrap_or(&parent).to_owned()
+        } else {
+            absolute
+        };
+        candidates.push(base);
+    }
+    candidates.sort_by_cached_key(|path| {
+        if case_sensitive {
+            path.clone()
+        } else {
+            path.to_uppercase()
+        }
+        .encode_utf16()
+        .collect::<Vec<_>>()
+    });
+    for candidate in candidates {
+        let normalized_candidate = normalize(&candidate)?;
+        let mut covered = false;
+        for base in &bases {
+            if discovery_path_contains(&normalize(base)?, &normalized_candidate, case_sensitive) {
+                covered = true;
+                break;
+            }
+        }
+        if !covered {
+            bases.push(candidate);
+        }
+    }
+    Ok(bases)
+}
+
+fn discovery_path_contains(parent: &str, child: &str, case_sensitive: bool) -> bool {
+    let (parent_root, parent_tail) = normalized_root_parts(parent).expect("normalized parent");
+    let (child_root, child_tail) = normalized_root_parts(child).expect("normalized child");
+    // containsPath compares roots without case even on a case-sensitive host.
+    if parent_root.to_uppercase() != child_root.to_uppercase() {
+        return false;
+    }
+    let mut child_components = child_tail.split('/').filter(|part| !part.is_empty());
+    parent_tail
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .all(|parent| {
+            child_components.next().is_some_and(|child| {
+                if case_sensitive {
+                    parent == child
+                } else {
+                    parent.to_uppercase() == child.to_uppercase()
+                }
+            })
+        })
 }
 
 fn compile_patterns(
