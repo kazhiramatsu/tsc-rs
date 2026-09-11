@@ -388,16 +388,40 @@ was requested, as commit `eedbe221d`
 it is the same pure deletion PR #512's admission would need, so a later fold
 into that PR merges cleanly.
 
-Observed while shrinking (recorded, not changed): `h2_slice_ratchet_join`
-(H2.5h, H2.6a, H2.6b) returns at the first stale row, the first new
-divergence and the first facet difference, so a run names one row at a time;
-`h2_vector_ratchet_join` (H2.6c, H2.7b) and the repaired H2.5g join collect
-every difference before failing. Aligning the former with the latter is a
-small xtask-only change left for a separate decision.
+Observed while shrinking: `h2_slice_ratchet_join` (H2.5h, H2.6a, H2.6b)
+returned at the first stale row, the first new divergence and the first facet
+difference, so a run named one row at a time; `h2_vector_ratchet_join`
+(H2.6c, H2.7b) and the repaired H2.5g join collect every difference before
+failing. On request the former was aligned with the latter (below).
 
-The hosted acceptance was dispatched manually on the pushed branch
-(run 34578894288, head `eedbe221d`); its result is recorded below when it
-completes.
+### Hosted acceptance on the pushed branch
+
+Manual dispatches of the fixed `ts-tests` workflow
+([receipt](../../../../ratchets/h2-8a-decorator-followup-hosted-acceptance.v1.json)):
+
+- Run 34578894288 at `eedbe221d` (production `a4c089c7b` + the manifest
+  shrink): **success** — conformance 49024/49024 FP=0 FN=0, every H1/H2 band
+  through H2.5g at the start head's counts, then H2.5h candidates 932, exact
+  860, known_diverging 28, deferred 44; H2.6a 177/171/4/2; H2.6b 6/6/0/0;
+  H2.6c 643/631/8/4 (1 migrated refusal); H2.7b 1593/1557/0/36. This is the
+  first green hosted run on the PR #512 lineage (every earlier run on that
+  branch failed at H2.5g or H2.5h).
+- Run 34582573688 at `b7d388886` (adds the report-all join, an xtask change
+  that is part of the acceptance runner): **success** (09:07–09:50 UTC), band for band identical to the run at `eedbe221d` (H2.5h 932/860/28/44 … H2.7b 1593/1557/0/36). The acceptance runner with the report-all join passes on the committed manifest exactly as before.
+
+### Join fix — every manifest difference in one failure (commit `b7d388886`)
+
+`h2_slice_ratchet_join` (H2.5h, H2.6a, H2.6b) now collects stale, new and
+changed-facet rows and fails once with all of them, as `h2_vector_ratchet_join`
+(H2.6c, H2.7b) and the H2.5g join do; execution errors still stop at the
+first. Verified by two unit tests (all three kinds reported in one failure in
+result order; write mode unaffected; a matching manifest passes; an execution
+error stops first), a live H2.5h run with two stale rows re-added (one failure
+naming both, exit 1), the committed manifest (exit 0, 932/860/28/44), scoped
+clippy with no warnings in the edited files
+([receipt](../../../../ratchets/h2-8a-decorator-followup-join-fix.v1.json)).
+The three `-D warnings` clippy errors are in `class_fields.rs` (lines 254,
+2013, 3453), unchanged since the start manifest.
 
 
 ## Claim boundary and remaining rows
