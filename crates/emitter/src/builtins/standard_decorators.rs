@@ -5807,13 +5807,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let mut statements = self.array_nodes(data.statements)?;
-        let mut index = 0;
-        while index < statements.len() && self.is_prologue_directive(statements[index])? {
-            index += 1;
-        }
-        while index < statements.len() && self.is_hoisted_function(statements[index])? {
-            index += 1;
-        }
+        let index = self.hoisted_declaration_insertion_index(&statements)?;
         statements.insert(index, declaration);
         let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
             self.context
@@ -5835,6 +5829,29 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .factory()?
             .update_node(root_node, NodeData::SourceFile(data), flags)?
             .node())
+    }
+
+    /// tsc-port: mergeLexicalEnvironment @6.0.3 — `leftHoistedFunctionsEnd`:
+    /// the hoisted `var` statement (the only declaration this transform
+    /// produces) splices after the standard prologue directives
+    /// (`isPrologueDirective` span) and after the custom-prologue hoisted
+    /// function declarations of earlier transforms (`isHoistedFunction`
+    /// span), before any statement that follows, including hoisted `var`
+    /// statements already there. Function bodies and the source file share
+    /// this rule; a block synthesized by `convertToFunctionBlock` has no
+    /// prologue and takes index 0.
+    fn hoisted_declaration_insertion_index(
+        &self,
+        statements: &[TransformNode],
+    ) -> Result<usize, TransformError> {
+        let mut index = 0;
+        while index < statements.len() && self.is_prologue_directive(statements[index])? {
+            index += 1;
+        }
+        while index < statements.len() && self.is_hoisted_function(statements[index])? {
+            index += 1;
+        }
+        Ok(index)
     }
 
     /// tsc-port: isPrologueDirective @6.0.3
@@ -5868,9 +5885,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
     ///
-    /// Declares the temporaries hoisted while visiting a block body at the
-    /// start of that block (static block and function-like bodies have no
-    /// prologue directives here).
+    /// Declares the temporaries hoisted while visiting a block body inside
+    /// that block, after its standard prologue directives (a function or
+    /// arrow body may open with `"use strict"` and further directives) and
+    /// after custom-prologue hoisted functions, as `mergeLexicalEnvironment`
+    /// splices `leftHoistedFunctionsEnd`.
     fn merge_block_environment(
         &mut self,
         body: TransformNode,
@@ -5886,7 +5905,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let mut statements = self.array_nodes(data.statements)?;
-        statements.insert(0, declaration);
+        let index = self.hoisted_declaration_insertion_index(&statements)?;
+        statements.insert(index, declaration);
         let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
             self.context
                 .factory()?
