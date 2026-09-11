@@ -1,0 +1,681 @@
+{
+  "version": 1,
+  "slice": "H2.8b-LR1",
+  "status": "baseline-complete-with-order-divergences",
+  "qualified": false,
+  "recorded_at_utc": "2026-09-11T11:25:52.024582+00:00",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1",
+  "branch": "work/h2-8b-library-replacement",
+  "start": {
+    "version": 1,
+    "kind": "H2.8b-LR1 start",
+    "utc": "2026-09-11T11:07:58.219876+00:00",
+    "head": "f3e7d612dd4824d5b347dca74ded90893fe1c115",
+    "tree": "834d45044c99588e68e8f5d91986ffae906cc987",
+    "branch": "work/h2-8b-library-replacement",
+    "worktree": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1",
+    "status": "",
+    "run_dir": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z",
+    "registry_sha256": "7e3be1a8431101975dab9c4ec361248c775c4e5369a440e2b2531517d4c863aa",
+    "start_check": {
+      "exit_code": 0,
+      "result": {
+        "slices": 24,
+        "outline": 23,
+        "ready_for_baseline": [
+          "H2.8b-LR1"
+        ],
+        "runtime_ready": 0,
+        "pinned_files": 134,
+        "source_anchors": 38,
+        "upstream_cases": 12,
+        "upstream_program_executions": 24,
+        "native_executions": 0,
+        "status": "pass"
+      },
+      "log_sha256": "8a021eb5d222366250b541cc9c31a3c62ae9b91d8b0402e496a7ce514b8e76f5"
+    },
+    "environment": {
+      "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+      "python": "3.14.2",
+      "node": "v25.2.1",
+      "rustc": "rustc 1.93.0 (254b59607 2026-01-19)\nbinary: rustc\ncommit-hash: 254b59607d4417e9dffbc307138ae5c86280fe4c\ncommit-date: 2026-01-19\nhost: aarch64-apple-darwin\nrelease: 1.93.0\nLLVM version: 21.1.8",
+      "cargo": "cargo 1.93.0 (083ac5135 2025-12-15)"
+    }
+  },
+  "measured_head": "f01ab82293dd4b7c33fa696bc8f2a6ad192282aa",
+  "measured_tree": "1a3773477a3f74dbb60f64ade1dbd6656498d87e",
+  "commands": [
+    {
+      "phase": "oracle",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "node",
+        "scripts/observe-h2-8b-library-replacement.mjs",
+        "library-replacement",
+        "--check"
+      ],
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "started_at_utc": "2026-09-11T11:12:21.275475+00:00",
+      "head": "f01ab82293dd4b7c33fa696bc8f2a6ad192282aa",
+      "tree": "1a3773477a3f74dbb60f64ade1dbd6656498d87e",
+      "status": "",
+      "completed_at_utc": "2026-09-11T11:12:24.838597+00:00",
+      "exit_code": 0,
+      "log_sha256": "b983593030f91b06c7da5b7fe924e9eaef7e1b0b4a9f4a9de6740e0954df691a",
+      "all_input_hashes_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/oracle.run.json",
+        "sha256": "f57c7f07cb9aa31542f3e6839c621624c8c283d20bb8381bec9153538554543c"
+      }
+    },
+    {
+      "phase": "native",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8b_library_replacement",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "started_at_utc": "2026-09-11T11:12:29.969415+00:00",
+      "head": "f01ab82293dd4b7c33fa696bc8f2a6ad192282aa",
+      "tree": "1a3773477a3f74dbb60f64ade1dbd6656498d87e",
+      "status": "",
+      "completed_at_utc": "2026-09-11T11:22:15.154872+00:00",
+      "exit_code": 101,
+      "log_sha256": "46aad8e6df87942e447e3c7e2d68cf83a3f8bca2cfb7afc38e0335ce48303229",
+      "all_input_hashes_unchanged_during_run": true,
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/native.run.json",
+        "sha256": "0b57c397b54ed8a5d35be74a34f6b62c88b505b4c81d951e8b40fffbbbf65c04"
+      }
+    }
+  ],
+  "executable": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-cabf44d19c2beb96",
+    "sha256": "8e086a4462066a3b4cc64dfaddb42d315f64a67a99d2748056a2de2003a47e80"
+  },
+  "checks": {
+    "cargo_fmt_all_check_exit": 0,
+    "diff_check_exit": 0,
+    "pinned_files": 134,
+    "unchanged_pins": 133,
+    "permitted_change": {
+      "path": "crates/compiler/tests/contracts.rs",
+      "before_sha256": "3a3fa59757e3f7b8e2a380874a2ebc29dfad892012e84bfc3b060b3e289ae398",
+      "after_sha256": "b69370883a44dd3f606799305ce2fd78935721084f694497ae7db918a5f46c56",
+      "registration_only": true
+    }
+  },
+  "test_source": {
+    "path": "crates/compiler/tests/integration/h2_8b_library_replacement.rs",
+    "sha256": "11e67210cbb0efe23e19ba37816a6b9e724a081ab20b21e7ef8556750ac1678d"
+  },
+  "cases": [
+    {
+      "case_id": "h2-8b-library-replacement/enabled-package",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/disabled-package",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "exact",
+        "comparisons": 2,
+        "reached_second_repetition": true,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {}
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/omitted-option",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "exact",
+        "comparisons": 2,
+        "reached_second_repetition": true,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {}
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-package-fallback",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "exact",
+        "comparisons": 2,
+        "reached_second_repetition": true,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {}
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/config-directory-anchor",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/config/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/src/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/config/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/src/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/config/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/config/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 2,
+      "upstream_reported_diagnostic_codes": [
+        6059,
+        5011
+      ],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-subpath",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/iterable.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/iterable.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/iterable.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/iterable.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/package-exports-isolated",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "order-divergence",
+        "comparisons": 1,
+        "reached_second_repetition": false,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {
+          "source_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/main.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/project/main.ts"
+            ]
+          },
+          "library_files": {
+            "actual": [
+              "/lib/lib.es5.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts"
+            ],
+            "expected": [
+              "/lib/lib.es5.d.ts",
+              "/lib/lib.decorators.d.ts",
+              "/lib/lib.decorators.legacy.d.ts",
+              "/project/node_modules/@typescript/lib-dom/index.d.ts"
+            ]
+          }
+        }
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "exact",
+        "comparisons": 2,
+        "reached_second_repetition": true,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {}
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    },
+    {
+      "case_id": "h2-8b-library-replacement/no-lib-gate",
+      "complete_command": {
+        "disposition": "exact",
+        "repetitions": 2
+      },
+      "program_membership": {
+        "disposition": "exact",
+        "comparisons": 2,
+        "reached_second_repetition": true,
+        "roots_exact": true,
+        "unordered_membership_exact": true,
+        "differences": {}
+      },
+      "upstream_command_exit": 0,
+      "upstream_reported_diagnostic_codes": [],
+      "upstream_write_count": 4
+    }
+  ],
+  "totals": {
+    "unique_cases": 12,
+    "complete_command_exact": 12,
+    "complete_command_repetitions_per_case": 2,
+    "membership_cases_visited": 12,
+    "membership_exact_twice": 5,
+    "membership_order_divergences_first_comparison": 7,
+    "membership_comparisons": 17,
+    "roots_exact_cases": 12,
+    "unordered_membership_exact_cases": 12,
+    "native_prepared_programs": 41,
+    "tests_passed": 1,
+    "tests_failed": 1,
+    "normal_test_exit": 101
+  },
+  "captures": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/native.log",
+      "sha256": "46aad8e6df87942e447e3c7e2d68cf83a3f8bca2cfb7afc38e0335ce48303229"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/native-events.jsonl",
+      "sha256": "732e03dc541a6de8bda10a1965251b324b8eb2144d1a1518834c59c160890704"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/native-program-facts.json",
+      "sha256": "80362b67df8369a7864ffa6cf9253ebfa53dca0630c90692233b90f475671c2d"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/oracle.log",
+      "sha256": "b983593030f91b06c7da5b7fe924e9eaef7e1b0b4a9f4a9de6740e0954df691a"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/start.json",
+      "sha256": "e45a18540f07db698177fe6d97c2fc6f17aca1d18b9fc40786e904b9568992a1"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/library-replacement-runs/20260911T110757Z/resource-scheduling.jsonl",
+      "sha256": "8f1f419908ef84e256791acea168fc6677656c04bd27062d0e0e7206eec65e14"
+    }
+  ],
+  "resource_scheduling": [
+    {
+      "utc": "2026-09-11T11:17:10.720357+00:00",
+      "event": "paused-own-build",
+      "owned_process_group": 81307,
+      "other_heavy_processes": [
+        {
+          "pid": 81842,
+          "name": "cargo"
+        },
+        {
+          "pid": 81846,
+          "name": "rustc"
+        },
+        {
+          "pid": 81864,
+          "name": "rustc"
+        }
+      ]
+    },
+    {
+      "utc": "2026-09-11T11:21:08.367027+00:00",
+      "event": "resumed-own-build",
+      "owned_process_group": 81307,
+      "other_heavy_processes": []
+    },
+    {
+      "utc": "2026-09-11T11:22:19.164389+00:00",
+      "event": "guard-complete",
+      "owned_process_group": 81307,
+      "other_heavy_processes": []
+    }
+  ],
+  "production_changes": 0,
+  "shared_comparator_changes": 0,
+  "oracle_expectation_changes": 0,
+  "profile_activation": false,
+  "follow_up": {
+    "owner": "H2.8b-LR2",
+    "failure_case_ids": [
+      "h2-8b-library-replacement/enabled-package",
+      "h2-8b-library-replacement/duplicate-lib-reference",
+      "h2-8b-library-replacement/config-directory-anchor",
+      "h2-8b-library-replacement/package-subpath",
+      "h2-8b-library-replacement/module-suffixes-isolated",
+      "h2-8b-library-replacement/package-exports-isolated",
+      "h2-8b-library-replacement/root-promoted-to-library"
+    ],
+    "cause": "Logical library basename priority is reused after replacement; TypeScript sorts using the resolved physical source path.",
+    "rust_producers": [
+      "StagedGraph::load_selected_libraries",
+      "StagedGraph::process_lib_references",
+      "LibraryCatalog::file_name_priority"
+    ],
+    "rust_consumer": "StagedGraph::finish",
+    "upstream_owners": [
+      "compareDefaultLibFiles",
+      "getDefaultLibFilePriority"
+    ]
+  },
+  "limitations": [
+    "Complete commands match in these inputs; the seven order divergences remain unfixed.",
+    "The shared helper stops a divergent case before its second membership repetition; no two-pass failure claim is made.",
+    "Complete command tuples use the unchanged comparator; no separate native command tuple JSON was captured.",
+    "No new hosted acceptance was run for this baseline."
+  ]
+}
