@@ -1152,6 +1152,9 @@ struct StagedSource {
     /// be an explicit root when a later lib lookup selects the same identity.
     library_priority: Option<usize>,
     library_replacement: bool,
+    /// findSourceFileWorker chooses its processing bucket at first load.
+    /// A root later selected by a lib reference remains in processingOtherFiles.
+    initially_library: bool,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -1814,9 +1817,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .collect::<Vec<_>>();
         if !library_postorder.is_empty() {
             library_postorder.sort_by_key(|&source| {
-                self.sources[source]
+                let staged = &self.sources[source];
+                let priority = staged
                     .library_priority
-                    .expect("filtered library source has a stable priority")
+                    .expect("filtered library source has a stable priority");
+                // Only processingDefaultLibFiles is sorted upstream. Retain
+                // first-load postorder for roots promoted to lib membership.
+                (
+                    !staged.initially_library,
+                    if staged.initially_library {
+                        priority
+                    } else {
+                        0
+                    },
+                )
             });
         }
         let ordinary_postorder = self
@@ -2184,6 +2198,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             has_non_external_reason: reason.seeds_non_external_reachability,
             library_priority: class.library_priority(),
             library_replacement: class.is_replacement(),
+            initially_library: class.is_library(),
             path_references,
             type_reference_directives,
             lib_reference_directives,

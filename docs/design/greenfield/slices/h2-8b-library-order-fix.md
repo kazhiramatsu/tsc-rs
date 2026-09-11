@@ -30,7 +30,9 @@ catalog外の既知basename・未知basename・ES6 alias・UNC/file URLは15ケ�
 
 sourceの`findSourceFileWorker`は最初に渡された`isDefaultLib`によってprocessing bucketを選び、
 後からlibFiles membershipが増えても既存sourceを再挿入しない。追加promotionケースでこの境界も
-確認する。既存PreparedProgramのlibrary-prefix表現を一般の非prefix layoutへ拡張する作業は別途必要であり、
+確認する。`StagedSource.initially_library`で最初のbucketを保持し、新規libraryのstable sort後に、
+promotionされたrootの元のpostorderを残す。任意の非library rootとの交差を含む
+既存PreparedProgramのlibrary-prefix表現を一般の非prefix layoutへ拡張する作業は別途必要であり、
 今回の18件でその到達性を網羅したとは主張しない。
 
 検査の実結果・実exit・SHAは後続の修正受領証と完了報告に記録する。
