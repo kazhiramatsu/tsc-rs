@@ -30,3 +30,10 @@ cc74ba59cの同depth testは実exit0。制限64・parser nesting256・既存test
 追加の実filesystem CLI対照6件はroot設定、変換失敗、同じbaseの変換/parse失敗、取得設定の
 非継承、watch継承。各2回、vendored _tsc.jsを先に走らせ、同じinputからproduction binaryの
 stdout/stderr/exit・全output path/bytesを比較する。両実行後にinput不変も検査する。
+
+実CLI baselineは既存17通過/新規1失敗/既存ignore10。root-settingsの2回は一致したが、
+invalid-watchで停止したため後続4caseは未実行。nativeはexit2/stderrにbuild prepared program
+のlocated diagnostic has no owned source textと返した。診断のtsconfig.jsonという相対aliasが
+absolute auxiliary identityに対応付かなかったためである。ProgramConfigFileの明示aliasを
+読む際にcanonical auxiliary sourceとsnapshot textの一致を検証する。source無し/別textの
+negative controlsも追加し、builderの所有権検証を保持する。

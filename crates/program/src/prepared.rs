@@ -2219,7 +2219,17 @@ impl PreparedProgramBuilder {
             .packages
             .values()
             .any(|package| matches_path(package.package_json(), package.alternate_display_paths()));
-        if has_source || has_auxiliary || has_package {
+        // A config retains its source spelling separately from its absolute
+        // auxiliary identity. Accept that explicit alias only when the
+        // matching auxiliary snapshot is actually owned by this builder.
+        let has_config_alias = self.program_options.config_file().is_some_and(|config| {
+            diagnostic_file_names_equal(config.diagnostic_file_name(), file_name)
+                && self
+                    .auxiliary_files
+                    .get(config.path().canonical())
+                    .is_some_and(|file| file.text() == config.snapshot().text())
+        });
+        if has_source || has_auxiliary || has_package || has_config_alias {
             return Ok(());
         }
         Err(PreparationError::new(

@@ -2146,3 +2146,41 @@ fn prepared_program_is_owned_and_repeat_deterministic() {
     assert_eq!(first.clone(), first);
     assert_eq!(first.source_files()[0].text(), "export const value = 1;");
 }
+
+#[test]
+fn config_diagnostic_alias_requires_the_owned_matching_snapshot() {
+    for auxiliary_text in [None, Some("{ }"), Some("{}")] {
+        let mut builder = builder();
+        let config_path = path("/Work/tsconfig.json", "/work/tsconfig.json");
+        let config = tsc_program::ProgramConfigFile::new(config_path.clone(), "{}")
+            .with_diagnostic_file_name("tsconfig.json");
+        builder.set_program_options(ProgramOptions::default().with_config_file(config));
+        if let Some(text) = auxiliary_text {
+            builder
+                .add_auxiliary_file(PreparedAuxiliaryFile::new(config_path, text))
+                .unwrap();
+        }
+        let mut row = diagnostic(5024);
+        row.file_name = Some("tsconfig.json".to_owned());
+        row.start = Some(0);
+        row.length = Some(1);
+        builder.set_diagnostics(PreparationDiagnostics::new(
+            vec![row],
+            Vec::new(),
+            Vec::new(),
+        ));
+        let result = builder.build();
+        if auxiliary_text == Some("{}") {
+            assert!(
+                result.is_ok(),
+                "the explicit alias names the retained config source"
+            );
+        } else {
+            assert_eq!(
+                result.unwrap_err().kind(),
+                PreparationErrorKind::InvalidReference,
+                "an alias must not make missing or different source text look owned"
+            );
+        }
+    }
+}
