@@ -403,7 +403,10 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
     }
     if isolated || verbatim {
-        if isolated && options.module == Some(0) && options.emit_script_target() < 2 {
+        if isolated
+            && options.module == Some(0)
+            && options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+        {
             violations.push(CompilerOptionViolation::IsolatedModulesRequiresModuleOrEs2015);
         }
         if options.preserve_const_enums == Some(false) {
