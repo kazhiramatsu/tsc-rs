@@ -129,3 +129,11 @@ hostedは既存`cargo xtask acceptance`を維持し、walk/chain-walk/full `carg
 現在のgap分類、上流witness、変更手順、全ownerの受入、共有編集権、未解決0がそろうこと。
 この計画のoutline表だけでそのgateを通したことにはしない。
 先行productionの変更で前提SHAが変わったら、依存するpacketだけをstaleへ戻して再確認する。
+
+## CFG1の実装済み小単位（2026-09-11）
+
+- [CFG1a config変換・継承](h2-8b-config-extends-report.md)：28 config cases ×2、通常command 8件。
+- [CFG1b config外の探索開始点](h2-8b-config-discovery-report.md)：24 config cases ×2、開始点計算22件 ×2、通常command 8件。
+
+いずれも報告書に定めた範囲の完了。CFG1/B全体のclosure・profile activationではない。
+次のCFG1c候補はoption relationship diagnosticsの優先順位とconfig由来位置情報。

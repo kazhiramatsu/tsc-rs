@@ -38,3 +38,26 @@ host callback障害、再利用cache、watch/typeAcquisition、option関係診�
 重い実行は1つずつ、専用target、taskpolicy -b nice -n 19、CARGO_BUILD_JOBS=1、
 --test-threads=1。baselineと最終受領証に実HEAD、実exit、log/input/binary SHAを記録する。
 hosted acceptance、walk、chain-walk、full cargo xtask ciは追加しない。
+
+## 実測から確定した修正と追加観測
+
+`925ef9c80`のbaselineは5/24一致×2、19件不一致×2、実exit101。
+`getBasePaths`相当を追加した`b1614aba2`では23/24一致になった。
+残る`explicit-file-and-wildcard`は`wildcardDirectories`だけの差で、baselineにも同じ差がある。
+`getWildcardDirectories`（`_tsc.js:39719–39757`）は明示includeをfilesの有無にかかわらず読む。
+そのため実測に基づき`config.rs::derive_wildcard_directories`も編集し、`635daa485`で修正した。
+暗黙の`**/*`だけをfiles不在時に生成する（`_tsc.js:39052–39070`）。
+
+追加の純粋な開始点計算16件を`h2-8b-config-discovery-paths{,-inputs}.json`へ固定した。
+大小文字比較、UTF-16候補順、drive/UNC/URL、rooted spelling、root wildcardを含む。
+これはhost lookupやconfig parseの全経路の資格判定ではない。
+
+レビュー時に`normalizePath`と共有`getNormalizedAbsolutePath` helperの末尾separator差を発見した。
+別6件を`h2-8b-config-discovery-spelling{,-inputs}.json`として新規凍結し、
+`fe074e0c6`で3一致/3不一致×2、実exit101を記録してから`3208260fd`で修正した。
+相対directoryとconfig directoryの末尾`/`を保持し、`getBaseFileName`が取り除く末尾separatorを
+1つに限定した。元の24件・追加16件の期待値は変更していない。
+
+最終production/計測headは`3208260fde21bd2b762f359cbfaa55552a3d99d4`。
+[完了報告](h2-8b-config-discovery-report.md)と
+[最終受領証](../../../../ratchets/h2-8b-config-discovery-final.v1.json)に検証と境界を記録した。
