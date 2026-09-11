@@ -25,7 +25,8 @@ sourceはTypeScript 6.0.3の`parseJsonSourceFileConfigFileContent`、
 compiler-visible config diagnosticsの3列である。診断はcode/category/file/span/message/relatedを照合する。
 pathの出所は上流の解決後option値とextended sourceの順序から検査する。
 
-Program構築・option relationship diagnostics・CLI表示・watch/typeAcquisitionの全変換・
+この28件はconfig APIの観測として固定し、通常emitとの接続は後述の別8件で検査する。
+option relationship diagnosticsの系統的な照合・CLI表示・watch/typeAcquisitionの全変換・
 config cache/oldProgram再利用・任意のhost hookは後続単位。
 H2.8a-closeを前提とするBのprofile activationには進めない。
 
@@ -76,3 +77,18 @@ productionを修正した場合は、既存config契約群、関係するoption 
 
 この3原因を修正して同じ28入力・期待値を再検査する。既存config契約群とlibrary契約に加え、
 host adapterの順序変更は通常emitへも到達するため、compiler側の関連回帰を確認する。
+
+## 通常emit controlsと完了結果
+
+`h2-8b-config-commands-inputs.json` / `h2-8b-config-commands.json`を別groupとして追加した。
+上流observerは実際のvirtual directory表と`ts.matchFiles`を使い、root列挙結果を固定値で代用しない。
+8件はrecursive include、継承include、逆順include buckets、明示files順、`${configDir}`、
+複数baseの出力先、compileOnSave falseの継承を含む。各16 writes・診断0・command exit0。
+production修正後のcontrolであり、その8件の修正前emit失敗数は主張しない。
+
+修正後28/28 config plansが各2回一致。既存の完全command comparatorを変更せず、追加8件と
+LR2の18件は完全commandとordered Program factsが各2回一致した（104 prepared Programs）。
+program config filterは144 passed / 1 existing ignored、program units 26件、library contracts 20件、
+compiler tests 6件は実exit0で通過した。
+[完了報告](h2-8b-config-extends-report.md)と
+[最終受領証](../../../../ratchets/h2-8b-config-extends-final.v1.json)に実HEAD・SHA・実exitを記録した。
