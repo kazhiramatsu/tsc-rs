@@ -940,3 +940,34 @@ with no unresolved owner in the repair. Preserve parsed inputs and complete
 TypeScript observations, check the pinned source spans, then run the four
 commands twice with adjacent owner tests. Requalify the final 126/530 source
 snapshot after the batch of repairs, then use hosted `cargo xtask acceptance`.
+
+### PR admission implementation: the four commands now match
+
+The cause commits are `282543212` (fresh object-spread properties),
+`1d2735018` (automatic JSX range without parsed parent identity), and
+`4108dc5a9` (deferred downlevel static operand visitation).
+`h2_5g_generated_provenance_and_static_visits_keep_complete_observations`
+executes all four original commands through the hosted comparison function.
+Both Rust executions match the unchanged complete TypeScript observations;
+the test exits 0. The existing emitter suites also pass: 495 lib tests and
+452 contracts, both exit 0. No fixture expectation or acceptance denominator
+changed.
+
+Focused evidence is in `target/dec-next-runs/pr-h2-5g-remainders-r1/`.
+It records the pre-commit `f8e47ecf4` head plus the exact candidate diff and
+production/test/qualification hashes, actual exits, logs and archived binaries.
+The measured production bytes are unchanged by the three source commits.
+
+| Verification | Log SHA-256 |
+| --- | --- |
+| Four original complete commands, exact twice | `d512fec9856bb1821dce9f0985219508e35bb2f8807745c26543591652d1f6ec` |
+| Emitter lib, 495 pass | `f0d382caa71ecfd8313a9542e1a2a992b9f0605a68ebaf3c58a98080925e2628` |
+| Emitter contracts, 452 pass | `fadc3baf55d1e6e7c5565a10d7d93b89aac1aac27efc6556c351432b5bd21804` |
+
+The H2.5b projection is still running at this checkpoint. Final 126/530
+measurements and the new hosted acceptance run remain required before landing;
+the earlier `f8e47ecf4` receipts and failed hosted run remain historical evidence.
+The workflow comment now describes the current local entrypoint
+(`cargo xtask acceptance` plus focused editing checks); executable CI steps and
+required checks are unchanged. No chain walk or historical certificate refresh
+is part of this repair.
