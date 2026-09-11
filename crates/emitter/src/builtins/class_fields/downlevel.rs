@@ -1848,12 +1848,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
-        // getClassFacts: ClassWasDecorated (classOrConstructorParameterIsDecorated
-        // on the original class) suppresses the constructor/super references
-        // derived from static lexical this/super. A standard-decorator class
-        // expression carries the decorated class's classThis identity; the
-        // decorator transform already projected its own static super
-        // references, so only nested classes can still contain super here.
+        // ClassWasDecorated suppresses constructor/super references derived
+        // from static lexical this/super when classThis is already supplied.
         let class_was_decorated = preferred_class_this.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
@@ -2045,12 +2041,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // tsc's private lexical environment owns this allocation before
         // getClassFacts creates a constructor identity.
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
+        // Standard decorators transport classThis on the emitted class
+        // expression. Legacy decorated declarations use the expansion plan.
+        // Both are ClassWasDecorated: their own static super references have
+        // already been projected, so nested classes must not allocate a
+        // redundant super alias for the enclosing class.
+        let class_was_decorated =
+            preferred_class_this.is_some() || decorated_declaration.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
             preferred_class_this.is_some()
                 || needs_named_evaluation
                 || already_has_named_evaluation,
-            decorated_declaration.is_some(),
+            class_was_decorated,
         );
         let class_definition_binding = self.allocate_class_constructor_identity(
             reference_plan,
@@ -2060,7 +2063,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // ClassWasDecorated suppresses NeedsClassSuperReference even when a
         // different fact allocated a usable constructor identity.
         let needs_super_reference =
-            class_facts.static_facts.contains_super && decorated_declaration.is_none();
+            class_facts.static_facts.contains_super && !class_was_decorated;
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
@@ -5514,6 +5517,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         name,
                         value,
                         range_static_expression_to_name: receiver == FieldReceiver::Static
+                            && !self.selectively_transforms_private_static_elements()
                             && self
                                 .private_environments
                                 .last()
@@ -5535,7 +5539,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             // define modes. Instance define-mode fields remain
                             // observable own properties and are handled above.
                             if operation.value.has_runtime_value() {
-                                operations.static_.push(StaticOperation::Field(operation));
+                                if self.selectively_transforms_private_static_elements() {
+                                    let block = self.materialize_public_static_field_block(&operation)?;
+                                    operations.retained_members.push(block);
+                                } else {
+                                    operations.static_.push(StaticOperation::Field(operation));
+                                }
                             }
                         }
                     }
@@ -6669,6 +6678,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 SyntaxKind::ThisKeyword,
                 TransformFlags::CONTAINS_LEXICAL_THIS,
             )?,
+            FieldReceiver::Static if self.selectively_transforms_private_static_elements() => {
+                self.context.factory()?.create_token(
+                    self.source,
+                    SyntaxKind::ThisKeyword,
+                    TransformFlags::CONTAINS_LEXICAL_THIS,
+                )?
+            }
             FieldReceiver::Static => self.create_binding_identifier(class_name.ok_or(
                 TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ClassDeclaration,
@@ -7003,6 +7019,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         }
         Ok(statement)
+    }
+
+    /// tsc transformPublicFieldInitializer: at ES2022+ assignment-mode
+    /// public fields become static blocks even when private static members
+    /// caused this class to enter the selective downlevel visitor.
+    fn materialize_public_static_field_block(
+        &mut self,
+        operation: &FieldOperation,
+    ) -> Result<TransformNode, TransformError> {
+        let statement = self.materialize_field_operation(operation, None)?;
+        let body = self.create_block(vec![statement], false)?;
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ClassStaticBlockDeclaration(
+                tsc_syntax::nodes::ClassStaticBlockDeclarationData {
+                    body: Some(body.node()),
+                    modifiers: None,
+                },
+            ),
+            TransformFlags::NONE,
+        )?;
+        let record = self.context.arena().node(operation.original)?;
+        let positions = self.context.arena().source(self.source)?.syntax().positions();
+        let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+            TransformError::InvalidSourceRange { node: operation.original, error }
+        })?;
+        let arena = self.context.arena_mut()?;
+        arena.set_original_node(block, Some(operation.original))?;
+        arena.metadata_mut(block).set_comment_range(CommentRange::new(self.source, range));
+        let metadata = arena.metadata_mut(statement);
+        metadata.set_comment_range(CommentRange::new(self.source, SourceRange::Synthesized));
+        metadata.leading_comments.clear();
+        metadata.trailing_comments.clear();
+        Ok(block)
     }
 
     fn materialize_private_static_field_block(

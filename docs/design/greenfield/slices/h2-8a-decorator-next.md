@@ -242,8 +242,10 @@ map segments that the ES2015 destructuring flattener records for the
 pattern's `{`, rest element and `}` (upstream records none) — out of scope
 (flatten_destructuring / es2015 owner), evidence in the run captures;
 `super-lexical-boundaries` allocated a spurious `(_a = _classSuper)` alias in
-the ES2015 class-fields lowering, fixed by the item 3c follow-up
-(`ClassWasDecorated`).
+the ES2015 class-fields lowering. The item 3c follow-up attempted to fix
+`ClassWasDecorated`, but changed `visit_class_declaration`; the emitted
+standard-decorator class reaches `visit_class_expression`, so both ES2015
+witness commands still fail at `306930ab7`.
 
 ### Item 3b — `_outerThis` numbering and the FileLevel census (commit `29248861f`)
 
@@ -373,9 +375,10 @@ private/accessor members) keeps `__setFunctionName(this, name)`.
 | `visitStaticPropertyDeclaration` decorator receivers (`createCallBinding` with `setTextRange`) | `bind_decorator_receiver` | `outer-this-computed-name`, `decorated-computed-fields` (transform-order) | `65f688302` |
 | global node-id memo assumption (no upstream counterpart; the visitor caches by node) | `audit_memo_first_visit`, `audit_memo_hit` (debug builds) | all 126 witnesses and the 530 commands run on the audited binary | `a2784933e`, `5af111fea` |
 
-## Open rows (not closed by this candidate)
+## Original candidate's open rows (`306930ab7`)
 
-Measured (witness commands still failing at the final head):
+Measured at the original candidate head. Follow-up resolution is recorded
+in the review corrections below; the original receipts remain unchanged.
 
 - `decorator-name-owners/*/cross-file-global-names` (5 of 6): `hasGlobalName`
   is consulted only by the bundle print path
@@ -404,6 +407,11 @@ Measured (witness commands still failing at the final head):
   three map segments recorded by the ES2015 destructuring flattener for the
   object pattern's `{`, rest element and `}` are absent upstream
   (flatten_destructuring / es2015 owner).
+- `decorator-super-paths/es2015/*/super-lexical-boundaries` (2 commands):
+  the class-fields class-expression path fails to recognize the transported
+  standard-decorator `classThis` identity as `ClassWasDecorated`, and emits
+  an unnecessary `extends (_a = _classSuper)` alias, shifting generated names
+  and source maps. This was omitted from the original open-row list.
 
 Source-level rows without a failing witness (need a witness before a claim):
 
@@ -422,9 +430,10 @@ Source-level rows without a failing witness (need a witness before a claim):
   `_classThis`) are transform-time strings; nested/sibling numbering matched
   every witness, but the print-order model is not proven beyond them.
 
-## Results and evidence
+## Original results and evidence
 
-Final head of the draft branch: see the receipts below (`head`). Runs are
+Original production candidate head: `306930ab7`, followed by evidence commit
+`a4ad3742e`; see the original receipts below (`head`). Runs are
 debug binaries with the item 4 audit active; every run is demoted
 (`taskpolicy -b nice -n 15`, `CARGO_BUILD_JOBS=2`, own target dir
 `target/dec-next-artifacts`), one heavy run at a time.
@@ -482,8 +491,10 @@ Added tests: one contracts test function
 `crates/compiler/tests/contracts.rs`) covering 126 new complete commands
 (60 + 42 + 24), compared as full tuples like the existing 530; it is not
 counted into the 494/452 emitter suites above, and it currently fails on the
-17 open commands by design (the receipt is the accepted state, not the test
-exit). No existing fixture or expectation was rewritten.
+17 open commands at that head (exit 101). This did not meet the handoff's
+requirement that the new controls pass; a receipt documenting failures is
+not a substitute for a passing test. No existing fixture or expectation was
+rewritten.
 
 Candidate patches (one per cause, `git format-patch` of the draft commits on
 top of the start point `cb4e5f3e8`, plus the cumulative production diff):
@@ -495,3 +506,70 @@ and `h2-8a-decorator-next-production.cumulative.patch`. Scripts:
 `scripts/export-decorator-next-candidates.sh`; the capture analyzers used
 during the work (`analyze-witnesses.py`, `compare-with-full62.py`,
 `mapdiff.py`) are copied under `target/dec-next-runs/tools/`.
+
+## Review corrections (in progress)
+
+The review verified the original receipts (109/126 and 530/530) but found
+the missing lexical-boundary row, the unmet requirement that all new
+controls pass, and an export range that included its own evidence commit.
+The original receipts and captures remain historical evidence, not a passing
+acceptance gate. The follow-up will require the ordinary, unfiltered witness
+test to exit zero, with all 126 complete commands exact twice.
+
+Planned source owners and boundaries, recorded before implementation:
+
+- `class_fields/downlevel.rs`: recognize standard-decorator `classThis` on
+  the class-expression path; use the target's static-block policy when
+  selectively lowering private static members; preserve the upstream ranges
+  of Reflect receiver/key operations.
+- `es2018.rs`: its existing object-rest assignment flattener, reached while
+  targeting ES2015, owns the remaining synthesized chunk/comma ranges.
+  Comparison with the shared flattener and upstream confirmed that an
+  assignment chunk's fresh object pattern and the enclosing comma sequence
+  must not inherit the full source pattern's text range.
+- `standard_decorators.rs`, `target_bindings.rs`, and `execute.rs`: transport
+  generated helper identities into the existing binding finalizer and provide
+  the resolver's global-name oracle on single-source JavaScript printing.
+  No source identifier will receive a binding by matching its spelling.
+- Candidate export: pin the default endpoint to the original production
+  candidate `306930ab7`; permit an explicit endpoint for follow-up patches
+  and exclude documentation/evidence-only commits.
+
+These changes stay in the isolated worktree. Verification will use a new
+target directory and new run directories, demoted and with two build jobs;
+existing fixtures, observations, and previous run artifacts are preserved.
+
+First follow-up (`review-class-fields-r1`): still 109/126 complete tuples,
+but JavaScript now exact for the two lexical-boundary and four selective
+private-static commands. Their remaining differences are map ranges. The
+super read maps belonged to the `super` token rather than the whole access;
+the static assignment retains the property-name range even inside a native
+static block. These ranges and the ES2015 Reflect assignment/update ranges
+are addressed in the next run, together with global-name handling.
+
+Generated helper plans now carry `TargetBinding` handles, including
+`classThis` transported through the class-fields owner. Identifier creation
+accepts typed bindings or literal source text and never resolves a binding
+by text. FileLevel helpers have their own non-reserved optimistic policy;
+the print finalizer checks the resolver oracle for every generated-name
+domain, and single-source JavaScript emit supplies that oracle.
+
+Second follow-up (`review-all-r2`): **117/126 exact twice**, zero inconsistent
+captures. The two lexical-boundary, two object-rest destructuring, and four
+selective private-static commands now match completely. The four ES2015
+controls still lack the closing map range of a cloned computed-key call and
+the leading range of an explicitly synthesized parenthesized update value.
+Those nodes now follow upstream's direct key reuse and argument
+parenthesization. The five global-name commands exposed another gate:
+`finalize_generated_binding_names_for_print` skipped bindings already named
+by a transformer without the oracle. Printing with an actual resolver now
+reconciles those bindings as well. FileLevel names query the oracle once per
+candidate through their existing predicate; the declaration printer's
+fallible-oracle contract retains its query order.
+
+The export script defaults to the immutable original candidate endpoint
+`306930ab7c7fabab39c4e66321de68181b1abfe9`, accepts an explicit candidate
+endpoint, validates ancestry, and omits commits that change no `crates/`
+files. Re-running `bash scripts/export-decorator-next-candidates.sh cb4e5f3e8`
+at the evidence head reproduced all ten original patches and the original
+cumulative patch byte for byte, without exporting the evidence commit.
