@@ -660,6 +660,17 @@ struct DecoratorDefinitionBindings {
 struct DecoratorLexicalEnvironment {
     temporaries: Vec<TargetBinding>,
     temp_ordinal: usize,
+    /// tsc-port: LexicalEnvironmentFlags.InParameters @6.0.3 — set while the
+    /// parameters of a function-like are visited (`visitParameterList`).
+    in_parameters: bool,
+    /// tsc-port: LexicalEnvironmentFlags.VariablesHoistedInParameters @6.0.3
+    /// — a temporary was hoisted while `in_parameters`; the parameter
+    /// defaults are then lowered into initialization statements.
+    variables_hoisted_in_parameters: bool,
+    /// tsc-port: addInitializationStatement @6.0.3 — custom-prologue
+    /// statements (the lowered parameter defaults) that
+    /// `mergeLexicalEnvironment` places after the hoisted `var` statements.
+    initialization_statements: Vec<TransformNode>,
 }
 
 /// Rewrites only lexical `this` references evaluated while defining a class.
@@ -5350,10 +5361,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
         self.start_lexical_environment();
-        let updated = self.update_generic(original, data);
-        let temporaries = self.end_lexical_environment();
+        // tsc-port: visitParameterList @6.0.3 — the parameters are visited
+        // first, under the InParameters window of this environment; the
+        // generic child visit below reuses the memoized (possibly lowered)
+        // parameter array.
+        let parameters = match &data {
+            NodeData::ArrowFunction(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            _ => None,
+        };
+        let updated = self
+            .visit_parameter_list(parameters)
+            .and_then(|()| self.update_generic(original, data));
+        let (temporaries, initialization_statements) =
+            self.end_lexical_environment_with_initialization_statements();
         let updated = updated?;
-        if temporaries.is_empty() {
+        if temporaries.is_empty() && initialization_statements.is_empty() {
             return Ok(updated);
         }
         let updated_node = self.node(updated);
@@ -5382,7 +5409,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let return_statement = self.create_return_statement(body)?;
             self.create_block(vec![return_statement], true)?
         };
-        let merged = self.merge_block_environment(block, temporaries)?;
+        let merged = self.merge_block_environment(block, temporaries, initialization_statements)?;
         match &mut data {
             NodeData::ArrowFunction(data) => data.body = Some(merged.node()),
             NodeData::FunctionExpression(data) => data.body = Some(merged.node()),
@@ -5399,6 +5426,231 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .factory()?
             .update_node(updated_node, data, flags)?
             .node())
+    }
+
+    /// tsc-port: visitParameterList @6.0.3
+    /// tsc-span: _tsc.js:91168-91181
+    ///
+    /// The parameters are visited with `InParameters` set on the innermost
+    /// environment (started by the caller); when a temporary was hoisted
+    /// meanwhile and the target is ES2015 or later, the defaults are lowered
+    /// (`addDefaultValueAssignmentsIfNeeded`) and the lowered array replaces
+    /// the memoized visit so the generic child visit reuses it.
+    fn visit_parameter_list(
+        &mut self,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        let Some(parameters) = parameters else {
+            return Ok(());
+        };
+        if let Some(environment) = self.lexical_environments.last_mut() {
+            environment.in_parameters = true;
+        }
+        let visited = self.visit_nodes(parameters);
+        let hoisted_in_parameters = self
+            .lexical_environments
+            .last_mut()
+            .map(|environment| {
+                environment.in_parameters = false;
+                environment.variables_hoisted_in_parameters
+            })
+            .unwrap_or(false);
+        let visited = visited?;
+        if !hoisted_in_parameters || self.target < ScriptTarget::ES2015 {
+            return Ok(());
+        }
+        if let Some(visited) = visited {
+            let lowered = self.add_default_value_assignments_if_needed(visited)?;
+            self.arrays.insert(parameters, Some(lowered));
+        }
+        Ok(())
+    }
+
+    /// tsc-port: addDefaultValueAssignmentsIfNeeded @6.0.3
+    /// tsc-span: _tsc.js:91182-91196
+    fn add_default_value_assignments_if_needed(
+        &mut self,
+        parameters: NodeArrayId,
+    ) -> Result<NodeArrayId, TransformError> {
+        let array = self.array(parameters);
+        let nodes = self.context.arena().node_array(array)?.nodes.clone();
+        let mut result = Vec::with_capacity(nodes.len());
+        let mut changed = false;
+        for node in nodes {
+            let parameter = self.node(node);
+            let updated = self.add_default_value_assignment_if_needed(parameter)?;
+            changed |= updated != parameter;
+            result.push(updated);
+        }
+        if !changed {
+            return Ok(parameters);
+        }
+        Ok(self
+            .context
+            .factory()?
+            .update_node_array(array, result)?
+            .array())
+    }
+
+    /// tsc-port: addDefaultValueAssignmentIfNeeded @6.0.3
+    /// tsc-span: _tsc.js:91197-91199 — a rest parameter is untouched; a
+    /// binding-pattern name is aliased by a generated name; an initializer
+    /// becomes an `if (name === void 0)` prologue.
+    fn add_default_value_assignment_if_needed(
+        &mut self,
+        parameter: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::Parameter(data) = self.context.arena().node(parameter)?.data.clone() else {
+            return Ok(parameter);
+        };
+        if data.dot_dot_dot_token.is_some() {
+            return Ok(parameter);
+        }
+        let Some(name) = data.name.map(|name| self.node(name)) else {
+            return Ok(parameter);
+        };
+        let name_kind = self.context.arena().node(name)?.kind;
+        if matches!(
+            name_kind,
+            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+        ) {
+            self.add_default_value_assignment_for_binding_pattern(parameter, data, name)
+        } else if let Some(initializer) = data.initializer.map(|initializer| self.node(initializer))
+        {
+            self.add_default_value_assignment_for_initializer(parameter, data, name, initializer)
+        } else {
+            Ok(parameter)
+        }
+    }
+
+    /// tsc-port: addDefaultValueAssignmentForInitializer @6.0.3
+    /// tsc-span: _tsc.js:91239-91276
+    ///
+    /// `if (name === void 0) { name = initializer; }`: the condition's name is
+    /// a positionless clone, the assignment target a clone marked
+    /// `NoSourceMap`, the initializer keeps its flags plus `NoSourceMap` and
+    /// `NoComments`, the assignment and the block take the parameter's text
+    /// range, and the block is a single-line, comment-free statement without
+    /// token or trailing source maps. The parameter loses its initializer.
+    fn add_default_value_assignment_for_initializer(
+        &mut self,
+        parameter: TransformNode,
+        mut data: tsc_syntax::nodes::ParameterData,
+        name: TransformNode,
+        initializer: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let condition_name = self.context.factory()?.clone_node(name)?;
+        let void_zero = self.create_void_zero()?;
+        let condition = self.create_binary(
+            condition_name,
+            SyntaxKind::EqualsEqualsEqualsToken,
+            void_zero,
+        )?;
+        let target = self.context.factory()?.clone_node(name)?;
+        self.add_emit_flags(target, EmitFlags::NO_SOURCE_MAP)?;
+        self.add_emit_flags(
+            initializer,
+            EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS,
+        )?;
+        let assignment = self.create_assignment(target, initializer)?;
+        self.context
+            .factory()?
+            .set_text_range(assignment, parameter)?;
+        self.add_emit_flags(assignment, EmitFlags::NO_COMMENTS)?;
+        let statement = self.create_expression_statement(assignment)?;
+        let block = self.create_block(vec![statement], false)?;
+        self.context.factory()?.set_text_range(block, parameter)?;
+        self.add_emit_flags(
+            block,
+            EmitFlags::SINGLE_LINE
+                | EmitFlags::NO_TRAILING_SOURCE_MAP
+                | EmitFlags::NO_TOKEN_SOURCE_MAPS
+                | EmitFlags::NO_COMMENTS,
+        )?;
+        let if_statement = self.create_if_statement(condition, block)?;
+        self.add_initialization_statement(if_statement)?;
+        data.initializer = None;
+        let updated = NodeData::Parameter(data);
+        let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
+        self.context
+            .factory()?
+            .update_node(parameter, updated, flags)
+    }
+
+    /// tsc-port: addDefaultValueAssignmentForBindingPattern @6.0.3
+    /// tsc-span: _tsc.js:91200-91238
+    ///
+    /// `var <pattern> = alias === void 0 ? initializer : alias;` (or
+    /// `= alias` without an initializer) as an initialization statement; the
+    /// parameter is renamed to the generated alias
+    /// (`getGeneratedNameForNode(parameter)`) and loses its initializer.
+    fn add_default_value_assignment_for_binding_pattern(
+        &mut self,
+        parameter: TransformNode,
+        mut data: tsc_syntax::nodes::ParameterData,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let alias = self.allocate_parameter_alias()?;
+        let value =
+            if let Some(initializer) = data.initializer.map(|initializer| self.node(initializer)) {
+                let condition_name = self.create_binding_identifier(&alias)?;
+                let void_zero = self.create_void_zero()?;
+                let condition = self.create_binary(
+                    condition_name,
+                    SyntaxKind::EqualsEqualsEqualsToken,
+                    void_zero,
+                )?;
+                let fallback = self.create_binding_identifier(&alias)?;
+                self.create_conditional(condition, initializer, fallback)?
+            } else {
+                self.create_binding_identifier(&alias)?
+            };
+        let declaration = self.create_variable_declaration_with_name(name, Some(value))?;
+        let statement =
+            self.create_variable_statement_from_declarations(vec![declaration], NodeFlags::NONE)?;
+        self.add_initialization_statement(statement)?;
+        data.name = Some(self.create_binding_identifier(&alias)?.node());
+        data.initializer = None;
+        let updated = NodeData::Parameter(data);
+        let flags = flags_after_update(self.context.arena(), parameter, &updated)?;
+        self.context
+            .factory()?
+            .update_node(parameter, updated, flags)
+    }
+
+    /// `getGeneratedNameForNode(parameter)`: an ordinary temp name of the
+    /// enclosing scope (generateNameForNode's default arm,
+    /// `makeTempVariableName(TempFlags.Auto)`), declared by the parameter
+    /// itself rather than hoisted.
+    fn allocate_parameter_alias(&mut self) -> Result<TargetBinding, TransformError> {
+        let ordinal = {
+            let environment = self.lexical_environments.last_mut().ok_or(
+                TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Parameter,
+                    field: "lexical environment for a parameter alias",
+                },
+            )?;
+            let ordinal = environment.temp_ordinal;
+            environment.temp_ordinal += 1;
+            ordinal
+        };
+        TargetBinding::allocate(self.context, Self::temp_spelling(ordinal))
+    }
+
+    fn create_if_statement(
+        &mut self,
+        condition: TransformNode,
+        then_statement: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context.factory()?.create_node(
+            self.source,
+            NodeData::IfStatement(tsc_syntax::nodes::IfStatementData {
+                expression: Some(condition.node()),
+                then_statement: Some(then_statement.node()),
+                else_statement: None,
+            }),
+            TransformFlags::NONE,
+        )
     }
 
     fn update_generic(
@@ -5684,10 +5936,60 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     fn end_lexical_environment(&mut self) -> Vec<TargetBinding> {
+        let (temporaries, initialization_statements) =
+            self.end_lexical_environment_with_initialization_statements();
+        debug_assert!(
+            initialization_statements.is_empty(),
+            "initialization statements belong to a function-like body's environment"
+        );
+        temporaries
+    }
+
+    /// `endLexicalEnvironment` of a function-like body: the hoisted
+    /// temporaries and the initialization statements added while its
+    /// parameters were visited.
+    fn end_lexical_environment_with_initialization_statements(
+        &mut self,
+    ) -> (Vec<TargetBinding>, Vec<TransformNode>) {
         self.lexical_environments
             .pop()
-            .map(|environment| environment.temporaries)
+            .map(|environment| {
+                (
+                    environment.temporaries,
+                    environment.initialization_statements,
+                )
+            })
             .unwrap_or_default()
+    }
+
+    /// tsc-port: addInitializationStatement @6.0.3 — the statement is marked
+    /// `CustomPrologue` and declared by the innermost lexical environment.
+    fn add_initialization_statement(
+        &mut self,
+        statement: TransformNode,
+    ) -> Result<(), TransformError> {
+        self.add_emit_flags(statement, EmitFlags::CUSTOM_PROLOGUE)?;
+        let environment =
+            self.lexical_environments
+                .last_mut()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::Parameter,
+                    field: "lexical environment for an initialization statement",
+                })?;
+        environment.initialization_statements.push(statement);
+        Ok(())
+    }
+
+    fn add_emit_flags(
+        &mut self,
+        node: TransformNode,
+        flags: EmitFlags,
+    ) -> Result<(), TransformError> {
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .add_flags(flags);
+        Ok(())
     }
 
     /// tsc-port: createTempVariable(hoistVariableDeclaration) @6.0.3
@@ -5722,6 +6024,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         if let Some(environment) = self.lexical_environments.last_mut() {
             environment.temporaries.push(binding.clone());
+            if environment.in_parameters {
+                environment.variables_hoisted_in_parameters = true;
+            }
         }
         Ok(binding)
     }
@@ -5743,6 +6048,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     field: "lexical environment for a hoisted temporary",
                 })?;
         environment.temporaries.push(binding.clone());
+        if environment.in_parameters {
+            environment.variables_hoisted_in_parameters = true;
+        }
         Ok(binding.clone())
     }
 
@@ -5888,16 +6196,57 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-port: isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&
     /// isFunctionDeclaration(node)`)
     fn is_hoisted_function(&self, node: TransformNode) -> Result<bool, TransformError> {
-        let custom_prologue = self
-            .context
-            .arena()
-            .metadata(node)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE));
-        Ok(custom_prologue
+        Ok(self.is_custom_prologue(node)
             && matches!(
                 self.context.arena().node(node)?.data,
                 NodeData::FunctionDeclaration(_)
             ))
+    }
+
+    /// `isCustomPrologue` — `getEmitFlags(node) & EmitFlags.CustomPrologue`.
+    fn is_custom_prologue(&self, node: TransformNode) -> bool {
+        self.context
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE))
+    }
+
+    /// tsc-port: isHoistedVariableStatement @6.0.3 — a custom-prologue `var`
+    /// statement whose declarations are bare identifiers.
+    fn is_hoisted_variable_statement(&self, node: TransformNode) -> Result<bool, TransformError> {
+        if !self.is_custom_prologue(node) {
+            return Ok(false);
+        }
+        let NodeData::VariableStatement(statement) = &self.context.arena().node(node)?.data else {
+            return Ok(false);
+        };
+        let Some(list) = statement.declaration_list else {
+            return Ok(false);
+        };
+        let NodeData::VariableDeclarationList(list) =
+            &self.context.arena().node(self.node(list))?.data
+        else {
+            return Ok(false);
+        };
+        for declaration in self.array_nodes(list.declarations)? {
+            let NodeData::VariableDeclaration(data) = &self.context.arena().node(declaration)?.data
+            else {
+                return Ok(false);
+            };
+            if data.initializer.is_some() {
+                return Ok(false);
+            }
+            let Some(name) = data.name else {
+                return Ok(false);
+            };
+            if !matches!(
+                self.context.arena().node(self.node(name))?.data,
+                NodeData::Identifier(_)
+            ) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
@@ -5906,15 +6255,21 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// that block, after its standard prologue directives (a function or
     /// arrow body may open with `"use strict"` and further directives) and
     /// after custom-prologue hoisted functions, as `mergeLexicalEnvironment`
-    /// splices `leftHoistedFunctionsEnd`.
+    /// splices `leftHoistedFunctionsEnd`; the initialization statements of
+    /// lowered parameter defaults (custom prologues) splice at
+    /// `leftHoistedVariablesEnd`, after any hoisted `var` statement already
+    /// there, and the custom prologues splice first, so the new `var`
+    /// statement precedes them.
     fn merge_block_environment(
         &mut self,
         body: TransformNode,
         temporaries: Vec<TargetBinding>,
+        initialization_statements: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
-        let Some(declaration) = self.create_hoisted_declarations(temporaries)? else {
+        let declaration = self.create_hoisted_declarations(temporaries)?;
+        if declaration.is_none() && initialization_statements.is_empty() {
             return Ok(body);
-        };
+        }
         let NodeData::Block(mut data) = self.context.arena().node(body)?.data.clone() else {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::Block,
@@ -5922,8 +6277,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
             });
         };
         let mut statements = self.array_nodes(data.statements)?;
-        let index = self.hoisted_declaration_insertion_index(&statements)?;
-        statements.insert(index, declaration);
+        let functions_end = self.hoisted_declaration_insertion_index(&statements)?;
+        let mut variables_end = functions_end;
+        while variables_end < statements.len()
+            && self.is_hoisted_variable_statement(statements[variables_end])?
+        {
+            variables_end += 1;
+        }
+        statements.splice(variables_end..variables_end, initialization_statements);
+        if let Some(declaration) = declaration {
+            statements.insert(functions_end, declaration);
+        }
         let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
             self.context
                 .factory()?
